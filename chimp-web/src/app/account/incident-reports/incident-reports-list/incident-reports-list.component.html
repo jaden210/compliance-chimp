@@ -1,0 +1,89 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Incident Reports</div>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="window incident-reports-page">
+  <section class="splash">
+    <div class="splash-content">
+      <div class="splash-kicker">Incident Reports</div>
+      <div class="splash-title">Document and track workplace incidents.</div>
+      <div class="splash-body">
+        Accidents and near-misses happen, but handled well, they become tools for change and improvement. 
+        OSHA requires that incidents are documented—yours will live here, organized and reportable.
+      </div>
+      @if (loggedInTeamMember) {
+        <div class="splash-actions">
+          <button mat-flat-button color="accent" (click)="navMemberPage()">
+            <mat-icon>person</mat-icon>
+            Go to your team member page
+          </button>
+        </div>
+      }
+    </div>
+  </section>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading reports...</div>
+    </div>
+  } @else if (incidentReports.length > 0) {
+    <section class="reports-section">
+      <div class="section-header">
+        <div class="section-title">All Incident Reports</div>
+        <div class="section-subtitle">{{ incidentReports.length }} report{{ incidentReports.length !== 1 ? 's' : '' }} on file</div>
+      </div>
+
+      <div class="reports-table">
+        <div class="table-header">
+          <div class="col-type">Type</div>
+          <div class="col-member">Team Member</div>
+          <div class="col-date">Date Reported</div>
+          <div class="col-actions">Actions</div>
+        </div>
+
+        @for (report of incidentReports; track trackByReportId($index, report)) {
+          <div class="table-row" (click)="selectReport(report)">
+            <div class="col-type">
+              <span class="type-badge" [ngClass]="getTypeBadgeClass(report.type)">
+                {{ report.type }}
+              </span>
+            </div>
+            <div class="col-member">
+              <span class="member-name">{{ report.user?.name || 'Unknown' }}</span>
+              @if (report.user?.jobTitle) {
+                <span class="member-title">{{ report.user.jobTitle }}</span>
+              }
+            </div>
+            <div class="col-date">
+              {{ report.createdAt | date: 'mediumDate' }}
+              <span class="date-time">{{ report.createdAt | date: 'shortTime' }}</span>
+            </div>
+            <div class="col-actions">
+              <button mat-icon-button matTooltip="View details" (click)="selectReport(report); $event.stopPropagation()">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  } @else {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">check_circle</mat-icon>
+      <div class="empty-title">We're glad this is empty</div>
+      <div class="empty-body">
+        Accidents and near-misses happen. But handled well, they become tools for change and improvement. 
+        When incidents are reported, they will appear here in an organized and reportable way.
+      </div>
+      @if (loggedInTeamMember) {
+        <button mat-flat-button color="accent" (click)="navMemberPage()">
+          Go to your team member page
+        </button>
+      }
+    </div>
+  }
+</div>

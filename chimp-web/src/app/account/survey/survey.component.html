@@ -1,0 +1,49 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  Survey&nbsp;<a style="cursor: pointer" (click)="editSurvey(1)">{{ title }}</a>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div id="chat-bubbles">
+  <div class="chat-line">
+    <div
+      class="bubble"
+      style="margin-left: auto; background: #BBDEFB; color: #0D47A1; cursor: pointer;"
+    >
+    <button mat-button color="primary" (click)="export()">EXPORT TO PDF</button>
+    </div>
+  </div>
+  <div class="chat-line">
+    <div
+      class="bubble"
+      style="margin-left: auto; background: #BBDEFB; color: #0D47A1; cursor: pointer;"
+      (click)="editSurvey(1)"
+    >
+      {{ survey?.title }}
+    </div>
+  </div>
+  
+  <div class="chat-line" *ngFor="let response of responses">
+    <div class="circle-container">
+      <div class="circle" [ngStyle]="{ background: response?.color }"></div>
+      <span [ngStyle]="{ color: response?.color }">{{response?.user?.name?.charAt(0)}}</span>
+      <img [src]="response?.user?.profileUrl" onerror="this.style.display='none'"/>
+    </div>
+    <div class="flexcol">
+      <span class="user" [ngStyle]="{ color: response?.color }">{{response?.user?.name}}</span>
+      <div class="bubble">
+        {{response.shortAnswer}}
+        <span *ngIf="response.shortAnswer">.&nbsp;</span>
+        {{ response.longAnswer }}
+        <br>
+        <br>
+        <img class="bi" *ngIf="response.signatureUrl" [src]="response.signatureUrl">
+      </div>
+    </div>
+  </div>
+  <span class="date" *ngIf="responses.length == 0"
+    >No responses yet</span
+  >
+</div>

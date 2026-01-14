@@ -1,0 +1,88 @@
+<mat-sidenav-container>
+  <mat-sidenav-content>
+    <!-- ***** HELPER ***** -->
+    <!-- <div class="helper" id="helper-color" *ngIf="accountService.showHelper" [@helper]>
+      <div class="helper-box">
+        <button mat-icon-button class="helper-close" (click)="closeHelper()"><mat-icon>cancel</mat-icon></button>
+        <div class="helper-name" id="helper-name-color">{{ accountService.helper?.name }}</div>
+        <div class="helper-description" id="helper-description-color" [innerHTML]="accountService.helper?.description"></div>
+      </div>
+    </div> -->
+    <div class="helper" *ngIf="accountService.showFeedback" [@helper]>
+      <button mat-icon-button class="helper-close" (click)="accountService.showFeedback = false"><mat-icon>cancel</mat-icon></button>
+      <div class="helper-name">{{ accountService.feedback?.name }}</div>
+      <mat-form-field class="helper-input" color="primary"
+        ><textarea
+          matInput
+          placeholder="help Compliancechimp work harder for you"
+          [(ngModel)]="accountService.feedback.description"
+        ></textarea
+      ></mat-form-field>
+      <button
+        mat-stroked-button
+        class="helper-button"
+        (click)="submitFeedback()"
+        color="accent"
+      >
+        SUBMIT
+      </button>
+    </div>
+    <div id="wrapper">
+      <div id="left">
+        <!-- <div class="side-button" routerLinkActive="bactive" routerLink="dashboard"><mat-icon>analytics</mat-icon>Dashboard</div> -->
+        <div class="side-button" routerLinkActive="bactive" routerLink="team"><mat-icon>supervisor_account</mat-icon>Team</div>
+        <div class="side-button" routerLinkActive="bactive" routerLink="training"><mat-icon>explore</mat-icon>Training</div>
+        <!-- <div class="side-button" routerLinkActive="bactive" routerLink="surveys"><mat-icon>scatter_plot</mat-icon>Surveys</div> -->
+        <div class="side-button" routerLinkActive="bactive" routerLink="self-inspections"><mat-icon>import_contacts</mat-icon>Inspections</div>
+          <div class="side-button" routerLinkActive="bactive" routerLink="incident-reports"><mat-icon>assignment_late</mat-icon>Incidents</div>
+          <div class="side-button" routerLinkActive="bactive" routerLink="files"><mat-icon>folder</mat-icon>Files</div>
+          <div class="side-button" routerLinkActive="bactive" routerLink="event"><mat-icon>event_note</mat-icon>Events</div>
+          <div class="side-button" routerLinkActive="bactive" routerLink="account"><mat-icon>person</mat-icon>Account</div>
+          <div class="side-button" *ngIf="accountService.user.isDev" routerLinkActive="bactive" routerLink="support"><mat-icon>golf_course</mat-icon>Support</div>
+        <!-- <div class="side-button appear" (click)="sidenav.open()"><mat-icon>more_horiz</mat-icon>more</div> -->
+        <div class="flex"></div>
+        <div class="side-button" routerLinkActive="bactive" (click)="openHelp()"><mat-icon>help_outline</mat-icon>Help</div>
+      </div>
+      <div id="body">
+        <router-outlet></router-outlet>
+      </div>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+<div
+  class="account-popup-overlay"
+  *ngIf="bShowAccountInfo"
+  (click)="bShowAccountInfo = false"
+></div>
+<div class="account-popup" *ngIf="bShowAccountInfo">
+  <div class="row">
+    <div class="teams">
+      <img
+        id="popimage"
+        src="{{accountService.aTeam.logoUrl}}"
+        onError="src = '/assets/lost.png'"
+        alt="Compliancechimp"
+      />
+      <div class="flex"></div>
+      <ng-container *ngFor="let team of accountService.userTeams">
+        <img
+          *ngIf="team.id !== accountService.aTeam.id"
+          [matTooltip]="team.name"
+          (click)="
+            bShowAccountInfo = false; accountService.setActiveTeam(team.id)
+          "
+          class="otherteams"
+          src="{{team.logoUrl}}"
+          onerror="src = '/assets/lost.png'"
+          alt="Compliancechimp"
+        />
+      </ng-container>
+    </div>
+    <div id="popteamname">{{ accountService.aTeam.name }}</div>
+  </div>
+  <div id="popteam">{{ accountService.teamMembers?.length }} team members</div>
+  <div id="popteam">
+    member since {{ accountService.aTeam.createdAt | date: "shortDate" }}
+  </div>
+</div>
+<loading-chimp></loading-chimp>

@@ -1,0 +1,76 @@
+<mat-toolbar>
+  <div class="toolbar-title">{{ selfInspection?.title }}: {{ inspection?.createdAt?.toDate() | date:'longDate' }}</div>
+  <div class="flex"></div>
+  <button mat-icon-button [matMenuTriggerFor]="menu"><mat-icon>menu</mat-icon></button>
+  <mat-menu #menu="matMenu">
+    <button mat-menu-item (click)="saveAndLeave()">Stop for now</button>
+  </mat-menu>
+</mat-toolbar>
+<div class="window">
+  <div class="panel">
+    <div id="counter">
+      @if (inspection?.completedPercent === 100) {
+        <button mat-raised-button color="accent" (click)="finishAndLeave()" style="margin-right: 12px">Finish Inspection</button>
+      }
+      {{ count }}
+    </div>
+    @for (category of inspection.categories; track category.subject) {
+      <div class="categories">
+        <div class="crow" [ngClass]="{'background': aCategory.subject === category.subject}" (click)="category.show = !category.show">
+          <div class="dot" [ngClass]="{'done': category.finished}"></div>
+          <div class="cname">{{ category.subject }}</div>
+          <div class="flex"></div>
+          <mat-icon [ngClass]="{'rotate': category.show}">keyboard_arrow_left</mat-icon>
+        </div>
+        @if (category.show) {
+          @for (question of category.questions; track question.name) {
+            <div class="questions" (click)="selectQuestion(question)">
+              <div class="qrow" [ngClass]="{'background': aQuestion.name === question.name}">
+                <div class="dot" [ngClass]="{'done': question.answer === true || question.answer === false}"></div>
+                <div class="qname">{{ question.name }}</div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+  <div class="viewer">
+    <div id="question-text">{{ aQuestion?.name }}</div>
+    <div id="question-answer">
+      <div class="answer-buttons">
+        <button mat-stroked-button color="primary" (keyup.enter)="nextQuestion()" [ngClass]="{'highlight': aQuestion?.answer === false}" (click)="answerQuestion(false)">
+          <mat-icon class="sm-icon">highlight_off</mat-icon>NO
+        </button>
+        <button mat-stroked-button color="primary" (keyup.enter)="nextQuestion()" [ngClass]="{'highlight-green': aQuestion?.answer}" style="margin-left: 8px" (click)="answerQuestion(true)">
+          <mat-icon class="sm-icon">check_circle</mat-icon>YES
+        </button>
+        <button mat-icon-button color="primary" id="send" (click)="nextQuestion()"><mat-icon>send</mat-icon></button>
+      </div>
+      <div style="height: 0px; width: 0px; overflow:hidden">
+        <input type="file" id="questionImage" accept=".png,.jpg,.mp4" #questionImage (change)="uploadQuestionImage($event)">
+      </div>
+      <div id="answer-box">
+        @if (aQuestion.images?.length) {
+          <div class="images">
+            @for (image of aQuestion.images; track image) {
+              <div class="image">
+                <button mat-icon-button color="primary" class="remove-image-button">
+                  <mat-icon (click)="removeImage(image)">close</mat-icon>
+                </button>
+                <img class="img" [src]="image" alt="image">
+              </div>
+            }
+          </div>
+        }
+        @if (loading) {
+          <mat-progress-bar style="position: absolute;top: 0;left:0" mode="indeterminate"></mat-progress-bar>
+        }
+        <button mat-icon-button id="image-button" (click)="uploadImage()"><mat-icon>photo</mat-icon></button>
+        <mat-form-field class="textarea">
+          <textarea matInput [(ngModel)]="aQuestion.comment" matTextareaAutosize matAutosizeMinRows="8" placeholder="optional comments for the question"></textarea>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+</div>

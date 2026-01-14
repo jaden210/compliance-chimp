@@ -1,0 +1,56 @@
+@use '@angular/material' as mat;
+h1 {
+  color: var(--chimp-accent);
+}
+.layout {
+  height: 50vh;
+  width: 50vw;
+  display: flex;
+  .list {
+    flex: 1;
+    overflow: auto;
+    height: 100%;
+    .li {
+      min-height: 40px;
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+    }
+    .li:hover {
+      background-color: var(--chimp-gray-50);
+    }
+  }
+  .ac {
+    height: calc(100% + 48px);
+    overflow: auto;
+    flex: 2;
+    padding: 24px;
+    box-sizing: border-box;
+    margin: -24px;
+    .article {
+      background: var(--chimp-gray-100);
+      padding: 12px;
+      box-sizing: border-box;
+      border-radius: 12px;
+      @include mat.elevation(2);
+      .name {
+        font-size: 19px;
+      }
+      .cc {
+        width: 100%;
+        text-align: center;
+        padding: 24px 0;
+        image {
+          width: 80%;
+          margin: auto;
+          max-height: 200px;
+          object-fit: contain;
+        }
+        video {
+          width: 80%;
+          margin: auto;
+        }
+      }
+    }
+  }
+}

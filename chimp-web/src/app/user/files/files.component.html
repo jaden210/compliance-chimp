@@ -1,0 +1,24 @@
+@if (Team.id) {
+  <div id="skinny">
+    <div class="title">
+      <button mat-icon-button (click)="close()"><mat-icon>arrow_back</mat-icon></button>
+      Team Files
+    </div>
+    <div class="files">
+      @for (file of Files; track file.id || file.name) {
+        <div class="file">
+          @if (file.type === 'image/png') {
+            <img [src]="file.fileUrl">
+          }
+          <div class="name">{{ file.name }}</div>
+          <div style="flex:1"></div>
+          <button mat-raised-button style="flex-shrink:0" color="primary" (click)="download(file)">download</button>
+        </div>
+      }
+    </div>
+  </div>
+} @else {
+  <div class="center">
+    <img src="./assets/chimp.png">
+  </div>
+}

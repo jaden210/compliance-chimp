@@ -1,0 +1,151 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="routeBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-label">Self-Inspection</span>
+  <span class="toolbar-title">{{ selfInspection?.title }}</span>
+  <div class="flex"></div>
+  <div class="toolbar-actions">
+    <span class="toolbar-date">Started {{ inspection?.createdAt?.toDate() | date:'MMM d, y' }}</span>
+    <div class="progress-indicator">
+      <span class="progress-text">{{ count }}</span>
+      <div class="progress-bar-mini">
+        <div class="progress-fill compliant" [style.width.%]="compliantPercent"></div>
+        <div class="progress-fill non-compliant" [style.width.%]="nonCompliantPercent"></div>
+      </div>
+    </div>
+    <button mat-stroked-button class="save-btn" (click)="saveAndLeave()">
+      <mat-icon>pause</mat-icon>
+      Save & Exit
+    </button>
+    <button mat-flat-button color="accent" [disabled]="inspection?.completedPercent < 100" (click)="finishAndLeave()">
+      <mat-icon>check</mat-icon>
+      Finish
+    </button>
+    <button mat-icon-button class="delete-btn" matTooltip="Delete this inspection" (click)="deleteSelfInspectionInspection()">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</mat-toolbar>
+
+<div class="inspection-layout">
+  <!-- Left Panel: Categories & Questions -->
+  <aside class="questions-panel">
+    <div class="panel-header">
+      <span class="panel-title">Questions</span>
+      <span class="panel-count">{{ count }}</span>
+    </div>
+    
+    <div class="categories-list">
+      <div class="category" *ngFor="let category of inspection.categories">
+        <div 
+          class="category-header" 
+          [class.active]="aCategory?.subject === category.subject"
+          [class.complete]="category.finished"
+          (click)="category.show = !category.show">
+          <div class="category-status">
+            <mat-icon *ngIf="category.finished" class="status-complete">check_circle</mat-icon>
+            <mat-icon *ngIf="!category.finished" class="status-pending">radio_button_unchecked</mat-icon>
+          </div>
+          <span class="category-name">{{ category.subject }}</span>
+          <mat-icon class="expand-icon" [class.expanded]="category.show">expand_more</mat-icon>
+        </div>
+        
+        <div class="questions-list" *ngIf="category.show">
+          <div 
+            class="question-row" 
+            *ngFor="let question of category.questions"
+            [class.active]="aQuestion?.name === question.name"
+            [class.answered]="question.answer !== undefined"
+            [class.compliant]="isCompliant(question)"
+            [class.non-compliant]="isNonCompliant(question)"
+            (click)="selectQuestion(question)">
+            <div class="question-status">
+              <mat-icon *ngIf="question.answer === undefined" class="status-unanswered">circle</mat-icon>
+              <mat-icon *ngIf="isCompliant(question)" class="status-compliant">check_circle</mat-icon>
+              <mat-icon *ngIf="isNonCompliant(question)" class="status-non-compliant">error</mat-icon>
+            </div>
+            <span class="question-name">{{ question.name }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Panel: Question Viewer -->
+  <main class="question-viewer">
+    <div class="viewer-content">
+      <!-- Question Text -->
+      <div class="question-text">{{ aQuestion?.name }}</div>
+
+      <!-- Answer Section -->
+      <div class="answer-section">
+        <div class="answer-buttons">
+          <button 
+            mat-stroked-button 
+            class="answer-btn yes-btn"
+            [class.selected]="aQuestion?.answer === true"
+            [class.expects-no]="aQuestion?.expectedAnswer === false"
+            (click)="answerQuestion(true)">
+            <mat-icon>check</mat-icon>
+            Yes
+          </button>
+          <button 
+            mat-stroked-button 
+            class="answer-btn no-btn"
+            [class.selected]="aQuestion?.answer === false"
+            [class.expects-no]="aQuestion?.expectedAnswer === false"
+            (click)="answerQuestion(false)">
+            <mat-icon>close</mat-icon>
+            No
+          </button>
+          <button 
+            mat-flat-button 
+            color="primary" 
+            class="next-btn"
+            (click)="nextQuestion()"
+            matTooltip="Next question">
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+
+        <!-- Comment & Images -->
+        <div class="comment-section">
+          <div class="images-row" *ngIf="aQuestion?.images?.length">
+            <div class="image-thumb" *ngFor="let image of aQuestion.images">
+              <img [src]="image" alt="Attached image" (click)="viewImage(image)">
+              <button mat-mini-fab class="remove-image" (click)="removeImage(image); $event.stopPropagation()" matTooltip="Remove image">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+          
+          <mat-progress-bar *ngIf="loading" mode="indeterminate" class="upload-progress"></mat-progress-bar>
+          
+          <div class="comment-input-row">
+            <mat-form-field appearance="outline" class="comment-field">
+              <mat-label>Add a comment (optional)</mat-label>
+              <textarea 
+                matInput 
+                [(ngModel)]="aQuestion.comment" 
+                cdkTextareaAutosize 
+                cdkAutosizeMinRows="2">
+              </textarea>
+            </mat-form-field>
+            <button mat-icon-button class="attach-btn" (click)="uploadImage()" matTooltip="Attach image">
+              <mat-icon>add_photo_alternate</mat-icon>
+            </button>
+          </div>
+          
+          <input type="file" id="questionImage" accept=".png,.jpg,.jpeg" #questionImage (change)="uploadQuestionImage($event)" hidden>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard Hint -->
+    <div class="keyboard-hint">
+      <mat-icon>keyboard</mat-icon>
+      <span><strong>←</strong> Yes <strong>→</strong> No <strong>↑</strong> Clear <strong>↓</strong> Comment <strong>Enter</strong> Next</span>
+    </div>
+  </main>
+</div>

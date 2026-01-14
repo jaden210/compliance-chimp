@@ -1,0 +1,166 @@
+[
+  {
+    "description": "Employees shall use this form to report all work related injuries, illnesses, or 'near miss' events (which could have caused an injury or illness) – no matter how minor. This helps us to identify and correct hazards before they cause serious injuries. This form shall be completed by employees as soon as possible and given to a supervisor for further action.",
+    "getStarted": true
+  },
+  {
+    "description": "I am reporting a work related:",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Injury", "value": "injury" },
+      { "name": "Illness", "value": "illness" },
+      { "name": "Near Miss", "value": "near-miss" }
+    ],
+    "next": true
+  },
+  {
+    "description": "What is your name?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "What is your job title?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "What is the name of your supervisor?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Have you told your supervisor about this injury/near miss?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "Date of injury/near miss",
+    "type": "date",
+    "next": true
+  },
+  {
+    "description": "Were there any whitnesses? (List all)",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Where exactly did it happen?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "What were you doing at the time? How did it happen?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Describe step by step what led up to the injury/near miss.",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Was this injury a result of a 'sharps' object (hypodermic needle or other such bloodborne related object)?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "If yes, what is the type and brand of device involved in the incident?",
+    "type": "text",
+    "showIf": {
+      "question": "Was this injury a result of a 'sharps' object (hypodermic needle or other such bloodborne related object)?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "What could have been done to prevent this injury/near miss?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Describe in detail the injury. What part or parts of your body were injured? If a near miss, how could you have been hurt?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Did you see a doctor about this injury/illness?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "If yes, who did you see?",
+    "type": "text",
+    "showIf": {
+      "question": "Did you see a doctor about this injury/illness?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "What is the doctors phone number?",
+    "type": "text",
+    "showIf": {
+      "question": "Did you see a doctor about this injury/illness?",
+      "value": "yes"
+    },
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Date of your doctor visit",
+    "type": "date",
+    "showIf": {
+      "question": "Did you see a doctor about this injury/illness?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Has this part of your body been injured before?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "If yes, when?",
+    "type": "text",
+    "showIf": {
+      "question": "Has this part of your body been injured before?",
+      "value": "yes"
+    },
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Please attach any photos to accompany this form",
+    "type": "photos",
+    "value": [],
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Please sign below",
+    "type": "signature",
+    "next": true
+  },
+  {
+    "description": "Thanks! If you are finished, please submit the form",
+    "submit": true
+  }
+]

@@ -1,0 +1,112 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">{{ accountService?.aTeam?.name }}</div>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="page-content">
+  <div class="content-wrapper">
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="!showTable">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <ng-container *ngIf="showTable">
+      <!-- Empty State -->
+      <section class="empty-state" *ngIf="teamMembers?.length === 0">
+        <mat-icon>group_add</mat-icon>
+        <h3>This is your team page!</h3>
+        <p>You'll manage your entire team from here. Add your first team member to get this party started. Like playing any great board game, this will make sense as you go.</p>
+        <button mat-flat-button color="accent" (click)="inviteMember()">
+          <mat-icon>person_add</mat-icon>
+          Add Your First Team Member
+        </button>
+      </section>
+
+      <!-- Dashboard -->
+      <ng-container *ngIf="teamMembers?.length > 0">
+        <section class="dashboard">
+        <div class="dashboard-header">
+          <div class="dashboard-title">
+            <h1>Team Overview</h1>
+          </div>
+          <button mat-flat-button color="accent" class="add-btn" (click)="inviteMember()">
+            <mat-icon>person_add</mat-icon>
+            Add Team Member
+          </button>
+        </div>
+
+        <div class="metrics-grid">
+          <!-- Team Members -->
+          <div class="metric-card clickable" (click)="inviteMember()">
+            <div class="metric-icon accent">
+              <mat-icon>group</mat-icon>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">Team Members</div>
+              <div class="metric-value">{{ teamMembers?.length }} total</div>
+            </div>
+            <mat-icon class="metric-action">add_circle</mat-icon>
+          </div>
+
+          <!-- Managers -->
+          <div class="metric-card clickable" (click)="manageManagers()">
+            <div class="metric-icon success">
+              <mat-icon>admin_panel_settings</mat-icon>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">Managers</div>
+              <div class="metric-value">{{ managers?.length || 0 }}</div>
+            </div>
+            <mat-icon class="metric-action">settings</mat-icon>
+          </div>
+        </div>
+      </section>
+
+      <!-- Team Members Section -->
+      <section class="members-section">
+        <div class="section-header">
+          <mat-icon>people</mat-icon>
+          <h2>Team Members</h2>
+          <span class="count-badge">{{ teamMembers?.length }}</span>
+        </div>
+
+        <div class="members-list">
+          <div class="member-card" *ngFor="let user of teamMembers">
+            <div class="member-info">
+              <div class="member-avatar">
+                <mat-icon>person</mat-icon>
+              </div>
+              <div class="member-details">
+                <div class="member-name">
+                  {{ user.name }}
+                  <button mat-icon-button class="edit-btn" (click)="editTeamMember(user)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                </div>
+                <div class="member-stats">
+                  <span class="stat">
+                    <mat-icon>quiz</mat-icon>
+                    {{ $any(user).surveyCount }} responses | trainings
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="member-actions">
+              <button mat-stroked-button color="primary" (click)="routeToUserPage(user.id)">
+                <mat-icon>open_in_new</mat-icon>
+                User Page
+              </button>
+              <button mat-button (click)="resendInvite(user)" [disabled]="$any(user).sending">
+                <mat-icon>email</mat-icon>
+                {{ $any(user).sending ? 'Sending...' : 'Resend Invite' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        </section>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>

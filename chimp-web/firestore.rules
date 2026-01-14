@@ -1,0 +1,50 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth.uid != null;
+    }
+    match /invitation/{inviteEmail} {
+      allow read;
+    }
+    match /support/{supportId} {
+      allow write;
+    }
+    match /team/{teamId} {
+      allow read;
+      allow write: if resource.data.ownerId == request.auth.uid;
+    }
+    match /user/{userId} {
+      allow read;
+      allow write: if request.auth.uid != null;
+    }
+    match /library/{userId} {
+      allow read;
+      allow write: if request.auth.uid != null;
+    }
+    match /team-members/{userId} {
+      allow read, write;
+    }
+    match /survey/{userId} {
+      allow read;
+      allow write: if request.auth.uid != null;
+    }
+    match /topic/{topicId} {
+      allow read;
+    }
+    match /industry/{industryId} {
+      allow read;
+    }
+    match /article/{articleId} {
+      allow read;
+    }
+    match /blog/{blogId} {
+      allow read;
+    }
+    match /blog-topic/{blogId} {
+      allow read;
+    }
+    match /blog-response/{blogId} {
+      allow read, write;
+    }
+    }
+}

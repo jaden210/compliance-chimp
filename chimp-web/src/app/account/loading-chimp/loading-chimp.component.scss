@@ -1,0 +1,57 @@
+@use '@angular/material' as mat;
+.spread {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.15);
+}
+.block {
+  position: relative;
+  z-index: 10000;
+  min-height: 250px;
+  width: 500px;
+  border: 1px solid var(--chimp-border-light);
+  border-radius: 24px;
+  margin: 40px auto;
+  padding: 12px;
+  box-sizing: border-box;
+  background-color: var(--chimp-bg-primary);
+  @include mat.elevation(8);
+  img {
+    position: absolute;
+    height: 200px;
+    bottom: 0;
+    left: 12px;
+  }
+  .ht {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 12px;
+    color: var(--chimp-accent);
+    font-weight: bold;
+  }
+  .hint {
+    margin-left: 220px;
+    font-size: 19px;
+    font-style: italic;
+    color: var(--chimp-text-primary);
+    margin-bottom: 64px;
+  }
+  button {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 100px;
+  }
+  mat-checkbox {
+    position: absolute;
+    bottom: 4px;
+    right: 115px;
+  }
+}

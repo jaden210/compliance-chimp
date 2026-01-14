@@ -1,0 +1,29 @@
+<h2 mat-dialog-title>{{isEdit ? 'Edit' : 'Create'}} Topic</h2>
+<mat-dialog-content>
+    <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" id="image-input" accept=".png, .jpg, .mp4"
+            (change)="setImage($event)"></div>
+    <mat-form-field id="name-input" appearance="outline">
+        <mat-label>topic name</mat-label>
+        <input matInput [(ngModel)]="topic.name" required>
+    </mat-form-field>
+    <div id="image-block">
+        <div id="img-action-btns" [ngStyle]="{'opacity': !image ? '1' : '0'}">
+            <button mat-icon-button (click)="getImage()">
+                <mat-icon>add_photo_alternate</mat-icon>
+            </button>
+            <button mat-icon-button (click)="deleteImage()" *ngIf="image">
+                <mat-icon>delete</mat-icon>
+            </button>
+        </div>
+        <img [src]="previewImg || topic?.imageUrl" alt="thumbnail">
+    </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+    <button color="primary" mat-raised-button *ngIf="!isEdit" (click)="createTopic()" [disabled]="!this.topic.name">CREATE</button>
+    <button color="primary" mat-raised-button *ngIf="isEdit" (click)="editTopic()" [disabled]="!this.topic.name">SAVE</button>
+    <button mat-button mat-dialog-close>CANCEL</button>
+    <button mat-icon-button id="delete-topic" (click)="deleteTopic()" *ngIf="isEdit">
+        <mat-icon>delete</mat-icon>
+    </button>
+    <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+</mat-dialog-actions>

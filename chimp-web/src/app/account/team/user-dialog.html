@@ -1,0 +1,41 @@
+<h2 mat-dialog-title>{{ data.name }}</h2>
+<mat-dialog-content>
+  <p class="dialog-description">Changing anything here will directly reflect on the user's profile.</p>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Name</mat-label>
+    <input matInput [(ngModel)]="data.name">
+  </mat-form-field>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Job Title</mat-label>
+    <input matInput [(ngModel)]="data.jobTitle">
+  </mat-form-field>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Phone</mat-label>
+    <input matInput [(ngModel)]="data.phone" type="tel">
+  </mat-form-field>
+  
+  <mat-slide-toggle [(ngModel)]="data.preferEmail" class="email-toggle">
+    Prefer email communication (default is SMS)
+  </mat-slide-toggle>
+  
+  <mat-form-field *ngIf="data.preferEmail" appearance="outline">
+    <mat-label>Email</mat-label>
+    <input matInput [(ngModel)]="data.email" type="email">
+  </mat-form-field>
+  
+  <mat-checkbox 
+    *ngIf="(accountService.aTeam.ownerId == accountService.user.id) && (data.id !== accountService.aTeam.ownerId)" 
+    [(ngModel)]="data.removeFromTeam"
+    class="remove-checkbox"
+    color="warn">
+    Remove from team
+  </mat-checkbox>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Cancel</button>
+  <button mat-flat-button color="primary" [mat-dialog-close]="data">Save</button>
+</mat-dialog-actions>

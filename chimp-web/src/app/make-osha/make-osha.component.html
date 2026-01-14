@@ -1,0 +1,133 @@
+<div id="page">
+  <mat-toolbar>
+    <button mat-icon-button (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span style="margin-left: 8px">Edit OSHA Manual</span>
+    <button mat-button [matMenuTriggerFor]="menu" style="margin-left: auto;">
+      {{ industry?.name }}
+    </button>
+    <mat-menu #menu="matMenu">
+      <button
+        mat-menu-item
+        *ngFor="let industry of (industries | async)"
+        (click)="setIndustry(industry)"
+      >
+        {{ industry.name }}
+      </button>
+    </mat-menu>
+  </mat-toolbar>
+  <div id="content">
+    <mat-nav-list>
+      <mat-list-item>
+        <h3 matLine>{{ articles?.length }}</h3>
+      </mat-list-item>
+      <mat-list-item
+        *ngFor="let article of articles"
+        (click)="setActiveArticle(article)"
+        [class.active-li]="article.id == activeArticle.id"
+      >
+        <h3 matLine [class.ohno]="article.missingTopicId">
+          {{ article.name }}
+        </h3>
+      </mat-list-item>
+    </mat-nav-list>
+    <div id="editor">
+      <div style="display: flex">
+        <mat-form-field
+          appearance="outline"
+          style="flex: 1; margin-right: 24px;"
+        >
+          <mat-label>article title</mat-label>
+          <input
+            matInput
+            placeholder="enter article name"
+            required
+            [(ngModel)]="activeArticle.name"
+          />
+        </mat-form-field>
+        <mat-form-field
+          appearance="outline"
+          style="margin-right: 24px; width: 300px;"
+        >
+          <mat-label>topic</mat-label>
+          <mat-select placeholder="topic" required [(ngModel)]="currentTopicId">
+            <mat-option
+              *ngFor="let topic of (topics | async)"
+              [value]="topic?.id"
+            >
+              {{ topic.name }}
+            </mat-option>
+          </mat-select>
+          <button
+            mat-icon-button
+            id="edit-topic-btn"
+            (click)="editTopic(); $event.stopPropagation()"
+            *ngIf="activeArticle?.topicId"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            id="create-topic-btn"
+            (click)="createTopic(); $event.stopPropagation()"
+          >
+            <mat-icon>add</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+      <div class="ngx-editor-wrapper">
+        <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+        <ngx-editor
+          [editor]="editor"
+          [(ngModel)]="activeArticle.content"
+          [placeholder]="'Content *'"
+        ></ngx-editor>
+      </div>
+      <div style="display: flex; margin-top: 24px;">
+        <button
+          mat-raised-button
+          color="primary"
+          *ngIf="!activeArticle?.id"
+          (click)="createArticle()"
+          [disabled]="!activeArticle.name || !activeArticle.content"
+        >
+          CREATE ARTICLE
+        </button>
+        <button
+          mat-raised-button
+          color="primary"
+          *ngIf="activeArticle?.id"
+          (click)="updateArticle()"
+          [disabled]="!activeArticle.name || !activeArticle.content"
+        >
+          UPDATE ARTICLE
+        </button>
+        <button
+          mat-button
+          (click)="previewArticle()"
+          style="margin-left: 12px;"
+          [disabled]="!activeArticle.name || !activeArticle.content"
+        >
+          PREVIEW
+        </button>
+        <button mat-button (click)="resetForm()">RESET FORM</button>
+        <button
+          mat-button
+          *ngIf="activeArticle?.id"
+          (click)="startANewArticle()"
+        >
+          START A NEW ARTICLE
+        </button>
+        <button
+          mat-icon-button
+          (click)="deleteArticle()"
+          *ngIf="activeArticle?.id"
+          style="margin-left: auto"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

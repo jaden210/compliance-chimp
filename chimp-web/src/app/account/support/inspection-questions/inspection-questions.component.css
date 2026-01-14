@@ -1,0 +1,53 @@
+.full {
+    height: calc(100vh - 52px);
+    background-color: white;
+    display: flex;
+}
+
+.list {
+    height: 100%;
+    overflow: auto;
+}
+
+.active {
+    background-color: f5f5f5;
+}
+
+.side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 12px;
+}
+
+.scroll {
+    padding: 12px 0;
+    box-sizing: border-box;
+    overflow: auto;
+}
+.row {
+    display: flex;
+    align-items: center;
+}
+
+.list-item {
+    font-size: 14px;
+    cursor: pointer;
+    margin: 12px;
+    border-radius: 12px;
+    padding: 4px;
+}
+
+.content {
+    font-size: 15px;
+}
+
+.row.end {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.fill {
+    width: 100%;
+}

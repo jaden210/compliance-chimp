@@ -1,0 +1,106 @@
+.mat-dialog-content {
+    height: calc(100% - 54px);
+    display: flex;
+}
+
+#tabs {
+    height: 100%;
+    flex: 2;
+}
+
+::ng-deep .mat-tab-body-wrapper {
+    height: 100%;
+}
+
+.tab {
+    padding: 12px;
+    margin: auto;
+    height: 100%;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+mat-checkbox {
+    min-width: 200px;
+    font-size: 17px;
+}
+
+mat-slide-toggle {
+    font-size: 23px;
+}
+
+.tall {
+    margin: 24px 0;
+}
+
+.pages {
+    min-width: 200px;
+}
+
+.info {
+    text-align: center;
+    color: rgba(0,0,0,.87);
+    font-size: 17px;
+    margin-bottom: 12px;
+}
+
+.s-tab {
+    width: 500px;
+    padding: 50px;
+    margin: auto;
+    height: 100%;
+}
+
+.StripeElement {
+    background-color: white;
+    height: 16px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 3px 0 #e6ebf1;
+    -webkit-transition: box-shadow 150ms ease;
+    transition: box-shadow 150ms ease;
+}
+
+.StripeElement--focus {
+    box-shadow: 0 1px 3px 0 #cfd7df;
+}
+
+.StripeElement--invalid {
+    border-color: #fa755a;
+}
+
+.StripeElement--webkit-autofill {
+    background-color: #fefde5 !important;
+}
+
+#card-errors {
+    font-size: 13px;
+    margin-top: 12px;
+    color: #e91e63;
+    font-style: italic;
+}
+
+.stripe {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 48px;
+}
+
+#price-box {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 12px;
+}
+
+#price {
+    font-size: 64px;
+}

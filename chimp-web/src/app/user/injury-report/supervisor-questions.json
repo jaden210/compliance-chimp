@@ -1,0 +1,180 @@
+[
+  {
+    "description": "Employees shall use this form to report all work related injuries, illnesses, or 'near miss' events (which could have caused an injury or illness) – no matter how minor. This helps us to identify and correct hazards before they cause serious injuries. This form shall be completed by employees as soon as possible and given to a supervisor for further action.",
+    "getStarted": true
+  },
+  {
+    "description": "I am reporting a work related:",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Injury", "value": "injury" },
+      { "name": "Illness", "value": "illness" },
+      { "name": "Near Miss", "value": "near-miss" },
+      { "name": "Death", "value": "death" }
+    ],
+    "next": true
+  },
+  {
+    "description": "Name of injured person?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Date of injured persons birth?",
+    "type": "date",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Phone number of the injured person?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Street address of the injured person?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Suite or apt number of the injured person?",
+    "type": "text",
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "City of the injured person?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "State of the injured person?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Zipcode of the injured person?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Is this employee male or female?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Male", "value": "male" },
+      { "name": "Female", "value": "female" },
+      { "name": "Not Sure", "value": "notSure" }
+    ],
+    "next": true
+  },
+  {
+    "description": "What part of the body was injured? Describe in detail:",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "What was the nature of the injury? Describe in detail:",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Describe fully how the accident happened. What was employee doing prior to the event? What equipment or tools were being used?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "What are the names of all witnesses?",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "Date of event",
+    "type": "date",
+    "next": true
+  },
+  {
+    "description": "What was the exact location of the event?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "What caused the event?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Were safety regulations in place and used?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "If no, why not?",
+    "type": "text",
+    "showIf": {
+      "question": "Were safety regulations in place and used?",
+      "value": "no"
+    },
+    "next": true
+  },
+  {
+    "description": "Did the employee go to the doctor, hospital or ER?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "Hospital or clinic name",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Name of Doctor",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital or ER?",
+      "value": "yes"
+    },
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "What changes do you suggest to prevent this incident/near miss from happening again? ",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "Please attach any photos to accompany this form",
+    "type": "photos",
+    "next": true,
+    "skip": true,
+    "value": []
+  },
+  {
+    "description": "Please sign below",
+    "type": "signature",
+    "next": true
+  },
+  {
+    "description": "Thanks! If you are finished, please submit the form",
+    "submit": true
+  }
+]

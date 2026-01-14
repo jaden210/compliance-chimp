@@ -1,0 +1,26 @@
+<h1 mat-dialog-title>Get help from the Chimp</h1>
+<div class="layout">
+  <div class="list">
+    @for (article of articles; track article.id) {
+      <div class="li" (click)="setArticle(article)">
+        <div class="name">{{article.name}}</div>
+      </div>
+    }
+  </div>
+  @if (article) {
+    <div class="ac">
+      <div class="article">
+        <div class="name">{{article.name}}</div>
+        <div class="cc">
+          @if (article.imageUrl) {
+            <img [src]="article.imageUrl">
+          }
+          @if (article.videoUrl) {
+            <video [src]="article.videoUrl" controls></video>
+          }
+        </div>
+        <div class="content" [innerHTML]="article.content"></div>
+      </div>
+    </div>
+  }
+</div>

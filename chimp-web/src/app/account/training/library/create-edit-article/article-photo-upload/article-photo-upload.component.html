@@ -1,0 +1,16 @@
+<h2 mat-dialog-title>Blog Photo</h2>
+<mat-dialog-content>
+  <div style="height: 0px; width: 0px; overflow:hidden">
+    <input type="file" id="image-input" accept=".png, .jpg" (change)="setImage($event)"/>
+  </div>
+  <div class="card">
+    <div class="img-cont">
+      <img src={{previewImg}} onerror="src = '/assets/lost.png'">
+      <button mat-icon-button color="primary" id="pbutton" (click)="getImage()"><mat-icon>add_a_photo</mat-icon></button>
+    </div>
+    <div class="title">{{data.name}}</div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions style="margin-top:12px" align="end"><button mat-button color="primary" style="margin-right:8px" (click)="dialogRef.close()">CANCEL</button>
+<button mat-raised-button color="accent" (click)="close()">SAVE</button>
+</mat-dialog-actions>

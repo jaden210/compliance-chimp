@@ -1,0 +1,109 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">{{ accountService?.aTeam?.name }}</div>
+  <div class="flex"></div>
+</mat-toolbar>
+<div class="window">
+  <div id="dashboard" *ngIf="Users && Users.length > 0; else welcome">
+    <div class="cols">
+      <div class="col">
+        <div class="card g" routerLink="/account/training">
+          <div class="info">
+            <div class="c-title">Training complete</div>
+            <div class="c-stat">{{ trainingComplete || 0 }}%</div>
+          </div>
+          <mat-icon class="c-icon">explore</mat-icon>
+        </div>
+        <div class="card g" routerLink="/account/training">
+          <div class="info">
+            <div class="c-title">Members needing training</div>
+            <div class="c-stat">{{ needsTraining?.length || "?" }}</div>
+          </div>
+          <mat-icon class="c-icon">explore</mat-icon>
+        </div>
+        <div class="card g" routerLink="/account/training">
+          <div class="info">
+            <div class="c-title">Trainings given</div>
+            <div class="c-stat">{{ trainingsGiven || 0 }}</div>
+          </div>
+          <mat-icon class="c-icon">explore</mat-icon>
+        </div>
+        <div class="card g" routerLink="/account/surveys">
+          <div class="info">
+            <div class="c-title">Survey responses</div>
+            <div class="c-stat">
+              {{ achievements?.trainingSurveyResponseCount || 0 }}
+            </div>
+          </div>
+          <mat-icon class="c-icon">explore</mat-icon>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card b">
+          <div class="info">
+            <div class="c-title">Self inspections</div>
+            <div class="c-stat">
+              {{ selfInspection?.current }} current |
+              {{ selfInspection?.expired }} expired
+            </div>
+          </div>
+          <mat-icon class="c-icon">import_contacts</mat-icon>
+        </div>
+        <!-- <div class="card b">
+          <div class="info">
+            <div class="c-title">Worksite logs</div>
+            <div class="c-stat">{{ achievements?.logsCount || 0 }}</div>
+          </div>
+          <mat-icon class="c-icon">assignment</mat-icon>
+        </div> -->
+        <!-- <div class="card b">
+          <div class="info">
+            <div class="c-title">Badges earned</div>
+            <div class="c-stat">{{ completedCount || 0 }}</div>
+          </div>
+          <mat-icon class="c-icon">where_to_vote</mat-icon>
+        </div> -->
+        <!-- <div class="card b">
+          <div class="info">
+            <div class="c-title">Compliance level</div>
+            <div class="c-stat">{{ complianceLevel || 0 }} / 3</div>
+          </div>
+          <mat-icon class="c-icon">where_to_vote</mat-icon>
+        </div> -->
+      </div>
+      <div class="col">
+        <div class="card p">
+          <div class="info">
+            <div class="c-title">Incident reports</div>
+            <div class="c-stat">{{ achievements?.injuryReports || 0 }}</div>
+          </div>
+          <mat-icon class="c-icon">assignment_late</mat-icon>
+        </div>
+        <div class="card o">
+          <div class="info">
+            <div class="c-title">Members</div>
+            <div class="c-stat">
+              {{ users.length }} total
+            </div>
+          </div>
+          <mat-icon class="c-icon">supervisor_account</mat-icon>
+        </div>
+        <div class="card o" (click)="openTeamFilesDialog()">
+          <div class="info">
+            <div class="c-title">Team Files</div>
+            <div class="c-stat">{{ (files | async)?.length || 0 }}</div>
+          </div>
+          <mat-icon class="c-icon">attach_files</mat-icon>
+          <mat-icon class="edit pop">open_in_new</mat-icon>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ng-template #welcome>
+    <div class="help-card">
+      <div class="helper-name" id="helper-name-color">{{ helper?.name }}</div>
+        <div class="helper-description" id="helper-description-color" [innerHTML]="helper?.description"></div>
+    </div>
+  </ng-template>
+</div>

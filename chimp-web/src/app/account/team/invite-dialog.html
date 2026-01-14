@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>Build Your Team</h2>
+<mat-dialog-content>
+  <p class="dialog-description">
+    Let's add a new member to your team. Fill out the form, and when you click "Add to team" they will receive a notification that they have been added to your team and get access to any files, trainings, and have the ability to submit injury reports.
+  </p>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Name</mat-label>
+    <input matInput [(ngModel)]="invite.name" #name type="text">
+  </mat-form-field>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Job Title</mat-label>
+    <input matInput [(ngModel)]="invite.jobTitle" type="text">
+  </mat-form-field>
+  
+  <mat-form-field appearance="outline">
+    <mat-label>Phone</mat-label>
+    <input matInput [(ngModel)]="invite.phone" type="tel" (keyup)="formatPhone()">
+    <mat-hint align="end" class="error-text" *ngIf="phoneError">Must be a valid phone number</mat-hint>
+  </mat-form-field>
+  
+  <mat-slide-toggle [(ngModel)]="invite.preferEmail" class="email-toggle">
+    Prefer email communication (default is SMS)
+  </mat-slide-toggle>
+  
+  <mat-form-field appearance="outline" *ngIf="invite.preferEmail">
+    <mat-label>Email</mat-label>
+    <input matInput [(ngModel)]="invite.email" type="email">
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Cancel</button>
+  <button mat-flat-button color="primary" [disabled]="!invite.name || (!invite.email && invite.preferEmail) || !invite.phone" [mat-dialog-close]="invite">
+    Add to Team
+  </button>
+</mat-dialog-actions>

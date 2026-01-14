@@ -1,0 +1,96 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="quit()">
+    <mat-icon>close</mat-icon>
+  </button>
+  {{ title }}
+</mat-toolbar>
+
+@if (question) {
+  <div class="question-wrapper">
+    <div class="question">
+      <p>{{ question?.description }}</p>
+    </div>
+  </div>
+
+  @if (question.type === 'radio') {
+    <mat-list>
+      <mat-radio-group [(ngModel)]="question.value">
+        @for (option of question.radioOptions; track option.value) {
+          <mat-radio-button [value]="option.value">{{ option.name }}</mat-radio-button>
+        }
+      </mat-radio-group>
+    </mat-list>
+  }
+
+  @if (question.type === 'date') {
+    <mat-form-field id="date">
+      <input
+        matInput
+        readonly
+        (click)="picker.open()"
+        (keydown)="$event.preventDefault()"
+        [matDatepicker]="picker"
+        placeholder="Choose a date"
+        [(ngModel)]="question.value"
+      />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker [disabled]="false" touchUi #picker></mat-datepicker>
+    </mat-form-field>
+  }
+
+  @if (question.type === 'text') {
+    <div id="textbox">
+      <textarea
+        id="text-box"
+        cdkTextareaAutosize
+        [(ngModel)]="question.value"
+        placeholder="Add a comment"
+      ></textarea>
+    </div>
+  }
+
+  @if (question.type === 'photos') {
+    <div class="pic">
+      <div class="photo-roll">
+        @for (image of question.value; track $index) {
+          <div class="photo">
+            <img [id]="'img' + $index" [src]="image.imageUrl">
+          </div>
+        }
+      </div>
+      <div class="img-buttons">
+        <div class="item" (click)="getImage()">
+          <mat-icon>add_photo_alternate</mat-icon>
+          <div class="text">Select image</div>
+        </div>
+        <div style="height: 0px; width: 0px; overflow:hidden">
+          <input type="file" id="image-input" accept=".png, .jpg" (change)="setImage($event)"/>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (question.type === 'signature') {
+    <div class="sig">
+      <canvas #signatureCanvas class="signature-canvas"></canvas>
+    </div>
+  }
+
+  <div id="actions">
+    @if (question.getStarted) {
+      <button mat-raised-button color="primary" (click)="skip()">GET STARTED</button>
+    }
+    @if (index > 0) {
+      <button mat-raised-button fill="clear" style="color: #212121;" (click)="goBack()">BACK</button>
+    }
+    @if (question.skip) {
+      <button mat-raised-button fill="clear" color="tertiary" (click)="skip()">SKIP</button>
+    }
+    @if (question.next) {
+      <button mat-raised-button color="primary" (click)="next()" [disabled]="!question.value">NEXT</button>
+    }
+    @if (question.submit) {
+      <button mat-raised-button color="primary" (click)="submitReport()">SUBMIT</button>
+    }
+  </div>
+}

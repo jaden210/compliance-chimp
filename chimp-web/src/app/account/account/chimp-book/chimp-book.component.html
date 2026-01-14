@@ -1,0 +1,34 @@
+<div id="billing">
+    <ng-container *ngIf="!accountService.aTeam.cardToken">
+      <div class="card">
+        <div class="free">Let's build your own personalized Chimp Book. Here you can decide what you want to include in your book and set how frequently it will be sent to you, as well as setting up payment info. Feel free to review the <a routerLink="/customer-agreement">Customer Agreement</a> again.</div>
+        <button mat-raised-button color="accent" style="color:#ffffff;align-self: flex-end" (click)="enterCardInfo()">CONFIGURE CHIMP BOOK</button>
+      </div>
+    </ng-container>
+    <ng-container *ngIf="accountService.aTeam.cardToken">
+      <div class="card">
+        <div class="free">Thank you! Your card is on file and securely stored with Stripe for billing. Click below to update or change your payment information, anytime.</div>
+        <button mat-raised-button color="accent" style="color:#ffffff;align-self: flex-end;" (click)="enterCardInfo()">UPDATE PAYMENT</button>
+      </div>
+    </ng-container>
+    <div class="s-row">
+      <div class="stripe-text">Payments are secured by </div>
+      <div class="f-image"><img id="f-img" src="/assets/stripeName.png"></div>
+    </div>
+    <div id="bh" class="card">
+      <div class="bh-row">
+        <div id="bh-title">Billing History</div>
+        <div class="flex"></div>
+        <button mat-stroked-button color="accent" (click)="getBillingHistory()">
+          last refreshed: {{accountService.aTeam.stripeInvoicesRetrievedAt || 'never'}}
+          <mat-icon [ngClass]="{spin: loadingBilling}">refresh</mat-icon>
+        </button>
+      </div>
+      <div class="bh-row" *ngFor="let invoice of accountService.aTeam.stripeInvoices?.data">
+        {{invoice.date}}
+      </div>
+      <div id="no-bh" *ngIf="!accountService.aTeam.stripeInvoices?.data?.length">
+        <mat-icon>restore</mat-icon>No billing history
+      </div>
+    </div>
+  </div>

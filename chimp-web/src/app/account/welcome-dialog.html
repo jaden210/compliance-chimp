@@ -1,0 +1,47 @@
+<mat-dialog-content>
+  <div id="welcome">
+    <img id="chimp" src="/assets/chimp.png" />
+    <div id="box">
+      <div id="title">Welcome to Compliancechimp!</div>
+      <div id="info">
+        We need three final items for your account to be ready for use.
+      </div>
+    </div>
+  </div>
+  <mat-form-field>
+    <input
+      matInput
+      type="text"
+      placeholder="your name"
+      [(ngModel)]="data.name"
+    />
+  </mat-form-field>
+  <mat-form-field>
+    <input
+      matInput
+      type="text"
+      placeholder="business name"
+      [(ngModel)]="data.businessName"
+    />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-select
+      placeholder="which industry best describes your business?"
+      [(ngModel)]="data.industryId"
+    >
+      <mat-option *ngFor="let industry of industries" [value]="industry.id">
+        {{ industry.name }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button
+    mat-button
+    color="accent"
+    [disabled]="!data.name && !data.businessName && !data.industryId"
+    (click)="close()"
+  >
+    GO TO MY ACCOUNT
+  </button>
+</mat-dialog-actions>

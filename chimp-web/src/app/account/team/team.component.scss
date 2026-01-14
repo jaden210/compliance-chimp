@@ -1,0 +1,743 @@
+/* Toolbar */
+.toolbar-title {
+  margin-left: 8px;
+  font-weight: 500;
+  color: var(--chimp-text-primary);
+  border-left: none;
+}
+
+/* Page Content */
+.page-content {
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 24px;
+  padding-bottom: 100px;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: 64px;
+}
+
+/* Dashboard Section */
+.dashboard {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--chimp-border-light);
+  box-shadow: 0 4px 20px -8px var(--chimp-shadow-heavy);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-title h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  background: var(--chimp-bg-secondary, #f8f9fa);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-border-light);
+  transition: all 150ms ease;
+  position: relative;
+}
+
+.metric-card.clickable {
+  cursor: pointer;
+}
+
+.metric-card.clickable:hover {
+  box-shadow: 0 4px 16px -6px var(--chimp-shadow-heavy);
+  transform: translateY(-2px);
+  border-color: var(--chimp-primary);
+}
+
+.metric-card.clickable:hover .metric-action {
+  opacity: 1;
+  color: var(--chimp-primary);
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.metric-icon.accent {
+  background: var(--chimp-warning-bg, #fff3e0);
+  color: var(--chimp-warning, #ff9800);
+}
+
+.metric-icon.success {
+  background: var(--chimp-success-bg, #e8f5e9);
+  color: var(--chimp-success, #4caf50);
+}
+
+.metric-icon.info {
+  background: var(--chimp-info-bg, #e3f2fd);
+  color: var(--chimp-info-dark, #1976d2);
+}
+
+.metric-icon mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.metric-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.metric-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--chimp-text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.metric-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.metric-action {
+  color: var(--chimp-text-hint);
+  opacity: 0;
+  transition: all 150ms ease;
+}
+
+/* Members Section */
+.members-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-header mat-icon {
+  color: var(--chimp-primary);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--chimp-primary);
+  color: var(--chimp-text-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--chimp-bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-border-light);
+  box-shadow: 0 2px 8px -4px var(--chimp-shadow-heavy);
+  transition: all 150ms ease;
+}
+
+.member-card:hover {
+  box-shadow: 0 4px 16px -6px var(--chimp-shadow-heavy);
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--chimp-primary-bg, #e3f2fd);
+  color: var(--chimp-primary);
+  flex-shrink: 0;
+}
+
+.member-avatar mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.member-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.member-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--chimp-text-primary);
+}
+
+.edit-btn {
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.edit-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
+.member-card:hover .edit-btn {
+  opacity: 0.6;
+}
+
+.member-card:hover .edit-btn:hover {
+  opacity: 1;
+}
+
+.member-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.member-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--chimp-text-secondary);
+}
+
+.member-stats .stat mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--chimp-text-hint);
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.member-actions button mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  border: 2px dashed var(--chimp-border-light);
+}
+
+.empty-state > mat-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: var(--chimp-text-hint);
+  margin-bottom: 16px;
+}
+
+.empty-state button mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.empty-state p {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Dialog Styles */
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.dialog-description {
+  color: var(--chimp-text-secondary);
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+mat-dialog-content mat-form-field {
+  width: 100%;
+}
+
+.email-toggle {
+  margin: 8px 0 16px;
+}
+
+.remove-checkbox {
+  margin-top: 16px;
+  color: var(--chimp-text-secondary);
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+  gap: 8px;
+}
+
+/* Managers Dialog Styles */
+.managers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.manager-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--chimp-bg-secondary, #f5f5f5);
+  transition: background-color 150ms ease;
+}
+
+.manager-card.add-card {
+  cursor: pointer;
+  border: 2px dashed var(--chimp-border-light, #e0e0e0);
+  background: transparent;
+}
+
+.manager-card.add-card:hover {
+  background: var(--chimp-bg-secondary, #f5f5f5);
+  border-color: var(--chimp-primary);
+}
+
+.manager-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--chimp-gray-200, #e0e0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manager-avatar.add {
+  background: var(--chimp-primary-light, #e3f2fd);
+  color: var(--chimp-primary);
+}
+
+.manager-avatar mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.manager-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.manager-name {
+  font-weight: 500;
+  color: var(--chimp-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.manager-email {
+  font-size: 13px;
+  color: var(--chimp-text-secondary);
+}
+
+.owner-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--chimp-accent-light, #fff3e0);
+  color: var(--chimp-accent, #ff9800);
+  text-transform: uppercase;
+}
+
+.add-manager-form {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--chimp-bg-primary);
+  border: 1px solid var(--chimp-border-light, #e0e0e0);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-manager-form .form-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--chimp-text-primary);
+  margin-bottom: 8px;
+}
+
+.add-manager-form mat-form-field {
+  width: 100%;
+}
+
+.add-manager-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* File Dialog Styles (preserved from original) */
+.f-view {
+  display: flex;
+  flex-direction: row !important;
+}
+
+.upload {
+  float: right;
+}
+
+.file-row {
+  flex: 1;
+  height: 320px;
+  overflow: auto;
+  margin-right: 12px;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 24px;
+  transition: all 200ms;
+}
+
+.file:hover {
+  background-color: var(--chimp-gray-100);
+}
+
+.f-active {
+  background-color: var(--chimp-gray-200) !important;
+}
+
+.f-delete {
+  opacity: 0.54;
+  color: var(--chimp-text-primary);
+  transition: opacity 200ms;
+  cursor: pointer;
+}
+
+.f-delete:hover {
+  opacity: 1;
+}
+
+.f-name {
+  font-size: 17px;
+  color: var(--chimp-text-primary);
+}
+
+#file-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+#file-preview {
+  height: 150px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+#file-file {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+#button-row {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+a {
+  color: var(--chimp-info-dark);
+  cursor: pointer;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Wide Dialog */
+.wide {
+  width: 80vw !important;
+  box-sizing: border-box;
+  
+  table {
+    background-color: var(--chimp-bg-primary);
+    
+    th {
+      border-bottom: 1px solid var(--chimp-border-light);
+    }
+    
+    tr td {
+      height: 40px;
+    }
+  }
+}
+
+/* Managers Dialog (preserved from original) */
+.managers {
+  position: relative;
+  
+  .manager {
+    display: flex;
+    align-items: center;
+    height: 64px;
+    
+    .pp {
+      height: 40px;
+      font-size: 40px;
+      width: 40px;
+      margin-right: 12px;
+      border-radius: 50%;
+      overflow: hidden;
+      object-fit: cover;
+    }
+    
+    .col {
+      .name {
+        font-size: 17px;
+      }
+      .email {
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .add {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    z-index: 149000000000;
+    background: var(--chimp-bg-primary);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    box-sizing: border-box;
+    
+    .top {
+      height: 40px;
+      width: 100%;
+      border-bottom: 1px solid var(--chimp-border-light);
+      display: flex;
+      align-items: center;
+    }
+  }
+}
+
+.ug-row {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.manage-btn {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  color: var(--chimp-text-secondary);
+  cursor: pointer;
+}
+
+.manage-btn:hover {
+  background-color: var(--chimp-gray-300);
+  color: var(--chimp-text-primary);
+}
+
+.error-text {
+  color: var(--chimp-error);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-content {
+    padding: 16px;
+    gap: 24px;
+  }
+
+  .dashboard {
+    padding: 16px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    padding: 16px;
+  }
+
+  .metric-action {
+    opacity: 1;
+  }
+
+  .member-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .member-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .member-actions button {
+    width: 100%;
+  }
+
+  .edit-btn {
+    opacity: 1;
+  }
+}

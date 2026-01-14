@@ -1,0 +1,62 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="close()"><mat-icon>arrow_back</mat-icon></button>
+  <div class="toolbar-title">Self-Inspections</div>
+</mat-toolbar>
+<div class="window self-inspections-page">
+  <section class="splash">
+    <div class="splash-content">
+      <div class="splash-kicker">Self-Inspections</div>
+      <div class="splash-title">Stay ready for every compliance moment.</div>
+      <div class="splash-body">
+        Self-inspections guide you through each checklist and record completion details. Open one to review past runs or begin a new inspection.
+      </div>
+    </div>
+  </section>
+
+  @if (selfInspections?.length === 0) {
+    <div class="empty-state">
+      <div class="empty-title">No inspections yet</div>
+      <div class="empty-body">
+        A manager can create an inspection on desktop, then it will appear here for your team.
+      </div>
+    </div>
+  }
+
+  @if (selfInspections?.length > 0) {
+    <section class="inspections-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Available inspections</div>
+          <div class="section-subtitle">Alphabetical order with the latest completion date.</div>
+        </div>
+      </div>
+      <div class="inspections-grid">
+        @for (inspection of selfInspections; track inspection.id) {
+          <div class="inspection-card">
+            <div class="inspection-title">{{ inspection.title }}</div>
+            @if (inspection.lastCompletedAt) {
+              <div class="inspection-meta">
+                <span class="meta-label">Last completed</span>
+                <span class="meta-value">{{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'longDate') : (inspection.lastCompletedAt | date: 'longDate') }}</span>
+              </div>
+            } @else {
+              <div class="inspection-meta">
+                <span class="meta-label">Last completed</span>
+                <span class="meta-value muted">Not yet completed</span>
+              </div>
+            }
+            <div class="inspection-actions">
+              <button mat-stroked-button color="primary" (click)="selectSelfInspection(inspection)">
+                View history
+              </button>
+              <button mat-icon-button color="accent" class="start-action" matTooltip="Start a new inspection run" (click)="startInspection(inspection)">
+                <mat-icon>play_arrow</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>

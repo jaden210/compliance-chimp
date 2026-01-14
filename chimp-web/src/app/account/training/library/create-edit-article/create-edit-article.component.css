@@ -1,0 +1,126 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
+  background: var(--chimp-bg-secondary, #fafafa);
+  overflow: hidden;
+}
+
+/* Toolbar */
+.editor-toolbar {
+  background: var(--chimp-bg-primary, #fff);
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+  padding: 0 8px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-left: 8px;
+  color: var(--chimp-text-primary, #333);
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.public-toggle {
+  margin: 0 8px;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--chimp-text-secondary, #666);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.save-button {
+  margin-left: 8px;
+}
+
+/* Title section */
+.title-section {
+  padding: 16px 16px 0;
+  flex-shrink: 0;
+}
+
+.title-field {
+  width: 100%;
+}
+
+/* Editor wrapper - fills remaining space */
+.ngx-editor-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 16px;
+  border: 1px solid var(--chimp-border-light, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--chimp-bg-primary, #fff);
+  min-height: 0;
+}
+
+.ngx-editor-wrapper .NgxEditor__MenuBar {
+  background: var(--chimp-gray-100, #f5f5f5);
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+  padding: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ngx-editor-wrapper .NgxEditor {
+  flex: 1;
+  padding: 16px;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-y: auto;
+}
+
+.ngx-editor-wrapper .NgxEditor__Placeholder::before {
+  color: var(--chimp-text-hint, #9e9e9e);
+}
+
+.ngx-editor-wrapper .NgxEditor__MenuItem {
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.ngx-editor-wrapper .NgxEditor__MenuItem:hover {
+  background: var(--chimp-shadow-light, rgba(0, 0, 0, 0.08));
+}
+
+.ngx-editor-wrapper .NgxEditor__MenuItem--Active {
+  background: var(--chimp-primary, #054d8a);
+  color: white;
+}
+
+.ngx-editor-wrapper .NgxEditor__MenuItem--Active:hover {
+  background: var(--chimp-primary, #054d8a);
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}

@@ -1,0 +1,135 @@
+@if (!isEditing()) {
+  <mat-toolbar>
+    <button mat-icon-button (click)="goBack()" matTooltip="Back to library">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="toolbar-title">
+      @if (article(); as art) {
+        {{ art.name }}
+      } @else {
+        Article
+      }
+    </div>
+    <div class="flex"></div>
+  </mat-toolbar>
+
+  <div class="article-page">
+    @if (loading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="48"></mat-spinner>
+        <div class="loading-text">Loading article...</div>
+      </div>
+    } @else if (error(); as err) {
+      <div class="error-state">
+        <mat-icon>error_outline</mat-icon>
+        <div class="error-title">Something went wrong</div>
+        <div class="error-body">{{ err }}</div>
+        <button mat-flat-button color="primary" (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon>
+          Return to Library
+        </button>
+      </div>
+    } @else if (article(); as article) {
+      <article class="article-container">
+        <!-- Article Header -->
+        <header class="article-header">
+          <div class="header-meta">
+            @if (article.industry) {
+              <span class="meta-tag industry">{{ article.industry }}</span>
+            }
+            @if (article.topic) {
+              <span class="meta-tag topic">{{ article.topic }}</span>
+            }
+          </div>
+
+          <h1 class="article-title">{{ article.name }}</h1>
+
+          <div class="article-stats">
+            <span class="stat">
+              <mat-icon>schedule</mat-icon>
+              {{ readingTime() }}
+            </span>
+            <span class="stat">
+              <mat-icon>text_fields</mat-icon>
+              {{ wordCount() }} words
+            </span>
+            @if (article.createdAt) {
+              <span class="stat">
+                <mat-icon>calendar_today</mat-icon>
+                {{ article.createdAt | date:'mediumDate' }}
+              </span>
+            }
+          </div>
+
+          <!-- Action Bar -->
+          <div class="action-bar">
+            <button mat-flat-button color="accent" class="train-btn" (click)="startTraining()">
+              <mat-icon>play_circle</mat-icon>
+              Start Training
+            </button>
+            <button mat-stroked-button (click)="startClassroomTraining()">
+              <mat-icon>groups</mat-icon>
+              Classroom Training
+            </button>
+            <div class="action-spacer"></div>
+            <button 
+              mat-icon-button 
+              [class.favorited]="isFavorited()" 
+              (click)="toggleFavorite()"
+              matTooltip="Add to favorites">
+              <mat-icon>{{ isFavorited() ? 'star' : 'star_outline' }}</mat-icon>
+            </button>
+            <button mat-icon-button (click)="shareArticle()" matTooltip="Share article">
+              <mat-icon>share</mat-icon>
+            </button>
+            <button mat-icon-button (click)="printArticle()" matTooltip="Print article">
+              <mat-icon>print</mat-icon>
+            </button>
+            @if (canEdit()) {
+              <button mat-icon-button (click)="editArticle()" matTooltip="Edit article">
+                <mat-icon>edit</mat-icon>
+              </button>
+            }
+          </div>
+        </header>
+
+        <!-- Article Thumbnail -->
+        @if (article.thumbnail) {
+          <div class="article-hero">
+            <img [src]="article.thumbnail" [alt]="article.name" />
+          </div>
+        }
+
+        <!-- Article Content -->
+        <section class="article-content" [innerHTML]="article.content"></section>
+
+        <!-- Article Footer -->
+        <footer class="article-footer">
+          <div class="footer-cta">
+            <div class="cta-text">
+              <mat-icon>school</mat-icon>
+              <span>Ready to train your team on this topic?</span>
+            </div>
+            <button mat-flat-button color="accent" (click)="startTraining()">
+              <mat-icon>play_circle</mat-icon>
+              Start Training Session
+            </button>
+          </div>
+
+          <div class="footer-nav">
+            <button mat-stroked-button (click)="goBack()">
+              <mat-icon>arrow_back</mat-icon>
+              Back to Library
+            </button>
+          </div>
+        </footer>
+      </article>
+    }
+  </div>
+} @else {
+  <!-- Edit mode - show create/edit component -->
+  <app-create-edit-article 
+    [articleId]="article()?.id" 
+    (closed)="onEditComplete()">
+  </app-create-edit-article>
+}

@@ -1,0 +1,132 @@
+#search {
+    flex: 1;
+    font-size: 15px;
+    background: #ffffff;
+    border: none;
+    outline: none;
+    color: #212121;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #41535B;
+    box-sizing: border-box;
+}
+
+::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+    color: #666666;
+  }
+  ::-moz-placeholder { /* Firefox 19+ */
+    color: #666666;
+  }
+  :-ms-input-placeholder { /* IE 10+ */
+    color: #666666;
+  }
+  :-moz-placeholder { /* Firefox 18- */
+    color: #666666;
+  }
+
+.filter {
+    margin: 0 24px;
+}
+
+.day-box {
+    margin: 0 12px;
+    /*border-bottom: 1px solid rgba(0,0,0,.14);*/
+}
+
+.day {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 24px;
+}
+
+.box {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100px;
+}
+
+.row {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.event {
+    margin: 4px 0;
+    background-color: #f3f3f3;
+    border-radius: 8px;
+    padding: 8px;
+    transition: all 250ms;
+}
+
+.block {
+    display: flex;
+    cursor: pointer;
+}
+
+.Log {
+    background-color: #ffe0b2;
+}
+
+.Survey {
+    background-color: #c8e6c9;
+}
+
+.Training {
+    background-color: #c5cae9;
+}
+
+.Member {
+    background-color: #b3e5fc;
+}
+
+.Timeclock {
+    background-color: #cfd8dc;
+}
+
+.Incident {
+    background-color: #f8bbd0;
+}
+
+.Inspection {
+    background-color: #ffecb3;
+}
+
+.type {
+    font-weight: 600;
+    opacity: .87;
+    white-space: nowrap;
+}
+
+.title {
+    opacity: .78;
+}
+
+.date {
+    font-size: 32px;
+    color: #212121;
+}
+
+.dow {
+    font-size: 15px;
+    color: #666666;
+    margin-top: -8px;
+}
+
+.month {
+    margin: 24px;
+    font-size: 24px;
+    color: #666666;
+    font-weight: 500;
+}
+
+.small {
+    font-size: 17px !important;
+    opacity: .54;
+}
+
+.hide {
+    display: none;
+}

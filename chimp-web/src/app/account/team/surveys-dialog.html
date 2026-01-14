@@ -1,0 +1,25 @@
+<h2 mat-dialog-title>Survey History for {{data.name}}</h2>
+<mat-dialog-content class="wide">
+  <div class="d-view">
+    <table>
+      <tr>
+        <th>title</th>
+        <th>created</th>
+        <th>responded</th>
+        <th>answer</th>
+        <th>explination</th>
+      </tr>
+      <tr *ngFor="let survey of data.surveys">
+        <td>{{survey.title}}</td>
+        <td>{{survey.createdAt?.toDate() | date: 'short'}}</td>
+        <td>{{(survey.response?.createdAt?.toDate() | date: 'short') || 'no'}}</td>
+        <td>{{survey.response?.shortAnswer}}</td>
+        <td>{{survey.response?.longAnswer}}</td>
+      </tr>
+    </table>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button color="accent" (click)="close()">Close</button>
+  <!-- <button mat-raised-button style="color: #ffffff" color="accent" [disabled]="!invite.name || (!invite.email && invite.preferEmail) || !invite.phone" [mat-dialog-close]="invite">Add to team</button> -->
+</mat-dialog-actions>

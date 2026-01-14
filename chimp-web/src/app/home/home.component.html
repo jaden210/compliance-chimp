@@ -1,0 +1,74 @@
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-text">
+      <h1 class="headline">
+        The PCI compliance platform for small teams who hate PCI compliance.
+      </h1>
+      <div class="checklist-container">
+        <img src="/assets/chimp.png" alt="Compliance Chimp" class="chimp-image" />
+        <div class="checklist">
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>Self-assessment questionnaire guidance</span>
+          </div>
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>Policy documentation made simple</span>
+          </div>
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>Evidence collection and storage</span>
+          </div>
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>Team training and verification</span>
+          </div>
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>Compliance tracking and reminders</span>
+          </div>
+          <div class="check-row">
+            <mat-icon>check</mat-icon>
+            <span>All stored in one simple place, forever</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="signup-card">
+      <div class="card-title">
+        <span class="blue">Start today,</span>
+        <span class="orange">&nbsp;no card required</span>
+      </div>
+      <div class="error" *ngIf="loginErrorStr">{{ loginErrorStr }}</div>
+      <div class="form-container">
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input
+            matInput
+            (keyup.enter)="createAccount()"
+            type="email"
+            required
+            [(ngModel)]="email"
+          />
+        </mat-form-field>
+        <button
+          mat-flat-button
+          color="accent"
+          class="create-btn"
+          (click)="createAccount()"
+        >
+          Create Account
+        </button>
+      </div>
+      <div class="signin-link">
+        Already have an account?
+        <a routerLink="/sign-in">Sign in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="border"></div>
+
+<sign-up></sign-up>

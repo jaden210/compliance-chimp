@@ -1,0 +1,343 @@
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+// ============================================================================
+// CHIMP CUSTOM COLOR PALETTES
+// ============================================================================
+
+// Primary Blue Palette based on #054d8a
+$chimp-blue-palette: (
+  0: #000000,
+  10: #001d36,
+  20: #003258,
+  25: #033d6a,
+  30: #054d8a,
+  35: #1a5a96,
+  40: #2d68a3,
+  50: #4a82be,
+  60: #689cd9,
+  70: #8ab7f0,
+  80: #b0d3ff,
+  90: #d6e8ff,
+  95: #ecf4ff,
+  98: #f8faff,
+  99: #fdfcff,
+  100: #ffffff,
+  secondary: (
+    0: #000000,
+    10: #0f1d2b,
+    20: #243241,
+    25: #2f3d4c,
+    30: #3a4858,
+    35: #465464,
+    40: #526070,
+    50: #6a798a,
+    60: #8493a4,
+    70: #9eadbf,
+    80: #b9c8db,
+    90: #d5e4f7,
+    95: #ecf4ff,
+    98: #f8faff,
+    99: #fdfcff,
+    100: #ffffff,
+  ),
+  neutral: (
+    0: #000000,
+    4: #0c0e11,
+    6: #111316,
+    10: #1a1c1e,
+    12: #1e2022,
+    17: #282a2d,
+    20: #2f3033,
+    22: #333537,
+    24: #37393c,
+    25: #3a3c3f,
+    30: #46474a,
+    35: #515356,
+    40: #5d5e62,
+    50: #76777a,
+    60: #8f9194,
+    70: #aaabae,
+    80: #c6c6c9,
+    87: #d9d9dc,
+    90: #e2e2e5,
+    92: #e8e7eb,
+    94: #eeeded,
+    95: #f0f0f3,
+    96: #f3f3f6,
+    98: #f9f9fc,
+    99: #fdfcff,
+    100: #ffffff,
+  ),
+  neutral-variant: (
+    0: #000000,
+    10: #171c22,
+    20: #2c3137,
+    25: #373c42,
+    30: #42474e,
+    35: #4e535a,
+    40: #5a5f66,
+    50: #73787f,
+    60: #8c9198,
+    70: #a7acb3,
+    80: #c3c7cf,
+    90: #dfe3eb,
+    95: #edf1f9,
+    98: #f8faff,
+    99: #fdfcff,
+    100: #ffffff,
+  ),
+  error: (
+    0: #000000,
+    10: #410002,
+    20: #690005,
+    25: #7e0007,
+    30: #93000a,
+    35: #a80710,
+    40: #ba1a1a,
+    50: #de3730,
+    60: #ff5449,
+    70: #ff897d,
+    80: #ffb4ab,
+    90: #ffdad6,
+    95: #ffedea,
+    98: #fff8f7,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+);
+
+// Tertiary Orange Palette based on #ff9100
+$chimp-orange-palette: (
+  0: #000000,
+  10: #2e1600,
+  20: #4c2700,
+  25: #5c3000,
+  30: #6d3900,
+  35: #7e4300,
+  40: #8f4d00,
+  50: #b26200,
+  60: #d67800,
+  70: #f79000,
+  80: #ffb86c,
+  90: #ffdcbe,
+  95: #ffeedf,
+  98: #fff8f5,
+  99: #fffbff,
+  100: #ffffff,
+  secondary: (
+    0: #000000,
+    10: #251a0c,
+    20: #3b2e1f,
+    25: #47392a,
+    30: #534434,
+    35: #5f5040,
+    40: #6c5c4b,
+    50: #857463,
+    60: #9f8e7c,
+    70: #bba895,
+    80: #d7c4b0,
+    90: #f4e0cb,
+    95: #ffeedf,
+    98: #fff8f5,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+  neutral: (
+    0: #000000,
+    4: #120d08,
+    6: #17120c,
+    10: #1f1b16,
+    12: #231f1a,
+    17: #2d2924,
+    20: #34302a,
+    22: #39342e,
+    24: #3d3933,
+    25: #403b35,
+    30: #4c4640,
+    35: #58524b,
+    40: #645d57,
+    50: #7d766f,
+    60: #978f88,
+    70: #b2aaa2,
+    80: #cec5bd,
+    87: #e1d8d0,
+    90: #ebe1d9,
+    92: #f0e7de,
+    94: #f6ede4,
+    95: #f9efe6,
+    96: #fcf2e9,
+    98: #fff8f5,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+  neutral-variant: (
+    0: #000000,
+    10: #221b14,
+    20: #382f28,
+    25: #433a32,
+    30: #4f453d,
+    35: #5b5149,
+    40: #675d54,
+    50: #80756c,
+    60: #9b8f85,
+    70: #b6a99f,
+    80: #d2c5ba,
+    90: #efe1d5,
+    95: #fdefE3,
+    98: #fff8f5,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+  error: (
+    0: #000000,
+    10: #410002,
+    20: #690005,
+    25: #7e0007,
+    30: #93000a,
+    35: #a80710,
+    40: #ba1a1a,
+    50: #de3730,
+    60: #ff5449,
+    70: #ff897d,
+    80: #ffb4ab,
+    90: #ffdad6,
+    95: #ffedea,
+    98: #fff8f7,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+);
+
+// ============================================================================
+// DEFINE THE CHIMP THEME
+// ============================================================================
+
+$chimp-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: $chimp-blue-palette,
+    tertiary: $chimp-orange-palette,
+  ),
+  typography: (
+    brand-family: '"Nunito", "Roboto", sans-serif',
+    plain-family: '"Nunito", "Roboto", sans-serif',
+  ),
+));
+
+// ============================================================================
+// CSS CUSTOM PROPERTIES FOR USE THROUGHOUT THE APP
+// ============================================================================
+
+:root {
+  // Primary Blue Colors
+  --chimp-primary: #054d8a;
+  --chimp-primary-light: #2d68a3;
+  --chimp-primary-lighter: #689cd9;
+  --chimp-primary-dark: #003258;
+  --chimp-primary-darker: #001d36;
+  --chimp-primary-contrast: #ffffff;
+  --chimp-primary-50: #d6e8ff;
+  --chimp-primary-100: #b0d3ff;
+  --chimp-primary-200: #8ab7f0;
+  --chimp-primary-300: #689cd9;
+  --chimp-primary-400: #4a82be;
+  --chimp-primary-500: #054d8a;
+  --chimp-primary-600: #033d6a;
+  --chimp-primary-700: #003258;
+  --chimp-primary-800: #001d36;
+  --chimp-primary-900: #001d36;
+
+  // Accent Orange Colors
+  --chimp-accent: #ff9100;
+  --chimp-accent-light: #ffb86c;
+  --chimp-accent-lighter: #ffdcbe;
+  --chimp-accent-dark: #d67800;
+  --chimp-accent-darker: #8f4d00;
+  --chimp-accent-contrast: #000000;
+  --chimp-accent-50: #ffeedf;
+  --chimp-accent-100: #ffdcbe;
+  --chimp-accent-200: #ffb86c;
+  --chimp-accent-300: #f79000;
+  --chimp-accent-400: #ff9100;
+  --chimp-accent-500: #ff9100;
+  --chimp-accent-600: #d67800;
+  --chimp-accent-700: #b26200;
+  --chimp-accent-800: #8f4d00;
+  --chimp-accent-900: #6d3900;
+
+  // Semantic Colors
+  --chimp-success: #4caf50;
+  --chimp-success-light: #81c784;
+  --chimp-success-dark: #388e3c;
+  --chimp-success-bg: #c8e6c9;
+  --chimp-success-text: #1b5e20;
+
+  --chimp-warning: #ff9800;
+  --chimp-warning-light: #ffb74d;
+  --chimp-warning-dark: #f57c00;
+  --chimp-warning-bg: #ffe0b2;
+  --chimp-warning-text: #e65100;
+
+  --chimp-error: #f44336;
+  --chimp-error-light: #e57373;
+  --chimp-error-dark: #d32f2f;
+  --chimp-error-bg: #ffcdd2;
+  --chimp-error-text: #b71c1c;
+
+  --chimp-info: #2196f3;
+  --chimp-info-light: #64b5f6;
+  --chimp-info-dark: #1976d2;
+  --chimp-info-bg: #bbdefb;
+  --chimp-info-text: #0d47a1;
+
+  // Neutral/Gray Colors
+  --chimp-gray-50: #fafafa;
+  --chimp-gray-100: #f5f5f5;
+  --chimp-gray-200: #eeeeee;
+  --chimp-gray-300: #e0e0e0;
+  --chimp-gray-400: #bdbdbd;
+  --chimp-gray-500: #9e9e9e;
+  --chimp-gray-600: #757575;
+  --chimp-gray-700: #616161;
+  --chimp-gray-800: #424242;
+  --chimp-gray-900: #212121;
+
+  // Text Colors
+  --chimp-text-primary: #212121;
+  --chimp-text-secondary: #666666;
+  --chimp-text-hint: #757575;
+  --chimp-text-disabled: #9e9e9e;
+  --chimp-text-on-primary: #ffffff;
+  --chimp-text-on-accent: #000000;
+
+  // Background Colors
+  --chimp-bg-primary: #ffffff;
+  --chimp-bg-secondary: #fafafa;
+  --chimp-bg-tertiary: #f5f5f5;
+  --chimp-bg-card: #ffffff;
+  --chimp-bg-dialog: #ffffff;
+  --chimp-bg-app-bar: #054d8a;
+
+  // Border Colors
+  --chimp-border-light: #e0e0e0;
+  --chimp-border-medium: #bdbdbd;
+  --chimp-border-dark: #9e9e9e;
+
+  // Shadow
+  --chimp-shadow-light: rgba(0, 0, 0, 0.08);
+  --chimp-shadow-medium: rgba(0, 0, 0, 0.14);
+  --chimp-shadow-heavy: rgba(0, 0, 0, 0.36);
+
+  // Amber (for progress indicators)
+  --chimp-amber: #ffd740;
+  --chimp-amber-light: #ffd54f;
+}
+
+// ============================================================================
+// APPLY THE THEME TO ALL COMPONENTS
+// ============================================================================
+
+html {
+  @include mat.all-component-themes($chimp-theme);
+}

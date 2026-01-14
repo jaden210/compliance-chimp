@@ -1,0 +1,48 @@
+mat-card {
+  border-radius: 12px;
+  padding: 48px 64px 24px;
+  max-width: 400px;
+}
+
+mat-card-content {
+  display: flex;
+  flex-direction: column;
+  font-weight: bolder;
+}
+
+mat-form-field {
+  margin-top: -12px;
+}
+
+mat-card-footer {
+  font-size: 13px;
+}
+
+button {
+  padding-left: 48px;
+  padding-right: 48px;
+}
+
+mat-card-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.progress {
+  position: absolute;
+  top: -14px;
+  width: 130px;
+  background: #009688;
+  color: white;
+  border-radius: 16px;
+  height: 32px;
+  text-align: center;
+  line-height: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.error {
+  color: red;
+  margin: 12px 0;
+}

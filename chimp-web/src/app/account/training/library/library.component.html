@@ -1,0 +1,227 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Training</div>
+  <div class="flex"></div>
+  <button mat-stroked-button class="history-btn" routerLink="/account/training">
+    <mat-icon>history</mat-icon>
+    View History
+  </button>
+</mat-toolbar>
+
+@if (!customArticle) {
+  <mat-sidenav-container class="library-container">
+    <mat-sidenav 
+      #articleSidenav 
+      mode="side" 
+      position="end" 
+      [opened]="!!selectedArticle"
+      (closedStart)="closeArticle()">
+      @if (selectedArticle) {
+        <div class="article-detail">
+          <div class="detail-header">
+            <button mat-icon-button (click)="closeArticle()">
+              <mat-icon>close</mat-icon>
+            </button>
+            <div class="detail-title">{{ selectedArticle.name }}</div>
+            <div class="detail-actions">
+              @if ((activeTab$ | async) === 'myLibrary') {
+                <button mat-icon-button color="warn" matTooltip="Remove from library" (click)="removeFromLibrary($any(selectedArticle))">
+                  <mat-icon>delete</mat-icon>
+                </button>
+                <button mat-icon-button matTooltip="Edit article" (click)="createCustomArticle($any(selectedArticle))">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-flat-button color="accent" (click)="startTraining()">
+                  <mat-icon>play_circle</mat-icon>
+                  Start Training
+                </button>
+              } @else {
+                @if (isInLibrary(selectedArticle.name)) {
+                  <span class="status-badge in-library large">
+                    <mat-icon>star</mat-icon>
+                    In Library
+                  </span>
+                } @else {
+                  <button mat-flat-button color="accent" (click)="addToLibrary(selectedArticle)">
+                    <mat-icon>add</mat-icon>
+                    Add to Library
+                  </button>
+                }
+              }
+            </div>
+          </div>
+          <div class="detail-meta">
+            @if (selectedArticle.industry) {
+              <span class="meta-chip">{{ selectedArticle.industry }}</span>
+            }
+            @if (selectedArticle.topic) {
+              <span class="meta-chip">{{ selectedArticle.topic }}</span>
+            }
+          </div>
+          <div class="detail-content" [innerHTML]="selectedArticle.content"></div>
+        </div>
+      }
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <div class="window library-page">
+        <section class="splash">
+          <div class="splash-content">
+            <div class="splash-kicker">Training Library</div>
+            <div class="splash-title">Empower your team with the right knowledge.</div>
+            <div class="splash-body">
+              Build your library with OSHA articles, Chimp Chats, or your own custom content. Start training sessions and track compliance effortlessly.
+            </div>
+            <div class="splash-actions">
+              <button mat-flat-button color="accent" (click)="createCustomArticle()">
+                <mat-icon>add</mat-icon>
+                Create custom article
+              </button>
+            </div>
+          </div>
+        </section>
+
+        @if (library$ | async; as allLibrary) {
+          <section class="library-section">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Browse content</div>
+                <div class="section-subtitle">Filter and explore training articles from different sources.</div>
+              </div>
+              <div class="filter-bar">
+                <button 
+                  mat-stroked-button 
+                  class="filter-chip" 
+                  [class.active]="(activeTab$ | async) === 'myLibrary'"
+                  (click)="setTab('myLibrary')">
+                  <mat-icon>collections_bookmark</mat-icon>
+                  My Library
+                </button>
+                <button 
+                  mat-stroked-button 
+                  class="filter-chip" 
+                  [class.active]="(activeTab$ | async) === 'osha'"
+                  (click)="setTab('osha')">
+                  <mat-icon>verified_user</mat-icon>
+                  OSHA Articles
+                </button>
+                <button 
+                  mat-stroked-button 
+                  class="filter-chip" 
+                  [class.active]="(activeTab$ | async) === 'chimpChats'"
+                  (click)="setTab('chimpChats')">
+                  <mat-icon>forum</mat-icon>
+                  Chimp Chats
+                </button>
+              </div>
+            </div>
+
+            <div class="search-bar">
+              <mat-icon>search</mat-icon>
+              <input 
+                type="text" 
+                placeholder="Search articles..." 
+                [value]="searchTerm$ | async"
+                (input)="onSearch($any($event.target).value)">
+            </div>
+
+            @if (filteredContent$ | async; as content) {
+              @if (content.length === 0) {
+                <div class="empty-state">
+                  @if ((activeTab$ | async) === 'myLibrary') {
+                    <mat-icon>library_books</mat-icon>
+                    <div class="empty-title">Your library is empty</div>
+                    <div class="empty-body">
+                      Start building your training library by adding OSHA articles or Chimp Chats, or create your own custom content.
+                    </div>
+                    <button mat-flat-button color="accent" (click)="setTab('osha')">
+                      <mat-icon>explore</mat-icon>
+                      Browse OSHA Articles
+                    </button>
+                  } @else {
+                    <mat-icon>search_off</mat-icon>
+                    <div class="empty-title">No articles found</div>
+                    <div class="empty-body">Try adjusting your search terms.</div>
+                  }
+                </div>
+              } @else {
+                <div class="articles-list">
+                  <!-- Table Header -->
+                  <div class="table-header">
+                    <div class="col-thumb"></div>
+                    <div class="col-name sortable" (click)="toggleSort('name')" [class.active]="(sort$ | async)?.column === 'name'">
+                      Name
+                      @if ((sort$ | async)?.column === 'name') {
+                        <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                      }
+                    </div>
+                    <div class="col-industry sortable" (click)="toggleSort('industry')" [class.active]="(sort$ | async)?.column === 'industry'">
+                      Industry
+                      @if ((sort$ | async)?.column === 'industry') {
+                        <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                      }
+                    </div>
+                    <div class="col-topic sortable" (click)="toggleSort('topic')" [class.active]="(sort$ | async)?.column === 'topic'">
+                      Topic
+                      @if ((sort$ | async)?.column === 'topic') {
+                        <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                      }
+                    </div>
+                    <div class="col-status">Status</div>
+                  </div>
+
+                  <!-- Table Rows -->
+                  @for (article of content; track trackByArticleId($index, article)) {
+                    <div 
+                      class="table-row" 
+                      [class.selected]="selectedArticle?.id === article.id"
+                      (click)="selectArticle(article)">
+                      
+                      <div class="col-thumb">
+                        <img [src]="article.thumbnail || '/assets/chimpTop.png'" alt="" onerror="this.src='/assets/chimpTop.png'">
+                      </div>
+
+                      <div class="col-name">
+                        <span class="article-title">{{ article.name }}</span>
+                      </div>
+
+                      <div class="col-industry">
+                        <span>{{ article.industry || '—' }}</span>
+                      </div>
+
+                      <div class="col-topic">
+                        <span>{{ article.topic || '—' }}</span>
+                      </div>
+
+                      <div class="col-status">
+                        @if (isInLibrary(article.name)) {
+                          <span class="status-badge in-library">
+                            <mat-icon>star</mat-icon>
+                            In Library
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            } @else {
+              <div class="loading-state">
+                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                <div class="loading-text">Loading articles...</div>
+              </div>
+            }
+          </section>
+        } @else {
+          <div class="loading-state">
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+            <div class="loading-text">Loading your library...</div>
+          </div>
+        }
+      </div>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+} @else {
+  <app-create-edit-article [articleId]="$any(selectedArticle)?.id" (closed)="closeCustomArticle()"></app-create-edit-article>
+}

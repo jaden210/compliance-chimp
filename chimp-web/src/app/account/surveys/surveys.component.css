@@ -1,0 +1,29 @@
+#search {
+  flex: 1;
+  font-size: 15px;
+  background: var(--chimp-bg-primary);
+  border: none;
+  outline: none;
+  color: var(--chimp-text-primary);
+  padding: 12px;
+  border-radius: 12px;
+  border: 0.5px solid var(--chimp-text-secondary);
+  box-sizing: border-box;
+}
+
+::-webkit-input-placeholder {
+  /* Chrome/Opera/Safari */
+  color: var(--chimp-text-secondary);
+}
+::-moz-placeholder {
+  /* Firefox 19+ */
+  color: var(--chimp-text-secondary);
+}
+:-ms-input-placeholder {
+  /* IE 10+ */
+  color: var(--chimp-text-secondary);
+}
+:-moz-placeholder {
+  /* Firefox 18- */
+  color: var(--chimp-text-secondary);
+}

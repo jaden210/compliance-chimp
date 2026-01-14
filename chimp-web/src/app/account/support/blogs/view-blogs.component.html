@@ -1,0 +1,11 @@
+<div class="scoll">
+  <div id="blogs">
+    <mat-nav-list>
+      <mat-list-item *ngFor="let blog of blogs | async" (click)="editBlog(blog)">
+        <h1 matLine> {{blog.id}} - {{blog.name}}</h1>
+        <p mat-line> {{blog.topicId}} </p>
+      </mat-list-item>
+    </mat-nav-list>
+  </div>
+  <button mat-mini-fab class="fab" color="accent" (click)="newBlog()"><mat-icon>forum</mat-icon>New Blog</button>
+</div>

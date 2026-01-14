@@ -1,0 +1,22 @@
+<mat-tab-group>
+  <mat-tab label="support">
+    <web-support></web-support>
+  </mat-tab>
+  <mat-tab label="feedback">
+    <feedback></feedback>
+  </mat-tab>
+  <mat-tab label="Self-Inspection template">
+    <inspection-questions></inspection-questions>
+  </mat-tab>
+  <mat-tab label="Create a Blog">
+    <app-view-blogs *ngIf="!supportService.makeBlog"></app-view-blogs>
+    <app-make-blog *ngIf="supportService.makeBlog"></app-make-blog>
+  </mat-tab>
+  <mat-tab label="Help Articles">
+    <app-help *ngIf="!supportService.makeArticle"></app-help>
+    <app-article *ngIf="supportService.makeArticle"></app-article>
+  </mat-tab>
+  <mat-tab label="statistics">
+      <statistics></statistics>
+  </mat-tab>
+</mat-tab-group>

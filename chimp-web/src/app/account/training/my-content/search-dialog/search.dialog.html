@@ -1,0 +1,61 @@
+<span id="title" mat-dialog-title
+  ><button mat-icon-button (click)="back()" *ngIf="title != title1">
+    <mat-icon>arrow_back</mat-icon></button
+  >{{ title }}
+</span>
+
+<mat-dialog-content [ngSwitch]="title">
+  <ng-container *ngSwitchCase="title1">
+    <mat-form-field appearance="outline" style="margin-top: -4px;">
+      <mat-label>article name</mat-label>
+      <input
+        matInput
+        placeholder="text contains"
+        [(ngModel)]="searchParams.string"
+      />
+    </mat-form-field>
+
+    <div class="btn" (click)="selectEmployee()">
+      <span class="placeholder">{{ EmployeesTitle || "All Employees" }}</span>
+      <span class="label" *ngIf="searchParams.employees.length">Employees</span>
+      <mat-icon>chevron_right</mat-icon>
+    </div>
+
+    <mat-form-field appearance="outline">
+      <mat-label>compliance type</mat-label>
+      <mat-select
+        placeholder="compliance type"
+        [(ngModel)]="searchParams.complianceType"
+      >
+        <mat-option *ngFor="let type of complianceTypes" [value]="type.key">
+          {{ type.value }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+  </ng-container>
+
+  <ng-container *ngSwitchCase="title2">
+    <mat-selection-list
+      dense
+      [(ngModel)]="searchParams.employees"
+      style="outline: none;"
+    >
+      <mat-list-option *ngFor="let user of (users | async)" [value]="user">
+        <img
+          matListAvatar
+          [src]="user.profileUrl"
+          onerror="src='/assets/face.png'"
+        />
+        <h3 matLine>{{ user.name }}</h3>
+      </mat-list-option>
+    </mat-selection-list>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>CANCEL</button>
+  <button mat-button (click)="reset()">RESET</button>
+  <button color="primary" mat-raised-button (click)="apply()">
+    {{ actionBtn }}
+  </button>
+</mat-dialog-actions>

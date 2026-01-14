@@ -1,0 +1,27 @@
+<h2 mat-dialog-title>Team Files<button mat-button (click)="upFiled.click()" color="primary" class="upload"><mat-icon>cloud_upload</mat-icon>&nbsp;UPLOAD A FILE</button></h2>
+<mat-dialog-content class="f-view">
+  <mat-progress-bar mode="indeterminate" *ngIf="loading" style="top: -24px;position: absolute"></mat-progress-bar>
+  <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" #upFiled id="upFile" accept=".png,.jpg,.mp4,.csv,.pdf,.xls" #upload (change)="uploadFile($event)"></div>
+  <div class="file-row">
+    <div class="file" *ngFor="let file of files" [ngClass]="{'f-active': aFile.id == file.id}" (click)="aFile = file">
+      <div class="f-name">{{file.name}}&nbsp;-&nbsp;</div>
+      {{file.createdAt | date}}
+    </div>
+  </div>
+  <div id="file-view">
+    <div id="file-preview"><img id="file-file" src={{aFile.fileUrl}} onerror="src = '/assets/lost.png'"></div>
+    <mat-form-field>
+      <input matInput placeholder="file name" type="text" [(ngModel)]="aFile.name" (blur)="save()">
+      <mat-hint>{{aFile.createdAt | date: 'medium'}}</mat-hint>
+    </mat-form-field>
+    <mat-slide-toggle [(ngModel)]="aFile.isPublic" style="margin: 12px 0" (change)="save()">Allow team access</mat-slide-toggle>
+    <div id="button-row">
+      <button mat-button color="accent" style="align-self:start" (click)="download()">DOWNLOAD</button>
+      <div class="flex"></div>
+      <mat-icon class="f-delete" (click)="delete()">delete</mat-icon>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button color="accent" (click)="close()">CLOSE</button>
+</mat-dialog-actions>

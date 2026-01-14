@@ -1,0 +1,45 @@
+<mat-toolbar style="font-size: 15px">
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <h1>{{ title }}</h1>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="window">
+    <button
+    mat-stroked-button
+    [disabled]="!articles"
+    color="primary"
+    id="create-btn"
+    (click)="createArticle()"
+  >
+    CREATE ARTICLE
+  </button>
+  <mat-nav-list>
+    <mat-list-item
+      *ngFor="let article of (articles | async)"
+      (click)="routeTo(article)"
+    >
+      <progress-indicator
+        *ngIf="article.favorited && article.myContent"
+        [myContent]="article.myContent"
+      ></progress-indicator>
+      <button
+        class="heart"
+        mat-icon-button
+        class="heart"
+        color="warn"
+        (click)="favorite(article); $event.stopPropagation()"
+      >
+        <mat-icon
+          matListIcon
+          [ngStyle]="{ color: article.favorited ? '#E91E63' : '#757575' }"
+        >
+          {{ article.favorited ? "favorite" : "favorite_border" }}
+        </mat-icon>
+      </button>
+      <a matLine>{{ article.name }}</a>
+    </mat-list-item>
+  </mat-nav-list>
+</div>

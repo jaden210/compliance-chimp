@@ -1,0 +1,134 @@
+<mat-sidenav-container>
+  <mat-sidenav
+    mode="over"
+    #sidenav
+    id="sidenav"
+    position="end"
+    [(opened)]="open"
+  >
+    <mat-toolbar class="toolbar sidenav-toolbar">
+      <img
+        src="/assets/ccLogo.png"
+        class="title"
+        (click)="navRoute('home')"
+        alt="Compliancechimp"
+      />
+      <div class="flex"></div>
+      <button mat-icon-button (click)="sidenav.close()">
+        <mat-icon style="color:#ffffff">close</mat-icon>
+      </button>
+    </mat-toolbar>
+    <div class="cwindow">
+      <div id="links">
+        <button
+          mat-button
+          class="link"
+          (click)="navRoute('how-it-works')"
+          routerLinkActive="tactive"
+        >
+          How it Works
+        </button>
+
+        <button
+          mat-button
+          class="link"
+          (click)="navRoute('common-questions')"
+          routerLinkActive="tactive"
+        >
+          Common Questions
+        </button>
+
+        <!-- <button mat-button class="link" (click)="goToBlog()">Blog</button> -->
+        <button
+          mat-button
+          class="link"
+          (click)="trySignIn()"
+        >
+          Sign in
+        </button>
+
+        <button
+          mat-stroked-button
+          style="margin: 24px 0;color:#ffffff;border-color:#ffffff !important"
+          (click)="routeSignUp()"
+        >
+          Start for Free
+        </button>
+        <div class="border"></div>
+        <sign-up></sign-up>
+      </div>
+    </div>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <mat-toolbar
+      class="toolbar"
+      *ngIf="
+        !router.isActive('/account', false) &&
+        !router.isActive('/user', false) &&
+        !router.isActive('/get-started', false)
+      "
+      [class.shadow]="appService.toolbarShadow"
+    >
+      <img
+        src="/assets/ccLogo.png"
+        class="title"
+        routerLink="home"
+        alt="Compliancechimp"
+      />
+      <div style="width: 50px"></div>
+      <div class="flex"></div>
+      <div class="desktop">
+        <button
+          mat-button
+          class="link"
+          routerLink="how-it-works"
+          routerLinkActive="tactive"
+        >
+          How it Works
+        </button>
+
+
+        <button
+          mat-button
+          class="link"
+          routerLink="common-questions"
+          routerLinkActive="tactive"
+        >
+          Common Questions
+        </button>
+
+        <!-- <button mat-button class="link" (click)="goToBlog()">Blog</button> -->
+        <button mat-button class="link" (click)="trySignIn()">Sign in</button>
+        <button
+          mat-stroked-button
+          style="color: #ffffff;border-color:#ffffff !important"
+          (click)="routeSignUp()"
+        >
+          Start for Free
+        </button>
+      </div>
+      <div class="mobile">
+        <button mat-icon-button (click)="open = true">
+          <mat-icon style="color:#ffffff">menu</mat-icon>
+        </button>
+      </div>
+    </mat-toolbar>
+    <div id="spacer"></div>
+    <div class="hwindow" id="scroll">
+      <router-outlet></router-outlet>
+      <footer
+        id="footer"
+        *ngIf="
+          !router.isActive('/account', false) &&
+          !router.isActive('/user', false) &&
+          !router.isActive('/get-started', false)
+        "
+      ></footer>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+<div class="loading" *ngIf="appService.firstTimeUser">
+  <img id="loading-chimp" src="/assets/chimp.png" />
+  <div id="loading-text">Hold tight while we finish setting things up.</div>
+  <mat-progress-bar id="loading-bar" mode="indeterminate"></mat-progress-bar>
+</div>

@@ -1,0 +1,91 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="cancel()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-title">{{ selfInspection.id ? 'Edit' : 'New' }} Self-Inspection</span>
+  <div class="flex"></div>
+  <button mat-button color="primary" *ngIf="selfInspection.id" (click)="saveOrCreate()">SAVE</button>
+  <button mat-flat-button color="primary" *ngIf="!selfInspection.id" (click)="saveOrCreate()" [disabled]="!selfInspection.title">CREATE</button>
+</mat-toolbar>
+
+<div class="page-content">
+  <!-- Configuration Card -->
+  <div class="config-card">
+    <div class="config-header">
+      <mat-icon class="config-icon">settings</mat-icon>
+      <span>Configuration</span>
+    </div>
+    <div class="config-body">
+      <mat-form-field appearance="outline" class="name-field">
+        <mat-label>Inspection Name</mat-label>
+        <input matInput required autofocus type="text" [(ngModel)]="selfInspection.title" placeholder="e.g., Monthly Safety Check">
+      </mat-form-field>
+      
+      <div class="renewal-section">
+        <span class="renewal-label">Renewal Frequency</span>
+        <mat-button-toggle-group [(ngModel)]="selfInspection.inspectionExpiration" class="renewal-toggle">
+          <mat-button-toggle *ngFor="let time of timeFrame" [value]="time">{{ time }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+    </div>
+  </div>
+
+  <!-- Questions Section -->
+  <div class="questions-section">
+    <div class="section-header">
+      <mat-icon>checklist</mat-icon>
+      <span>Select Questions</span>
+      <span class="section-hint">Choose relevant questions for your inspection. Questions are organized by category.</span>
+    </div>
+
+    <mat-accordion class="questions-accordion" multi>
+      <mat-expansion-panel *ngFor="let subject of selfInspection.baseQuestions; let i = index" class="category-panel">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <span class="category-name">{{ subject.subject }}</span>
+            <span class="question-count" [class.all-selected]="getLength(subject.questions) === subject?.questions?.length">
+              {{ getLength(subject.questions) }}/{{ subject?.questions?.length || 0 }}
+            </span>
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <div class="questions-list">
+          <div 
+            class="question-item" 
+            *ngFor="let question of subject.questions" 
+            (click)="question.selected = !question.selected"
+            [class.selected]="question.selected">
+            <mat-checkbox 
+              [checked]="question.selected" 
+              (click)="$event.stopPropagation()"
+              (change)="question.selected = $event.checked"
+              color="primary">
+            </mat-checkbox>
+            <span class="question-text">{{ question.name }}</span>
+            <button 
+              mat-stroked-button 
+              class="expected-answer-btn"
+              *ngIf="question.selected"
+              (click)="$event.stopPropagation(); toggleExpectedAnswer(question)"
+              [matTooltip]="'Compliant answer: ' + (question.expectedAnswer === false ? 'No' : 'Yes')"
+              [class.expects-no]="question.expectedAnswer === false">
+              <mat-icon>{{ question.expectedAnswer === false ? 'close' : 'check' }}</mat-icon>
+              {{ question.expectedAnswer === false ? 'No' : 'Yes' }}
+            </button>
+          </div>
+
+          <!-- Add New Question -->
+          <div class="add-question-row">
+            <mat-form-field appearance="outline" class="new-question-field">
+              <mat-label>Add a custom question</mat-label>
+              <textarea matInput [(ngModel)]="newQuestionText" cdkTextareaAutosize cdkAutosizeMinRows="1" cdkAutosizeMaxRows="4"></textarea>
+            </mat-form-field>
+            <button mat-mini-fab color="primary" (click)="addQuestion(i)" [disabled]="!newQuestionText?.trim()" matTooltip="Add question">
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+</div>

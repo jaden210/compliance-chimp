@@ -1,0 +1,41 @@
+<span id="title" mat-dialog-title>Filter Events</span>
+
+<mat-dialog-content>
+
+
+  <div class="col">
+    By Type:
+    <mat-selection-list
+      dense
+      [(ngModel)]="data.filterTypes"
+      style="outline: none;"
+    >
+      <mat-list-option *ngFor="let type of data.eventTypes" [value]="type">
+        <h3 matLine>{{type}}</h3>
+      </mat-list-option>
+    </mat-selection-list>
+  </div>
+
+  <div class="col">
+    By User:
+    <mat-selection-list
+      dense
+      [(ngModel)]="data.filterUsers"
+      style="outline: none;">
+      <mat-list-option *ngFor="let user of (users | async)" [value]="user.name">
+        <img
+          matListAvatar
+          [src]="user.profileUrl"
+          onerror="src='/assets/face.png'"
+        />
+        <h3 matLine>{{ user.name }}</h3>
+      </mat-list-option>
+    </mat-selection-list>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>CANCEL</button>
+  <button mat-button (click)="clear()">CLEAR</button>
+  <button color="primary" mat-raised-button (click)="apply()">APPLY</button>
+</mat-dialog-actions>

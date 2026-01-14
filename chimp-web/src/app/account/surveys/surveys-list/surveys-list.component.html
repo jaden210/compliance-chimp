@@ -1,0 +1,60 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Surveys</div>
+  <div class="flex"></div>
+
+  <div id="search-box" [class.expand]="searchVisible">
+    <button mat-icon-button (click)="searchVisible = !searchVisible">
+      <mat-icon>search</mat-icon>
+    </button>
+    <input [(ngModel)]="searchTerm" placeholder="category | question" />
+  </div>
+
+  <button
+    mat-icon-button
+    style="margin-right: 12px;"
+    (click)="filterByPeople()"
+    matTooltip="Filter by people"
+    [matBadge]="people.length"
+    [matBadgeHidden]="!people.length"
+    matBadgeSize="small"
+  >
+    <mat-icon>filter_list</mat-icon>
+  </button>
+</mat-toolbar>
+<div class="window">
+  <mat-nav-list>
+    <mat-list-item
+      *ngFor="let survey of (surveys | async | surveySearch: searchTerm:people)"
+      (click)="routeTo(survey)"
+    >
+      <div
+        class="count"
+        matListItemAvatar
+        matTooltip="Number of contacts"
+        matTooltipShowDelay="500"
+      >
+        {{ objectKeys(survey.userSurvey).length }}
+      </div>
+      <span matListItemTitle
+        ><span class="top-line"
+          ><h4>{{ survey.category }}</h4>
+          <span class="date" *ngIf="!survey.active">{{
+            survey.createdAt | date
+          }}</span>
+          <span class="date" *ngIf="survey.active">Active</span></span
+        ></span
+      >
+      <span matListItemLine style="max-width: 50vw">{{ survey.title }}</span>
+    </mat-list-item>
+  </mat-nav-list>
+  <button
+    mat-mini-fab
+    class="fab"
+    color="accent"
+    (click)="createSurvey()"
+  >
+    <mat-icon>assignment</mat-icon>New Survey
+  </button>
+</div>

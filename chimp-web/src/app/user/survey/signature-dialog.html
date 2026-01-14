@@ -1,0 +1,11 @@
+<h2 mat-dialog-title>Sign Below</h2>
+<mat-dialog-content class="d-view">
+  <div id="content"></div>
+  <div class="sig">
+    <canvas #signatureCanvas class="signature-canvas"></canvas>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button color="accent" mat-dialog-close>BACK</button>
+  <button mat-flat-button color="accent" [disabled]="!finished" (click)="close()">SUBMIT</button>
+</mat-dialog-actions>

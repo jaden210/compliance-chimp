@@ -1,0 +1,250 @@
+.toolbar-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-left: 8px;
+  color: var(--chimp-text-primary);
+}
+
+.page-content {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  height: calc(100vh - 64px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+/* Configuration Card */
+.config-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px var(--chimp-shadow-light);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.config-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--chimp-primary) 0%, var(--chimp-primary-dark, var(--chimp-primary)) 100%);
+  color: var(--chimp-text-on-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.config-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.config-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.name-field {
+  width: 100%;
+}
+
+.renewal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.renewal-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--chimp-text-secondary);
+}
+
+.renewal-toggle {
+  border-radius: 24px;
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+/* Questions Section */
+.questions-section {
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.section-header mat-icon {
+  color: var(--chimp-primary);
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.section-header span:not(.section-hint) {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.section-hint {
+  width: 100%;
+  font-size: 14px;
+  color: var(--chimp-text-hint);
+  margin-top: 4px;
+}
+
+/* Accordion Styles */
+.questions-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-panel {
+  border-radius: 12px !important;
+  box-shadow: 0 1px 4px var(--chimp-shadow-light) !important;
+  overflow: hidden;
+}
+
+.category-panel .mat-expansion-panel-header-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin-right: 0;
+}
+
+.category-name {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--chimp-text-primary);
+  text-transform: capitalize;
+  flex: 1;
+  line-height: 1.4;
+}
+
+.question-count {
+  background: var(--chimp-gray-100, #f5f5f5);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--chimp-text-secondary);
+  transition: all 200ms ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.question-count.all-selected {
+  background: var(--chimp-success-light, #e8f5e9);
+  color: var(--chimp-success, #4caf50);
+}
+
+/* Questions List */
+.questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.question-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  background: transparent;
+}
+
+.question-item:hover {
+  background: var(--chimp-gray-50, #fafafa);
+}
+
+.question-item.selected {
+  background: rgba(33, 150, 243, 0.06);
+}
+
+.question-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--chimp-text-primary);
+  white-space: pre-line;
+  padding-top: 2px;
+}
+
+.expected-answer-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 0 10px;
+  min-width: auto;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-color: var(--chimp-success, #4caf50);
+  color: var(--chimp-success, #4caf50);
+}
+
+.expected-answer-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.expected-answer-btn.expects-no {
+  border-color: var(--chimp-warning, #ff9800);
+  color: var(--chimp-warning, #ff9800);
+}
+
+
+/* Add Question Row */
+.add-question-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px 4px;
+  margin-top: 8px;
+  border-top: 1px solid var(--chimp-border-light, #e0e0e0);
+}
+
+.new-question-field {
+  flex: 1;
+}
+
+.add-question-row button {
+  margin-top: 4px;
+}
+
+/* Responsive */
+@media screen and (max-width: 600px) {
+  .page-content {
+    padding: 16px;
+  }
+
+  .config-body {
+    padding: 16px;
+  }
+
+  .renewal-toggle {
+    flex-wrap: wrap;
+  }
+
+  .question-item {
+    padding: 10px 12px;
+  }
+}

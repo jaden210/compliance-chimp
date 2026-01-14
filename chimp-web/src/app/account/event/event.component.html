@@ -1,0 +1,46 @@
+<mat-toolbar>
+    <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+    <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+    <div class="toolbar-title">Events</div>
+    <div class="flex"></div>
+    <div id="search-box" [class.expand]="searchVisible">
+      <button mat-icon-button (click)="searchVisible = !searchVisible">
+        <mat-icon>search</mat-icon>
+      </button>
+      <input [(ngModel)]="searchStr" placeholder="search events" (keyup)="filterEvents()" />
+      </div>
+      <button
+      mat-icon-button
+      style="margin-right: 12px;"
+      (click)="filter()"
+      matTooltip="Filter by people"
+      [matBadge]="filterUsers.length + filterTypes.length"
+      [matBadgeHidden]="!filterUsers.length"
+      matBadgeSize="small">
+      <mat-icon>filter_list</mat-icon>
+    </button>
+</mat-toolbar>
+<div class="window" id="window" (scroll)="onScroll($event)">
+  <div id="bbody">
+    <div class="month">{{now}}</div>
+    <ng-container *ngFor="let day of days; index as i">
+      <div class="day-box">
+        <div class="day" (click)="aDay ? aDay = null : aDay = day.id">
+          <div class="date box">
+            <div class="date" [ngClass]="{'small': day.events.length == 0}">{{day.day}}</div>
+            <div class="dow" [ngClass]="{'hide': day.events.length == 0}">{{day.dOW}}</div>
+          </div>
+          <div class="row">
+            <div class="event" [ngClass]="event.type" *ngFor="let event of day.events">
+              <div class="block" (click)="routeToEventOrigin(event)">
+                <div class="type">{{event?.user?.name}} {{event?.action}} a {{event?.type}} -&nbsp;</div>
+                <div class="title">{{event?.description}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="month" *ngIf="day.day == 1">{{days[i + 1]?.month}}</div>
+    </ng-container>
+  </div>
+</div>

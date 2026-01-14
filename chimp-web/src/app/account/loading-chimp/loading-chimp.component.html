@@ -1,0 +1,11 @@
+@if (ShouldShow) {
+  <div class="spread" @catch (click)="close()">
+    <div class="block" @fade (click)="$event.stopPropagation()">
+      <img src="./assets/chimpTop.png">
+      <div class="ht">ChimpHints</div>
+      <div class="hint">{{hint}}</div>
+      <mat-checkbox (change)="close(true)">don't show again</mat-checkbox>
+      <button mat-raised-button color="primary" (click)="close()">got it</button>
+    </div>
+  </div>
+}

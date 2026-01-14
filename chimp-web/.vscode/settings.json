@@ -1,0 +1,10 @@
+{
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "cSpell.words": [
+        "angular",
+        "Compliancechimp",
+        "firestore",
+        "module",
+        "sendgrid"
+    ]
+}

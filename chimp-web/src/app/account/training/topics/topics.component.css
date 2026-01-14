@@ -1,0 +1,25 @@
+mat-toolbar {
+  font-size: 15px;
+  background: white !important;
+}
+
+.mat-list-avatar {
+  border-radius: 2px !important;
+  object-fit: cover;
+}
+
+#create-btn {
+  margin: 24px 32px;
+}
+
+.edit {
+  opacity: 0;
+}
+
+mat-list-item:hover .edit {
+  opacity: 0.87;
+}
+
+p {
+  color: #757575;
+}

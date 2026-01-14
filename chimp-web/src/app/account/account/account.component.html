@@ -1,0 +1,90 @@
+<mat-toolbar>
+    <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+    <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+    <div class="toolbar-title">Account</div>
+  <div class="flex"></div>
+</mat-toolbar>
+<mat-tab-group color="accent" id="tabs">
+  <mat-tab label="Personal"> 
+    <div class="column">
+      <div class="image-cont">
+        <div class="image-circle"><mat-progress-bar style="position: absolute;bottom: 0px;" *ngIf="loading" mode="indeterminate"></mat-progress-bar><img class="img" src={{accountService.user?.profileUrl}} onerror="src = '/assets/face.png'" alt="Compliancechimp"></div>
+        <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" id="upProfileUrl" accept=".png,.jpg,.mp4" #uploadT (change)="uploadProfileImage($event)"></div>
+        <button mat-stroked-button class="image-button" color="primary" (click)="upload(true)">CHANGE PICTURE</button>
+      </div>
+      <mat-form-field>
+        <input matInput color="primary" placeholder="profile name" [(ngModel)]="accountService.user.name" (change)="saveProfile()">
+      </mat-form-field>
+      <mat-form-field>
+        <input matInput color="primary" readonly placeholder="email" [(ngModel)]="accountService.user.email" (change)="saveProfile()">
+      </mat-form-field>
+      <mat-form-field>
+        <input matInput color="primary" placeholder="phone" type="tel" [(ngModel)]="accountService.user.phone" (change)="saveProfile()">
+      </mat-form-field>
+      <mat-form-field>
+        <input matInput color="primary" placeholder="job title" type="text" [(ngModel)]="accountService.user.jobTitle" (change)="saveProfile()">
+      </mat-form-field>
+    </div>
+  </mat-tab>
+  <mat-tab label="Company" *ngIf="showCompany">
+  <div class="column">
+    <div class="image-cont">
+      <div class="image"><mat-progress-bar style="position: absolute;bottom: 0px;" *ngIf="loading" mode="indeterminate"></mat-progress-bar><img class="img" src={{accountService.aTeam?.logoUrl}} style="object-fit: contain !important;" onerror="src = '/assets/lost.png'" alt="Compliancechimp"></div>
+      <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" id="upLogoUrl" accept=".png,.jpg,.mp4" #uploadT (change)="uploadLogoImage($event)"></div>
+      <button mat-stroked-button class="image-button" color="primary" (click)="upload(false)">CHANGE COMPANY LOGO</button>
+    </div>
+    <mat-form-field>
+      <input matInput color="primary" placeholder="company name" type="text" [(ngModel)]="accountService.aTeam.name" (change)="saveTeam()">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput color="primary" placeholder="company phone" type="tel" [(ngModel)]="accountService.aTeam.phone" (change)="saveTeam()">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput color="primary" placeholder="address" type="text" [(ngModel)]="accountService.aTeam.street" (change)="saveTeam()">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput color="primary" placeholder="address 2" type="text" [(ngModel)]="accountService.aTeam.street2" (change)="saveTeam()">
+    </mat-form-field>
+    <div class="row">
+
+      <mat-form-field>
+        <input matInput color="primary" placeholder="city" type="text" [(ngModel)]="accountService.aTeam.city" (change)="saveTeam()">
+      </mat-form-field>
+      <mat-form-field>
+        <input matInput color="primary" placeholder="state" type="text" [(ngModel)]="accountService.aTeam.state" (change)="saveTeam()">
+      </mat-form-field>
+      <mat-form-field>
+        <input matInput color="primary" placeholder="zip" type="text" [(ngModel)]="accountService.aTeam.zip" (change)="saveTeam()">
+      </mat-form-field>
+    </div>
+    <div class="industries">
+      <div>Choose your Industries</div>
+      <mat-nav-list>
+        <mat-list-item *ngFor="let industry of industries" >
+          <mat-checkbox [checked]="isIndustryChecked(industry.id)" (click)="$event.stopPropagation(); toggleIndustry(industry.id)">
+            <img matListAvatar [src]="industry.imageUrl" alt="..." />
+            <h3 matLine>{{ industry.name }}</h3>
+          </mat-checkbox>
+        </mat-list-item>
+      </mat-nav-list>
+    </div>
+    <button mat-button id="delete-account" color="warn" (click)="deleteAccount()"><mat-icon>delete</mat-icon> DELETE ACCOUNT</button>
+    </div>
+    </mat-tab>
+  <mat-tab label="Billing" *ngIf="showCompany">
+  <div class="column">
+    <div class="box">
+      <div class="title">{{TeamMembers.length}}</div>
+      <div class="info">Seats filled</div>
+    </div>
+    <div class="box">
+      <div class="title">{{(TeamMembers.length * 2) | currency}}</div>
+      <div class="info">Amount next billing cycle will be charged</div>
+    </div>
+    <button mat-raised-button color="primary" class="full" (click)="navInvoices()">See invoices</button>
+    </div>
+    </mat-tab>
+    <mat-tab label="Chimp Books" *ngIf="false">
+      <chimp-book></chimp-book>
+    </mat-tab>
+  </mat-tab-group>

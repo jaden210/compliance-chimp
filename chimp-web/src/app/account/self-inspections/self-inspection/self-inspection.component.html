@@ -1,0 +1,179 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="leave()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-label">Self-Inspection</span>
+  <span class="toolbar-title">{{ selfInspection?.title }}</span>
+  <div class="flex"></div>
+  <div class="toolbar-actions">
+    <button mat-stroked-button color="primary" (click)="editSelfInspection()">
+      <mat-icon>edit</mat-icon>
+      Modify
+    </button>
+    <button mat-icon-button class="delete-btn" matTooltip="Delete this inspection" (click)="deleteSelfInspection()">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</mat-toolbar>
+
+<div class="page-content">
+  <!-- Dashboard Section -->
+  <section class="dashboard">
+    <div class="dashboard-header">
+      <div class="dashboard-title">
+        <h1>{{ selfInspection?.title }}</h1>
+        <span class="status-badge" [ngClass]="status">{{ getStatusLabel() }}</span>
+      </div>
+      <button mat-flat-button color="accent" class="start-btn" [disabled]="!selfInspection?.baseQuestions?.length" (click)="startSelfInspection()">
+        <mat-icon>play_arrow</mat-icon>
+        Start New Inspection
+      </button>
+    </div>
+
+    <div class="metrics-grid">
+      <!-- Last Run -->
+      <div class="metric-card">
+        <div class="metric-icon">
+          <mat-icon>history</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Last Completed</div>
+          <div class="metric-value" *ngIf="selfInspection?.lastCompletedAt">
+            {{ formatDate(selfInspection.lastCompletedAt) }}
+          </div>
+          <div class="metric-value muted" *ngIf="!selfInspection?.lastCompletedAt">Never run</div>
+        </div>
+      </div>
+
+      <!-- Next Due -->
+      <div class="metric-card" [ngClass]="{ 'warning': status === 'dueSoon', 'danger': status === 'overdue' }">
+        <div class="metric-icon">
+          <mat-icon>event</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Next Due</div>
+          <div class="metric-value" *ngIf="nextDueDate">
+            {{ nextDueDate | date: 'mediumDate' }}
+          </div>
+          <div class="metric-value muted" *ngIf="!nextDueDate">—</div>
+        </div>
+      </div>
+
+      <!-- Days Until Due -->
+      <div class="metric-card" [ngClass]="{ 'warning': status === 'dueSoon', 'danger': status === 'overdue' }">
+        <div class="metric-icon">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Time Remaining</div>
+          <div class="metric-value" *ngIf="daysUntilDue !== null">
+            <ng-container *ngIf="daysUntilDue < 0">{{ -daysUntilDue }} days overdue</ng-container>
+            <ng-container *ngIf="daysUntilDue === 0">Due today</ng-container>
+            <ng-container *ngIf="daysUntilDue > 0">{{ daysUntilDue }} days</ng-container>
+          </div>
+          <div class="metric-value muted" *ngIf="daysUntilDue === null">—</div>
+        </div>
+      </div>
+
+      <!-- Total Runs -->
+      <div class="metric-card">
+        <div class="metric-icon">
+          <mat-icon>repeat</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Total Runs</div>
+          <div class="metric-value">{{ completedInspections?.length || 0 }}</div>
+        </div>
+      </div>
+
+      <!-- Average Compliance -->
+      <div class="metric-card">
+        <div class="metric-icon">
+          <mat-icon>verified</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Avg. Compliance</div>
+          <div class="metric-value" *ngIf="averageCompliance !== null">{{ averageCompliance }}%</div>
+          <div class="metric-value muted" *ngIf="averageCompliance === null">—</div>
+        </div>
+      </div>
+
+      <!-- Frequency -->
+      <div class="metric-card">
+        <div class="metric-icon">
+          <mat-icon>calendar_month</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-label">Frequency</div>
+          <div class="metric-value" *ngIf="selfInspection?.inspectionExpiration">{{ selfInspection.inspectionExpiration }}</div>
+          <div class="metric-value muted" *ngIf="!selfInspection?.inspectionExpiration">Not set</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- In Progress Section -->
+  <section class="inspections-section" *ngIf="inProgressInspections?.length > 0">
+    <div class="section-header">
+      <mat-icon>pending_actions</mat-icon>
+      <h2>In Progress</h2>
+      <span class="count-badge">{{ inProgressInspections.length }}</span>
+    </div>
+    <div class="inspections-list">
+      <div class="inspection-card in-progress" *ngFor="let inspection of inProgressInspections" (click)="resumeSelfInspection(inspection)">
+        <div class="inspection-info">
+          <div class="inspection-date">Started {{ inspection.createdAt | date: 'mediumDate' }}</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar compliant" [style.width.%]="getCompliantOfTotal(inspection)"></div>
+            <div class="progress-bar non-compliant" [style.width.%]="getNonCompliantOfTotal(inspection)"></div>
+          </div>
+          <div class="inspection-progress">{{ inspection.completedPercent }}% complete</div>
+        </div>
+        <button mat-flat-button color="primary" class="continue-btn" (click)="resumeSelfInspection(inspection); $event.stopPropagation()">
+          Continue
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Completed Section -->
+  <section class="inspections-section" *ngIf="completedInspections?.length > 0">
+    <div class="section-header">
+      <mat-icon>check_circle</mat-icon>
+      <h2>Completed Inspections</h2>
+      <span class="count-badge">{{ completedInspections.length }}</span>
+    </div>
+    <div class="inspections-list">
+      <div class="inspection-card completed" *ngFor="let inspection of completedInspections">
+        <div class="inspection-info">
+          <div class="inspection-date">{{ inspection.completedAt | date: 'mediumDate' }}</div>
+          <div class="inspection-stats">
+            <span class="stat">
+              <mat-icon>task_alt</mat-icon>
+              {{ inspection.completedPercent }}% complete
+            </span>
+            <span class="stat" *ngIf="inspection.compliantPercent !== undefined">
+              <mat-icon>verified</mat-icon>
+              {{ inspection.compliantPercent }}% compliant
+            </span>
+          </div>
+        </div>
+        <button mat-stroked-button color="primary" (click)="export(inspection)">
+          <mat-icon>download</mat-icon>
+          Export PDF
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Empty State -->
+  <section class="empty-state" *ngIf="completedInspections?.length === 0 && inProgressInspections?.length === 0">
+    <mat-icon>assignment</mat-icon>
+    <h3>No inspections yet</h3>
+    <p>Start your first inspection to begin tracking compliance.</p>
+    <button mat-flat-button color="accent" [disabled]="!selfInspection?.baseQuestions?.length" (click)="startSelfInspection()">
+      <mat-icon>play_arrow</mat-icon>
+      Start First Inspection
+    </button>
+  </section>
+</div>

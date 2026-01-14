@@ -1,0 +1,102 @@
+@if (loading) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+} @else if (survey) {
+  <div class="survey-page">
+    <!-- Header -->
+    <header class="survey-header">
+      <button mat-icon-button class="back-btn" (click)="close()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="header-content">
+        <h1 class="survey-title">{{ title }}</h1>
+        <p class="survey-meta">
+          @if (sender?.name) {
+            From {{ sender.name }} · {{ survey?.createdAt | date: 'MMM d, y' }}
+          } @else {
+            {{ survey?.createdAt | date: 'MMM d, y' }}
+          }
+        </p>
+      </div>
+    </header>
+
+    <!-- Article Content -->
+    <main class="survey-content">
+      @if (article?.content) {
+        <div class="article-card">
+          <div class="article-body" [innerHTML]="article.content"></div>
+        </div>
+      } @else {
+        <div class="no-content">
+          <mat-icon>description</mat-icon>
+          <p>No training content available</p>
+        </div>
+      }
+    </main>
+
+    <!-- Response Panel -->
+    <div class="response-panel">
+      <div class="attendance-question">
+        <span class="question-text">Did you attend this training?</span>
+        <div class="answer-buttons">
+          <button 
+            mat-stroked-button 
+            (click)="yes()" 
+            [class.selected]="shortAnswer === true"
+            class="answer-btn yes-btn"
+          >
+            <mat-icon>check_circle</mat-icon>
+            Yes
+          </button>
+          <button 
+            mat-stroked-button 
+            (click)="no()" 
+            [class.selected]="shortAnswer === false"
+            class="answer-btn no-btn"
+          >
+            <mat-icon>cancel</mat-icon>
+            No
+          </button>
+        </div>
+      </div>
+
+      @if (responseText) {
+        <div class="response-bubble">
+          <p>{{ responseText }}</p>
+          @if (errorIcon) {
+            <mat-icon class="error-icon" (click)="createResponse()">error</mat-icon>
+          }
+        </div>
+      }
+
+      @if (sending) {
+        <div class="sending-indicator">Sending...</div>
+      }
+
+      <div class="comment-box">
+        <textarea
+          #myInput
+          [(ngModel)]="longAnswer"
+          placeholder="Any comments about this training? (optional)"
+          rows="2"
+        ></textarea>
+        <button
+          mat-fab
+          color="primary"
+          class="send-btn"
+          (click)="createResponse()"
+          [disabled]="(survey?.articleId && shortAnswer === undefined) || (!longAnswer && shortAnswer === undefined)"
+        >
+          <mat-icon>send</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="error-container">
+    <mat-icon>error_outline</mat-icon>
+    <p>Survey not found</p>
+    <button mat-raised-button color="primary" (click)="close()">Go Back</button>
+  </div>
+}

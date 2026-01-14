@@ -1,0 +1,27 @@
+mat-dialog-content {
+  padding: 0;
+  margin: -24px;
+}
+
+.video-responsive {
+  position: relative;
+  overflow: hidden;
+  height: 315px;
+  width: 560px;
+  background: black;
+}
+
+.video-responsive iframe {
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+}
+
+@media (max-width: 600px) {
+  .video-responsive {
+    height: 166px;
+    width: 300px;
+  }
+}

@@ -1,0 +1,54 @@
+#title {
+  display: flex;
+  align-items: center;
+}
+
+#title button {
+  margin-left: -12px;
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.btn {
+  height: 56px;
+  min-height: 56px;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px #e0e0e0;
+  border-radius: 6px;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  box-sizing: border-box;
+  position: relative;
+  width: 300px;
+  margin-bottom: 24px;
+  transition: all 100ms ease-in-out;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border: 2px solid #212121;
+  box-shadow: none;
+}
+
+.btn span.label {
+  position: absolute;
+  top: -8px;
+  left: 4px;
+  font-size: 12px;
+  background: white;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.btn span.placeholder {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}

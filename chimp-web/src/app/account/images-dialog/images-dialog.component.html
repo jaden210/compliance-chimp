@@ -1,0 +1,10 @@
+<mat-dialog-content style="position:relative">
+  <ng-container *ngFor="let image of data; index as i">
+    <div class="image" *ngIf="i == active">
+      <img src={{image.imageUrl}} onerror="src = '/assets/lost.png'" alt="Compliancechimp">
+    </div>
+  </ng-container>
+  <div class="index"><div class="dot" *ngFor="let image of data; index as i" [ngClass]="{'active-dot': i == active}" (click)="active = i"></div></div>
+    <button mat-icon-button id="back" (click)="slide(-1)"><mat-icon>chevron_left</mat-icon></button>
+    <button mat-icon-button id="forward" (click)="slide(1)"><mat-icon>chevron_right</mat-icon></button>
+</mat-dialog-content>

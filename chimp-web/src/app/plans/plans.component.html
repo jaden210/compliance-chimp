@@ -1,0 +1,47 @@
+<h1>Start for Free</h1>
+<div class="more">Our free trial delivers real value. Enjoy Compliancechimp free for the first 500 survey requests, or 120 days, whichever comes first. We won't even ask for a card. If you decide to continue, simply choose the plan that fits your organization.</div>
+<div class="plans">
+  <div class="plan mat-elevation-z2" *ngFor="let plan of plans" [class.middle]="plan.mostPopular">
+    <!-- <div class="badge"><div class="b-icon" *ngIf="plan.mostPopular">Most Popular</div></div> -->
+    <div class="p-title">Team</div>
+    <div class="p-body">For organizations with 500 or fewer workers</div>
+    <div class="checklist">
+      ✓ Safety training and surveys<br>
+      ✓ Near miss and injury reporting<br>
+      ✓ Unlimited training articles<br>
+      ✓ Self-inspection<br>
+      ✓ Events tracking and reporting<br>
+      ✓ Easy to manage admin suite<br>
+      ✓ 500 free survey responses, or<br>
+      ✓ 120 days free, no card required<br>
+    </div>
+    <div class="price">$2 per user per month</div>
+    <button mat-raised-button color="primary" routerLink="/sign-up">Start Your Free Trial</button>
+  </div>
+  <div class="plan mat-elevation-z2" *ngFor="let plan of plans" [class.middle]="plan.mostPopular">
+    <!-- <div class="badge"><div class="b-icon" *ngIf="plan.mostPopular">Most Popular</div></div> -->
+    <div class="p-title">Enterprise</div>
+    <div class="p-body">For organizations with greater than 500 workers</div>
+    <div class="checklist">
+      ✓ Safety training and surveys<br>
+      ✓ Near miss and injury reporting<br>
+      ✓ Unlimited training articles<br>
+      ✓ Self-inspection<br>
+      ✓ Events tracking and reporting<br>
+      ✓ Easy to manage admin suite<br>
+      ✓ 500 free survey responses, or<br>
+      ✓ 120 days free, no card required<br>
+    </div>
+    <div class="price">Let's talk</div>
+    <button mat-raised-button color="primary" routerLink="/sign-up">Start Your Free Trial</button>
+  </div>
+</div>
+<div class="container">
+  <img src="/assets/chimp.png" class="responsive-image"/>
+</div>
+<div class="chimp-text">
+  "You want to know what <em>is cool?</em> Safety."<br>
+  - The Chimp
+</div>
+
+<!-- <div class="bottom"><a routerLink="/sign-in">or sign into your account</a></div> -->

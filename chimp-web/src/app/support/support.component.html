@@ -1,0 +1,38 @@
+<div class="p v">
+  <div class="pt">We're available.</div>
+  <div class="info" style="margin-bottom: 48px;">
+    We're here to help, listen, or take feedback and suggestions. Visit the box
+    below and you’ll hear back from one of us, right away.
+  </div>
+  <div class="box" *ngIf="!submitted">
+    <div class="info">
+      Enter details into this form and one of us will get back to you speedily.
+      You can also email us directly at support@compliancehimp.com.
+    </div>
+    <textarea
+      [(ngModel)]="support.body"
+      rows="8"
+      placeholder="explain how we can help"
+    ></textarea>
+    <input
+      class="signupE"
+      [(ngModel)]="support.email"
+      placeholder="enter your email address"
+    />
+    <div class="buttons">
+      <button
+        mat-raised-button
+        style="color:#ffffff;border: 1px solid #054d8a;box-shadow: none;"
+        color="accent"
+        (click)="submit()"
+      >
+        Submit
+      </button>
+    </div>
+  </div>
+  <div class="box" *ngIf="submitted">
+    <div id="submitted">We're on it! Check your inbox for a reply.</div>
+  </div>
+</div>
+<div class="border"></div>
+<sign-up></sign-up>

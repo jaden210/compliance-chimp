@@ -1,0 +1,31 @@
+.screen {
+  background-color: var(--chimp-bg-primary);
+  padding: 0 48px;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}
+
+.pt {
+color: var(--chimp-primary);
+font-size: 62px;
+padding-top: 125px;
+margin-bottom: 24px;
+font-weight: 600;
+line-height: 64px;
+text-align: left;
+}
+
+  
+@media screen and (max-width: 500px) {
+  .screen {
+    padding: 8px;
+  }
+  .pt {
+    font-size: 28px;
+    line-height: 28px;
+    padding-top: 24px;
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+}

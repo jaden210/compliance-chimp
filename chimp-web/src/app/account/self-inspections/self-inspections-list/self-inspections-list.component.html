@@ -1,0 +1,194 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Self-Inspections</div>
+  <div class="flex"></div>
+</mat-toolbar>
+<div class="window self-inspections-page">
+  <section class="splash">
+    <div class="splash-content">
+      <div class="splash-kicker">Self-Inspections</div>
+      <div class="splash-title">Turn compliance into a steady rhythm.</div>
+      <div class="splash-body">
+        Self-inspections are guided checklists that capture how your team is doing. Pick one to review past runs or start a new inspection run.
+      </div>
+      <div class="splash-actions">
+        <button mat-flat-button color="accent" (click)="startNewSelfInspection()">
+          <mat-icon>add</mat-icon>
+          Build a self-inspection
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <ng-container *ngIf="selfInspections$ | async as allInspections; else loading">
+    <div class="empty-state" *ngIf="allInspections.length === 0">
+      <div class="empty-title">Welcome to Self-Inspections</div>
+      <div class="empty-body">
+        Build your first inspection, then track every run with clear dates and progress.
+      </div>
+      <button mat-flat-button color="accent" (click)="startNewSelfInspection()">
+        <mat-icon>add</mat-icon>
+        Build a self-inspection
+      </button>
+    </div>
+
+    <section class="inspections-section" *ngIf="allInspections.length > 0">
+      <div class="section-header">
+        <div>
+          <div class="section-title">All inspections</div>
+          <div class="section-subtitle">Filter and sort your inspections by status.</div>
+        </div>
+        <div class="filter-bar">
+          <button 
+            mat-stroked-button 
+            class="filter-chip" 
+            [class.active]="(activeFilter$ | async) === 'all'"
+            (click)="setFilter('all')">
+            All
+          </button>
+          <button 
+            mat-stroked-button 
+            class="filter-chip" 
+            [class.active]="(activeFilter$ | async) === 'inProgress'"
+            (click)="setFilter('inProgress')">
+            <mat-icon>resume</mat-icon>
+            In Progress
+          </button>
+          <button 
+            mat-stroked-button 
+            class="filter-chip" 
+            [class.active]="(activeFilter$ | async) === 'lastInspected'"
+            (click)="setFilter('lastInspected')">
+            <mat-icon>schedule</mat-icon>
+            Last Inspected
+          </button>
+          <button 
+            mat-stroked-button 
+            class="filter-chip" 
+            [class.active]="(activeFilter$ | async) === 'dueSoon'"
+            (click)="setFilter('dueSoon')">
+            <mat-icon>upcoming</mat-icon>
+            Due Soon
+          </button>
+          <button 
+            mat-stroked-button 
+            class="filter-chip overdue-chip" 
+            [class.active]="(activeFilter$ | async) === 'overdue'"
+            (click)="setFilter('overdue')">
+            <mat-icon>warning</mat-icon>
+            Overdue
+          </button>
+        </div>
+      </div>
+
+      <ng-container *ngIf="filteredInspections$ | async as inspections">
+        <div class="no-results" *ngIf="inspections.length === 0">
+          <mat-icon>search_off</mat-icon>
+          <div>No inspections match this filter.</div>
+        </div>
+
+        <div class="inspections-table" *ngIf="inspections.length > 0">
+          <!-- Table Header -->
+          <div class="table-header">
+            <div class="col-status sortable" (click)="toggleSort('status')" [class.active]="(sort$ | async)?.column === 'status'">
+              Status
+              <mat-icon class="sort-icon" *ngIf="(sort$ | async)?.column === 'status'">
+                {{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+              </mat-icon>
+            </div>
+            <div class="col-name sortable" (click)="toggleSort('name')" [class.active]="(sort$ | async)?.column === 'name'">
+              Name
+              <mat-icon class="sort-icon" *ngIf="(sort$ | async)?.column === 'name'">
+                {{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+              </mat-icon>
+            </div>
+            <div class="col-last sortable" (click)="toggleSort('lastCompleted')" [class.active]="(sort$ | async)?.column === 'lastCompleted'">
+              Last Completed
+              <mat-icon class="sort-icon" *ngIf="(sort$ | async)?.column === 'lastCompleted'">
+                {{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+              </mat-icon>
+            </div>
+            <div class="col-next sortable" (click)="toggleSort('nextDue')" [class.active]="(sort$ | async)?.column === 'nextDue'">
+              Next Due
+              <mat-icon class="sort-icon" *ngIf="(sort$ | async)?.column === 'nextDue'">
+                {{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+              </mat-icon>
+            </div>
+            <div class="col-frequency sortable" (click)="toggleSort('frequency')" [class.active]="(sort$ | async)?.column === 'frequency'">
+              Frequency
+              <mat-icon class="sort-icon" *ngIf="(sort$ | async)?.column === 'frequency'">
+                {{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+              </mat-icon>
+            </div>
+            <div class="col-actions">Actions</div>
+          </div>
+
+          <!-- Table Rows (Card-like) -->
+          <div 
+            class="table-row" 
+            *ngFor="let inspection of inspections; trackBy: trackByInspectionId" 
+            [class.overdue]="inspection.status === 'overdue'" 
+            [class.due-soon]="inspection.status === 'dueSoon'"
+            (click)="selectSelfInspection(inspection)">
+            
+            <div class="col-status">
+              <span class="status-badge" [ngClass]="inspection.status">
+                {{ getStatusLabel(inspection.status) }}
+              </span>
+            </div>
+
+            <div class="col-name">
+              <span class="inspection-title">{{ inspection.title }}</span>
+            </div>
+
+            <div class="col-last">
+              <span *ngIf="inspection.lastCompletedAt">
+                {{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'mediumDate') : (inspection.lastCompletedAt | date: 'mediumDate') }}
+              </span>
+              <span class="muted" *ngIf="!inspection.lastCompletedAt">Never</span>
+            </div>
+
+            <div class="col-next">
+              <ng-container *ngIf="inspection.nextDueDate">
+                <span [class.overdue-text]="inspection.status === 'overdue'" [class.due-soon-text]="inspection.status === 'dueSoon'">
+                  {{ inspection.nextDueDate | date: 'mediumDate' }}
+                </span>
+                <span class="days-indicator" *ngIf="inspection.daysUntilDue !== undefined">
+                  <ng-container *ngIf="inspection.daysUntilDue < 0">({{ -inspection.daysUntilDue }}d overdue)</ng-container>
+                  <ng-container *ngIf="inspection.daysUntilDue === 0">(Today)</ng-container>
+                  <ng-container *ngIf="inspection.daysUntilDue > 0">({{ inspection.daysUntilDue }}d)</ng-container>
+                </span>
+              </ng-container>
+              <span class="muted" *ngIf="!inspection.nextDueDate">—</span>
+            </div>
+
+            <div class="col-frequency">
+              <span *ngIf="inspection.inspectionExpiration">{{ inspection.inspectionExpiration }}</span>
+              <span class="muted" *ngIf="!inspection.inspectionExpiration">—</span>
+            </div>
+
+            <div class="col-actions">
+              <button 
+                mat-icon-button 
+                [color]="inspection.inProgressInspection ? 'primary' : 'accent'" 
+                class="start-action" 
+                [class.resume]="inspection.inProgressInspection"
+                [matTooltip]="inspection.inProgressInspection ? 'Resume in-progress inspection' : 'Start new inspection'" 
+                (click)="startInspection(inspection); $event.stopPropagation()">
+                <mat-icon>{{ inspection.inProgressInspection ? 'resume' : 'play_arrow' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+  </ng-container>
+
+  <ng-template #loading>
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading inspections...</div>
+    </div>
+  </ng-template>
+</div>

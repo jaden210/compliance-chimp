@@ -1,0 +1,26 @@
+{
+  "name": "Compliance Chimp",
+  "short_name": "Chimp",
+  "theme_color": "#054D8A",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/user",
+  "description": "Safety training, OSHA compliance, injury reporting, and self-inspections.",
+  "icons": [
+    {
+      "src": "assets/chimp.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/chimpFace.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "orientation": "portrait-primary"
+}

@@ -1,0 +1,42 @@
+.scroll {
+    overflow-y: scroll;
+    height: calc(100vh - 48px);
+    padding-bottom: 64px;
+    box-sizing: border-box;
+}
+
+.card {
+    display: flex;
+    margin: 8px;
+    align-items: center;
+    border-radius: 8px;
+    position: relative;
+    width: calc(33vw - 64px);
+    color: #ffffff;
+    background-color: #1976d2;
+}
+  
+.c-icon {
+    padding: 24px;
+    background-color: rgba(256, 256, 256, 0.2);
+}
+
+.info {
+    padding: 12px;
+    width: 100%;
+}
+
+.c-title {
+    font-size:  14px;
+}
+
+.c-stat {
+    font-size: 17px;
+    line-height: 28px;
+}
+
+table {
+    width: 100%;
+    margin-top: 8px;
+    background: #fafafa;
+}

@@ -1,0 +1,21 @@
+<div id="window">
+  <mat-toolbar color="secondary">
+    <button mat-icon-button (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
+    <div class="toolbar-title">Training Library</div>
+  </mat-toolbar>
+  <mat-list>
+    @for (article of library; track article.id) {
+      <mat-list-item class="item" (click)="routeTo(article)">
+        <img matListItemAvatar [src]="article.thumbnail" alt="./assets/chimpTop.png">
+        <span matListItemTitle>{{ article.name }}</span>
+        <span matListItemLine>
+          <span>{{ article.industry }}</span>
+          <span> -- {{ article.topic }}</span>
+        </span>
+        @if (article.latestSurvey) {
+          <span matListItemLine class="lt">Last Trained: {{ article.latestSurvey?.createdAt?.toDate() | date }}</span>
+        }
+      </mat-list-item>
+    }
+  </mat-list>
+</div>

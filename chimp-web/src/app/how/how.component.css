@@ -1,0 +1,286 @@
+.p {
+  padding: 0 64px;
+  box-sizing: border-box;
+}
+
+.v {
+  display: flex;
+  flex-direction: column;
+}
+
+.h {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.reverse {
+  flex-wrap: wrap-reverse !important;
+}
+
+.fixscroll {
+  position: sticky;
+  top: 48px;
+}
+
+.pt {
+  color: var(--chimp-text-on-primary);
+  font-size: 62px;
+  padding-top: 125px;
+  margin-bottom: 24px;
+  max-width: 740px;
+  font-weight: 600;
+  line-height: 64px;
+}
+
+.info {
+  color: var(--chimp-text-on-primary);
+  font-size: 20px;
+  opacity: 0.87;
+  max-width: 740px;
+}
+
+#signup {
+  margin: 48px 0;
+  border: 4px solid #18ffff;
+  height: 200px;
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  color: var(--chimp-text-on-primary);
+  display: flex;
+  align-items: center;
+  width: 900px;
+  margin: auto;
+  max-width: calc(100vw - 128px);
+}
+
+#signupcol {
+  display: flex;
+  flex-direction: column;
+  flex: 2;
+}
+
+#imgcont {
+  flex: 1;
+}
+
+#signupchimp {
+  height: 200px;
+}
+
+#shhh {
+  margin-top: 18px;
+  text-align: center;
+  opacity: 0.87;
+}
+
+::-webkit-input-placeholder {
+  /* Chrome/Opera/Safari */
+  color: var(--chimp-text-on-primary);
+}
+::-moz-placeholder {
+  /* Firefox 19+ */
+  color: var(--chimp-text-on-primary);
+}
+:-ms-input-placeholder {
+  /* IE 10+ */
+  color: var(--chimp-text-on-primary);
+}
+:-moz-placeholder {
+  /* Firefox 18- */
+  color: var(--chimp-text-on-primary);
+}
+
+.border {
+  width: 100vw;
+  background: url(/assets/border.png) repeat-x;
+  height: 8px;
+  margin-top: 48px;
+  background-size: contain;
+}
+
+.spacer {
+  height: 64px;
+}
+
+.sub {
+  color: var(--chimp-text-on-primary);
+  font-size: 40px;
+  margin: 24px 0;
+  font-weight: 600;
+  max-width: 730px;
+}
+
+.scrollsub {
+  color: var(--chimp-text-on-primary);
+  font-size: 40px;
+  margin: 48px 0 12px 0;
+  font-weight: 600;
+  max-width: 730px;
+}
+
+#box {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 48px;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.card {
+  margin: 8px;
+}
+
+.ci {
+  height: 200px;
+  object-fit: contain;
+}
+
+.ct {
+  text-align: center;
+  color: var(--chimp-text-on-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.quote {
+  color: var(--chimp-text-on-primary);
+  font-size: 19px;
+}
+
+.sig {
+  text-align: end;
+  color: var(--chimp-text-on-primary);
+  font-style: italic;
+}
+
+.col {
+  flex: 1;
+  min-width: 500px;
+}
+
+.pic {
+  flex: 1;
+  object-fit: contain;
+  height: 275px;
+  margin: 48px 0;
+  max-width: 90%;
+}
+
+.scrollpic {
+  -o-object-fit: contain;
+  object-fit: contain;
+  width: calc(44vw - 200px);
+  margin: 48px 50px;
+  min-width: 300px;
+}
+
+.left {
+  object-position: 0;
+  align-self: center;
+  margin-right: 12px;
+}
+
+.right {
+  object-position: 100;
+  align-self: center;
+  margin-left: 12px;
+}
+
+.center {
+  font-size: 42px;
+  color: var(--chimp-text-on-primary);
+  font-weight: 600;
+  text-align: center;
+  margin-top: 48px;
+  margin-bottom: 8px;
+}
+
+.cinfo {
+  text-align: center;
+  color: var(--chimp-text-on-primary);
+  font-size: 21px;
+  opacity: 0.87;
+  margin-bottom: 24px;
+  margin: 0 12px;
+}
+
+.check {
+  margin: 12px 0;
+  font-size: 18px;
+  color: var(--chimp-text-on-primary);
+  display: flex;
+  align-items: center;
+  min-width: 370px;
+}
+
+.cico {
+  width: 32px;
+  height: 32px;
+  font-size: 32px;
+  margin-right: 12px;
+  font-weight: bold;
+}
+
+.ctext {
+  max-width: 500px;
+  opacity: 0.87;
+}
+
+@media screen and (max-width: 500px) {
+  .p {
+    padding: 8px;
+  }
+  #signup {
+    max-width: calc(100vw - 16px);
+  }
+  .pt {
+    font-size: 28px;
+    line-height: 28px;
+    text-align: left;
+    padding-top: 24px;
+  }
+  .center {
+    font-size: 28px;
+  }
+  .spacer {
+    height: 24px;
+  }
+  .info {
+    font-size: 18px;
+    text-align: left;
+  }
+  .scrollsub {
+    font-size: 28px;
+    line-height: 28px;
+    text-align: left;
+    padding-top: 24px;
+  }
+  /* #imgcont {
+    display: none;
+  }
+  .hide {
+    display: none;
+  } */
+  #shhh {
+    font-size: 12px;
+  }
+  .sub {
+    font-size: 21px;
+    text-align: left;
+  }
+  .quote {
+    font-size: 15px;
+    padding: 12px;
+  }
+  .col {
+    min-width: auto;
+  }
+  .left {
+    text-align: left !important;
+  }
+  .check {
+    min-width: auto;
+    font-size: 15px;
+  }
+}

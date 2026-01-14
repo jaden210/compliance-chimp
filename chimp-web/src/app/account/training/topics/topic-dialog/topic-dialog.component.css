@@ -1,0 +1,71 @@
+mat-dialog-content {
+  width: 300px;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+#image-block {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  height: 300px;
+  width: 300px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+#img-action-btns {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  opacity: 0;
+}
+
+#image-block:hover #img-action-btns {
+  opacity: 1 !important;
+  transition: all 250ms ease-out;
+}
+
+#img-action-btns button {
+  background: black;
+  opacity: 0.6;
+  color: white;
+  margin: 4px;
+}
+
+img {
+  height: 300px;
+  width: 300px;
+  object-fit: cover;
+}
+
+#delete-topic {
+  margin-left: auto;
+}
+
+mat-dialog-actions {
+  position: relative;
+}
+
+mat-progress-bar {
+  position: absolute;
+  bottom: 0;
+  margin-left: -24px;
+  width: calc(100% + 48px);
+}
+
+.scoot-up {
+  margin-top: -18px;
+}
+
+#global-icon {
+  margin-left: auto;
+}
+
+.global {
+  color: #4caf50;
+}

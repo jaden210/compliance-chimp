@@ -1,0 +1,16 @@
+mat-toolbar {
+  font-size: 15px;
+  background: white !important;
+}
+
+progress-indicator {
+  margin: 0 8px;
+}
+
+#create-btn {
+  margin: 24px 32px;
+}
+
+.heart:hover {
+  background: white;
+}

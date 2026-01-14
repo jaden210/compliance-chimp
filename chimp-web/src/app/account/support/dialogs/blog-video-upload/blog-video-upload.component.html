@@ -1,0 +1,14 @@
+<h2 mat-dialog-title>Blog Video</h2>
+  <mat-dialog-content style="display:flex;flex-direction:column; align-items:center;width:500px">
+    <div style="height: 0px; width: 0px; overflow:hidden">
+      <input type="file" id="image-input" accept=".mp4" (change)="setVideo($event)"/>
+    </div>
+    <button mat-icon-button color="primary" (click)="getVideo()"><mat-icon>video_call</mat-icon></button>
+    <mat-progress-bar mode="determinate" [value]="(uploadProgress | async)" style="width:50%;"></mat-progress-bar>
+    <mat-form-field style="margin-top:24px;width: 100%">
+      <input matInput [(ngModel)]="data.videoUrl" placeholder="or video url">
+    </mat-form-field>
+  </mat-dialog-content>
+  <mat-dialog-actions style="margin-top:12px" align="end"><button mat-button color="primary" style="margin-right:8px" (click)="dialogRef.close()">CANCEL</button>
+  <button mat-raised-button color="accent" (click)="close()">CREATE</button>
+  </mat-dialog-actions>

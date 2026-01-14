@@ -1,0 +1,130 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="leave()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-label">Incident Report</span>
+  <span class="toolbar-title">{{ report?.type }}</span>
+  <div class="flex"></div>
+  <div class="toolbar-actions">
+    <button mat-flat-button color="accent" (click)="export()">
+      <mat-icon>picture_as_pdf</mat-icon>
+      Export PDF
+    </button>
+    <button mat-icon-button class="delete-btn" matTooltip="Delete this report" (click)="delete()">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</mat-toolbar>
+
+<div class="page-content">
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading report...</div>
+    </div>
+  } @else if (report) {
+    <!-- Dashboard Section -->
+    <section class="dashboard">
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h1>{{ report.type }}</h1>
+          <span class="type-badge">Incident Report</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <!-- Reported By -->
+        <div class="metric-card wide">
+          <div class="metric-icon">
+            <mat-icon>person</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Reported By</div>
+            <div class="metric-value">{{ report.user?.name || 'Unknown' }}</div>
+            @if (report.user?.jobTitle) {
+              <div class="metric-sublabel">{{ report.user.jobTitle }}</div>
+            }
+          </div>
+        </div>
+
+        <!-- Date Reported -->
+        <div class="metric-card">
+          <div class="metric-icon">
+            <mat-icon>event</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Date Reported</div>
+            <div class="metric-value">{{ report.createdAt | date: 'mediumDate' }}</div>
+            <div class="metric-sublabel">{{ report.createdAt | date: 'shortTime' }}</div>
+          </div>
+        </div>
+
+        <!-- Previous Reports -->
+        <div class="metric-card">
+          <div class="metric-icon">
+            <mat-icon>history</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Previous Reports</div>
+            <div class="metric-value">{{ report.previousReports?.length || 0 }}</div>
+            <div class="metric-sublabel">by this team member</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Questions Section -->
+    <section class="questions-section">
+      <div class="section-header">
+        <mat-icon>question_answer</mat-icon>
+        <h2>Incident Details</h2>
+      </div>
+
+      <div class="questions-list">
+        @for (q of report.questions; track $index; let i = $index) {
+          <div class="question-card">
+            <div class="question-number">{{ i + 1 }}</div>
+            <div class="question-content">
+              <div class="question-text">{{ q.description }}</div>
+              <div class="answer-box">
+                @switch (q.type) {
+                  @case ('text') {
+                    <div class="answer-text">{{ q.value || '—' }}</div>
+                  }
+                  @case ('radio') {
+                    <div class="answer-text">{{ q.value || '—' }}</div>
+                  }
+                  @case ('date') {
+                    <div class="answer-text">{{ q.value?.toDate ? (q.value.toDate() | date: 'medium') : (q.value | date: 'medium') }}</div>
+                  }
+                  @case ('signature') {
+                    <img class="signature-img" [src]="q.value" onerror="this.src='/assets/lost.png'" alt="Signature">
+                  }
+                  @case ('photos') {
+                    <div class="photos-grid">
+                      @for (image of q.value; track $index) {
+                        <img class="photo-thumb" [src]="image.imageUrl" alt="Incident photo">
+                      }
+                    </div>
+                  }
+                  @default {
+                    <div class="answer-text">{{ q.value || '—' }}</div>
+                  }
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  } @else {
+    <div class="empty-state">
+      <mat-icon>error_outline</mat-icon>
+      <h3>Report not found</h3>
+      <p>This incident report may have been deleted.</p>
+      <button mat-flat-button color="accent" (click)="leave()">
+        Back to Reports
+      </button>
+    </div>
+  }
+</div>

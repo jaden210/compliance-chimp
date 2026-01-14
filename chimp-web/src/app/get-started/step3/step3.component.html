@@ -1,0 +1,52 @@
+<mat-card>
+  <div class="progress">Step 3 of 3</div>
+  <mat-card-title>Finally! Let's set your password</mat-card-title>
+  <mat-card-content>
+    <span class="error">{{ error }}</span>
+    <mat-form-field appearance="outline">
+      <input
+        [(ngModel)]="password"
+        matInput
+        type="password"
+        required
+        placeholder="password"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <input
+        [(ngModel)]="confirmPassword"
+        matInput
+        type="password"
+        required
+        placeholder="confirm password"
+      />
+    </mat-form-field>
+
+    <div style="display: flex; margin: 12px 0;">
+      <mat-checkbox [(ngModel)]="agree"></mat-checkbox>
+      <mat-label style="margin-left:12px; opacity:.87;font-size: 14px;"
+        >I agree to the
+        <a target="_blank" href="https://compliancechimp.com/terms-of-service"
+          >Terms of Service</a
+        >,
+        <a target="_blank" href="https://compliancechimp.com/privacy-policy"
+          >Privacy Policy</a
+        >
+        and
+        <a target="_blank" href="https://compliancechimp.com/customer-agreement"
+          >Customer Agreement</a
+        >.</mat-label
+      >
+    </div>
+  </mat-card-content>
+  <mat-card-actions style="justify-content: center;">
+    <button mat-raised-button color="primary" [disabled]="!password || !confirmPassword || !agree" (click)="createAccount()">
+      GO TO MY ACCOUNT
+    </button>
+  </mat-card-actions>
+</mat-card>
+
+<div id="overlay" *ngIf="loading">
+  <h2>Creating your team...</h2>
+  <img src="/assets/chimp.png" />
+</div>

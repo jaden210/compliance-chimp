@@ -1,0 +1,19 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <h1>Select an Industry</h1>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="window">
+  <mat-nav-list>
+    <mat-list-item
+      *ngFor="let industry of (industries | async)"
+      (click)="routeTo(industry)"
+    >
+      <img matListAvatar [src]="industry.imageUrl" alt="..." />
+      <h2 matLine>{{ industry.name }}</h2>
+    </mat-list-item>
+  </mat-nav-list>
+</div>

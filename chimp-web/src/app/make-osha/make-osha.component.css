@@ -1,0 +1,65 @@
+#page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  z-index: 1000;
+}
+
+#content {
+  display: flex;
+  height: calc(100vh - 64px);
+}
+
+mat-nav-list {
+  height: 99%;
+  overflow: auto;
+  min-width: 300px;
+  max-width: 380px;
+  border-right: 1px solid #e0e0e0;
+}
+
+#editor {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.active-li {
+  background: #f5f5f5;
+}
+
+#create-topic-btn {
+  position: absolute;
+  top: -28px;
+  right: 0;
+  background: #f6f6f6;
+  border: 1px solid #e0e0e0;
+}
+
+#create-topic-btn mat-icon {
+  margin-bottom: 4px;
+}
+
+#edit-topic-btn mat-icon {
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+  margin-bottom: 19px;
+}
+
+#edit-topic-btn {
+  position: absolute;
+  top: -25px;
+  right: 34px;
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
+  width: 32px;
+  height: 32px;
+}
+
+.ohno {
+  color: red !important;
+}

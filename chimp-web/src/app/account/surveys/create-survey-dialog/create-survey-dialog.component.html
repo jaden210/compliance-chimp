@@ -1,0 +1,85 @@
+<h1 mat-dialog-title>{{ title }}</h1>
+<mat-dialog-content [ngSwitch]="step">
+  <ng-container *ngSwitchCase="1">
+    <span class="subtitle"> What is this survey about? </span>
+    <mat-form-field appearance="outline">
+      <mat-label>category</mat-label>
+      <input matInput required [(ngModel)]="survey.category" />
+      <mat-hint align="end">ie. Monthly Inspection</mat-hint>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>survey question</mat-label>
+      <textarea matInput required [(ngModel)]="survey.title"></textarea>
+    </mat-form-field>
+  </ng-container>
+  <ng-container *ngSwitchCase="2">
+    <span class="subtitle"> When would you like to send this survey? </span>
+    <mat-form-field style="width: 240px;">
+      <input
+        matInput
+        [matDatepicker]="picker"
+        placeholder="choose a date"
+        disabled
+        [(ngModel)]="survey.runDate"
+      />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker disabled="false"></mat-datepicker>
+    </mat-form-field>
+  </ng-container>
+  <ng-container *ngSwitchCase="3">
+    <span class="subtitle"> Who would you like to send this survey to? </span>
+    <button mat-stroked-button (click)="selectAllContacts()">Select All</button>
+    <mat-selection-list
+      dense
+      [(ngModel)]="surveyContacts"
+      style="outline: none;"
+    >
+      <mat-list-option *ngFor="let user of (users | async)" [value]="user">
+        <img
+          matListAvatar
+          [src]="user.profileUrl"
+          onerror="src='/assets/face.png'"
+        />
+        <h3 matLine>{{ user.name }}</h3>
+      </mat-list-option>
+    </mat-selection-list>
+  </ng-container>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">CANCEL</button>
+  <ng-container *ngIf="!isEdit; else: isEditButtons">
+    <button mat-button *ngIf="step > 1" (click)="back()">BACK</button>
+    <button
+      mat-button
+      *ngIf="step !== 3"
+      color="primary"
+      (click)="next()"
+      [disabled]="!survey.category || !survey.title"
+    >
+      NEXT
+    </button>
+    <button
+      mat-button
+      *ngIf="step == 3"
+      color="primary"
+      (click)="create()"
+      [disabled]="!surveyContacts.length"
+    >
+      CREATE
+    </button>
+  </ng-container>
+  <ng-template #isEditButtons>
+    <button
+      mat-button
+      color="primary"
+      (click)="save()"
+      [disabled]="
+        (!surveyContacts.length && step == 3) ||
+        ((!survey.category || !survey.title) && step == 1)
+      "
+    >
+      SAVE
+    </button>
+  </ng-template>
+  <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+</mat-dialog-actions>

@@ -1,0 +1,23 @@
+<h2 mat-dialog-title>Manage your team</h2>
+<mat-dialog-content>
+  <div class="d-view">
+    <div id="content">Let's build your team. Enter name, email and phone number below. When you click ADD, they<br> will recieve a notification that they have been added to your team.</div>
+    <mat-form-field>
+      <input matInput placeholder="name" [(ngModel)]="invite.name">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput placeholder="job title" [(ngModel)]="invite.jobTitle">
+    </mat-form-field>
+    <mat-slide-toggle [(ngModel)]="invite.preferEmail">Prefer email communication (default is SMS)</mat-slide-toggle>
+    <mat-form-field>
+      <input matInput placeholder="email" [(ngModel)]="invite.email">
+    </mat-form-field>
+    <mat-form-field>
+      <input matInput placeholder="phone" [(ngModel)]="invite.phone">
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button color="accent" (click)="close()">CANCEL</button>
+  <button mat-raised-button style="color: #ffffff" color="accent" [disabled]="!invite.name || !invite.email || !invite.phone" [mat-dialog-close]="invite">SAVE</button>
+</mat-dialog-actions>

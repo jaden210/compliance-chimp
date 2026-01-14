@@ -1,0 +1,62 @@
+.ml {
+  color: #000000;
+  opacity: .54;
+  transition: all 250ms;
+}
+
+.ml:hover {
+  opacity: .98 !important;
+}
+
+.panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+#new-inspection {
+  text-align: end;
+  padding: 48px;
+}
+
+.inspections {
+  margin: 24px 0;
+}
+
+.info-title {
+  font-size: 15px;
+  font-style: italic;
+  font-weight: bold;
+  opacity: .87;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: 12px 0;
+}
+
+h2 {
+  font-size: 17px;
+  opacity: .87;
+  font-weight: 500;
+}
+
+.fill {
+  position: absolute;
+  bottom: 0;
+  height: 6px;
+  background-color: #BBDEFB;
+  border-radius: 4px;
+}
+
+p {
+  font-size: 14px;
+  font-style: italic;
+  opacity: .54;
+  font-weight: 600;
+}

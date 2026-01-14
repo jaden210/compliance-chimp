@@ -1,0 +1,440 @@
+.self-inspections-page {
+  background: linear-gradient(180deg, rgba(5, 77, 138, 0.06), rgba(255, 255, 255, 0));
+  padding: 24px 24px 96px;
+  box-sizing: border-box;
+}
+
+.splash {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--chimp-bg-primary);
+  box-shadow: 0 10px 30px -20px var(--chimp-shadow-heavy);
+  border: 1px solid var(--chimp-border-light);
+  justify-content: center;
+}
+
+.splash-content {
+  flex: 1 1 560px;
+  min-width: 280px;
+  text-align: center;
+}
+
+.splash-kicker {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--chimp-text-secondary);
+  margin-bottom: 8px;
+}
+
+.splash-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--chimp-text-primary);
+  margin-bottom: 8px;
+}
+
+.splash-body {
+  font-size: 15px;
+  color: var(--chimp-text-secondary);
+  max-width: 520px;
+  margin-bottom: 16px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.splash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.ghost-action {
+  border-color: rgba(5, 77, 138, 0.2);
+}
+
+
+.empty-state {
+  margin: 32px 0;
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--chimp-bg-primary);
+  border: 1px dashed var(--chimp-border-light);
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-body {
+  color: var(--chimp-text-secondary);
+  margin-bottom: 16px;
+}
+
+.loading-state {
+  margin: 24px auto;
+  max-width: 520px;
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid var(--chimp-border-light);
+  box-shadow: 0 4px 12px -8px var(--chimp-shadow-heavy);
+}
+
+.loading-text {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--chimp-text-secondary);
+  font-size: 14px;
+}
+
+.inspections-section {
+  margin-top: 32px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+}
+
+.primary-action {
+  box-shadow: 0 6px 16px -10px var(--chimp-shadow-heavy);
+}
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  border-radius: 20px !important;
+  font-size: 13px;
+  padding: 0 16px;
+  height: 36px;
+  border-color: var(--chimp-border-light) !important;
+  color: var(--chimp-text-secondary);
+  transition: all 150ms ease;
+}
+
+.filter-chip mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.filter-chip.active {
+  background: var(--chimp-primary) !important;
+  color: var(--chimp-text-on-primary) !important;
+  border-color: var(--chimp-primary) !important;
+}
+
+.filter-chip.overdue-chip.active {
+  background: var(--chimp-error, #f44336) !important;
+  border-color: var(--chimp-error, #f44336) !important;
+}
+
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--chimp-text-hint);
+  font-size: 15px;
+}
+
+.no-results mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+/* Table Layout */
+.inspections-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 120px 80px 80px;
+  gap: 20px;
+  padding: 8px 20px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--chimp-text-hint);
+  align-items: center;
+}
+
+.table-header .sortable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 150ms ease;
+  user-select: none;
+  white-space: nowrap;
+  background: transparent;
+  background-color: transparent;
+}
+
+.table-header .sortable:hover {
+  color: var(--chimp-text-secondary);
+  background: transparent;
+  background-color: transparent;
+}
+
+.table-header .sortable.active {
+  color: var(--chimp-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.table-header div {
+  background: transparent;
+  background-color: transparent;
+}
+
+.table-header .sort-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 120px 80px 80px;
+  gap: 20px;
+  padding: 14px 20px;
+  background: var(--chimp-bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-border-light);
+  box-shadow: 0 2px 8px -4px var(--chimp-shadow-heavy);
+  align-items: center;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.table-row:hover {
+  box-shadow: 0 4px 16px -6px var(--chimp-shadow-heavy);
+  transform: translateY(-1px);
+}
+
+
+/* Column Styles */
+.col-status {
+  display: flex;
+  align-items: center;
+}
+
+.col-name {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.col-last,
+.col-next,
+.col-frequency {
+  color: var(--chimp-text-primary);
+}
+
+.col-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.status-badge.ok {
+  background: var(--chimp-success-light, #e8f5e9);
+  color: var(--chimp-success, #4caf50);
+}
+
+.status-badge.neverRun {
+  background: var(--chimp-gray-100, #f5f5f5);
+  color: var(--chimp-text-hint);
+}
+
+.status-badge.dueSoon {
+  background: rgba(255, 152, 0, 0.12);
+  color: var(--chimp-warning, #ff9800);
+}
+
+.status-badge.overdue {
+  background: rgba(244, 67, 54, 0.12);
+  color: var(--chimp-error, #f44336);
+}
+
+.inspection-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--chimp-text-hint);
+}
+
+.overdue-text {
+  color: var(--chimp-error, #f44336);
+  font-weight: 500;
+}
+
+.due-soon-text {
+  color: var(--chimp-warning, #ff9800);
+  font-weight: 500;
+}
+
+.days-indicator {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--chimp-text-hint);
+  margin-top: 2px;
+}
+
+.start-action {
+  background: rgba(5, 77, 138, 0.08);
+}
+
+.start-action.resume {
+  background: rgba(25, 118, 210, 0.15);
+  animation: pulse-resume 2s ease-in-out infinite;
+}
+
+@keyframes pulse-resume {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(25, 118, 210, 0);
+  }
+}
+
+@media (max-width: 1024px) {
+  .table-header {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .col-status {
+    order: -1;
+  }
+
+  .col-name {
+    order: 0;
+  }
+
+  .col-name .inspection-title {
+    white-space: normal;
+    font-size: 16px;
+  }
+
+  .col-last,
+  .col-next,
+  .col-frequency {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .col-last::before {
+    content: 'Last: ';
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--chimp-text-hint);
+    min-width: 80px;
+  }
+
+  .col-next::before {
+    content: 'Next Due: ';
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--chimp-text-hint);
+    min-width: 80px;
+  }
+
+  .col-frequency::before {
+    content: 'Frequency: ';
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--chimp-text-hint);
+    min-width: 80px;
+  }
+
+  .col-actions {
+    justify-content: flex-start;
+    padding-top: 8px;
+    border-top: 1px solid var(--chimp-border-light);
+  }
+}
+
+@media (max-width: 720px) {
+  .self-inspections-page {
+    padding: 16px 16px 80px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    flex: 1 1 auto;
+    min-width: 100px;
+    justify-content: center;
+  }
+}

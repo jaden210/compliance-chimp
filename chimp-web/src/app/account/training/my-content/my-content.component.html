@@ -1,0 +1,67 @@
+<mat-toolbar style="font-size: 15px">
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <h1>{{ title }}</h1>
+  <div class="flex"></div>
+  <button
+    mat-icon-button
+    style="margin-right: 12px;"
+    matTooltip="Filter Results"
+    (click)="openFiltersDialog()"
+  >
+    <mat-icon
+      matBadge="!"
+      [matBadgeHidden]="!isSearch"
+      matBadgeSize="small"
+      matBadgeColor="warn"
+      >search</mat-icon
+    >
+  </button>
+</mat-toolbar>
+
+<div class="window">
+  <mat-nav-list>
+    <mat-list-item
+      *ngFor="let content of (myContent | async)"
+      (click)="routeTo(content.articleId)"
+    >
+      <progress-indicator
+        *ngIf="!content.disabled"
+        [myContent]="content"
+      ></progress-indicator>
+
+      <button
+        mat-icon-button
+        class="heart"
+        color="warn"
+        (click)="favorite(content); $event.stopPropagation()"
+      >
+        <mat-icon
+          matListIcon
+          [ngStyle]="{ color: !content.disabled ? '#E91E63' : '#757575' }"
+        >
+          {{ !content.disabled ? "favorite" : "favorite_border" }}
+        </mat-icon>
+      </button>
+      <a matLine>{{ content.articleName }}</a>
+    </mat-list-item>
+  </mat-nav-list>
+  <div id="no-results" *ngIf="noResults">
+    No results
+    {{
+      isSearch
+        ? "for search, click the search icon in the toolbar to modify your search"
+        : ""
+    }}
+  </div>
+  <button
+    mat-stroked-button
+    [disabled]="!myContent"
+    color="primary"
+    id="create-btn"
+    (click)="createArticle()"
+  >
+    CREATE ARTICLE
+  </button>
+</div>

@@ -1,0 +1,137 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Training</div>
+  <div class="flex"></div>
+  <button mat-stroked-button class="library-btn" routerLink="library">
+    <mat-icon>favorite_border</mat-icon>
+    Manage Library
+  </button>
+</mat-toolbar>
+
+<div class="window training-history-page">
+  <section class="splash">
+    <div class="splash-content">
+      <div class="splash-kicker">Training History</div>
+      <div class="splash-title">Track every training session.</div>
+      <div class="splash-body">
+        All completed training sessions are recorded here. Review attendance, track compliance, and ensure your team stays up to date.
+      </div>
+      <div class="splash-actions">
+        <button mat-flat-button color="accent" (click)="goToLibrary()">
+          <mat-icon>library_books</mat-icon>
+          Start a Training
+        </button>
+      </div>
+    </div>
+  </section>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading training history...</div>
+    </div>
+  } @else if (trainingHistory.length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">school</mat-icon>
+      <div class="empty-title">No training sessions yet</div>
+      <div class="empty-body">
+        All team trainings show up here. To get started, build your library of trainings—choose from OSHA documents or our in-house 'Chimp Chats'.
+      </div>
+      <button mat-flat-button color="accent" (click)="goToLibrary()">
+        <mat-icon>library_books</mat-icon>
+        Curate My Library
+      </button>
+    </div>
+  } @else {
+    <section class="history-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">All training sessions</div>
+          <div class="section-subtitle">{{ trainingHistory.length }} session{{ trainingHistory.length !== 1 ? 's' : '' }} on record</div>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <mat-icon>search</mat-icon>
+        <input 
+          type="text" 
+          placeholder="Search by title, trainer, or category..." 
+          [value]="searchTerm$ | async"
+          (input)="onSearch($any($event.target).value)">
+      </div>
+
+      @if (filteredHistory$ | async; as history) {
+        @if (history.length === 0) {
+          <div class="no-results">
+            <mat-icon>search_off</mat-icon>
+            <div>No training sessions match your search.</div>
+          </div>
+        } @else {
+          <div class="history-table">
+            <!-- Table Header -->
+            <div class="table-header">
+              <div class="col-date sortable" (click)="toggleSort('date')" [class.active]="(sort$ | async)?.column === 'date'">
+                Date
+                @if ((sort$ | async)?.column === 'date') {
+                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                }
+              </div>
+              <div class="col-title sortable" (click)="toggleSort('title')" [class.active]="(sort$ | async)?.column === 'title'">
+                Training Title
+                @if ((sort$ | async)?.column === 'title') {
+                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                }
+              </div>
+              <div class="col-trainer sortable" (click)="toggleSort('trainer')" [class.active]="(sort$ | async)?.column === 'trainer'">
+                Trainer
+                @if ((sort$ | async)?.column === 'trainer') {
+                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                }
+              </div>
+              <div class="col-attendees">Attendees</div>
+              <div class="col-actions">Actions</div>
+            </div>
+
+            <!-- Table Rows -->
+            @for (item of history; track trackByHistoryId($index, item)) {
+              <div class="table-row" (click)="openTrainingDetails(item)">
+                <div class="col-date">
+                  <span class="date-primary">{{ formatDate(item.createdAt) }}</span>
+                  <span class="date-time">{{ formatTime(item.createdAt) }}</span>
+                </div>
+
+                <div class="col-title">
+                  <span class="training-title">{{ item.title || 'Untitled Training' }}</span>
+                  @if (item.category) {
+                    <span class="training-category">{{ item.category }}</span>
+                  }
+                </div>
+
+                <div class="col-trainer">
+                  <span class="trainer-name">{{ item.creator }}</span>
+                </div>
+
+                <div class="col-attendees">
+                  <span class="attendee-badge" [class.has-attendees]="getAttendeeCount(item) > 0">
+                    <mat-icon>people</mat-icon>
+                    {{ getAttendeeCount(item) }}
+                  </span>
+                </div>
+
+                <div class="col-actions">
+                  <button 
+                    mat-icon-button 
+                    matTooltip="View details" 
+                    (click)="openTrainingDetails(item); $event.stopPropagation()">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    </section>
+  }
+</div>

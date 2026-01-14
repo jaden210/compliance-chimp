@@ -1,0 +1,29 @@
+<h2 mat-dialog-title>Manage Teams</h2>
+<mat-dialog-content class="d-view">
+  <div id="content">Teams are how you organize employees. They help send surveys to the right people at the right time.</div>
+  <div class="ug-row">
+    <mat-form-field>
+      <input matInput placeholder="name" [(ngModel)]="newGroup.name">
+    </mat-form-field>
+    <mat-form-field style="margin-left: 8px; width: 100%;">
+      <input matInput placeholder="description" [(ngModel)]="newGroup.description">
+    </mat-form-field>
+    <div style="flex:1"></div>
+    <button mat-icon-button color="primary" (click)="addGroup()" style="margin-left: 8px" [disabled]="!newGroup.name || !newGroup.description"><mat-icon>add</mat-icon></button>
+  </div>
+  <div class="scroll">
+    <div class="ug-row" *ngFor="let group of userGroups">
+      <mat-form-field>
+        <input matInput readonly placeholder="name" [(ngModel)]="group.name">
+      </mat-form-field>
+      <mat-form-field style="margin-left: 8px; width: 100%;">
+        <input matInput readonly placeholder="description" [(ngModel)]="group.description">
+      </mat-form-field>
+      <div style="flex:1"></div>
+      <button mat-icon-button style="margin-left: 8px;" (click)="archiveGroup(group.id)"><mat-icon>archive</mat-icon></button>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-raised-button style="color: #ffffff" color="accent" [mat-dialog-close]="userGroups">SAVE</button>
+</mat-dialog-actions>

@@ -1,0 +1,86 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Team Files</div>
+  <div class="flex"></div>
+</mat-toolbar>
+<div class="window">
+  <mat-progress-bar mode="indeterminate" *ngIf="loading" class="loading-bar"></mat-progress-bar>
+  <div *ngIf="!showContent" class="loading-container">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+  <ng-container *ngIf="showContent">
+    <div class="help-card" *ngIf="files?.length == 0">
+      <div class="helper-name" id="helper-name-color">Your team files will live here</div>
+      <div class="helper-description" id="helper-description-color">
+        Upload important documents, safety manuals, certificates, and any other files your team needs access to.
+        Files can be made public to allow team members to view them from their user page.
+        <button mat-flat-button color="accent" (click)="upload()">UPLOAD YOUR FIRST FILE</button>
+      </div>
+    </div>
+
+    <div class="files-container" *ngIf="files?.length > 0">
+      <div class="files-header">
+        <h2>Files</h2>
+        <button mat-flat-button color="primary" (click)="upload()">
+          <mat-icon>cloud_upload</mat-icon>
+          Upload File
+        </button>
+      </div>
+      
+      <div class="files-content">
+        <div class="file-list">
+          <div 
+            class="file-item" 
+            *ngFor="let file of files" 
+            [class.active]="aFile?.id == file.id" 
+            (click)="selectFile(file)">
+            <mat-icon class="file-icon">{{ getFileIcon(file) }}</mat-icon>
+            <div class="file-info">
+              <div class="file-name">{{ file.name }}</div>
+              <div class="file-date">{{ file.createdAt | date: 'medium' }}</div>
+            </div>
+            <mat-icon class="public-icon" *ngIf="file.isPublic">public</mat-icon>
+          </div>
+        </div>
+        
+        <div class="file-preview" *ngIf="aFile?.id">
+          <div class="preview-image" *ngIf="isImageFile(aFile)">
+            <img [src]="aFile.fileUrl" alt="File preview" />
+          </div>
+          <div class="preview-placeholder" *ngIf="!isImageFile(aFile)">
+            <mat-icon>{{ getFileIcon(aFile) }}</mat-icon>
+            <span class="file-type-label">{{ getFileTypeLabel(aFile) }}</span>
+          </div>
+          <div class="preview-details">
+            <mat-form-field appearance="outline">
+              <mat-label>File name</mat-label>
+              <input matInput type="text" [(ngModel)]="aFile.name" (blur)="save()">
+              <mat-hint>{{ aFile.createdAt | date: 'medium' }}</mat-hint>
+            </mat-form-field>
+            <mat-slide-toggle [(ngModel)]="aFile.isPublic" (change)="save()">
+              Allow team access
+            </mat-slide-toggle>
+            <div class="preview-actions">
+              <button mat-stroked-button color="primary" (click)="download()">
+                <mat-icon>download</mat-icon>
+                Download
+              </button>
+              <button mat-stroked-button color="warn" (click)="delete()">
+                <mat-icon>delete</mat-icon>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+  
+  <input 
+    type="file" 
+    id="upFile" 
+    style="display: none;" 
+    accept=".png,.jpg,.jpeg,.mp4,.csv,.pdf,.xls,.xlsx,.doc,.docx" 
+    (change)="uploadFile($event)">
+</div>

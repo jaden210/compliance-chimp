@@ -1,0 +1,81 @@
+<div class="editor-container">
+  <!-- Toolbar with actions -->
+  <mat-toolbar class="editor-toolbar">
+    <button mat-icon-button (click)="goBack()" matTooltip="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+    
+    <span class="toolbar-title">{{ title }}</span>
+    
+    <span class="toolbar-spacer"></span>
+    
+    @if (isDev && !isEdit) {
+      <mat-slide-toggle
+        [(ngModel)]="isGlobalArticle"
+        [matTooltip]="isGlobalArticle ? 'Public article (visible to all)' : 'Private article (team only)'"
+        class="public-toggle"
+        color="primary"
+      >
+        <span class="toggle-label">
+          <mat-icon>{{ isGlobalArticle ? 'public' : 'lock' }}</mat-icon>
+          {{ isGlobalArticle ? 'Public' : 'Private' }}
+        </span>
+      </mat-slide-toggle>
+    }
+
+    @if (isDev) {
+      <button
+        mat-icon-button
+        matTooltip="Add article photo"
+        (click)="addPhoto()"
+      >
+        <mat-icon>image</mat-icon>
+      </button>
+    }
+    
+    @if (article?.id) {
+      <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
+        <mat-icon>delete</mat-icon>
+      </button>
+    }
+    
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="submit()"
+      [disabled]="!article.name || !article.content"
+      class="save-button"
+    >
+      {{ submitButton }}
+    </button>
+  </mat-toolbar>
+
+  <!-- Title input -->
+  <div class="title-section">
+    <mat-form-field appearance="outline" class="title-field">
+      <mat-label>Article title</mat-label>
+      <input
+        matInput
+        placeholder="Enter article name"
+        required
+        [(ngModel)]="article.name"
+      />
+    </mat-form-field>
+  </div>
+
+  <!-- Editor fills remaining space -->
+  <div class="ngx-editor-wrapper">
+    <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+    <ngx-editor
+      [editor]="editor"
+      [(ngModel)]="article.content"
+      [placeholder]="'Start writing your article content...'"
+    ></ngx-editor>
+  </div>
+
+  @if (loading) {
+    <div class="loading-overlay">
+      <mat-spinner></mat-spinner>
+    </div>
+  }
+</div>

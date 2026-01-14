@@ -1,0 +1,265 @@
+mat-sidenav-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.mat-sidenav {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--chimp-primary);
+  height: 100%;
+}
+
+mat-sidenav-content {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sn-icon {
+  margin-right: 12px;
+}
+
+#wrapper {
+  display: flex;
+  height: 100vh;
+}
+
+#left {
+  width: 100px;
+  background-color: var(--chimp-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1001;
+  padding-top: 64px;
+}
+
+.side-button {
+  height: 70px;
+  width: 70px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--chimp-text-on-primary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 250ms;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+#left:hover .appear {
+  opacity: 1 !important;
+  transition: opacity 250ms ease-in 500ms;
+}
+
+.appear {
+  opacity: 1;
+  transition: opacity 250ms ease-out 0ms;
+}
+
+.side-button:hover {
+  background-color: var(--chimp-primary-dark);
+}
+
+#body {
+  width: calc(100vw - 100px);
+  position: relative;
+}
+
+a {
+  text-decoration: none;
+  transition: all 250ms;
+  margin-right: 24px;
+  border-top-right-radius: 35px;
+  border-bottom-right-radius: 35px;
+  font-weight: 500;
+}
+
+a:hover {
+  background-color: var(--chimp-primary-darker) !important;
+}
+
+#header {
+  height: 64px;
+  display: flex;
+  color: var(--chimp-text-on-primary);
+  align-items: center;
+  padding: 12px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+#header:hover {
+  background-color: var(--chimp-primary-darker) !important;
+}
+
+#content {
+  flex: 1;
+  padding-right: 32px;
+}
+
+.mat-list-item {
+  color: var(--chimp-text-on-primary);
+}
+
+#name {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+#footer {
+  padding: 12px;
+  font-size: 24px;
+  /*border-top: 1px solid var(--chimp-shadow-medium);*/
+  color: var(--chimp-text-on-primary);
+  display: flex;
+  align-items: center;
+}
+
+#mlogo {
+  height: 40px;
+}
+
+.fi {
+  height: 32px;
+  width: 32px;
+  font-size: 32px;
+  margin: 0 8px;
+  cursor: pointer;
+}
+
+.mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+#d-content {
+  padding-bottom: 24px;
+}
+
+.team {
+  cursor: pointer;
+  padding: 12px;
+}
+
+.account-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+}
+
+.account-popup {
+  position: absolute;
+  top: 62px;
+  background-color: var(--chimp-bg-primary);
+  left: 12px;
+  min-width: 260px;
+  height: 350px;
+  z-index: 21;
+  border-radius: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  box-shadow: 0 3px 2px -2px var(--chimp-shadow-light);
+  border: 1px solid var(--chimp-shadow-medium);
+}
+
+.row {
+  margin-bottom: 12px;
+}
+
+#popimage {
+  height: 48px;
+  object-fit: contain;
+}
+
+#popteamname {
+  font-size: 17px;
+  font-weight: 500;
+  opacity: 0.87;
+  margin-top: 8px;
+}
+
+#popteam {
+  margin: 4px 0;
+  font-size: 15px;
+  opacity: 0.67;
+  font-weight: 500;
+}
+
+.teams {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+}
+
+.otherteams {
+  height: 24px;
+  margin: 4px;
+}
+
+/*   TEAM DISABLED DIALOG   */
+.cteams {
+  margin: 24px 0;
+  display: flex;
+  align-items: center;
+}
+#sia {
+  opacity: .87;
+  margin-right: 24px;
+}
+.cteam {
+  margin: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.timage {
+  height: 32px;
+}
+
+
+/*   WELCOME DIALOG   */
+#welcome {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+#chimp {
+  height: 200px;
+}
+#title {
+  margin-top: 24px;
+  font-size: 35px;
+  font-weight: 500;
+  font-family: 'co-headline';
+}
+#info {
+  opacity: .87;
+  font-size: 16px;
+  padding: 24px;
+  max-width: 470px;
+}
+
+
+@media screen and (max-width: 1000px) {
+ #left {
+   display: none;
+ }
+ #body {
+   width: 100vw;
+ }
+
+}

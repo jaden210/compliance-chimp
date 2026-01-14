@@ -1,0 +1,33 @@
+<h2 mat-dialog-title>Team Files</h2>
+<mat-dialog-content class="f-view">
+  <div class="file-row">
+    <div class="file" *ngFor="let file of files" [class.f-active]="file.id == aFile?.id" (click)="aFile = file">
+      <mat-icon>insert_drive_file</mat-icon>
+      <span>{{ file.name }}</span>
+    </div>
+    <div *ngIf="!files?.length" style="color: var(--chimp-text-hint); padding: 16px;">No files uploaded yet</div>
+  </div>
+  <div id="file-view" *ngIf="aFile?.id">
+    <div id="file-preview">
+      <img id="file-file" [src]="aFile.fileUrl" *ngIf="aFile.type?.includes('image')" />
+      <mat-icon *ngIf="!aFile.type?.includes('image')" style="font-size: 100px; width: 100px; height: 100px;">insert_drive_file</mat-icon>
+    </div>
+    <mat-form-field appearance="outline">
+      <mat-label>File Name</mat-label>
+      <input matInput [(ngModel)]="aFile.name" (blur)="save()" />
+    </mat-form-field>
+    <mat-slide-toggle [(ngModel)]="aFile.isPublic" (change)="save()">Make available to team members</mat-slide-toggle>
+    <div id="button-row">
+      <button mat-button color="primary" (click)="download()"><mat-icon>download</mat-icon> Download</button>
+      <div class="flex"></div>
+      <mat-icon class="f-delete" (click)="delete()">delete</mat-icon>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <input type="file" id="upFile" style="display: none;" (change)="uploadFile($event)" />
+  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+  <button mat-button (click)="upload()"><mat-icon>upload</mat-icon> Upload File</button>
+  <div class="flex"></div>
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

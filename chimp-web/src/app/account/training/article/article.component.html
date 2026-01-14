@@ -1,0 +1,59 @@
+<mat-toolbar style="font-size: 15px">
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <h1>{{ title }}</h1>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="window">
+  <div id="content" *ngIf="article">
+    <div id="toolbar">
+      <button mat-flat-button color="primary" (click)="startTraining()">
+        START TRAINING
+      </button>
+      <span style="flex-grow: 1"></span>
+      <button mat-button [matMenuTriggerFor]="menu" *ngIf="article.favorited">
+        Renew {{ article.myContent?.trainingExpiration }}
+      </button>
+      <mat-menu #menu="matMenu">
+        <button
+          mat-menu-item
+          *ngFor="let time of Timeframe"
+          (click)="setTrainingExpiration(time)"
+        >
+          Renew {{ time }}
+        </button>
+      </mat-menu>
+      <button
+        *ngIf="isMyArticle || isDev"
+        mat-icon-button
+        (click)="editArticle()"
+        matTooltip="Edit Article"
+      >
+        <mat-icon aria-label="Edit Article">edit</mat-icon>
+      </button>
+      <button
+        *ngIf="article.favorited"
+        mat-icon-button
+        (click)="viewHistory()"
+        matTooltip="View Training History"
+      >
+        <mat-icon aria-label="Edit Article">history</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        (click)="favorite()"
+        [ngStyle]="{ color: article.favorited ? '#E91E63' : '#757575' }"
+      >
+        <mat-icon aria-label="Add to My Training Content">
+          {{ article.favorited ? "favorite" : "favorite_border" }}
+        </mat-icon>
+      </button>
+    </div>
+    <h3>{{ article.name }}</h3>
+  </div>
+  <div id="article" #dataContainer></div>
+</div>
+
+check_circle_outline

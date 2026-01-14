@@ -1,0 +1,47 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="leave()">
+    <mat-icon style="color:#757575">arrow_back</mat-icon>
+  </button>
+  <div class="toolbar-title">Self-Inspection | {{ selfInspection?.title }}</div>
+  <div class="flex"></div>
+</mat-toolbar>
+<div class="panel">
+  @if (inProgressInspections?.length > 0) {
+    <div class="inspections">
+      <div class="info-title">In Progress</div>
+      @for (inspection of inProgressInspections; track inspection.id) {
+        <div class="row" [matTooltip]="inspection.completedPercent + '% completed'" matTooltipShowDelay="600">
+          <h2>{{ inspection?.createdAt | date: 'longDate' }}</h2>
+          <div class="fill" [ngStyle]="{'width': (inspection.completedPercent) + '%'}"></div>
+          <div class="flex"></div>
+          <button mat-button color="primary" (click)="resumeSelfInspection(inspection)">CONTINUE INSPECTION</button>
+        </div>
+      }
+    </div>
+  }
+  @if (completedInspections?.length > 0) {
+    <div class="inspections">
+      <div class="info-title">Completed Inspections</div>
+      @for (inspection of completedInspections; track inspection.id) {
+        <div class="row">
+          <h2>{{ inspection?.createdAt | date: 'longDate' }}</h2>
+          <div class="flex"></div>
+          <p style="margin-right:8px">{{ inspection.completedPercent }}% complete</p>
+          <button mat-icon-button color="primary" (click)="export(inspection)"><mat-icon>file_download</mat-icon></button>
+        </div>
+      }
+    </div>
+  }
+  @if (selfInspectionInspections?.length === 0) {
+    <div class="help-card">
+      <div class="helper-name" id="helper-name-color">It's about to get safe in here</div>
+      <div class="helper-description" id="helper-description-color">
+        Looks like this is a brand new Inspection! Let's go ahead and Start it by clicking on the button below. You can do as much or as little as you want, we'll keep the progress as you go.
+        <button mat-raised-button color="accent" style="color: white;" (click)="startSelfInspection()">START A NEW INSPECTION</button>
+      </div>
+    </div>
+  }
+  @if (selfInspectionInspections?.length !== 0 && !loading) {
+    <button mat-fab class="fab" color="accent" (click)="startSelfInspection()"><mat-icon>add</mat-icon></button>
+  }
+</div>

@@ -1,0 +1,77 @@
+<h2 mat-dialog-title>Manage Your Managers</h2>
+<mat-dialog-content>
+  <p class="dialog-description">
+    Managers have more access to Compliancechimp than your run-of-the-mill Team Member. They can add content to your library, start trainings, send out surveys, and complete self-inspections.<br><br>
+    Because they have all this power, they need to create an account with Compliancechimp. You can add them below and we will send them an email to set their password and join your team.
+  </p>
+  
+  <div class="managers-list">
+    <!-- Add New Manager Card -->
+    <div class="manager-card add-card" (click)="startManager()">
+      <div class="manager-avatar add">
+        <mat-icon>add</mat-icon>
+      </div>
+      <div class="manager-info">
+        <div class="manager-name">Add a New Manager</div>
+      </div>
+    </div>
+    
+    <!-- New Manager Form -->
+    <div class="add-manager-form" *ngIf="newManager != null">
+      <div class="form-title">Add a Manager</div>
+      
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput [(ngModel)]="newManager.name" required>
+      </mat-form-field>
+      
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput [(ngModel)]="newManager.email" type="email" required>
+      </mat-form-field>
+      
+      <mat-form-field appearance="outline">
+        <mat-label>Job Title</mat-label>
+        <input matInput [(ngModel)]="newManager.jobTitle">
+      </mat-form-field>
+      
+      <mat-form-field appearance="outline">
+        <mat-label>Phone</mat-label>
+        <input matInput [(ngModel)]="newManager.phone" type="tel" (keyup)="formatPhone()" required>
+        <mat-hint align="end" class="error-text" *ngIf="phoneError">Must be a valid phone number</mat-hint>
+      </mat-form-field>
+      
+      <div class="form-actions">
+        <button mat-button (click)="newManager = null">Cancel</button>
+        <button mat-flat-button color="primary" [disabled]="!newManager.name || !newManager.email || !newManager.phone" (click)="createManager()">
+          Add Manager
+        </button>
+      </div>
+    </div>
+    
+    <!-- Existing Managers -->
+    <div class="manager-card" *ngFor="let manager of Managers">
+      <img class="manager-avatar" [src]="manager.profileUrl" onerror="this.src = './assets/face.png'">
+      <div class="manager-info">
+        <div class="manager-name">
+          {{ manager.name }}
+          <span class="owner-badge" *ngIf="isOwner(manager.id)">Owner</span>
+        </div>
+        <div class="manager-email">{{ manager.email }}</div>
+      </div>
+      <button mat-icon-button [matMenuTriggerFor]="menu" *ngIf="!isYou(manager.id) && !isOwner(manager.id)">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="removeManager(manager)">
+          <mat-icon>person_remove</mat-icon>
+          Remove {{ manager.name }}
+        </button>
+      </mat-menu>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Close</button>
+</mat-dialog-actions>

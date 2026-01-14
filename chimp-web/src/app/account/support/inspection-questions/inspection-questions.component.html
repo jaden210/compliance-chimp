@@ -1,0 +1,42 @@
+<div class="full">
+  <div class="side">
+      <mat-form-field style="width: 300px">
+          <input matInput type="text" placeholder="collection name" [(ngModel)]="collection" (blur)="getCollection()">
+        </mat-form-field>
+      <div class="list">
+        <button mat-stroked-button color="primary" (click)="createDoc()">CREATE NEW CATEGORY</button>
+        <button mat-button *ngIf="collectionSubject.id" (click)="deleteDoc()" color="accent">DELETE</button>
+      <div class="list-item" *ngFor="let item of list" [ngClass]="{'active': item.id == collectionSubject.id}" (click)="selectDoc(item)">
+        {{item.subject}} - {{item.order}}
+      </div>
+    </div>
+  </div>
+  <div class="side" style="flex:2">
+    <mat-toolbar color="accent">
+      <mat-label style="margin-right:24px">name</mat-label>
+      <mat-form-field style="flex:1">
+        <input matInput type="text" [(ngModel)]="collectionSubject.subject" (blur)="push()">
+      </mat-form-field>
+      <mat-label style="margin-right:24px">order</mat-label>
+      <mat-form-field>
+        <input matInput type="number" step="1" [(ngModel)]="collectionSubject.order" (blur)="push()">
+      </mat-form-field>
+    </mat-toolbar>
+    <div class="scroll">
+      <div class="list" style="width: 100%">
+        <div class="question" *ngFor="let question of collectionSubject.questions" style="display: flex;align-items: center;">
+          <mat-form-field class="fill">
+            <input matInput type="text" placeholder="name" [(ngModel)]="question.name" (blur)="push()">
+          </mat-form-field>
+          <button mat-button color="accent" (click)="deleteQ(question)">DELETE</button>
+        </div>
+        <div class="row">
+          <mat-form-field class="fill">
+            <input matInput type="text" placeholder="name" [(ngModel)]="newQuestion.name">
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="addQuestion()">ADD</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

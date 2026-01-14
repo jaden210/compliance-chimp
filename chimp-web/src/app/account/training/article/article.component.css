@@ -1,0 +1,60 @@
+mat-toolbar {
+  font-size: 15px;
+  background: white !important;
+}
+
+#content {
+  margin: 0 16px 0 24px;
+}
+
+#toolbar {
+  display: flex;
+  margin: 16px 0 6px 0;
+}
+
+#trainees {
+  padding: 8px 0;
+}
+
+mat-chip {
+  cursor: pointer;
+}
+
+#add-trainee-chip {
+  display: flex;
+  align-items: center;
+  padding-right: 14px;
+  background: white;
+  -webkit-box-shadow: inset 0px 0px 0px 1px #004b8c;
+  -moz-box-shadow: inset 0px 0px 0px 1px #004b8c;
+  box-shadow: inset 0px 0px 0px 1px #004b8c;
+  color: #004b8c;
+}
+
+#add-trainee-chip mat-icon {
+  height: 18px;
+  width: 18px;
+  font-size: 18px;
+  margin: 0 6px 0 -4px;
+}
+
+.warning {
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+  color: #f44336;
+  margin-left: -4px;
+  margin-right: 6px;
+}
+
+#article {
+  margin: 24px 24px 48px;
+}
+
+#current-btn mat-icon {
+  margin: -3px 4px 0 -7px;
+}
+
+#good {
+  color: #4caf50;
+}

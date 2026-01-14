@@ -1,0 +1,49 @@
+<div class="window">
+  <div id="editor">
+    <div style="display: flex; margin-top: 8px;">
+      <mat-form-field appearance="outline" style="flex: 2; margin-right: 24px;">
+        <mat-label>help article title</mat-label>
+        <input
+          matInput
+          placeholder="adding a team member"
+          required
+          [(ngModel)]="article.name"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" style="flex: 1">
+        <mat-label>ordering</mat-label>
+        <input matInput [(ngModel)]="article.ordering">
+      </mat-form-field>
+      <button mat-icon-button color="primary" (click)="articlePhoto()"><mat-icon>camera_alt</mat-icon></button>
+      <button mat-icon-button color="primary" (click)="articleVideo()"><mat-icon>videocam</mat-icon></button>
+    </div>
+    <div class="ngx-editor-wrapper">
+      <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+      <ngx-editor
+        [editor]="editor"
+        [(ngModel)]="article.content"
+        [placeholder]="'Content *'"
+      ></ngx-editor>
+    </div>
+    <div style="display: flex; margin-top: 24px;">
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="submit()"
+        [disabled]="!article.name || !article.content || !article.ordering"
+      >
+        {{ article.createdAt ? 'SAVE' : 'CREATE' }}
+      </button>
+      <button mat-button (click)="cancel()">CANCEL</button>
+      <button
+        mat-icon-button
+        (click)="deleteArticle()"
+        *ngIf="article?.id"
+        style="margin-left: auto"
+      >
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+    <mat-spinner *ngIf="loading"></mat-spinner>
+  </div>
+</div>

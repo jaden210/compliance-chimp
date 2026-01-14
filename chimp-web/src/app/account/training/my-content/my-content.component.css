@@ -1,0 +1,43 @@
+mat-toolbar {
+  font-size: 15px;
+  background: white !important;
+}
+
+progress-shield {
+  margin: 0 12px;
+}
+
+#create-btn {
+  margin: 24px 32px;
+}
+
+#search-box {
+  display: flex;
+  align-items: center;
+  max-width: 40px;
+  min-width: 40px;
+  overflow: hidden;
+  transition: all 250ms ease-in-out;
+}
+
+#search-box input {
+  height: 28px;
+  outline: none;
+  border-radius: 20px;
+  background: white;
+  padding: 0 16px;
+  font-size: 14px;
+  line-height: 28px;
+  margin-right: 12px;
+  width: 240px;
+}
+
+.expand {
+  max-width: 300px !important;
+}
+
+#no-results {
+  text-align: center;
+  margin-top: 48px;
+  margin-bottom: 12px;
+}

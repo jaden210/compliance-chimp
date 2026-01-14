@@ -1,0 +1,240 @@
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Logs</div>
+  <div class="flex"></div>
+  <button mat-icon-button style="margin-right: 12px;" (click)="search()">
+    <mat-icon
+      matBadge="!"
+      [matBadgeHidden]="!isSearch"
+      matBadgeColor="warn"
+      matBadgeSize="small"
+      >search</mat-icon
+    >
+  </button>
+</mat-toolbar>
+
+<div class="window" #window>
+  <div id="logs" #logs [class.hidden]="!showView">
+    <div id="load-btn-container">
+      <button mat-stroked-button *ngIf="allowLoad" (click)="loadMore()">
+        LOAD MORE
+      </button>
+    </div>
+
+    <!-- No results log -->
+    <div class="chat-line-wrapper" *ngIf="!(logsGroup | async)?.length">
+      <div class="chat-line">
+        <div class="circle-container">
+          <div class="circle" [ngStyle]="{ background: 'white' }"></div>
+          <span [ngStyle]="{ color: '#424242' }">C</span>
+          <img
+            src="/assets/chimpFace.png"
+            onerror="this.style.display='none'"
+          />
+        </div>
+        <div class="bubbles-container">
+          <span class="name" [ngStyle]="{ color: '#424242' }">The Chimp</span>
+          <div class="bubble-wrapper">
+            <div class="chat-bubble">
+              <p>
+                Welcome to Logs! This is a great place to record events that
+                happen at work. To get started with your first log, enter some
+                text or add an image and hit send. Logs are available to your
+                entire team. Enjoy!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End No results log -->
+
+    <ng-container *ngFor="let group of (logsGroup | async)">
+      <div id="date">
+        <span>{{ group.date }}</span>
+      </div>
+      <div
+        class="chat-line-wrapper"
+        [class.is-me]="authorGroup.isMe"
+        *ngFor="let authorGroup of group.logsByAuthor; last as lastAuthorGroup"
+      >
+        <div class="chat-line">
+          <div class="circle-container">
+            <div
+              class="circle"
+              [ngStyle]="{ background: authorGroup.author?.color }"
+            ></div>
+            <span [ngStyle]="{ color: authorGroup.author?.color }">{{
+              authorGroup.author?.name?.charAt(0)
+            }}</span>
+            <img
+              [src]="authorGroup.author?.profileUrl"
+              onerror="this.style.display='none'"
+            />
+          </div>
+          <div class="bubbles-container">
+            <span
+              class="name"
+              [ngStyle]="{ color: authorGroup.author?.color }"
+              >{{ authorGroup.author?.name }}</span
+            >
+            <div
+              class="bubble-time-wrapper"
+              (click)="showTime(log)"
+              *ngFor="
+                let log of authorGroup.logs;
+                first as isFirst;
+                last as isLast
+              "
+            >
+              <div class="bubble-wrapper">
+                <div
+                  class="chat-bubble"
+                  [class.is-image]="log.imageUrl"
+                  [ngClass]="
+                    authorGroup.logs.length > 1
+                      ? isFirst
+                        ? 'top'
+                        : isLast
+                        ? 'bottom'
+                        : 'middle'
+                      : null
+                  "
+                >
+                  <p *ngIf="log?.description">{{ log?.description }}</p>
+                  <img
+                    *ngIf="log.imageUrl"
+                    [src]="log.imageUrl"
+                    onerror="this.style.display='none'"
+                  />
+                </div>
+                <button
+                  mat-icon-button
+                  class="more-button"
+                  (click)="$event.stopPropagation()"
+                  [matMenuTriggerFor]="appMenu"
+                  [matMenuTriggerData]="{ log: log }"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+              </div>
+              <div
+                class="time"
+                [ngStyle]="{
+                  maxHeight:
+                    (isLast && lastAuthorGroup) || log.showTime ? '24px' : '0px'
+                }"
+              >
+                <p>{{ authorGroup.time | date: "shortTime" }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- For temporary response logs -->
+    <div class="chat-line-wrapper is-me">
+      <div class="chat-line">
+        <div class="bubbles-container">
+          <div
+            class="chat-bubble"
+            *ngFor="let rl of responseLogs; first as isFirst; last as isLast"
+            [class.is-image]="rl.imageUrl"
+            [ngClass]="
+              responseLogs.length > 1
+                ? isFirst
+                  ? 'top'
+                  : isLast
+                  ? 'bottom'
+                  : 'middle'
+                : null
+            "
+          >
+            <img
+              *ngIf="rl.imageUrl"
+              [src]="rl.imageUrl"
+              onerror="this.style.display='none'"
+            />
+            <p *ngIf="rl.description">{{ rl?.description }}</p>
+          </div>
+          <mat-icon *ngIf="errorIcon" id="alert" (click)="resendLog()"
+            >alert</mat-icon
+          >
+        </div>
+      </div>
+    </div>
+    <!-- End temporary response logs -->
+
+    <div id="sending" *ngIf="sending">Sending...</div>
+    <!-- For proper scrolling, added blank div with height -->
+    <div id="buffer" #buffer></div>
+    <!-- End Buffer -->
+  </div>
+
+  <div id="actions">
+    <div id="textbox" #textbox>
+      <div id="flexcol">
+        <div id="images">
+          <div class="img-wrapper" *ngFor="let image of images">
+            <img [src]="image.previewImage" />
+            <mat-icon (click)="removeImage(image)">close</mat-icon>
+          </div>
+        </div>
+        <textarea
+          #myInput
+          [(ngModel)]="description"
+          placeholder="log description"
+          (keyup)="resize()"
+        ></textarea>
+      </div>
+      <button mat-icon-button (click)="getImage()">
+        <mat-icon>photo</mat-icon>
+      </button>
+    </div>
+    <button
+      id="send-btn"
+      (click)="createLog()"
+      [class.disabled]="!description && !images?.length"
+      [disabled]="!description && !images?.length"
+    >
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>
+<mat-progress-bar
+  mode="indeterminate"
+  *ngIf="loading || sending"
+></mat-progress-bar>
+
+<!-- Image input -->
+<div style="height: 0px; width: 0px; overflow:hidden">
+  <input
+    type="file"
+    id="upfile"
+    accept=".png,.jpg,.mp4"
+    (change)="uploadImage($event)"
+  />
+</div>
+<!-- End image input -->
+
+<mat-menu #appMenu="matMenu">
+  <ng-template matMenuContent let-log="log">
+    <button
+      mat-menu-item
+      *ngIf="log.imageUrl"
+      (click)="viewImage(log.imageUrl)"
+    >
+      View Image
+    </button>
+    <button
+      mat-menu-item
+      *ngIf="log.LatPos && log.LongPos"
+      (click)="showMap(log)"
+    >
+      View Location
+    </button>
+    <button mat-menu-item (click)="deleteLog(log)">Delete Log</button>
+  </ng-template>
+</mat-menu>
