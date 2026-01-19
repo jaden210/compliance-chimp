@@ -303,14 +303,14 @@ exports.createdInjuryReport = functions.firestore
   });
 /* ----- INJURY REPORT NEW ----- */
 
-exports.createdInjuryReport = functions.firestore
+exports.createdInjuryReportNew = functions.firestore
   .document("incident-report/{id}")
   .onCreate((snapshot, context) => {
     let injuryReport = snapshot.data();
 
     /* total self inspections achievement */
     const achievement = updateCompletedAchievement(
-      context.params.teamId,
+      injuryReport.teamId,
       "injuryReports",
       1,
       true
@@ -338,7 +338,7 @@ exports.addToLibrary = functions.firestore
     const libraryItemLog = logAsEvent(
       EventType.customContent,
       EventAction.created,
-      context.id,
+      snapshot.id,
       libraryItem.teamMemberId,
       `A new Article was Added to the Library: ${libraryItem.name}`,
       libraryItem.teamId
@@ -370,7 +370,7 @@ exports.createdSurvey = functions
     );
 });
 
-function blastSurvey(survey: any): void {
+function blastSurvey(survey: any): Promise<any> {
   let teamMember = [];
   return admin.firestore().collection(`team-members`).where("teamId", "==", survey.teamId).get().then((users: any) => {
       users.forEach((userDoc: any) => {
@@ -403,7 +403,7 @@ exports.modifiedSurvey = functions.firestore
       change.after.id,
       newSurvey.userId,
       newSurvey.title,
-      context.teamId
+      newSurvey.teamId
     ).then(() => console.log("updated survey complete"));
   });
 
@@ -417,7 +417,7 @@ exports.deletedSurvey = functions.firestore
       snapshot.id,
       deletedSurvey.userId,
       deletedSurvey.title,
-      context.teamId
+      deletedSurvey.teamId
     ).then(() => console.log("deleted survey complete"));
   });
 
@@ -561,56 +561,53 @@ exports.createdCustomTrainingArticle = functions.firestore
     console.log('Self-inspection reminders check complete');
   }
   
-  function findSurveys() {
+  function findSurveys(): Promise<any> {
   const today = moment(); 
   let teamDocs = admin.firestore().collection("team").get();
   return teamDocs.then((teams: any) => {
+    const promises: Promise<any>[] = [];
     teams.forEach((teamDoc: any) => {
-      const team = teamDoc.data();
+      const team = { ...teamDoc.data(), id: teamDoc.id };
       let surveysDocs = admin.firestore().collection(`team/${team.id}/survey`).get();
-      return surveysDocs.then((surveys: any) => {
+      promises.push(surveysDocs.then((surveys: any) => {
           surveys.forEach((surveyDoc: any) => {
             const survey = surveyDoc.data();
             if (!survey.notificationSent) {
-              let teamMember = [];
+              let teamMember: any[] = [];
               if (moment(survey.runDate).isSame(today, 'day')) { //do it
                 if (teamMember.length == 0) {
-                  return admin.firestore().collection(`team/${team.id}/user`).get().then((users: any) => {
+                  admin.firestore().collection(`team/${team.id}/user`).get().then((users: any) => {
                       users.forEach((userDoc: any) => {
                         teamMember.push(userDoc.data());
                       });
                       Object.keys(survey.userSurvey).forEach((key,index) => {
-                        let user = teamMember.find(u => u.id = key);
+                        let user = teamMember.find(u => u.id == key);
                         if (user) {
                           const body = `Hi ${user.name}. A new survey is waiting for you. Click the link to answer. Please answer right away to help your employer maintain current records. Thank you! - The Compliancechimp team.\n
                           https://compliancechimp.com/user?member-id=${user.id}`;
-                          return sendMessage(user, team, body).then(() => {
-                            surveyDoc.update({notificationSent: true});
+                          sendMessage(user, team, body).then(() => {
+                            surveyDoc.ref.update({notificationSent: true});
                           });
-                        } else {
-                          return null;
                         }
                       });
-                  })
+                  });
                 } else {
                   Object.keys(survey.userSurvey).forEach((key,index) => {
-                    const body = ``
-                    let user = teamMember.find(u => u.id = key);
+                    const body = ``;
+                    let user = teamMember.find(u => u.id == key);
                     if (user) {
-                      return sendMessage(user, team, body).then(() => {
-                        surveyDoc.update({notificationSent: true});
+                      sendMessage(user, team, body).then(() => {
+                        surveyDoc.ref.update({notificationSent: true});
                       });
-                    } else {
-                      return null;
                     }
                   });
                 }
               }
             }
           });
-      });
+      }));
     });
-    
+    return Promise.all(promises);
   });
 }
 
@@ -619,7 +616,8 @@ exports.teamMemberAdded = functions
   .runWith({ secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] })
   .firestore.document("/team-members/{teamMemberId}")
   .onCreate(async (snapshot, context) => {
-    const teamMember = { ...snapshot.data(), id: snapshot.id } || {};
+    const data = snapshot.data() as any;
+    const teamMember = { ...data, id: snapshot.id };
     const teamDoc = await admin.firestore().doc(`team/${teamMember.teamId}`).get();
     const team = teamDoc.data();
     
@@ -755,7 +753,7 @@ function logAsEvent(
   userId: string,
   description: string,
   teamId: string
-): Promise<FirebaseFirestore.DocumentSnapshot> {
+): Promise<void> {
   let createdAt = new Date();
   let event: Event = {
     type,
