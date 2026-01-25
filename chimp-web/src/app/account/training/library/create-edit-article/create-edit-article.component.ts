@@ -2,7 +2,7 @@ import { Component, OnInit, HostListener, OnDestroy, Input, Output, EventEmitter
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
-import { NgxEditorModule, Editor, Toolbar } from "ngx-editor";
+import { NgxEditorModule, Editor, Toolbar, toHTML, toDoc, schema } from "ngx-editor";
 import { ActivatedRoute, ParamMap } from "@angular/router";
 import { TrainingService, Article, Topic, LibraryItem } from "../../training.service";
 import { CreateEditArticleService } from "./create-edit-article.service";
@@ -17,12 +17,12 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
-import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { AccountService } from "../../../account.service";
 import { ArticleMetaDescriptionDialog } from "./article-meta-description/article-meta-description.component";
 import { ArticlePhotoDialog } from "./article-photo-upload/article-photo-upload.component";
 import { TopicDialogComponent } from "../../topics/topic-dialog/topic-dialog.component";
+import { VoiceArticleDialog } from "./voice-article-dialog/voice-article-dialog.component";
 
 @Component({
   standalone: true,
@@ -43,7 +43,6 @@ import { TopicDialogComponent } from "../../topics/topic-dialog/topic-dialog.com
     MatIconModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatSlideToggleModule,
     MatToolbarModule
   ]
 })
@@ -61,7 +60,6 @@ export class CreateEditArticleComponent
     public submitButton: string = "CREATE ARTICLE";
     public loading: boolean;
     public topics: Observable<Topic[]>;
-    public isGlobalArticle: boolean;
     public isDev: boolean;
     public slugNameError: string;
     private industryId: string;
@@ -69,6 +67,7 @@ export class CreateEditArticleComponent
     
     // NgxEditor setup
     public editor: Editor;
+    public editorContent: any; // ProseMirror doc for the editor
     public toolbar: Toolbar = [
       ['bold', 'italic', 'underline', 'strike'],
       ['blockquote', 'code'],
@@ -112,6 +111,12 @@ export class CreateEditArticleComponent
     this.service.getArticle(this.articleId).subscribe(article => {
       this.originalArticle = { ...article };
       this.article = article;
+      // Convert HTML content to ProseMirror doc for editing
+      if (article.content && typeof article.content === 'string') {
+        this.editorContent = toDoc(article.content, schema);
+      } else {
+        this.editorContent = article.content;
+      }
     });
   }
 
@@ -119,7 +124,6 @@ export class CreateEditArticleComponent
     this.userSubscription = this.accountService.userObservable.subscribe(
       user => {
         if (user) this.isDev = user.isDev;
-        this.isGlobalArticle = this.isDev ? true : false;
       }
     );
   }
@@ -130,10 +134,12 @@ export class CreateEditArticleComponent
   }
 
   private updateArticle(): void {
-    console.log(this.article);
+    // Convert editor content (ProseMirror doc) to HTML before saving
+    if (this.editorContent && typeof this.editorContent === 'object') {
+      this.article.content = toHTML(this.editorContent, schema);
+    }
     
-    const isGlobal = this.accountService.user.isDev && this.isGlobalArticle ? true : false;
-    this.service.updateArticle(this.article, isGlobal).then(() => {
+    this.service.updateArticle(this.article).then(() => {
       this.deactivate = true;
       this.popSnackbar("Updated", this.article.name);
       this.trainingService.wipeArticles();
@@ -142,14 +148,11 @@ export class CreateEditArticleComponent
   }
 
   private createArticle(): void {
-    const isGlobal = this.accountService.user.isDev && this.isGlobalArticle ? true : false;
-    if (!isGlobal) {
-      this.article.industry = "Custom";
-      this.article.topic = "User Generated";
-    }
+    this.article.industry = "Custom";
+    this.article.topic = "User Generated";
     this.article.addedBy = this.accountService.user.id;
     this.article.teamId = this.accountService.aTeam.id;
-    this.service.createArticle(this.article, this.teamId, isGlobal).then(id => {
+    this.service.createArticle(this.article, this.teamId).then(id => {
       this.deactivate = true;
       this.popSnackbar("Created", this.article.name);
       this.trainingService.wipeArticles();
@@ -193,6 +196,22 @@ export class CreateEditArticleComponent
       disableClose: true
     }).afterClosed().subscribe(data => {
       this.article = data;
+    });
+  }
+
+  openAIGenerator() {
+    this.dialog.open(VoiceArticleDialog, {
+      data: { industry: this.article.industry },
+      disableClose: true,
+      width: '600px'
+    }).afterClosed().subscribe((result: { title: string; content: string } | undefined) => {
+      if (result?.title && result?.content) {
+        this.article.name = result.title;
+        this.article.content = result.content;
+        this.snackbar.open('Article generated! Review and edit as needed.', null, {
+          duration: 4000
+        });
+      }
     });
   }
 

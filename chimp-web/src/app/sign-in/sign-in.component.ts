@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { Router, RouterModule } from "@angular/router";
 import { FormControl, Validators, ReactiveFormsModule } from "@angular/forms";
 import { Auth } from "@angular/fire/auth";
@@ -9,8 +9,7 @@ import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { AppService } from "../app.service";
-
-declare var gtag: Function;
+import { AnalyticsService, FunnelStep } from "../shared/analytics.service";
 
 @Component({
   standalone: true,
@@ -26,7 +25,7 @@ declare var gtag: Function;
   templateUrl: "./sign-in.component.html",
   styleUrls: ["./sign-in.component.css"]
 })
-export class SignInComponent {
+export class SignInComponent implements OnInit {
   email: FormControl;
   password: FormControl;
   signinError: string;
@@ -36,10 +35,14 @@ export class SignInComponent {
     private router: Router,
     private auth: Auth,
     private appService: AppService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private analytics: AnalyticsService
   ) {}
 
   ngOnInit() {
+    // Track sign-in page view
+    this.analytics.trackFunnelStep(FunnelStep.SIGNIN_PAGE_VIEW);
+    
     let emailStr = this.appService.email || "";
     this.email = new FormControl(emailStr, [
       Validators.required,
@@ -60,9 +63,15 @@ export class SignInComponent {
     this.signinError = null;
     signInWithEmailAndPassword(this.auth, this.email.value, this.password.value)
       .then(
-        () => this.router.navigate(["/account"]),
+        (userCredential) => {
+          // Track successful sign-in
+          this.analytics.trackFunnelStep(FunnelStep.SIGNIN_SUCCESS);
+          this.analytics.setUserId(userCredential.user.uid);
+          this.router.navigate(["/account"]);
+        },
         error => {
           console.error(error);
+          this.analytics.trackError('signin', error.code || 'unknown');
           if (error.code == "auth/user-not-found") {
             this.signinError =
               "No users found matching this email address, create a team or ask your employer to add you to their team";
@@ -83,12 +92,12 @@ export class SignInComponent {
         });
         this.password.setValue(null);
         this.password.markAsPristine();
-        gtag("event", "password_reset", {
-          event_category: "password",
-          event_label: `${this.email.value} reset a password`
-        });
+        this.analytics.trackFunnelStep(FunnelStep.SIGNIN_PASSWORD_RESET);
         console.log("sent Password Reset Email!");
       })
-      .catch(error => console.log(error));
+      .catch(error => {
+        console.log(error);
+        this.analytics.trackError('password_reset', error.code || 'unknown');
+      });
   }
 }

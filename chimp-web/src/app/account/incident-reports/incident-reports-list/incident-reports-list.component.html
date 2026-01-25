@@ -1,5 +1,5 @@
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png">
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Incident Reports</div>
   <div class="flex"></div>
@@ -13,6 +13,10 @@
       <div class="splash-body">
         Accidents and near-misses happen, but handled well, they become tools for change and improvement. 
         OSHA requires that incidents are documented—yours will live here, organized and reportable.
+      </div>
+      <div class="splash-tip">
+        <mat-icon>info</mat-icon>
+        <span>If you need to report an incident, please go to the team member's page to report the incident from there, not from here.</span>
       </div>
       @if (loggedInTeamMember) {
         <div class="splash-actions">
@@ -78,6 +82,10 @@
       <div class="empty-body">
         Accidents and near-misses happen. But handled well, they become tools for change and improvement. 
         When incidents are reported, they will appear here in an organized and reportable way.
+      </div>
+      <div class="empty-tip">
+        <mat-icon>info</mat-icon>
+        <span>If you need to report an incident, please go to the team member's page to report the incident from there.</span>
       </div>
       @if (loggedInTeamMember) {
         <button mat-flat-button color="accent" (click)="navMemberPage()">

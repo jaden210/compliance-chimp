@@ -1,0 +1,159 @@
+.tag-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--chimp-border-light, #e0e0e0);
+  border-radius: 8px;
+  background: var(--chimp-bg-primary, #fff);
+  transition: border-color 150ms ease;
+  width: 100%;
+  box-sizing: border-box;
+  
+  &:focus-within {
+    border-color: var(--chimp-primary);
+  }
+  
+  &.compact {
+    min-height: 28px;
+    padding: 2px 6px;
+    gap: 4px;
+  }
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 13px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 150ms ease;
+  
+  &:hover {
+    filter: brightness(0.95);
+    
+    .tag-remove {
+      opacity: 1;
+    }
+  }
+}
+
+.tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  margin-right: -4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 150ms ease;
+  
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+  
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.compact {
+  .tag-pill {
+    height: 22px;
+    padding: 0 8px 0 6px;
+    font-size: 11px;
+    border-radius: 11px;
+    gap: 4px;
+  }
+  
+  .tag-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .tag-remove {
+    width: 14px;
+    height: 14px;
+    margin-right: -3px;
+    
+    mat-icon {
+      font-size: 12px;
+      width: 12px;
+      height: 12px;
+    }
+  }
+}
+
+.tag-text-input {
+  flex: 1;
+  min-width: 80px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--chimp-text-primary);
+  padding: 4px 0;
+  
+  &::placeholder {
+    color: var(--chimp-text-hint);
+  }
+}
+
+.compact .tag-text-input {
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.autocomplete-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .tag-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+.autocomplete-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--chimp-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}

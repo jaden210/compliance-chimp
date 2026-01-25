@@ -12,6 +12,40 @@ service cloud.firestore {
     match /team/{teamId} {
       allow read;
       allow write: if resource.data.ownerId == request.auth.uid;
+      
+      match /file/{fileId} {
+        allow read;
+        allow write: if request.auth.uid != null;
+      }
+      match /topic/{topicId} {
+        allow read;
+        allow write: if request.auth.uid != null;
+      }
+      match /article/{articleId} {
+        allow read;
+        allow write: if request.auth.uid != null;
+      }
+      match /self-inspection/{inspectionId} {
+        allow read, write;
+        
+        match /inspections/{subInspectionId} {
+          allow read, write;
+        }
+      }
+      match /survey/{surveyId} {
+        allow read;
+        allow write: if request.auth.uid != null;
+      }
+      match /my-training-content/{contentId} {
+        allow read;
+        allow write: if request.auth.uid != null;
+      }
+      match /log/{logId} {
+        allow read, write: if request.auth.uid != null;
+      }
+      match /event/{eventId} {
+        allow read, write: if request.auth.uid != null;
+      }
     }
     match /user/{userId} {
       allow read;
@@ -27,6 +61,12 @@ service cloud.firestore {
     match /survey/{userId} {
       allow read;
       allow write: if request.auth.uid != null;
+    }
+    match /survey-response/{responseId} {
+      allow read, write;
+    }
+    match /incident-report/{reportId} {
+      allow read, write;
     }
     match /topic/{topicId} {
       allow read;

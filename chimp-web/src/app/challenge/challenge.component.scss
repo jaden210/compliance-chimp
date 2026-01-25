@@ -1,0 +1,138 @@
+.challenge-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--chimp-bg-secondary);
+  position: relative;
+}
+
+// Circular Countdown Timer
+.circular-timer {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  width: 120px;
+  height: 120px;
+  z-index: 100;
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.2));
+  
+  &.paused {
+    .timer-progress {
+      stroke: #9e9e9e;
+    }
+    
+    .timer-value {
+      color: #9e9e9e;
+    }
+  }
+  
+  &.complete {
+    .timer-progress {
+      stroke: #4caf50;
+    }
+    
+    .timer-bg {
+      stroke: rgba(76, 175, 80, 0.2);
+    }
+  }
+}
+
+.timer-svg {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1); // Flip so it unwinds clockwise
+}
+
+.timer-bg {
+  stroke: rgba(0, 0, 0, 0.1);
+  fill: var(--chimp-bg-primary);
+}
+
+.timer-progress {
+  stroke: var(--chimp-accent);
+  stroke-linecap: round;
+  stroke-dasharray: 339.292; // 2 * PI * 54
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+.timer-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.timer-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Monaco', 'Consolas', monospace;
+  color: var(--chimp-text-primary);
+  line-height: 1;
+}
+
+.timer-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--chimp-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  
+  &.paused {
+    color: var(--chimp-accent);
+    font-weight: 600;
+  }
+  
+  &.complete {
+    color: #4caf50;
+    font-weight: 600;
+  }
+}
+
+// Main Content
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+// Responsive - Mobile
+@media screen and (max-width: 600px) {
+  .circular-timer {
+    top: 70px;
+    right: 12px;
+    width: 90px;
+    height: 90px;
+  }
+  
+  .timer-value {
+    font-size: 20px;
+  }
+  
+  .timer-label {
+    font-size: 8px;
+  }
+}
+
+// Responsive - Extra Small Mobile
+@media screen and (max-width: 374px) {
+  .circular-timer {
+    top: 60px;
+    right: 8px;
+    width: 70px;
+    height: 70px;
+  }
+  
+  .timer-value {
+    font-size: 16px;
+  }
+  
+  .timer-label {
+    font-size: 7px;
+  }
+}

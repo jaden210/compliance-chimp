@@ -41,7 +41,10 @@ export class TopicsService {
     const ref = id.includes(teamId)
       ? doc(this.db, `team/${teamId}/topic/${topic.id}`)
       : doc(this.db, `topic/${topic.id}`);
-    return updateDoc(ref, { ...topic })
+    const cleanedTopic = Object.fromEntries(
+      Object.entries(topic).filter(([_, v]) => v !== undefined)
+    );
+    return updateDoc(ref, cleanedTopic)
       .then(() => topic)
       .catch(error => {
         console.error(`Error updating topic ${topic.name}`, topic, error);

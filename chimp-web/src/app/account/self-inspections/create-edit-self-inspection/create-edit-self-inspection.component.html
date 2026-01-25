@@ -1,91 +1,194 @@
 <mat-toolbar>
-  <button mat-icon-button (click)="cancel()">
+  <button mat-icon-button (click)="goBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span class="toolbar-title">{{ selfInspection.id ? 'Edit' : 'New' }} Self-Inspection</span>
+  <span class="toolbar-title">{{ isEditing ? 'Edit' : 'New' }} Self-Inspection</span>
   <div class="flex"></div>
-  <button mat-button color="primary" *ngIf="selfInspection.id" (click)="saveOrCreate()">SAVE</button>
-  <button mat-flat-button color="primary" *ngIf="!selfInspection.id" (click)="saveOrCreate()" [disabled]="!selfInspection.title">CREATE</button>
+  
+  <!-- Save Status Indicator (edit mode only) -->
+  <span class="save-status" *ngIf="isEditing && saveStatus === 'saving'">
+    <mat-spinner diameter="16"></mat-spinner>
+    Saving...
+  </span>
+  <span class="save-status saved" *ngIf="isEditing && saveStatus === 'saved'">
+    <mat-icon>check_circle</mat-icon>
+    Saved
+  </span>
+  
+  <!-- Create button (create mode only) -->
+  <button mat-flat-button 
+          color="primary" 
+          *ngIf="!isEditing"
+          (click)="createInspection()" 
+          [disabled]="isCreating || !selfInspection?.title?.trim() || !selfInspection?.baseQuestions?.length">
+    <mat-icon *ngIf="!isCreating">check</mat-icon>
+    <mat-spinner *ngIf="isCreating" diameter="18"></mat-spinner>
+    {{ isCreating ? 'Creating...' : 'Create' }}
+  </button>
 </mat-toolbar>
 
-<div class="page-content">
-  <!-- Configuration Card -->
-  <div class="config-card">
+<div class="page-content" *ngIf="selfInspection">
+  <!-- Template Applied Banner -->
+  <div class="template-banner" *ngIf="appliedTemplate">
+    <mat-icon>auto_awesome</mat-icon>
+    <div class="template-banner-content">
+      <strong>Template Applied</strong>
+      <span *ngIf="appliedTemplate.reason">{{ appliedTemplate.reason }}</span>
+    </div>
+    <button mat-icon-button (click)="appliedTemplate = null" matTooltip="Dismiss">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Configuration Section -->
+  <div class="config-section">
     <div class="config-header">
-      <mat-icon class="config-icon">settings</mat-icon>
+      <mat-icon>settings</mat-icon>
       <span>Configuration</span>
     </div>
-    <div class="config-body">
-      <mat-form-field appearance="outline" class="name-field">
+    
+    <div class="config-row">
+      <mat-form-field appearance="outline" class="title-field">
         <mat-label>Inspection Name</mat-label>
-        <input matInput required autofocus type="text" [(ngModel)]="selfInspection.title" placeholder="e.g., Monthly Safety Check">
+        <input matInput 
+               [ngModel]="selfInspection.title" 
+               (ngModelChange)="onTitleChange($event)"
+               placeholder="e.g., Monthly Safety Check"
+               autofocus>
       </mat-form-field>
       
-      <div class="renewal-section">
-        <span class="renewal-label">Renewal Frequency</span>
-        <mat-button-toggle-group [(ngModel)]="selfInspection.inspectionExpiration" class="renewal-toggle">
-          <mat-button-toggle *ngFor="let time of timeFrame" [value]="time">{{ time }}</mat-button-toggle>
-        </mat-button-toggle-group>
-      </div>
+      <button class="frequency-dropdown" [matMenuTriggerFor]="frequencyMenu">
+        <mat-icon>schedule</mat-icon>
+        {{ selfInspection.inspectionExpiration || 'Manual' }}
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #frequencyMenu="matMenu">
+        <button mat-menu-item 
+                *ngFor="let freq of frequencyOptions" 
+                (click)="onFrequencyChange(freq)"
+                [class.selected]="selfInspection.inspectionExpiration === freq">
+          {{ freq }}
+        </button>
+      </mat-menu>
     </div>
   </div>
 
-  <!-- Questions Section -->
+  <!-- Categories & Questions Section -->
   <div class="questions-section">
     <div class="section-header">
       <mat-icon>checklist</mat-icon>
-      <span>Select Questions</span>
-      <span class="section-hint">Choose relevant questions for your inspection. Questions are organized by category.</span>
+      <span>Categories &amp; Questions</span>
+      <span class="question-total" *ngIf="selfInspection.baseQuestions?.length">
+        {{ selfInspection.baseQuestions.length }} categories
+      </span>
     </div>
 
-    <mat-accordion class="questions-accordion" multi>
-      <mat-expansion-panel *ngFor="let subject of selfInspection.baseQuestions; let i = index" class="category-panel">
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!selfInspection.baseQuestions?.length">
+      <mat-icon>playlist_add</mat-icon>
+      <h3>No categories yet</h3>
+      <p>Add categories and questions below to build your inspection checklist.</p>
+    </div>
+
+    <!-- Categories Accordion -->
+    <mat-accordion class="categories-accordion" multi *ngIf="selfInspection.baseQuestions?.length">
+      <mat-expansion-panel 
+        *ngFor="let category of selfInspection.baseQuestions; let catIndex = index"
+        class="category-panel"
+        [expanded]="true">
         <mat-expansion-panel-header>
           <mat-panel-title>
-            <span class="category-name">{{ subject.subject }}</span>
-            <span class="question-count" [class.all-selected]="getLength(subject.questions) === subject?.questions?.length">
-              {{ getLength(subject.questions) }}/{{ subject?.questions?.length || 0 }}
-            </span>
+            <input 
+              class="category-name-input"
+              [ngModel]="category.subject"
+              (ngModelChange)="onCategoryNameChange(catIndex, $event)"
+              (click)="$event.stopPropagation()"
+              placeholder="Category name...">
+            <span class="question-count">{{ category.questions?.length || 0 }}</span>
+            <button mat-icon-button 
+                    class="remove-category-btn"
+                    (click)="$event.stopPropagation(); removeCategory(catIndex)"
+                    matTooltip="Remove category">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
           </mat-panel-title>
         </mat-expansion-panel-header>
 
         <div class="questions-list">
           <div 
             class="question-item" 
-            *ngFor="let question of subject.questions" 
-            (click)="question.selected = !question.selected"
-            [class.selected]="question.selected">
-            <mat-checkbox 
-              [checked]="question.selected" 
-              (click)="$event.stopPropagation()"
-              (change)="question.selected = $event.checked"
-              color="primary">
-            </mat-checkbox>
-            <span class="question-text">{{ question.name }}</span>
+            *ngFor="let question of category.questions; let qIndex = index">
+            <textarea 
+              class="question-input"
+              [ngModel]="question.name"
+              (ngModelChange)="onQuestionChange(catIndex, qIndex, $event)"
+              placeholder="Question text..."
+              cdkTextareaAutosize
+              cdkAutosizeMinRows="1"
+              cdkAutosizeMaxRows="6"></textarea>
             <button 
               mat-stroked-button 
               class="expected-answer-btn"
-              *ngIf="question.selected"
-              (click)="$event.stopPropagation(); toggleExpectedAnswer(question)"
+              (click)="toggleExpectedAnswer(catIndex, qIndex)"
               [matTooltip]="'Compliant answer: ' + (question.expectedAnswer === false ? 'No' : 'Yes')"
               [class.expects-no]="question.expectedAnswer === false">
               <mat-icon>{{ question.expectedAnswer === false ? 'close' : 'check' }}</mat-icon>
               {{ question.expectedAnswer === false ? 'No' : 'Yes' }}
             </button>
+            <button mat-icon-button 
+                    class="remove-question-btn"
+                    (click)="removeQuestion(catIndex, qIndex)"
+                    matTooltip="Remove question">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
           </div>
 
-          <!-- Add New Question -->
+          <!-- Add Question Row -->
           <div class="add-question-row">
             <mat-form-field appearance="outline" class="new-question-field">
-              <mat-label>Add a custom question</mat-label>
-              <textarea matInput [(ngModel)]="newQuestionText" cdkTextareaAutosize cdkAutosizeMinRows="1" cdkAutosizeMaxRows="4"></textarea>
+              <mat-label>Add a question</mat-label>
+              <textarea matInput 
+                        [(ngModel)]="newQuestionTexts[catIndex]" 
+                        cdkTextareaAutosize 
+                        cdkAutosizeMinRows="1" 
+                        cdkAutosizeMaxRows="4"
+                        (keyup.enter)="addQuestion(catIndex)"></textarea>
             </mat-form-field>
-            <button mat-mini-fab color="primary" (click)="addQuestion(i)" [disabled]="!newQuestionText?.trim()" matTooltip="Add question">
+            <button mat-mini-fab 
+                    color="primary" 
+                    (click)="addQuestion(catIndex)" 
+                    [disabled]="!newQuestionTexts[catIndex]?.trim()" 
+                    matTooltip="Add question">
               <mat-icon>add</mat-icon>
             </button>
           </div>
         </div>
       </mat-expansion-panel>
     </mat-accordion>
+
+    <!-- Add Category Section -->
+    <div class="add-category-section">
+      <mat-form-field appearance="outline" class="category-name-field">
+        <mat-label>Add a new category</mat-label>
+        <input matInput 
+               [(ngModel)]="newCategoryName" 
+               placeholder="e.g., Fire Safety, Equipment Maintenance..."
+               (keyup.enter)="addCategory()">
+        <button mat-icon-button 
+                matSuffix 
+                (click)="openOshaCategoryPicker()"
+                matTooltip="Pick from OSHA categories"
+                *ngIf="getAvailableOshaCategories().length > 0">
+          <mat-icon>category</mat-icon>
+        </button>
+      </mat-form-field>
+      <button mat-mini-fab 
+              color="primary" 
+              (click)="addCategory()" 
+              [disabled]="!newCategoryName?.trim()" 
+              matTooltip="Add category">
+        <mat-icon>add</mat-icon>
+      </button>
+    </div>
   </div>
 </div>

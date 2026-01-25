@@ -1,90 +1,286 @@
+<div class="page-layout">
 <mat-toolbar>
-    <img class="toolbar-logo" src="/assets/ccLogoDark.png">
-    <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
-    <div class="toolbar-title">Account</div>
+  <img class="toolbar-logo toolbar-logo-desktop" src="/assets/complianceChimpLogoLight.png">
+  <button mat-icon-button class="toolbar-back-mobile" routerLink="/account/dashboard"><mat-icon>arrow_back</mat-icon></button>
+  <div class="toolbar-title">Account Settings</div>
   <div class="flex"></div>
+  <button mat-button class="sign-out-btn sign-out-desktop" (click)="signOut()" *ngIf="showCompany">
+    <mat-icon>logout</mat-icon>
+    Sign Out
+  </button>
+  <button mat-icon-button class="sign-out-btn sign-out-mobile" (click)="signOut()" *ngIf="showCompany">
+    <mat-icon>logout</mat-icon>
+  </button>
 </mat-toolbar>
-<mat-tab-group color="accent" id="tabs">
-  <mat-tab label="Personal"> 
-    <div class="column">
-      <div class="image-cont">
-        <div class="image-circle"><mat-progress-bar style="position: absolute;bottom: 0px;" *ngIf="loading" mode="indeterminate"></mat-progress-bar><img class="img" src={{accountService.user?.profileUrl}} onerror="src = '/assets/face.png'" alt="Compliancechimp"></div>
-        <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" id="upProfileUrl" accept=".png,.jpg,.mp4" #uploadT (change)="uploadProfileImage($event)"></div>
-        <button mat-stroked-button class="image-button" color="primary" (click)="upload(true)">CHANGE PICTURE</button>
-      </div>
-      <mat-form-field>
-        <input matInput color="primary" placeholder="profile name" [(ngModel)]="accountService.user.name" (change)="saveProfile()">
-      </mat-form-field>
-      <mat-form-field>
-        <input matInput color="primary" readonly placeholder="email" [(ngModel)]="accountService.user.email" (change)="saveProfile()">
-      </mat-form-field>
-      <mat-form-field>
-        <input matInput color="primary" placeholder="phone" type="tel" [(ngModel)]="accountService.user.phone" (change)="saveProfile()">
-      </mat-form-field>
-      <mat-form-field>
-        <input matInput color="primary" placeholder="job title" type="text" [(ngModel)]="accountService.user.jobTitle" (change)="saveProfile()">
-      </mat-form-field>
-    </div>
-  </mat-tab>
-  <mat-tab label="Company" *ngIf="showCompany">
-  <div class="column">
-    <div class="image-cont">
-      <div class="image"><mat-progress-bar style="position: absolute;bottom: 0px;" *ngIf="loading" mode="indeterminate"></mat-progress-bar><img class="img" src={{accountService.aTeam?.logoUrl}} style="object-fit: contain !important;" onerror="src = '/assets/lost.png'" alt="Compliancechimp"></div>
-      <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" id="upLogoUrl" accept=".png,.jpg,.mp4" #uploadT (change)="uploadLogoImage($event)"></div>
-      <button mat-stroked-button class="image-button" color="primary" (click)="upload(false)">CHANGE COMPANY LOGO</button>
-    </div>
-    <mat-form-field>
-      <input matInput color="primary" placeholder="company name" type="text" [(ngModel)]="accountService.aTeam.name" (change)="saveTeam()">
-    </mat-form-field>
-    <mat-form-field>
-      <input matInput color="primary" placeholder="company phone" type="tel" [(ngModel)]="accountService.aTeam.phone" (change)="saveTeam()">
-    </mat-form-field>
-    <mat-form-field>
-      <input matInput color="primary" placeholder="address" type="text" [(ngModel)]="accountService.aTeam.street" (change)="saveTeam()">
-    </mat-form-field>
-    <mat-form-field>
-      <input matInput color="primary" placeholder="address 2" type="text" [(ngModel)]="accountService.aTeam.street2" (change)="saveTeam()">
-    </mat-form-field>
-    <div class="row">
 
-      <mat-form-field>
-        <input matInput color="primary" placeholder="city" type="text" [(ngModel)]="accountService.aTeam.city" (change)="saveTeam()">
+<div class="page-content">
+<div class="account-container" *ngIf="showCompany">
+  <!-- Company Section -->
+  <section class="section">
+    <div class="section-header">
+      <mat-icon class="section-icon">business</mat-icon>
+      <h2>Company Profile</h2>
+    </div>
+    
+    <div class="company-content">
+      <div class="logo-section">
+        <div class="logo-container">
+          <mat-progress-bar *ngIf="loading" mode="indeterminate" class="logo-loader"></mat-progress-bar>
+          <img 
+            *ngIf="accountService.aTeam?.logoUrl"
+            class="company-logo" 
+            [src]="accountService.aTeam?.logoUrl" 
+            alt="Company Logo">
+          <div class="logo-placeholder" *ngIf="!accountService.aTeam?.logoUrl">
+            <mat-icon>add_photo_alternate</mat-icon>
+            <span>Upload Logo</span>
+          </div>
+        </div>
+        <input type="file" id="upLogoUrl" accept=".png,.jpg,.jpeg" hidden (change)="uploadLogoImage($event)">
+        <button mat-stroked-button color="primary" (click)="upload()">
+          <mat-icon>cloud_upload</mat-icon>
+          Change Logo
+        </button>
+      </div>
+
+      <div class="form-section">
+        <mat-form-field appearance="outline">
+          <mat-label>Company Name</mat-label>
+          <input matInput [(ngModel)]="accountService.aTeam.name" (change)="saveTeam()">
+          <mat-icon matSuffix>edit</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Company Phone</mat-label>
+          <input matInput type="tel" [(ngModel)]="accountService.aTeam.phone" (change)="saveTeam()">
+          <mat-icon matSuffix>phone</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Address</mat-label>
+          <input matInput [(ngModel)]="accountService.aTeam.street" (change)="saveTeam()">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Address Line 2</mat-label>
+          <input matInput [(ngModel)]="accountService.aTeam.street2" (change)="saveTeam()">
+        </mat-form-field>
+
+        <div class="address-row">
+          <mat-form-field appearance="outline">
+            <mat-label>City</mat-label>
+            <input matInput [(ngModel)]="accountService.aTeam.city" (change)="saveTeam()">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>State</mat-label>
+            <input matInput [(ngModel)]="accountService.aTeam.state" (change)="saveTeam()">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>ZIP</mat-label>
+            <input matInput [(ngModel)]="accountService.aTeam.zip" (change)="saveTeam()">
+          </mat-form-field>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Industry Section -->
+  <section class="section">
+    <div class="section-header">
+      <mat-icon class="section-icon">category</mat-icon>
+      <h2>Industry</h2>
+    </div>
+    
+    <div class="industry-input-section">
+      <div class="industry-info-box">
+        <mat-icon>lightbulb</mat-icon>
+        <div class="info-content">
+          <strong>Personalized Recommendations</strong>
+          <p>We use your industry description to suggest relevant OSHA training articles. Be specific for better recommendations.</p>
+        </div>
+      </div>
+      
+      <mat-form-field appearance="outline" class="industry-field">
+        <mat-label>Describe your industry</mat-label>
+        <input 
+          matInput 
+          [(ngModel)]="accountService.aTeam.industry" 
+          (change)="saveTeam()"
+          placeholder="e.g., Headstone and monument manufacturing"
+          maxlength="100">
+        <mat-hint>This helps us find the right OSHA articles for you</mat-hint>
       </mat-form-field>
-      <mat-form-field>
-        <input matInput color="primary" placeholder="state" type="text" [(ngModel)]="accountService.aTeam.state" (change)="saveTeam()">
-      </mat-form-field>
-      <mat-form-field>
-        <input matInput color="primary" placeholder="zip" type="text" [(ngModel)]="accountService.aTeam.zip" (change)="saveTeam()">
-      </mat-form-field>
     </div>
-    <div class="industries">
-      <div>Choose your Industries</div>
-      <mat-nav-list>
-        <mat-list-item *ngFor="let industry of industries" >
-          <mat-checkbox [checked]="isIndustryChecked(industry.id)" (click)="$event.stopPropagation(); toggleIndustry(industry.id)">
-            <img matListAvatar [src]="industry.imageUrl" alt="..." />
-            <h3 matLine>{{ industry.name }}</h3>
-          </mat-checkbox>
-        </mat-list-item>
-      </mat-nav-list>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Training Settings Section -->
+  <section class="section">
+    <div class="section-header">
+      <mat-icon class="section-icon">school</mat-icon>
+      <h2>Training Settings</h2>
     </div>
-    <button mat-button id="delete-account" color="warn" (click)="deleteAccount()"><mat-icon>delete</mat-icon> DELETE ACCOUNT</button>
+    
+    <div class="auto-start-card">
+      <div class="auto-start-header">
+        <mat-icon class="auto-start-icon">schedule_send</mat-icon>
+        <div class="auto-start-title-section">
+          <h3>Auto Start Trainings</h3>
+          <p>Automatically start trainings when they become due and notify team members.</p>
+        </div>
+      </div>
+      
+      <div class="auto-start-benefits">
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Never miss a training deadline</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Runs daily at 8:00 AM Central Time</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Team members notified via SMS or email</span>
+        </div>
+        <div class="benefit-item included">
+          <mat-icon>star</mat-icon>
+          <span><strong>SMS texting included free</strong> with your Chimp Unlimited plan</span>
+        </div>
+      </div>
+      
+      <div class="auto-start-toggle">
+        <div class="toggle-info">
+          <span class="toggle-label">Auto Start Trainings</span>
+          <span class="toggle-status" [class.enabled]="autoStartTrainings">
+            {{ autoStartTrainings ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
+        <mat-slide-toggle 
+          [checked]="autoStartTrainings"
+          (change)="autoStartTrainings = $event.checked"
+          color="primary">
+        </mat-slide-toggle>
+      </div>
     </div>
-    </mat-tab>
-  <mat-tab label="Billing" *ngIf="showCompany">
-  <div class="column">
-    <div class="box">
-      <div class="title">{{TeamMembers.length}}</div>
-      <div class="info">Seats filled</div>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Billing Section -->
+  <section class="section billing-section">
+    <div class="section-header">
+      <mat-icon class="section-icon">credit_card</mat-icon>
+      <h2>Billing</h2>
     </div>
-    <div class="box">
-      <div class="title">{{(TeamMembers.length * 2) | currency}}</div>
-      <div class="info">Amount next billing cycle will be charged</div>
+
+    <div class="billing-content">
+      <div class="plan-card" [class.active]="hasActiveSubscription">
+        <div class="plan-header">
+          <div class="plan-badge" *ngIf="hasActiveSubscription">Active</div>
+          <div class="plan-badge inactive" *ngIf="!hasActiveSubscription">No Plan</div>
+        </div>
+        
+        <div class="plan-details">
+          <div class="plan-name">Compliancechimp</div>
+          <div class="plan-price">
+            <span class="price-amount">$99</span>
+            <span class="price-period">/month</span>
+          </div>
+          <div class="plan-description">
+            Full access to all safety compliance features
+          </div>
+        </div>
+
+        <div class="plan-features">
+          <div class="feature">
+            <mat-icon>check</mat-icon>
+            <span>Unlimited team members</span>
+          </div>
+          <div class="feature">
+            <mat-icon>check</mat-icon>
+            <span>Safety training & surveys</span>
+          </div>
+          <div class="feature">
+            <mat-icon>check</mat-icon>
+            <span>Incident reporting</span>
+          </div>
+          <div class="feature">
+            <mat-icon>check</mat-icon>
+            <span>Self-inspections</span>
+          </div>
+          <div class="feature">
+            <mat-icon>check</mat-icon>
+            <span>Document storage</span>
+          </div>
+        </div>
+
+        <div class="plan-actions">
+          <ng-container *ngIf="!hasActiveSubscription">
+            <button 
+              mat-raised-button 
+              color="primary" 
+              class="subscribe-btn"
+              [disabled]="processingCheckout"
+              (click)="startCheckout()">
+              <mat-spinner diameter="20" *ngIf="processingCheckout"></mat-spinner>
+              <span *ngIf="!processingCheckout">Subscribe Now</span>
+            </button>
+          </ng-container>
+
+          <ng-container *ngIf="hasActiveSubscription">
+            <button 
+              mat-raised-button 
+              color="primary" 
+              class="manage-btn"
+              [disabled]="billingLoading"
+              (click)="manageSubscription()">
+              <mat-spinner diameter="20" *ngIf="billingLoading"></mat-spinner>
+              <span *ngIf="!billingLoading">Manage Subscription</span>
+            </button>
+          </ng-container>
+        </div>
+      </div>
     </div>
-    <button mat-raised-button color="primary" class="full" (click)="navInvoices()">See invoices</button>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Danger Zone -->
+  <section class="section danger-section">
+    <div class="section-header">
+      <mat-icon class="section-icon danger">warning</mat-icon>
+      <h2>Danger Zone</h2>
     </div>
-    </mat-tab>
-    <mat-tab label="Chimp Books" *ngIf="false">
-      <chimp-book></chimp-book>
-    </mat-tab>
-  </mat-tab-group>
+    
+    <div class="danger-content">
+      <p>Once you delete your account, there is no going back. Please be certain.</p>
+      <button mat-stroked-button color="warn" (click)="deleteAccount()">
+        <mat-icon>delete_forever</mat-icon>
+        Delete Account
+      </button>
+    </div>
+  </section>
+</div>
+
+<div class="no-access" *ngIf="!showCompany">
+  <mat-icon>lock</mat-icon>
+  <h2>Account Owner Access Required</h2>
+  <p>Only {{ ownerName }} can manage company settings and billing.</p>
+  <div class="no-access-actions">
+    <button mat-raised-button color="primary" routerLink="/account/dashboard">
+      Go to Dashboard
+    </button>
+    <button mat-stroked-button (click)="signOut()">
+      <mat-icon>logout</mat-icon>
+      Sign Out
+    </button>
+  </div>
+</div>
+</div>
+</div>

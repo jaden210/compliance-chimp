@@ -250,7 +250,10 @@ export class MakeOSHAComponent implements OnInit, OnDestroy {
   }
 
   public createArticle(): void {
-    addDoc(collection(this.appService.db, `${this.oshaManual}/${this.industry.id}/articles`), { ...this.activeArticle })
+    const cleanedArticle = Object.fromEntries(
+      Object.entries(this.activeArticle).filter(([_, v]) => v !== undefined)
+    );
+    addDoc(collection(this.appService.db, `${this.oshaManual}/${this.industry.id}/articles`), cleanedArticle)
       .then(
         () => {
           this.originalActiveArticle = this.activeArticle;
@@ -278,7 +281,10 @@ export class MakeOSHAComponent implements OnInit, OnDestroy {
     const id = this.activeArticle.id;
     delete this.activeArticle.id;
     delete this.activeArticle["missingTopicId"];
-    updateDoc(doc(this.appService.db, `article/${id}`), { ...this.activeArticle })
+    const cleanedArticle = Object.fromEntries(
+      Object.entries(this.activeArticle).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.appService.db, `article/${id}`), cleanedArticle)
       .then(
         () => {
           this.originalActiveArticle = this.activeArticle;
@@ -420,7 +426,10 @@ export class MakeOSHAComponent implements OnInit, OnDestroy {
         map((actions: any[]) =>
           actions.map((data) => {
             data["topicId"] = null;
-            updateDoc(doc(this.db, `article/${data.id}`), { ...data });
+            const cleanedData = Object.fromEntries(
+              Object.entries(data).filter(([_, v]) => v !== undefined)
+            );
+            updateDoc(doc(this.db, `article/${data.id}`), cleanedData);
           })
         )
       )

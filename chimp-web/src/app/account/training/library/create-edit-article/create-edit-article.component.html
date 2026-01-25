@@ -1,66 +1,65 @@
 <div class="editor-container">
-  <!-- Toolbar with actions -->
-  <mat-toolbar class="editor-toolbar">
-    <button mat-icon-button (click)="goBack()" matTooltip="Close">
-      <mat-icon>close</mat-icon>
-    </button>
-    
-    <span class="toolbar-title">{{ title }}</span>
-    
-    <span class="toolbar-spacer"></span>
-    
-    @if (isDev && !isEdit) {
-      <mat-slide-toggle
-        [(ngModel)]="isGlobalArticle"
-        [matTooltip]="isGlobalArticle ? 'Public article (visible to all)' : 'Private article (team only)'"
-        class="public-toggle"
-        color="primary"
-      >
-        <span class="toggle-label">
-          <mat-icon>{{ isGlobalArticle ? 'public' : 'lock' }}</mat-icon>
-          {{ isGlobalArticle ? 'Public' : 'Private' }}
-        </span>
-      </mat-slide-toggle>
-    }
-
-    @if (isDev) {
-      <button
-        mat-icon-button
-        matTooltip="Add article photo"
-        (click)="addPhoto()"
-      >
-        <mat-icon>image</mat-icon>
+  <!-- Header section with title and actions -->
+  <div class="editor-header">
+    <div class="header-top">
+      <button mat-icon-button (click)="goBack()" matTooltip="Close" class="close-button">
+        <mat-icon>close</mat-icon>
       </button>
-    }
+      <span class="header-label">{{ title }}</span>
+    </div>
     
-    @if (article?.id) {
-      <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
-        <mat-icon>delete</mat-icon>
-      </button>
-    }
-    
-    <button
-      mat-flat-button
-      color="primary"
-      (click)="submit()"
-      [disabled]="!article.name || !article.content"
-      class="save-button"
-    >
-      {{ submitButton }}
-    </button>
-  </mat-toolbar>
+    <div class="header-content">
+      <mat-form-field appearance="outline" class="title-field">
+        <mat-label>Article title</mat-label>
+        <input
+          matInput
+          placeholder="Enter article name"
+          required
+          [(ngModel)]="article.name"
+        />
+      </mat-form-field>
+      
+      <div class="header-actions">
+        @if (!isEdit) {
+          <button
+            mat-stroked-button
+            color="primary"
+            (click)="openAIGenerator()"
+            matTooltip="Get help writing your article"
+            class="ai-button"
+          >
+            <mat-icon>auto_awesome</mat-icon>
+            Help me write this article
+          </button>
+        }
 
-  <!-- Title input -->
-  <div class="title-section">
-    <mat-form-field appearance="outline" class="title-field">
-      <mat-label>Article title</mat-label>
-      <input
-        matInput
-        placeholder="Enter article name"
-        required
-        [(ngModel)]="article.name"
-      />
-    </mat-form-field>
+        @if (isDev) {
+          <button
+            mat-icon-button
+            matTooltip="Add article photo"
+            (click)="addPhoto()"
+          >
+            <mat-icon>image</mat-icon>
+          </button>
+        }
+        
+        @if (article?.id) {
+          <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
+            <mat-icon>delete</mat-icon>
+          </button>
+        }
+        
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="submit()"
+          [disabled]="!article.name || !article.content"
+          class="save-button"
+        >
+          {{ submitButton }}
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Editor fills remaining space -->

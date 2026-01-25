@@ -15,8 +15,6 @@ import { MatNativeDateModule } from "@angular/material/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatListModule } from "@angular/material/list";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
-import { Functions, httpsCallable } from "@angular/fire/functions";
-import moment from "moment";
 
 @Component({
   standalone: true,
@@ -53,7 +51,6 @@ export class CreateSurveyDialogComponent implements OnInit {
     private service: SurveysService,
     private accountService: AccountService,
     public dialogRef: MatDialogRef<CreateSurveyDialogComponent>,
-    private functions: Functions,
     @Inject(MAT_DIALOG_DATA) public data
   ) {}
 
@@ -103,10 +100,7 @@ export class CreateSurveyDialogComponent implements OnInit {
     this.service
       .createSurvey(this.survey, this.accountService.aTeam.id)
       .then(() => {
-        if (moment(this.survey.runDate).isSame(moment(), 'day')) {
-          const startSurveys = httpsCallable(this.functions, "startSurveys");
-          startSurveys({}).catch((e) => console.error(e));
-        }
+        // Survey notifications are sent automatically via the createdSurvey Firestore trigger
         this.dialogRef.close();
       })
       .catch(error => {

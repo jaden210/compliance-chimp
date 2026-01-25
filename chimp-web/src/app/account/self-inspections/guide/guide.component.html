@@ -1,0 +1,387 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-title">Smart Self-Inspection Builder</span>
+  <div class="flex"></div>
+  <button mat-button (click)="goToTemplates()" *ngIf="!expandedInspection()">
+    <mat-icon>add</mat-icon>
+    Create from Scratch
+  </button>
+</mat-toolbar>
+
+<div class="guide-page">
+  <!-- Hero Section - Two Column Layout -->
+  <section class="guide-hero" *ngIf="!loading() && !recommendations()?.success">
+    <div class="hero-layout">
+      <!-- Left Column - What & Why -->
+      <div class="hero-left">
+        <div class="hero-kicker">Smart Builder</div>
+        <h1 class="hero-title">Build inspections tailored to your business</h1>
+        <p class="hero-intro">
+          Tell us what you need, and we'll generate custom inspection checklists with the right 
+          categories, questions, and compliance criteria—ready to use or customize.
+        </p>
+        
+        <div class="hero-benefits">
+          <div class="benefit-item">
+            <mat-icon>tune</mat-icon>
+            <div>
+              <strong>Customized to your industry</strong>
+              <span>Inspections built for {{ accountService.aTeam?.industry || 'your specific business' }}</span>
+            </div>
+          </div>
+          <div class="benefit-item">
+            <mat-icon>group</mat-icon>
+            <div>
+              <strong>Based on your team's roles</strong>
+              <span>Questions relevant to what your {{ accountService.teamMembers?.length || '' }} team members actually do</span>
+            </div>
+          </div>
+          <div class="benefit-item">
+            <mat-icon>edit_note</mat-icon>
+            <div>
+              <strong>Fully editable</strong>
+              <span>Add, remove, or modify any questions to fit your needs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Action -->
+      <div class="hero-right">
+        <div class="hero-action-card" *ngIf="hasIndustry()">
+          <div class="action-header">
+            <mat-icon>construction</mat-icon>
+            <h2>What do you need to inspect?</h2>
+          </div>
+          
+          <mat-form-field appearance="outline" class="prompt-field-hero" floatLabel="always">
+            <mat-label></mat-label>
+            <textarea matInput 
+                   [(ngModel)]="customPrompt" 
+                   placeholder="e.g., forklift safety, chemical storage, fall protection..."
+                   cdkTextareaAutosize
+                   cdkAutosizeMinRows="2"
+                   cdkAutosizeMaxRows="4"
+                   (keyup.enter)="generateWithPrompt()"></textarea>
+          </mat-form-field>
+
+          <button mat-flat-button color="accent" class="primary-action" (click)="generateWithPrompt()" [disabled]="loading()">
+            <mat-icon>auto_awesome</mat-icon>
+            Generate Inspections
+          </button>
+
+          <p class="action-hint">
+            Leave blank to identify gaps in your current inspections
+          </p>
+
+          <div class="action-divider">
+            <span>or start from scratch</span>
+          </div>
+
+          <button mat-stroked-button class="secondary-action" (click)="goToTemplates()">
+            <mat-icon>add</mat-icon>
+            Create Blank Inspection
+          </button>
+        </div>
+
+        <!-- No Industry State -->
+        <div class="hero-action-card no-industry" *ngIf="!hasIndustry()">
+          <div class="action-header">
+            <mat-icon>business</mat-icon>
+            <h2>Set Your Industry First</h2>
+          </div>
+          <p class="action-description">
+            To generate personalized recommendations, we need to know what industry you're in.
+          </p>
+          <button mat-flat-button color="accent" class="primary-action" (click)="goToSettings()">
+            <mat-icon>settings</mat-icon>
+            Set Industry in Settings
+          </button>
+          <div class="action-divider">
+            <span>or</span>
+          </div>
+          <button mat-stroked-button class="secondary-action" (click)="goToTemplates()">
+            <mat-icon>add</mat-icon>
+            Create Blank Inspection
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  <section class="loading-state" *ngIf="hasIndustry() && loading()">
+    <mat-spinner diameter="48"></mat-spinner>
+    <h2>Generating Recommendations...</h2>
+    <p>Analyzing your industry and team to create tailored self-inspections</p>
+    <div class="loading-context">
+      <span><mat-icon>business</mat-icon> {{ accountService.aTeam?.industry }}</span>
+      <span *ngIf="accountService.teamMembers?.length"><mat-icon>group</mat-icon> {{ accountService.teamMembers?.length }} team members</span>
+    </div>
+  </section>
+
+  <!-- Error State -->
+  <section class="error-state" *ngIf="hasIndustry() && !loading() && recommendations()?.error">
+    <mat-icon>error_outline</mat-icon>
+    <h2>Something went wrong</h2>
+    <p>{{ recommendations()?.error }}</p>
+    <button mat-flat-button color="primary" (click)="getRecommendations()">
+      <mat-icon>refresh</mat-icon>
+      Try Again
+    </button>
+  </section>
+
+  <!-- Results Section -->
+  <section class="results-section" *ngIf="hasIndustry() && !loading() && recommendations()?.success">
+    <!-- Summary -->
+    <div class="summary-banner">
+      <mat-icon>lightbulb</mat-icon>
+      <p>{{ recommendations()?.summary }}</p>
+    </div>
+
+    <!-- Industry Context & Prompt Bar -->
+    <div class="results-header">
+      <div class="context-bar">
+        <div class="context-item">
+          <mat-icon>business</mat-icon>
+          <span>{{ accountService.aTeam?.industry }}</span>
+        </div>
+        <div class="context-item" *ngIf="accountService.teamMembers?.length">
+          <mat-icon>group</mat-icon>
+          <span>{{ accountService.teamMembers?.length }} team members</span>
+        </div>
+      </div>
+
+      <!-- Custom Prompt Input -->
+      <div class="prompt-bar">
+        <mat-form-field appearance="outline" class="prompt-field">
+          <mat-label>Generate something different</mat-label>
+          <input matInput 
+                 [(ngModel)]="customPrompt" 
+                 placeholder="e.g., forklift safety, chemical storage..."
+                 (keyup.enter)="generateWithPrompt()">
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+        <button mat-flat-button color="primary" class="generate-btn" (click)="generateWithPrompt()" [disabled]="loading()">
+          <mat-icon>auto_awesome</mat-icon>
+          Generate
+        </button>
+      </div>
+    </div>
+
+    <!-- Recommendations Grid -->
+    <div class="recommendations-grid">
+      <div 
+        class="recommendation-card" 
+        *ngFor="let rec of recommendations()?.recommendations; let i = index"
+        [class.expanded]="expandedIndex() === i"
+        [class.disabled]="saving() && expandedIndex() !== i">
+        
+        <!-- Card Header -->
+        <div class="card-header" [class.expanded-header]="expandedIndex() === i">
+          <!-- When NOT expanded: show static title -->
+          <h3 *ngIf="expandedIndex() !== i">{{ rec.name }}</h3>
+          <!-- When NOT expanded but already created: show small created indicator -->
+          <span class="created-indicator" *ngIf="expandedIndex() !== i && createdInspections().has(i)">
+            <mat-icon>check_circle</mat-icon>
+          </span>
+          <!-- When expanded: show editable title input -->
+          <input 
+            *ngIf="expandedIndex() === i && expandedInspection()"
+            class="title-input"
+            [ngModel]="expandedInspection()?.title" 
+            (ngModelChange)="onTitleChange($event)"
+            placeholder="Inspection name...">
+          
+          <!-- When NOT expanded: show static frequency badge -->
+          <span class="frequency-badge" *ngIf="expandedIndex() !== i">{{ rec.frequency }}</span>
+          <!-- When expanded: show success badge indicating it's been created -->
+          <span class="created-badge" *ngIf="expandedIndex() === i && expandedInspection()">
+            <mat-icon>check_circle</mat-icon>
+            Added to Self-Inspections
+          </span>
+          <!-- When expanded: show clickable frequency dropdown -->
+          <button 
+            *ngIf="expandedIndex() === i && expandedInspection()"
+            class="frequency-dropdown"
+            [matMenuTriggerFor]="frequencyMenu">
+            {{ expandedInspection()?.inspectionExpiration }}
+            <mat-icon>arrow_drop_down</mat-icon>
+          </button>
+          <mat-menu #frequencyMenu="matMenu">
+            <button mat-menu-item 
+                    *ngFor="let freq of frequencyOptions" 
+                    (click)="onFrequencyChange(freq)"
+                    [class.selected]="expandedInspection()?.inspectionExpiration === freq">
+              {{ freq }}
+            </button>
+          </mat-menu>
+        </div>
+
+        <!-- Card Preview Content (hidden when expanded) -->
+        <ng-container *ngIf="expandedIndex() !== i">
+          <p class="card-description">{{ rec.description }}</p>
+          <div class="card-stats">
+            <span class="stat">
+              <mat-icon>checklist</mat-icon>
+              {{ rec.questionCount }} questions
+            </span>
+            <span class="stat">
+              <mat-icon>folder</mat-icon>
+              {{ rec.baseQuestions?.length || 0 }} categories
+            </span>
+          </div>
+          <p class="card-reason">
+            <mat-icon>info</mat-icon>
+            {{ rec.reason }}
+          </p>
+          <button 
+            mat-flat-button 
+            [color]="createdInspections().has(i) ? 'primary' : 'accent'" 
+            class="use-btn" 
+            (click)="useRecommendation(rec, i); $event.stopPropagation()" 
+            [disabled]="saving()">
+            <mat-icon>{{ createdInspections().has(i) ? 'edit' : 'add' }}</mat-icon>
+            {{ createdInspections().has(i) ? 'Edit Self-Inspection' : 'Create Self-Inspection' }}
+          </button>
+        </ng-container>
+
+        <!-- Inline Editor (shown when expanded) -->
+        <ng-container *ngIf="expandedIndex() === i && expandedInspection()">
+          <!-- Categories Section -->
+          <div class="inline-categories">
+            <div class="section-header">
+              <mat-icon>checklist</mat-icon>
+              <span>Categories &amp; Questions</span>
+            </div>
+
+            <mat-accordion class="categories-accordion" multi>
+              <mat-expansion-panel 
+                *ngFor="let category of expandedInspection()?.baseQuestions; let catIndex = index"
+                class="category-panel"
+                [expanded]="true">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <input 
+                      class="category-name-input"
+                      [ngModel]="category.subject"
+                      (ngModelChange)="onCategoryNameChange(catIndex, $event)"
+                      (click)="$event.stopPropagation()"
+                      placeholder="Category name...">
+                    <span class="question-count">{{ category.questions?.length || 0 }}</span>
+                    <button mat-icon-button 
+                            class="remove-category-btn"
+                            (click)="$event.stopPropagation(); removeCategory(catIndex)"
+                            matTooltip="Remove category">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
+
+                <div class="questions-list">
+                  <div 
+                    class="question-item" 
+                    *ngFor="let question of category.questions; let qIndex = index">
+                    <textarea 
+                      class="question-input"
+                      [ngModel]="question.name"
+                      (ngModelChange)="onQuestionChange(catIndex, qIndex, $event)"
+                      placeholder="Question text..."
+                      cdkTextareaAutosize
+                      cdkAutosizeMinRows="1"
+                      cdkAutosizeMaxRows="6"></textarea>
+                    <button 
+                      mat-stroked-button 
+                      class="expected-answer-btn"
+                      (click)="toggleExpectedAnswer(catIndex, qIndex)"
+                      [matTooltip]="'Compliant answer: ' + (question.expectedAnswer === false ? 'No' : 'Yes')"
+                      [class.expects-no]="question.expectedAnswer === false">
+                      <mat-icon>{{ question.expectedAnswer === false ? 'close' : 'check' }}</mat-icon>
+                      {{ question.expectedAnswer === false ? 'No' : 'Yes' }}
+                    </button>
+                    <button mat-icon-button 
+                            class="remove-question-btn"
+                            (click)="removeQuestion(catIndex, qIndex)"
+                            matTooltip="Remove question">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+
+                  <!-- Add Question Row -->
+                  <div class="add-question-row">
+                    <mat-form-field appearance="outline" class="new-question-field">
+                      <mat-label>Add a question</mat-label>
+                      <textarea matInput 
+                                [(ngModel)]="newQuestionTexts[catIndex]" 
+                                cdkTextareaAutosize 
+                                cdkAutosizeMinRows="1" 
+                                cdkAutosizeMaxRows="4"
+                                (keyup.enter)="addQuestion(catIndex)"></textarea>
+                    </mat-form-field>
+                    <button mat-mini-fab 
+                            color="primary" 
+                            (click)="addQuestion(catIndex)" 
+                            [disabled]="!newQuestionTexts[catIndex]?.trim()" 
+                            matTooltip="Add question">
+                      <mat-icon>add</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+
+            <!-- Add Category Section -->
+            <div class="add-category-section">
+              <mat-form-field appearance="outline" class="category-name-field">
+                <mat-label>Add a new category</mat-label>
+                <input matInput 
+                       [(ngModel)]="newCategoryName" 
+                       placeholder="e.g., Fire Safety, Equipment Maintenance..."
+                       (keyup.enter)="addCategory()">
+                <button mat-icon-button 
+                        matSuffix 
+                        (click)="openOshaCategoryPicker()"
+                        matTooltip="Pick from OSHA categories"
+                        *ngIf="getAvailableOshaCategories().length > 0">
+                  <mat-icon>category</mat-icon>
+                </button>
+              </mat-form-field>
+              <button mat-mini-fab 
+                      color="primary" 
+                      (click)="addCategory()" 
+                      [disabled]="!newCategoryName?.trim()" 
+                      matTooltip="Add category">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapse Button -->
+          <div class="collapse-section">
+            <button mat-stroked-button (click)="collapseEditor()">
+              <mat-icon>expand_less</mat-icon>
+              Collapse
+            </button>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- Alternative Actions -->
+    <div class="alternative-section">
+      <p>Don't see what you need?</p>
+      <div class="alternative-actions">
+        <button mat-stroked-button (click)="getRecommendations()">
+          <mat-icon>refresh</mat-icon>
+          Generate New Recommendations
+        </button>
+        <button mat-stroked-button (click)="goToTemplates()">
+          <mat-icon>add</mat-icon>
+          Create from Scratch
+        </button>
+      </div>
+    </div>
+  </section>
+</div>

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from "@angular/core";
+import { Component, inject, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
@@ -44,6 +44,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
 
   survey: Survey;
@@ -83,6 +84,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(this.destroy$))
               .subscribe(li => {
                 this.article = li;
+                this.cdr.detectChanges();
               });
           }
 

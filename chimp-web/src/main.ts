@@ -12,6 +12,7 @@ import { provideFunctions, getFunctions } from "@angular/fire/functions";
 import { environment } from "./environments/environment";
 import { AppComponent } from "./app/app.component";
 import { appRoutes } from "./app/app.routes";
+import { SeoService } from "./app/shared/seo.service";
 
 if (environment.production) {
   enableProdMode();
@@ -37,6 +38,15 @@ bootstrapApplication(AppComponent, {
         iconRegistry.setDefaultFontSetClass('material-symbols-outlined');
       },
       deps: [MatIconRegistry],
+      multi: true
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (seoService: SeoService) => () => {
+        // Initialize SEO service to start listening to route changes
+        return seoService;
+      },
+      deps: [SeoService],
       multi: true
     }
   ]

@@ -10,7 +10,7 @@
 
 #content {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--toolbar-height));
 }
 
 mat-nav-list {

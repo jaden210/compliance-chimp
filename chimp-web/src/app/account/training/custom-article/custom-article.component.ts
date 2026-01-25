@@ -9,6 +9,7 @@ import {
   input,
   output
 } from '@angular/core';
+import { getTagColor } from '../../../shared/tag-colors';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -24,13 +25,13 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { filter, switchMap, map, take } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 
-import { TrainingService, LibraryItem, TrainingExpiration } from '../training.service';
+import { TrainingService, LibraryItem, TrainingExpiration, TrainingCadence } from '../training.service';
 import { AccountService, User } from '../../account.service';
-import { AttendanceDialog } from '../article/attendance.dialog';
 import { SurveysService } from '../../surveys/surveys.service';
 import { Survey } from '../../survey/survey';
 import { BlasterDialog } from '../../../blaster/blaster.component';
 import { CreateEditArticleComponent } from '../library/create-edit-article/create-edit-article.component';
+import { CreateEditArticleService } from '../library/create-edit-article/create-edit-article.service';
 
 @Component({
   standalone: true,
@@ -38,7 +39,7 @@ import { CreateEditArticleComponent } from '../library/create-edit-article/creat
   templateUrl: './custom-article.component.html',
   styleUrls: ['./custom-article.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [SurveysService],
+  providers: [SurveysService, CreateEditArticleService],
   imports: [
     CommonModule,
     RouterModule,
@@ -63,6 +64,7 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   private trainingService = inject(TrainingService);
   private accountService = inject(AccountService);
   private surveysService = inject(SurveysService);
+  private articleService = inject(CreateEditArticleService);
 
   // Input signals for when component is used embedded
   articleInput = input<LibraryItem | null>(null, { alias: 'article' });
@@ -74,8 +76,13 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   article = signal<LibraryItem | null>(null);
   loading = signal(true);
   error = signal<string | null>(null);
-  isFavorited = signal(false);
   isEditing = signal(false);
+  trainingHistory = signal<Survey[]>([]);
+  historyPanelOpen = signal(false);
+  
+  // Convert observables to signals for reactivity
+  private user = toSignal(this.accountService.userObservable);
+  private team = toSignal(this.accountService.aTeamObservable);
 
   // Computed values
   wordCount = computed(() => {
@@ -92,12 +99,55 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
 
   canEdit = computed(() => {
     const article = this.article();
-    const user = this.accountService.user;
-    if (!article || !user) return false;
-    return article.addedBy === user.id || user.isDev;
+    const user = this.user();
+    const team = this.team();
+    
+    // Need both article and user with valid IDs
+    if (!article || !user?.id) return false;
+    
+    // Dev users can always edit
+    if (user.isDev) return true;
+    
+    // Team owner can always edit
+    if (team?.ownerId === user.id) return true;
+    
+    // User who created the article can always edit
+    if (article.addedBy === user.id) return true;
+    
+    // Team managers can edit any article in their library
+    // isManager defaults to true if not explicitly set to false
+    return user.isManager !== false;
+  });
+
+  // Calculate next due date
+  nextDueDate = computed(() => {
+    const art = this.article();
+    if (!art) return null;
+    return this.trainingService.calculateNextDueDate(
+      art.lastTrainedAt,
+      art.trainingCadence || TrainingCadence.Annually,
+      art.scheduledDueDate
+    );
+  });
+
+  // Get cadence label
+  cadenceLabel = computed(() => {
+    const art = this.article();
+    if (!art?.trainingCadence) return 'Annually';
+    const labels: Record<string, string> = {
+      [TrainingCadence.Once]: 'One-time',
+      [TrainingCadence.Monthly]: 'Monthly',
+      [TrainingCadence.Quarterly]: 'Quarterly',
+      [TrainingCadence.SemiAnnually]: 'Semi-Annually',
+      [TrainingCadence.Annually]: 'Annually'
+    };
+    return labels[art.trainingCadence] || art.trainingCadence;
   });
 
   trainingExpirations = Object.values(TrainingExpiration);
+
+  // Use shared tag color utility
+  getTagColor = getTagColor;
 
   private subscriptions = new Subscription();
   private teamId: string | null = null;
@@ -135,6 +185,7 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
         if (article) {
           this.article.set(article);
           this.loading.set(false);
+          this.loadTrainingHistory(article.id!);
         } else {
           this.error.set('Article not found');
           this.loading.set(false);
@@ -150,6 +201,19 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     this.subscriptions.add(routeSub);
   }
 
+  private loadTrainingHistory(articleId: string): void {
+    if (!this.teamId) return;
+    
+    const historySub = this.trainingService.getTrainingHistory(this.teamId).pipe(
+      map(surveys => surveys.filter(s => s.articleId === articleId || s.libraryId === articleId)),
+      take(1)
+    ).subscribe(history => {
+      this.trainingHistory.set(history);
+    });
+
+    this.subscriptions.add(historySub);
+  }
+
   startTraining(): void {
     const article = this.article();
     if (!article) return;
@@ -163,7 +227,10 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     const article = this.article();
     if (!article || !this.teamId) return;
 
-    const dialogRef = this.dialog.open(AttendanceDialog);
+    // Pass the article with assigned tags so they're pre-selected
+    const dialogRef = this.dialog.open(BlasterDialog, {
+      data: { libraryItem: article }
+    });
     dialogRef.afterClosed().subscribe((traineeIds: string[]) => {
       if (traineeIds?.length) {
         const userSurvey: Record<string, number> = {};
@@ -184,7 +251,12 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   }
 
   editArticle(): void {
-    this.isEditing.set(true);
+    const article = this.article();
+    if (article?.id) {
+      this.router.navigate(['/account/training/smart-builder'], { 
+        queryParams: { edit: article.id } 
+      });
+    }
   }
 
   onEditComplete(): void {
@@ -195,15 +267,6 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
       this.closed.emit();
     } else {
       this.loadArticleFromRoute();
-    }
-  }
-
-  toggleFavorite(): void {
-    this.isFavorited.update(val => !val);
-    const article = this.article();
-    if (article) {
-      const action = this.isFavorited() ? 'Added to' : 'Removed from';
-      this.snackbar.open(`${action} favorites`, 'OK', { duration: 2000 });
     }
   }
 
@@ -227,11 +290,98 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     window.print();
   }
 
+  scrollToHistory(): void {
+    this.toggleHistoryPanel();
+  }
+
+  toggleHistoryPanel(): void {
+    this.historyPanelOpen.update(open => !open);
+  }
+
+  getCompletionRate(survey: Survey): number {
+    if (!survey.userSurvey) return 0;
+    const total = Object.keys(survey.userSurvey).length;
+    if (total === 0) return 0;
+    // Count how many have completed (value > 0 means they responded)
+    const completed = (Object.values(survey.userSurvey) as number[]).filter(v => v > 0).length;
+    return Math.round((completed / total) * 100);
+  }
+
+  viewSessionDetails(session: Survey): void {
+    if (session.id) {
+      this.router.navigate(['/account/survey', session.id]);
+    }
+  }
+
+  exportSession(session: Survey): void {
+    // Generate CSV export of attendance
+    const article = this.article();
+    const date = this.formatDate(session.createdAt);
+    const attendees = Object.keys(session.userSurvey || {});
+    
+    let csv = 'Training Attendance Export\n';
+    csv += `Article: ${article?.name || 'Unknown'}\n`;
+    csv += `Date: ${date}\n`;
+    csv += `Total Attendees: ${attendees.length}\n\n`;
+    csv += 'Attendee ID,Status\n';
+    
+    attendees.forEach(id => {
+      const status = session.userSurvey[id] > 0 ? 'Completed' : 'Pending';
+      csv += `${id},${status}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `training-attendance-${date.replace(/[^a-z0-9]/gi, '-')}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    this.snackbar.open('Attendance exported', 'OK', { duration: 2000 });
+  }
+
+  deleteArticle(): void {
+    const article = this.article();
+    if (!article?.id || !this.teamId) return;
+
+    let shouldDelete = true;
+    const snackbarRef = this.snackbar.open('Deleting Article', 'UNDO', {
+      duration: 3000
+    });
+    
+    snackbarRef.onAction().subscribe(() => (shouldDelete = false));
+    snackbarRef.afterDismissed().subscribe(() => {
+      if (shouldDelete) {
+        this.articleService
+          .deleteArticle(article.id, this.teamId!)
+          .then(() => {
+            this.snackbar.open('Article deleted', 'OK', { duration: 2000 });
+            this.goBack();
+          })
+          .catch(() => {
+            this.snackbar.open('Unable to delete article', 'OK', { duration: 3000 });
+          });
+      }
+    });
+  }
+
+  formatDate(date: any): string {
+    if (!date) return 'Not set';
+    const d = date instanceof Date ? date : date.toDate?.() || new Date(date);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  getAttendeeCount(survey: Survey): number {
+    if (!survey.userSurvey) return 0;
+    return Object.keys(survey.userSurvey).length;
+  }
+
   goBack(): void {
     if (this.articleInput()) {
       this.closed.emit();
     } else {
-      this.router.navigate(['account', 'training', 'library']);
+      this.router.navigate(['account', 'training'], { queryParams: { view: 'library' } });
     }
   }
 

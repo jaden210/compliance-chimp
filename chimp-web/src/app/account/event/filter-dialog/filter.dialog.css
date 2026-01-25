@@ -1,15 +1,144 @@
-#title {
+/* Dialog Title */
+.dialog-header {
   display: flex;
   align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
+.dialog-header mat-icon {
+  color: var(--chimp-primary);
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+/* Content Layout */
 mat-dialog-content {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding-top: 8px !important;
 }
 
-.col {
-  margin: 12px 24px;
-  font-size: 17px;
-  color: rgba(0,0,0,0.54);
+/* Filter Columns */
+.filter-column {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.filter-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--chimp-text-secondary);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+/* Selection List Styling */
+mat-selection-list {
+  outline: none;
+  max-height: 280px;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--chimp-border-light);
+  padding: 4px !important;
+}
+
+mat-list-option {
+  border-radius: 8px !important;
+  margin: 2px 0;
+}
+
+mat-list-option img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Type badges */
+.type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.type-icon mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: white;
+}
+
+.type-log { background: linear-gradient(135deg, #ff9800, #f57c00); }
+.type-training { background: linear-gradient(135deg, #3f51b5, #303f9f); }
+.type-survey { background: linear-gradient(135deg, #4caf50, #388e3c); }
+.type-member { background: linear-gradient(135deg, #03a9f4, #0288d1); }
+.type-timeclock { background: linear-gradient(135deg, #607d8b, #455a64); }
+.type-incident { background: linear-gradient(135deg, #e91e63, #c2185b); }
+.type-inspection { background: linear-gradient(135deg, #ffc107, #ffa000); }
+
+/* User option styling */
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--chimp-border-light);
+}
+
+.user-name {
+  font-size: 14px;
+  color: var(--chimp-text-primary);
+}
+
+/* Actions */
+mat-dialog-actions {
+  padding: 16px 0 0 !important;
+  gap: 8px;
+}
+
+/* Empty state for no users/types */
+.empty-filter {
+  padding: 16px;
+  text-align: center;
+  color: var(--chimp-text-hint);
+  font-size: 14px;
+  border: 1px dashed var(--chimp-border-light);
+  border-radius: 12px;
+}
+
+/* Responsive */
+@media screen and (max-width: 500px) {
+  mat-dialog-content {
+    flex-direction: column;
+  }
+  
+  .filter-column {
+    min-width: 100%;
+  }
 }

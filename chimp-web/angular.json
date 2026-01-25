@@ -32,12 +32,16 @@
                 "glob": "manifest.webmanifest",
                 "input": "src",
                 "output": "/"
+              },
+              {
+                "glob": "robots.txt",
+                "input": "src",
+                "output": "/"
               }
             ],
             "styles": [
               "src/styles.scss",
-              "src/app/material/theme.scss",
-              "node_modules/ngx-editor/styles/styles.css"
+              "src/app/material/theme.scss"
             ],
             "scripts": []
           },
@@ -67,17 +71,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
-            },
-            "dev": {
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.dev.ts"
-                }
-              ],
-              "optimization": false,
-              "extractLicenses": false,
-              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -90,9 +83,6 @@
             },
             "development": {
               "buildTarget": "compliance-chimp-web:build:development"
-            },
-            "dev": {
-              "buildTarget": "compliance-chimp-web:build:dev"
             }
           },
           "defaultConfiguration": "development"

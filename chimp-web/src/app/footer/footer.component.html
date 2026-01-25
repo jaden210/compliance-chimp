@@ -1,72 +1,45 @@
 <div class="footer">
-  <div class="content">
-    <div class="section hide">
-      <label for="why" class="title">Why ComplianceChimp?</label>
-      <ul id="why">
-        <li><a routerLink="how-it-works">PCI Compliance</a></li>
-        <li><a routerLink="how-it-works">Policy Documentation</a></li>
-        <li><a routerLink="how-it-works">Evidence Collection</a></li>
-        <li><a routerLink="how-it-works">Team Training</a></li>
-        <li><a routerLink="how-it-works">Compliance Tracking</a></li>
-      </ul>
-    </div>
-
-    <mat-form-field class="why-dropdown show">
-      <mat-select placeholder="why ComplianceChimp?" color="light">
-        <mat-option routerLink="how-it-works">PCI Compliance</mat-option>
-        <mat-option routerLink="how-it-works">Policy Documentation</mat-option>
-        <mat-option routerLink="how-it-works">Evidence Collection</mat-option>
-        <mat-option routerLink="how-it-works">Team Training</mat-option>
-        <mat-option routerLink="how-it-works">Compliance Tracking</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <div class="section about hide">
-      <label for="about-us" class="title">Learn More</label>
-      <ul>
-        <li><a routerLink="common-questions">Common Questions</a></li>
-        <li><a (click)="appService.watchVideo()">Watch our product video</a></li>
-        <li><a routerLink="terms-of-service">Terms of Service</a></li>
-        <li><a routerLink="privacy-policy">Privacy Policy</a></li>
-        <li><a routerLink="customer-agreement">Customer Agreement</a></li>
-      </ul>
-      <div class="link"></div>
-      <div class="link"></div>
-      <div style="flex: 2"></div>
-    </div>
-
-    <mat-form-field class="why-dropdown show">
-      <mat-select placeholder="Learn More">
-        <mat-option routerLink="common-questions">Common Questions</mat-option>
-        <mat-option (click)="appService.watchVideo()">Watch Video</mat-option>
-        <mat-option routerLink="terms-of-use">Terms of Service</mat-option>
-        <mat-option routerLink="privacy-policy">Privacy Policy</mat-option>
-        <mat-option routerLink="customer-agreement">Customer Agreement</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <div class="section" style="align-items: flex-end;">
-      <div class="contact">
-        <label class="title">Contact Us</label>
-        <ul>
-          <li>1778 S. 20 E.</li>
-          <li>Washington, UT 84780</li>
-          <li></li>
-          <li>
-            <mat-icon>email</mat-icon>
-            support&#64;compliancechimp.com
-          </li>
-        </ul>
+  <div class="footer-content">
+    <div class="footer-brand">
+      <img src="/assets/complianceChimpLogoLight.png" alt="Compliancechimp" class="footer-logo" />
+      <p class="footer-tagline">Compliance made simple for small teams.</p>
+      <div class="footer-usa">
+        <div class="footer-flag"></div>
+        <span>Made in the USA</span>
       </div>
     </div>
 
-  </div>
-  <div class="bottom">
-    <span class="hide">Copyright </span>© 2021 Compliancechimp
-    <span class="hide">&nbsp;All rights reserved.</span>
-    <div class="usa">
-      <div class="flag"></div>
-      <span class="hide">Made in the USA</span>
+    <div class="footer-links">
+      <div class="footer-column">
+        <h4>Product</h4>
+        <a routerLink="how-it-works">How it Works</a>
+        <a routerLink="get-started">Start Free Trial</a>
+        <a routerLink="common-questions">Common Questions</a>
+      </div>
+
+      <div class="footer-column">
+        <h4>Resources</h4>
+        <a routerLink="blog">Blog</a>
+        <a routerLink="terms-of-service">Terms of Service</a>
+        <a routerLink="privacy-policy">Privacy Policy</a>
+        <a routerLink="customer-agreement">Customer Agreement</a>
+      </div>
+
+      <div class="footer-column">
+        <h4>Contact</h4>
+        <div class="footer-contact-item">
+          <mat-icon>email</mat-icon>
+          <a href="mailto:support@compliancechimp.com">support&#64;compliancechimp.com</a>
+        </div>
+        <div class="footer-address">
+          <p>1528 North Overland Trails Drive</p>
+          <p>Washington, UT 84780</p>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span>© 2026 Compliancechimp. All rights reserved.</span>
   </div>
 </div>

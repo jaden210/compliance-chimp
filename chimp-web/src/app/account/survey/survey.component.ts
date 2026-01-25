@@ -34,12 +34,10 @@ export class SurveyComponent implements OnInit, OnDestroy {
   private team: Team;
   public teamMembers: TeamMember[];
   public users: User[];
-  public tmGroup: any[];
+  public tmGroup: any[] = [];
   public survey: Survey = new Survey();
   public sender: User;
   public responses: SurveyResponse[] = [];
-
-
 
   private subscription: Subscription;
   private todaysDatePiped: string;
@@ -47,6 +45,41 @@ export class SurveyComponent implements OnInit, OnDestroy {
   public surveyResponseList: Observable<any[]>;
   public runType: string;
   public surveyResponseListLength: number;
+  
+  // Computed statistics
+  public get responseRate(): number {
+    if (!this.tmGroup?.length) return 0;
+    return Math.round((this.responses.length / this.tmGroup.length) * 100);
+  }
+
+  public get yesCount(): number {
+    return this.responses.filter(r => r.shortAnswer?.toLowerCase() === 'yes').length;
+  }
+
+  public get noCount(): number {
+    return this.responses.filter(r => r.shortAnswer?.toLowerCase() === 'no').length;
+  }
+
+  public get yesPercent(): number {
+    if (!this.responses.length) return 0;
+    return Math.round((this.yesCount / this.responses.length) * 100);
+  }
+
+  public get noPercent(): number {
+    if (!this.responses.length) return 0;
+    return Math.round((this.noCount / this.responses.length) * 100);
+  }
+
+  public hasResponded(tmId: string): boolean {
+    return this.responses.some(r => r.teamMemberId === tmId);
+  }
+
+  public formatDate(date: any): string {
+    if (!date) return '';
+    const jsDate = date.toDate ? date.toDate() : date;
+    return this.datePipe.transform(jsDate, 'MMM d, y · h:mm a') || '';
+  }
+
   private colors = [
     "#FF6F00",
     "#B71C1C",

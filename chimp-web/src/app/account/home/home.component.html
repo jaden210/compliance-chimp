@@ -1,109 +1,379 @@
+<div class="page-layout">
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
-  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
-  <div class="toolbar-title">{{ accountService?.aTeam?.name }}</div>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
+  <div class="toolbar-title">Dashboard</div>
   <div class="flex"></div>
 </mat-toolbar>
-<div class="window">
-  <div id="dashboard" *ngIf="Users && Users.length > 0; else welcome">
-    <div class="cols">
-      <div class="col">
-        <div class="card g" routerLink="/account/training">
-          <div class="info">
-            <div class="c-title">Training complete</div>
-            <div class="c-stat">{{ trainingComplete || 0 }}%</div>
-          </div>
-          <mat-icon class="c-icon">explore</mat-icon>
-        </div>
-        <div class="card g" routerLink="/account/training">
-          <div class="info">
-            <div class="c-title">Members needing training</div>
-            <div class="c-stat">{{ needsTraining?.length || "?" }}</div>
-          </div>
-          <mat-icon class="c-icon">explore</mat-icon>
-        </div>
-        <div class="card g" routerLink="/account/training">
-          <div class="info">
-            <div class="c-title">Trainings given</div>
-            <div class="c-stat">{{ trainingsGiven || 0 }}</div>
-          </div>
-          <mat-icon class="c-icon">explore</mat-icon>
-        </div>
-        <div class="card g" routerLink="/account/surveys">
-          <div class="info">
-            <div class="c-title">Survey responses</div>
-            <div class="c-stat">
-              {{ achievements?.trainingSurveyResponseCount || 0 }}
-            </div>
-          </div>
-          <mat-icon class="c-icon">explore</mat-icon>
-        </div>
+
+<div class="page-content">
+  <!-- Trial / Subscription Banner - Desktop -->
+  <div class="subscription-banner desktop-only" 
+       *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId"
+       [class.trial-expired]="accountService.isTrialExpired">
+    <div class="banner-content">
+      <div class="banner-icon">
+        <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
       </div>
-      <div class="col">
-        <div class="card b">
-          <div class="info">
-            <div class="c-title">Self inspections</div>
-            <div class="c-stat">
-              {{ selfInspection?.current }} current |
-              {{ selfInspection?.expired }} expired
-            </div>
-          </div>
-          <mat-icon class="c-icon">import_contacts</mat-icon>
-        </div>
-        <!-- <div class="card b">
-          <div class="info">
-            <div class="c-title">Worksite logs</div>
-            <div class="c-stat">{{ achievements?.logsCount || 0 }}</div>
-          </div>
-          <mat-icon class="c-icon">assignment</mat-icon>
-        </div> -->
-        <!-- <div class="card b">
-          <div class="info">
-            <div class="c-title">Badges earned</div>
-            <div class="c-stat">{{ completedCount || 0 }}</div>
-          </div>
-          <mat-icon class="c-icon">where_to_vote</mat-icon>
-        </div> -->
-        <!-- <div class="card b">
-          <div class="info">
-            <div class="c-title">Compliance level</div>
-            <div class="c-stat">{{ complianceLevel || 0 }} / 3</div>
-          </div>
-          <mat-icon class="c-icon">where_to_vote</mat-icon>
-        </div> -->
+      <div class="banner-text">
+        <ng-container *ngIf="accountService.isTrialExpired">
+          <div class="banner-title">Your free trial has ended</div>
+          <div class="banner-description">Subscribe now to continue creating content and managing your compliance program. You're currently in read-only mode.</div>
+        </ng-container>
+        <ng-container *ngIf="!accountService.isTrialExpired">
+          <div class="banner-title">{{ accountService.trialDaysRemaining }} days left in your free trial</div>
+          <div class="banner-description">You have full access to all features. Subscribe anytime to keep your compliance on track after your trial ends.</div>
+        </ng-container>
       </div>
-      <div class="col">
-        <div class="card p">
-          <div class="info">
-            <div class="c-title">Incident reports</div>
-            <div class="c-stat">{{ achievements?.injuryReports || 0 }}</div>
-          </div>
-          <mat-icon class="c-icon">assignment_late</mat-icon>
-        </div>
-        <div class="card o">
-          <div class="info">
-            <div class="c-title">Members</div>
-            <div class="c-stat">
-              {{ users.length }} total
-            </div>
-          </div>
-          <mat-icon class="c-icon">supervisor_account</mat-icon>
-        </div>
-        <div class="card o" (click)="openTeamFilesDialog()">
-          <div class="info">
-            <div class="c-title">Team Files</div>
-            <div class="c-stat">{{ (files | async)?.length || 0 }}</div>
-          </div>
-          <mat-icon class="c-icon">attach_files</mat-icon>
-          <mat-icon class="edit pop">open_in_new</mat-icon>
-        </div>
+      <button mat-flat-button class="banner-button" (click)="startCheckout()">
+        Subscribe Now — $99/mo
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Trial / Subscription Banner - Mobile (compact layout) -->
+  <div class="subscription-banner-mobile mobile-only" 
+       *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId"
+       [class.trial-expired]="accountService.isTrialExpired">
+    <div class="mobile-banner-icon">
+      <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
+    </div>
+    <div class="mobile-banner-action">
+      <button mat-flat-button class="mobile-banner-button" (click)="startCheckout()">
+        Subscribe — $99/mo
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+      <div class="mobile-banner-days" *ngIf="!accountService.isTrialExpired">
+        {{ accountService.trialDaysRemaining }} days left
+      </div>
+      <div class="mobile-banner-days expired" *ngIf="accountService.isTrialExpired">
+        Trial ended
       </div>
     </div>
   </div>
-  <ng-template #welcome>
-    <div class="help-card">
-      <div class="helper-name" id="helper-name-color">{{ helper?.name }}</div>
-        <div class="helper-description" id="helper-description-color" [innerHTML]="helper?.description"></div>
-    </div>
-  </ng-template>
+
+  <div class="content-wrapper">
+    <!-- Onboarding Section - Desktop only since features aren't mobile-optimized -->
+    <section class="onboarding-section desktop-only" *ngIf="showOnboarding">
+      <div class="onboarding-header">
+        <div class="onboarding-title">
+          <mat-icon>emoji_objects</mat-icon>
+          <h2>Get Started</h2>
+        </div>
+        <p class="onboarding-subtitle">Complete these steps to get the most out of Compliance Chimp</p>
+      </div>
+
+      <div class="onboarding-cards">
+        <!-- Team Members Card -->
+        <div class="onboarding-card" *ngIf="showTeamOnboarding">
+          <button class="dismiss-btn" (click)="dismissOnboardingCard('team'); $event.stopPropagation()">
+            <mat-icon>close</mat-icon>
+          </button>
+          <div class="onboarding-card-icon team">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="onboarding-card-content">
+            <h3>Add Your Team</h3>
+            <p>Team members are the foundation of your compliance program. Add your employees to assign trainings, track certifications, and ensure everyone stays up-to-date with safety requirements.</p>
+            <div class="onboarding-benefits">
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Track individual training progress</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Assign role-specific safety content</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Get notified when training expires</span>
+              </div>
+            </div>
+          </div>
+          <button mat-flat-button class="onboarding-action" routerLink="/account/team">
+            Add Team Members
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+
+        <!-- Training Content Card -->
+        <div class="onboarding-card" *ngIf="showTrainingOnboarding">
+          <button class="dismiss-btn" (click)="dismissOnboardingCard('training'); $event.stopPropagation()">
+            <mat-icon>close</mat-icon>
+          </button>
+          <div class="onboarding-card-icon training">
+            <mat-icon>school</mat-icon>
+          </div>
+          <div class="onboarding-card-content">
+            <h3>Build Your Training Library</h3>
+            <p>Your training library is where you store the safety content your team needs. Browse our OSHA-compliant topics and add the trainings relevant to your industry to keep your workplace safe.</p>
+            <div class="onboarding-benefits">
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Access 100+ ready-made safety topics</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Set training frequencies & reminders</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Create custom training materials</span>
+              </div>
+            </div>
+          </div>
+          <button mat-flat-button class="onboarding-action" routerLink="/account/training">
+            Explore Training Library
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+
+        <!-- Self-Inspections Card -->
+        <div class="onboarding-card" *ngIf="showInspectionsOnboarding">
+          <button class="dismiss-btn" (click)="dismissOnboardingCard('inspections'); $event.stopPropagation()">
+            <mat-icon>close</mat-icon>
+          </button>
+          <div class="onboarding-card-icon inspections">
+            <mat-icon>checklist</mat-icon>
+          </div>
+          <div class="onboarding-card-content">
+            <h3>Create Self-Inspections</h3>
+            <p>Self-inspections help you identify hazards before they become incidents. Set up regular workplace audits to maintain compliance and create a culture of proactive safety.</p>
+            <div class="onboarding-benefits">
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Customizable inspection checklists</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Photo documentation for findings</span>
+              </div>
+              <div class="benefit">
+                <mat-icon>check_circle</mat-icon>
+                <span>Automated scheduling & reminders</span>
+              </div>
+            </div>
+          </div>
+          <button mat-flat-button class="onboarding-action" routerLink="/account/self-inspections">
+            Set Up Inspections
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Welcome Section -->
+    <section class="dashboard-section">
+      <div class="dashboard-header">
+        <div class="team-identity">
+          <img 
+            *ngIf="accountService.aTeam?.logoUrl" 
+            class="team-logo" 
+            [src]="accountService.aTeam.logoUrl" 
+            [alt]="accountService.aTeam.name + ' logo'" />
+          <div class="team-info">
+            <h1 class="team-name">{{ accountService.aTeam?.name || 'Your Team' }}</h1>
+            <p class="welcome-text">Welcome back<span *ngIf="accountService.user?.name">, {{ accountService.user.name.split(' ')[0] }}</span>! Here's your compliance overview.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="metrics-grid">
+        <!-- Training Complete -->
+        <div class="metric-card desktop-clickable" routerLink="/account/training">
+          <div class="metric-icon success">
+            <mat-icon>school</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Training Complete</div>
+            <div class="metric-value">{{ trainingComplete || 0 }}%</div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+
+        <!-- Members Needing Training -->
+        <div class="metric-card desktop-clickable" routerLink="/account/training">
+          <div class="metric-icon warning">
+            <mat-icon>pending_actions</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Need Training</div>
+            <div class="metric-value">{{ needsTraining?.length || 0 }} members</div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+
+        <!-- Team Members -->
+        <div class="metric-card desktop-clickable" routerLink="/account/team">
+          <div class="metric-icon info">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Team Members</div>
+            <div class="metric-value">{{ users?.length || 0 }} total</div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+
+        <!-- Incident Reports -->
+        <div class="metric-card desktop-clickable" routerLink="/account/incident-reports">
+          <div class="metric-icon error">
+            <mat-icon>report_problem</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Incident Reports</div>
+            <div class="metric-value">{{ incidentReportsCount }}</div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mobile Quick Links Section -->
+    <section class="mobile-quick-links mobile-only">
+      <div class="mobile-link-card" routerLink="/account/account">
+        <div class="mobile-link-icon">
+          <mat-icon>settings</mat-icon>
+        </div>
+        <div class="mobile-link-content">
+          <div class="mobile-link-title">Account Settings</div>
+          <div class="mobile-link-desc">Manage your business info and billing</div>
+        </div>
+        <mat-icon class="mobile-link-arrow">arrow_forward</mat-icon>
+      </div>
+    </section>
+
+    <!-- Mobile Desktop Notice -->
+    <section class="mobile-desktop-notice mobile-only">
+      <div class="notice-icon">
+        <mat-icon>laptop_mac</mat-icon>
+      </div>
+      <div class="notice-content">
+        <h3>Full Features on Desktop</h3>
+        <p>For the complete experience including team management, training delivery, inspections, and detailed reports, visit Compliance Chimp on your computer.</p>
+      </div>
+    </section>
+
+    <!-- Quick Actions Section -->
+    <section class="quick-actions-section desktop-only">
+      <div class="section-header">
+        <mat-icon>flash_on</mat-icon>
+        <h2>Quick Actions</h2>
+      </div>
+
+      <div class="actions-grid">
+        <div class="action-card" routerLink="/account/team">
+          <div class="action-icon">
+            <mat-icon>person_add</mat-icon>
+          </div>
+          <div class="action-text">
+            <div class="action-title">Add Team Member</div>
+            <div class="action-desc">Invite someone to your team</div>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/account/training">
+          <div class="action-icon">
+            <mat-icon>play_circle</mat-icon>
+          </div>
+          <div class="action-text">
+            <div class="action-title">Start Training</div>
+            <div class="action-desc">Begin a training session</div>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/account/self-inspections">
+          <div class="action-icon">
+            <mat-icon>checklist</mat-icon>
+          </div>
+          <div class="action-text">
+            <div class="action-title">Run Inspection</div>
+            <div class="action-desc">Complete a self-inspection</div>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/account/incident-reports">
+          <div class="action-icon">
+            <mat-icon>edit_note</mat-icon>
+          </div>
+          <div class="action-text">
+            <div class="action-title">Report Incident</div>
+            <div class="action-desc">Log a safety incident</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Status Overview Section -->
+    <section class="status-section desktop-only">
+      <div class="section-header">
+        <mat-icon>assessment</mat-icon>
+        <h2>Compliance Status</h2>
+      </div>
+
+      <div class="status-grid">
+        <!-- Self Inspections -->
+        <div class="status-card" routerLink="/account/self-inspections">
+          <div class="status-header">
+            <mat-icon>fact_check</mat-icon>
+            <span>Self Inspections</span>
+          </div>
+          <div class="status-stats">
+            <div class="stat">
+              <span class="stat-value success">{{ selfInspection?.current || 0 }}</span>
+              <span class="stat-label">Current</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" [class.warning]="selfInspection?.expired > 0">{{ selfInspection?.expired || 0 }}</span>
+              <span class="stat-label">Expired</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Survey Responses -->
+        <div class="status-card" routerLink="/account/training">
+          <div class="status-header">
+            <mat-icon>poll</mat-icon>
+            <span>Survey Responses</span>
+          </div>
+          <div class="status-stats">
+            <div class="stat">
+              <span class="stat-value">{{ surveyResponsesCount }}</span>
+              <span class="stat-label">Total Responses</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trainings Given -->
+        <div class="status-card" routerLink="/account/training">
+          <div class="status-header">
+            <mat-icon>cast_for_education</mat-icon>
+            <span>Trainings Given</span>
+          </div>
+          <div class="status-stats">
+            <div class="stat">
+              <span class="stat-value">{{ surveysGivenCount }}</span>
+              <span class="stat-label">Sessions</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team Files -->
+        <div class="status-card" routerLink="/account/files">
+          <div class="status-header">
+            <mat-icon>folder_open</mat-icon>
+            <span>Team Files</span>
+          </div>
+          <div class="status-stats">
+            <div class="stat">
+              <span class="stat-value">{{ (files | async)?.length || 0 }}</span>
+              <span class="stat-label">Documents</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
 </div>

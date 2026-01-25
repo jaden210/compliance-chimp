@@ -1,0 +1,133 @@
+.step-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.step-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.step-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.step-indicator {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.step-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--chimp-text-primary);
+}
+
+.step-subtitle {
+  font-size: 16px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.terms-checkbox {
+  margin-top: 8px;
+  
+  a {
+    color: var(--chimp-primary);
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.step-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.back-btn {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 16px;
+  border-radius: 24px;
+  
+  mat-icon {
+    margin-right: 8px;
+  }
+}
+
+.next-btn {
+  height: 48px;
+  padding: 0 32px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 24px;
+  min-width: 120px;
+}
+
+// Responsive
+@media screen and (max-width: 600px) {
+  .step-container {
+    padding: 24px 16px;
+  }
+  
+  .step-card {
+    padding: 32px 24px;
+  }
+  
+  .step-header h1 {
+    font-size: 24px;
+  }
+  
+  .step-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .back-btn,
+  .next-btn {
+    width: 100%;
+  }
+}

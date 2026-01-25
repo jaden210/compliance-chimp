@@ -1,5 +1,5 @@
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Team Files</div>
   <div class="flex"></div>
@@ -10,19 +10,20 @@
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   </div>
   <ng-container *ngIf="showContent">
-    <div class="help-card" *ngIf="files?.length == 0">
-      <div class="helper-name" id="helper-name-color">Your team files will live here</div>
-      <div class="helper-description" id="helper-description-color">
+    <div class="empty-state" *ngIf="files?.length == 0">
+      <mat-icon>folder_open</mat-icon>
+      <div class="empty-title">Your team files will live here</div>
+      <div class="empty-body">
         Upload important documents, safety manuals, certificates, and any other files your team needs access to.
         Files can be made public to allow team members to view them from their user page.
-        <button mat-flat-button color="accent" (click)="upload()">UPLOAD YOUR FIRST FILE</button>
       </div>
+      <button mat-flat-button color="accent" (click)="upload()" [disabled]="accountService.isReadOnly">Upload Your First File</button>
     </div>
 
     <div class="files-container" *ngIf="files?.length > 0">
       <div class="files-header">
         <h2>Files</h2>
-        <button mat-flat-button color="primary" (click)="upload()">
+        <button mat-flat-button color="primary" (click)="upload()" [disabled]="accountService.isReadOnly">
           <mat-icon>cloud_upload</mat-icon>
           Upload File
         </button>

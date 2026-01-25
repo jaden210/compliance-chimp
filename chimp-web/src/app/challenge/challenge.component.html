@@ -1,0 +1,37 @@
+<div class="challenge-container">
+  <!-- Circular Countdown Timer (top right) -->
+  <div class="circular-timer" *ngIf="challengeService.isTimerStarted" [class.paused]="isPaused" [class.complete]="isComplete">
+    <svg class="timer-svg" viewBox="0 0 120 120">
+      <!-- Background circle -->
+      <circle 
+        class="timer-bg" 
+        cx="60" 
+        cy="60" 
+        r="54"
+        fill="none"
+        stroke-width="8"
+      />
+      <!-- Progress circle (unwinds as time passes) -->
+      <circle 
+        class="timer-progress" 
+        cx="60" 
+        cy="60" 
+        r="54"
+        fill="none"
+        stroke-width="8"
+        [style.stroke-dashoffset]="getStrokeDashoffset()"
+        transform="rotate(-90 60 60)"
+      />
+    </svg>
+    <div class="timer-content">
+      <span class="timer-value">{{ timerDisplay }}</span>
+      <span class="timer-label" *ngIf="!isPaused && !isComplete">remaining</span>
+      <span class="timer-label paused" *ngIf="isPaused && !isComplete">PAUSED</span>
+      <span class="timer-label complete" *ngIf="isComplete">DONE</span>
+    </div>
+  </div>
+
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

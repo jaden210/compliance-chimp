@@ -6,8 +6,8 @@ import { trigger, style, transition, animate } from "@angular/animations";
 import { UserService } from "./user.service";
 import { MatDialog } from "@angular/material/dialog";
 import { AppService } from "../app.service";
-import { combineLatest } from "rxjs";
-import { map, mergeMap } from "rxjs/operators";
+import { combineLatest, of } from "rxjs";
+import { map, mergeMap, catchError } from "rxjs/operators";
 
 @Component({
   standalone: true,
@@ -62,42 +62,73 @@ export class UserComponent implements AfterViewInit {
     }
 
     this.userService.getUser(memberId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          console.error('Error fetching team member:', error);
+          return of(null);
+        })
+      )
       .subscribe(tm => {
         if (tm) {
           this.userService.teamMember = tm;
           this.userService.teamMemberObservable.next(tm);
-          this.userService.setIsLoggedIn();
-          combineLatest([
-            this.userService.getTeam(tm.teamId),
-            this.userService.getTeamManagers(tm.teamId),
-            this.userService.getFiles(tm.teamId)
-          ])
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe(data => {
-              const team = data[0];
-              const teamManagers = data[1];
+          
+          // Load team first (essential for page display)
+          this.userService.getTeam(tm.teamId)
+            .pipe(
+              takeUntilDestroyed(this.destroyRef),
+              catchError(e => { console.error('Error fetching team:', e); return of(null); })
+            )
+            .subscribe(team => {
               if (team && team.id) {
                 this.userService.aTeam = team;
-                this.userService.teamManagersObservable.next(teamManagers);
-                this.userService.teamManagers = teamManagers;
-                this.userService.files = data[2];
                 this.userService.teamObservable.next(team);
-                this.userService.getSurveys(team.id, memberId)
+                
+                // Check auth state (non-blocking)
+                this.userService.checkAuthState();
+                
+                // Load secondary data in background (non-blocking)
+                this.userService.getTeamManagers(tm.teamId)
                   .pipe(
-                    mergeMap(surveys =>
-                      combineLatest(surveys.map(s => {
-                        s['author'] = teamManagers.find(tm => tm.id === s.userId);
-                        return this.userService.getSurveyResponses(s.id).pipe(
-                          map(r => ({ ...s, responses: r }))
-                        );
-                      }))
-                    ),
-                    takeUntilDestroyed(this.destroyRef)
+                    takeUntilDestroyed(this.destroyRef),
+                    catchError(e => { console.error('Error fetching managers:', e); return of([]); })
                   )
-                  .subscribe(r => {
-                    this.userService.surveys = r;
+                  .subscribe(teamManagers => {
+                    this.userService.teamManagersObservable.next(teamManagers);
+                    this.userService.teamManagers = teamManagers;
+                    
+                    // Load surveys after managers (needs manager data for author)
+                    this.userService.getSurveys(team.id, memberId)
+                      .pipe(
+                        mergeMap(surveys =>
+                          surveys.length ? combineLatest(surveys.map(s => {
+                            s['author'] = teamManagers.find(m => m.id === s.userId);
+                            return this.userService.getSurveyResponses(s.id).pipe(
+                              map(r => ({ ...s, responses: r })),
+                              catchError(() => of({ ...s, responses: [] }))
+                            );
+                          })) : of([])
+                        ),
+                        takeUntilDestroyed(this.destroyRef),
+                        catchError(e => { console.error('Error fetching surveys:', e); return of([]); })
+                      )
+                      .subscribe(r => {
+                        this.userService.surveys = r;
+                      });
                   });
+                
+                this.userService.getFiles(tm.teamId)
+                  .pipe(
+                    takeUntilDestroyed(this.destroyRef),
+                    catchError(e => { console.error('Error fetching files:', e); return of([]); })
+                  )
+                  .subscribe(files => {
+                    this.userService.files = files;
+                  });
+              } else {
+                console.error('Team not found or invalid');
+                this.router.navigate(['user/no-team']);
               }
             });
         } else {

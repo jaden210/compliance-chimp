@@ -1,26 +1,27 @@
-import { Component, OnInit , OnDestroy} from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { AccountService, User, Team, TeamMember } from '../account.service';
+import { AccountService, Team } from '../account.service';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
-import { map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { MatDialog, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatListModule } from '@angular/material/list';
-import { ChimpBookComponent } from './chimp-book/chimp-book.component';
+import { MatCardModule } from '@angular/material/card';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Subscription } from 'rxjs';
-import { Industry } from 'src/app/get-started/step2/step2.component';
-import { Functions, httpsCallable } from '@angular/fire/functions';
-import { collection, collectionData, doc, updateDoc, addDoc } from '@angular/fire/firestore';
+import { collection, doc, updateDoc, addDoc } from '@angular/fire/firestore';
+import { environment } from 'src/environments/environment';
 
 @Component({
   standalone: true,
@@ -35,33 +36,31 @@ import { collection, collectionData, doc, updateDoc, addDoc } from '@angular/fir
     MatToolbarModule,
     MatButtonModule,
     MatIconModule,
-    MatTabsModule,
     MatFormFieldModule,
     MatInputModule,
     MatCheckboxModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatListModule,
-    ChimpBookComponent
+    MatCardModule,
+    MatDividerModule,
+    MatChipsModule,
+    MatSlideToggleModule
   ]
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   private subscription: Subscription;
-  public industries: Industry[] = [];
   showCompany: boolean = false;
   loading: boolean = false;
+  billingLoading: boolean = false;
+  processingCheckout: boolean = false;
 
   constructor(
     public accountService: AccountService,
     private storage: Storage,
-    private functions: Functions,
     public router: Router,
     public dialog: MatDialog
-  ) {
-    const industryRef = collection(this.accountService.db, "industry");
-    collectionData(industryRef, { idField: "id" }).subscribe((industries) => {
-      this.industries = industries as Industry[];
-    });
-  }
+  ) {}
 
   ngOnInit() {
     this.subscription = this.accountService.teamManagersObservable.subscribe(team => {
@@ -74,25 +73,15 @@ export class ProfileComponent implements OnInit, OnDestroy {
     });
   }
 
-  upload(profile): void { // this will call the file input from our custom button
-    profile ?
-    document.getElementById('upProfileUrl').click() :
-    document.getElementById('upLogoUrl').click();
+  get ownerName(): string {
+    const owner = this.accountService.teamManagers?.find(
+      m => m.id === this.accountService.aTeam?.ownerId
+    );
+    return owner?.name || 'the account owner';
   }
 
-  uploadProfileImage(event) {
-    this.loading = true;
-    const file = event.target.files[0];
-    if (!file) {
-      this.loading = false;
-      return;
-    }
-    const filePath = `users/${this.accountService.user.id}`;
-    const storageRef = ref(this.storage, filePath);
-    uploadBytes(storageRef, file)
-      .then(() => getDownloadURL(storageRef))
-      .then((url) => updateDoc(doc(this.accountService.db, `user/${this.accountService.user.id}`), { profileUrl: url }))
-      .finally(() => this.loading = false);
+  upload(): void {
+    document.getElementById('upLogoUrl').click();
   }
 
   uploadLogoImage(event) {
@@ -110,18 +99,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
       .finally(() => this.loading = false);
   }
 
-  saveProfile() {
-    updateDoc(doc(this.accountService.db, `user/${this.accountService.user.id}`), { ...this.accountService.user });
-  }
-
   saveTeam() {
-    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}`), { ...this.accountService.aTeam });
+    const cleanedTeam = Object.fromEntries(
+      Object.entries(this.accountService.aTeam).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}`), cleanedTeam);
   }
 
   deleteAccount() {
     let dialog = this.dialog.open(DeleteAccountDialog);
     dialog.afterClosed().subscribe(shouldDelete => {
-      if (shouldDelete) { // disable the team
+      if (shouldDelete) {
         let date = new Date();
         addDoc(collection(this.accountService.db, "support"), {
           createdAt: date,
@@ -133,42 +121,60 @@ export class ProfileComponent implements OnInit, OnDestroy {
           disabled: true,
           disabledAt: date
         }).then(() => {
-          window.location.reload(); // easiest way to repull the data
+          window.location.reload();
         }).catch(error => console.error("cannot delete account at this time, contact us for more help. " + error));
       }
     });
   }
 
-  public isIndustryChecked(id: string): boolean {
-    return this.accountService.aTeam.industries.some(i => i == id);
+  public get hasActiveSubscription(): boolean {
+    return !!this.accountService.aTeam.stripeSubscriptionId;
   }
 
-  public get TeamMembers(): TeamMember[] {
-    return this.accountService.teamMembers || [];
+  // Auto-start trainings - undefined/missing means disabled (grandfather existing teams)
+  public get autoStartTrainings(): boolean {
+    return this.accountService.aTeam.autoStartTrainings === true;
   }
 
-  public toggleIndustry(id: string): void {
-    if (this.isIndustryChecked(id)) {
-      this.accountService.aTeam.industries = this.accountService.aTeam.industries.filter(i => i !== id);
-    } else {
-      this.accountService.aTeam.industries.push(id);
-    }
+  public set autoStartTrainings(value: boolean) {
+    this.accountService.aTeam.autoStartTrainings = value;
     this.saveTeam();
   }
 
-  public navInvoices(): void {
-    if (this.accountService.aTeam.stripeCustomerId) {
-      const getCustomerInvoices = httpsCallable(this.functions, 'getCustomerInvoices');
-      getCustomerInvoices({ stripeCustomerId: this.accountService.aTeam.stripeCustomerId}).then((resp: any) => {
-        window.open(resp.data);
-      });
-    } else {
-      this.router.navigate(['/account']);
+  public get billingStatus(): string {
+    if (this.accountService.aTeam.stripeSubscriptionId) {
+      return 'Active';
     }
+    return 'No subscription';
+  }
+
+  public startCheckout(): void {
+    // Use Stripe Payment Link with client_reference_id for team linking
+    // Include prefilled_email if available
+    const email = this.accountService.user?.email || this.accountService.aTeam?.email;
+    let paymentUrl = `${environment.stripe.paymentLink}?client_reference_id=${this.accountService.aTeam.id}`;
+    if (email) {
+      paymentUrl += `&prefilled_email=${encodeURIComponent(email)}`;
+    }
+    window.location.href = paymentUrl;
+  }
+
+  public manageSubscription(): void {
+    // Use Stripe Billing Portal Link with prefilled email
+    const email = this.accountService.user?.email || this.accountService.aTeam?.email;
+    let portalUrl = environment.stripe.billingPortalLink;
+    if (email) {
+      portalUrl += `?prefilled_email=${encodeURIComponent(email)}`;
+    }
+    window.location.href = portalUrl;
+  }
+
+  signOut(): void {
+    this.accountService.logout();
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
+    this.subscription?.unsubscribe();
   }
 }
 
@@ -181,7 +187,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   <mat-dialog-content>By clicking DELETE, you are removing access and making your account inactive.<br>
   We'll hold your data for 30 days, and then it will be purged from our system.</mat-dialog-content>
   <mat-dialog-actions style="margin-top:12px" align="end"><button mat-button color="primary" style="margin-right:8px" (click)="close(false)">CANCEL</button>
-  <button mat-raised-button color="warn" (click)="close(true)">DELETE</button>
+  <button mat-flat-button color="warn" (click)="close(true)">DELETE</button>
   </mat-dialog-actions>
   `
 })

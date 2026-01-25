@@ -150,6 +150,14 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
     pdfDoc.text(this.report.type || "Incident Report", leftMargin, y);
     y += lineSpace * 1.8;
 
+    // Company name
+    if (this.accountService.aTeam?.name) {
+      pdfDoc.setFontSize(12);
+      pdfDoc.setFont("helvetica", "bold");
+      pdfDoc.text(this.accountService.aTeam.name, leftMargin, y);
+      y += lineSpace * 1.2;
+    }
+
     // Date and submitter info
     pdfDoc.setFontSize(11);
     pdfDoc.setFont("helvetica", "normal");

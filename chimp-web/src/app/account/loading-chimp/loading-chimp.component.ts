@@ -44,17 +44,7 @@ export class LoadingChimpComponent implements OnInit {
   }
 
   public get ShouldShow(): boolean {
-    if (!this._accountService.showLD) return false;
-    
-    // Check if permanently hidden
-    if (JSON.parse(localStorage.getItem(this.PERMANENTLY_HIDDEN_KEY))) return false;
-    
-    // Check if already shown today
-    const lastShownDate = localStorage.getItem(this.LAST_SHOWN_DATE_KEY);
-    const today = new Date().toDateString();
-    if (lastShownDate === today) return false;
-    
-    return true;
+    return false; // Temporarily disabled
   }
 
   public close(block: boolean = false): void {

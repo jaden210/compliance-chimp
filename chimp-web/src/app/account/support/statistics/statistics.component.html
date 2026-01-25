@@ -1,44 +1,89 @@
 <div class="scroll">
-  <div id="dash">
-    <div class="card g">
-      <div class="info">
-        <div class="c-title">Total Teams</div>
-        <div class="c-stat">{{ teams.length || 0 }}</div>
-      </div>
-      <mat-icon class="c-icon">supervisor_account</mat-icon>
+  @if (loading()) {
+    <div class="loading">
+      <mat-spinner />
     </div>
-  </div>
-  <table mat-table matSort [dataSource]="teams">
-    <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Team Name</th>
-      <td mat-cell *matCellDef="let team">{{team.name}}</td>
-    </ng-container>
-    <ng-container matColumnDef="email">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Email</th>
-      <td mat-cell *matCellDef="let team">{{team.owner?.email}}</td>
-    </ng-container>
-    <ng-container matColumnDef="phone">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Phone</th>
-      <td mat-cell *matCellDef="let team">{{team.owner?.phone}}</td>
-    </ng-container>
-    <ng-container matColumnDef="owner">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Owner</th>
-      <td mat-cell *matCellDef="let team">{{team.owner?.name}}</td>
-    </ng-container>
-    <ng-container matColumnDef="created">
-      <th mat-header-cell *matHeaderCellDef>Created At</th>
-      <td mat-cell *matCellDef="let team">{{team?.createdAt | date: 'medium'}}</td>
-    </ng-container>
-    <ng-container matColumnDef="users">
-      <th mat-header-cell *matHeaderCellDef>Number of Users</th>
-      <td mat-cell *matCellDef="let team">{{team?.users?.length}}</td>
-    </ng-container>
-    <ng-container matColumnDef="logs">
-      <th mat-header-cell *matHeaderCellDef>Submitted Logs</th>
-      <td mat-cell *matCellDef="let team">{{team?.achievements?.logsCount}}</td>
-    </ng-container>
-    
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
+  } @else {
+    <div class="dashboard">
+      <div class="stat-card primary">
+        <div class="stat-info">
+          <div class="stat-title">Total Teams</div>
+          <div class="stat-value">{{ teams().length }}</div>
+        </div>
+        <mat-icon class="stat-icon">groups</mat-icon>
+      </div>
+      <div class="stat-card accent">
+        <div class="stat-info">
+          <div class="stat-title">Paying Teams</div>
+          <div class="stat-value">{{ paidTeamsCount() }}</div>
+        </div>
+        <mat-icon class="stat-icon">paid</mat-icon>
+      </div>
+      <div class="stat-card tertiary">
+        <div class="stat-info">
+          <div class="stat-title">Total Users</div>
+          <div class="stat-value">{{ totalUsersCount() }}</div>
+        </div>
+        <mat-icon class="stat-icon">person</mat-icon>
+      </div>
+    </div>
+
+    <table mat-table matSort [dataSource]="dataSource">
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let team">
+          @if (team.stripeSubscriptionId) {
+            <mat-chip class="paid-chip">Paid</mat-chip>
+          } @else {
+            <mat-chip class="free-chip">Free</mat-chip>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Team Name</th>
+        <td mat-cell *matCellDef="let team">{{ team.name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="email">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Email</th>
+        <td mat-cell *matCellDef="let team">{{ team.email }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="created">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Created</th>
+        <td mat-cell *matCellDef="let team">{{ team.createdAt | date: 'mediumDate' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="users">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Users</th>
+        <td mat-cell *matCellDef="let team">{{ team.userCount ?? '-' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="logs">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Logs</th>
+        <td mat-cell *matCellDef="let team">{{ team.logCount ?? '-' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="lastActivity">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Last Activity</th>
+        <td mat-cell *matCellDef="let team">
+          @if (team.lastActivity) {
+            <span class="activity-badge" [class]="getActivityStatus(team.lastActivity)">
+              {{ team.lastActivity | date: 'shortDate' }}
+            </span>
+          } @else {
+            <span class="no-activity">No activity</span>
+          }
+        </td>
+      </ng-container>
+      
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    @if (teams().length === 0) {
+      <p class="empty-message">No teams found.</p>
+    }
+  }
 </div>

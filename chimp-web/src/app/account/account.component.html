@@ -1,4 +1,19 @@
 <mat-sidenav-container>
+  <mat-sidenav #sidenav mode="over" position="start">
+    <div class="mobile-nav">
+      <ng-container *ngFor="let item of navItems">
+        <div 
+          *ngIf="!item.devOnly || accountService.user?.isDev"
+          class="mobile-nav-item" 
+          routerLinkActive="bactive" 
+          [routerLink]="item.route"
+          (click)="sidenav.close(); onNavClick(item)">
+          <mat-icon>{{item.icon}}</mat-icon>
+          <span>{{item.label}}</span>
+        </div>
+      </ng-container>
+    </div>
+  </mat-sidenav>
   <mat-sidenav-content>
     <!-- ***** HELPER ***** -->
     <!-- <div class="helper" id="helper-color" *ngIf="accountService.showHelper" [@helper]>
@@ -29,19 +44,19 @@
     </div>
     <div id="wrapper">
       <div id="left">
-        <!-- <div class="side-button" routerLinkActive="bactive" routerLink="dashboard"><mat-icon>analytics</mat-icon>Dashboard</div> -->
-        <div class="side-button" routerLinkActive="bactive" routerLink="team"><mat-icon>supervisor_account</mat-icon>Team</div>
-        <div class="side-button" routerLinkActive="bactive" routerLink="training"><mat-icon>explore</mat-icon>Training</div>
-        <!-- <div class="side-button" routerLinkActive="bactive" routerLink="surveys"><mat-icon>scatter_plot</mat-icon>Surveys</div> -->
-        <div class="side-button" routerLinkActive="bactive" routerLink="self-inspections"><mat-icon>import_contacts</mat-icon>Inspections</div>
-          <div class="side-button" routerLinkActive="bactive" routerLink="incident-reports"><mat-icon>assignment_late</mat-icon>Incidents</div>
-          <div class="side-button" routerLinkActive="bactive" routerLink="files"><mat-icon>folder</mat-icon>Files</div>
-          <div class="side-button" routerLinkActive="bactive" routerLink="event"><mat-icon>event_note</mat-icon>Events</div>
-          <div class="side-button" routerLinkActive="bactive" routerLink="account"><mat-icon>person</mat-icon>Account</div>
-          <div class="side-button" *ngIf="accountService.user.isDev" routerLinkActive="bactive" routerLink="support"><mat-icon>golf_course</mat-icon>Support</div>
-        <!-- <div class="side-button appear" (click)="sidenav.open()"><mat-icon>more_horiz</mat-icon>more</div> -->
-        <div class="flex"></div>
-        <div class="side-button" routerLinkActive="bactive" (click)="openHelp()"><mat-icon>help_outline</mat-icon>Help</div>
+        <ng-container *ngFor="let item of navItems">
+          <div 
+            *ngIf="!item.devOnly || accountService.user?.isDev"
+            class="side-button" 
+            [class.compact]="isCompact(item.key)"
+            routerLinkActive="bactive" 
+            [routerLink]="item.route"
+            (click)="onNavClick(item)"
+            [style.flex-grow]="getNavItemFlex(item.key)">
+            <mat-icon>{{item.icon}}</mat-icon>
+            <span class="nav-label">{{item.label}}</span>
+          </div>
+        </ng-container>
       </div>
       <div id="body">
         <router-outlet></router-outlet>

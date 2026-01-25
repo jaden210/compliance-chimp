@@ -3,7 +3,6 @@ mat-toolbar {
   justify-content: center;
   position: fixed;
   z-index: 1;
-  background-color: var(--chimp-bg-primary);
   top: 0;
 }
 
@@ -12,7 +11,7 @@ mat-toolbar img {
 }
 
 .content-area {
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--toolbar-height));
   width: 100vw;
   background: var(--chimp-gray-100);
   display: flex;

@@ -1,0 +1,76 @@
+import { Component, OnInit } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
+import { MatButtonModule } from "@angular/material/button";
+import { MatIconModule } from "@angular/material/icon";
+import { ChallengeService } from "../challenge.service";
+import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
+
+@Component({
+  standalone: true,
+  selector: "challenge-step1",
+  templateUrl: "./step1.component.html",
+  styleUrls: ["./step1.component.scss"],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule
+  ]
+})
+export class Step1Component implements OnInit {
+  businessName = '';
+  businessWebsite = '';
+  industry = '';
+
+  constructor(
+    private challengeService: ChallengeService,
+    private router: Router,
+    private analytics: AnalyticsService
+  ) {}
+
+  ngOnInit(): void {
+    // Reset the challenge state whenever Step 1 is loaded
+    // This ensures a fresh start when returning to the beginning
+    this.challengeService.reset();
+    
+    // Track challenge start and step 1 view
+    this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_START);
+    this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP1_VIEW);
+  }
+
+  isValid(): boolean {
+    return !!(
+      this.businessName?.trim() &&
+      this.businessWebsite?.trim() &&
+      this.industry?.trim() &&
+      this.industry.trim().length >= 3
+    );
+  }
+
+  next(): void {
+    if (!this.isValid()) return;
+    
+    this.challengeService.setBusinessInfo(
+      this.businessName.trim(),
+      this.businessWebsite.trim(),
+      this.industry.trim()
+    );
+    
+    // Track step 1 completion with business info
+    this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP1_COMPLETE, {
+      industry: this.industry.trim(),
+      has_website: !!this.businessWebsite.trim()
+    });
+    
+    // Start the timer when they proceed from step 1
+    this.challengeService.startTimer();
+    
+    this.router.navigate(['/get-started/step2']);
+  }
+}

@@ -1,8 +1,10 @@
 import { Component, Inject, ViewChild, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterModule } from "@angular/router";
+import { MatButtonModule } from "@angular/material/button";
 import { AccountService, User, InviteToTeam, TeamMember } from "../account.service";
-import { map } from "rxjs/operators";
+import { environment } from "src/environments/environment";
+import { map, take } from "rxjs/operators";
 import moment from "moment";
 import {
   MatDialog,
@@ -32,7 +34,8 @@ declare var gtag: Function;
     RouterModule,
     MatToolbarModule,
     MatIconModule,
-    MatDialogModule
+    MatDialogModule,
+    MatButtonModule
   ]
 })
 export class HomeComponent implements OnDestroy {
@@ -52,10 +55,21 @@ export class HomeComponent implements OnDestroy {
   public trainingsGiven: number;
 
   selfInspection;
-  achievements;
-  completedCount: number;
-  complianceLevel: number;
+  incidentReportsCount: number = 0;
+  surveyResponsesCount: number = 0;
+  surveysGivenCount: number = 0;
   showTable: boolean = false;
+
+  // Onboarding states
+  hasTeamMembers: boolean = false;
+  hasTrainingContent: boolean = false;
+  hasSelfInspections: boolean = false;
+  selfInspectionCount: number = 0;
+  trainingContentCount: number = 0;
+  onboardingLoaded: boolean = false;
+  
+  // Dismissed onboarding cards (persisted in localStorage)
+  dismissedCards: Set<string> = new Set();
 
   constructor(
     public accountService: AccountService,
@@ -65,11 +79,15 @@ export class HomeComponent implements OnDestroy {
     private router: Router
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
+    this.loadDismissedCards();
     this.subscription = this.accountService.teamMembersObservable.subscribe(
       TeamMember => {
         if (TeamMember) {
           if (TeamMember.length == 0) this.accountService.showHelper = true;
+          this.hasTeamMembers = TeamMember.length > 0;
           this.getSelfInspectionStats();
+          this.getIncidentReportsCount();
+          this.getSurveyStats();
           this.files = this.homeService.getFiles();
           this.buildUsers();
         }
@@ -81,10 +99,31 @@ export class HomeComponent implements OnDestroy {
     return this.accountService.teamMembers;
   }
 
+  public get hasActiveSubscription(): boolean {
+    return !!this.accountService.aTeam?.stripeSubscriptionId;
+  }
+
+  public startCheckout(): void {
+    const email = this.accountService.user?.email || this.accountService.aTeam?.email;
+    let paymentUrl = `${environment.stripe.paymentLink}?client_reference_id=${this.accountService.aTeam.id}`;
+    if (email) {
+      paymentUrl += `&prefilled_email=${encodeURIComponent(email)}`;
+    }
+    window.location.href = paymentUrl;
+  }
+
   private buildUsers(): void {
     const teamId = this.accountService.aTeam.id;
-    this.trainingService.getMyContent(teamId).subscribe(myContent => {
+    
+    // Check both training-content and library collections
+    forkJoin({
+      myContent: this.trainingService.getMyContent(teamId),
+      library: this.trainingService.getLibrary(teamId).pipe(take(1))
+    }).subscribe(({ myContent, library }) => {
       this.users = [];
+      // Has training content if either training-content or library has items
+      this.hasTrainingContent = (myContent && myContent.length > 0) || (library && library.length > 0);
+      this.trainingContentCount = (myContent?.length || 0) + (library?.length || 0);
       this.setMetrics(myContent);
       this.accountService.teamMembers.forEach((tm: any) => {
         const srt = myContent.filter(mc =>
@@ -94,6 +133,7 @@ export class HomeComponent implements OnDestroy {
         this.users.push({ ...tm, srt, nt, status });
       });
       this.showTable = true;
+      this.onboardingLoaded = true;
     });
   }
 
@@ -154,6 +194,8 @@ export class HomeComponent implements OnDestroy {
   getSelfInspectionStats(): void {
     this.selfInspection = { expired: 0, current: 0 };
     this.homeService.getSelfInspections().subscribe(selfInspections => {
+      this.hasSelfInspections = selfInspections && selfInspections.length > 0;
+      this.selfInspectionCount = selfInspections?.length || 0;
       selfInspections.forEach((inspection: SelfInspection) => {
         if (inspection.inspectionExpiration && inspection.inspectionExpiration !== "Manual") {
           switch (inspection.inspectionExpiration) {
@@ -191,6 +233,59 @@ export class HomeComponent implements OnDestroy {
     } else this.selfInspection.current++;
   }
 
+  getIncidentReportsCount(): void {
+    this.homeService.getIncidentReports().subscribe(reports => {
+      this.incidentReportsCount = reports?.length || 0;
+    });
+  }
+
+  getSurveyStats(): void {
+    this.homeService.getSurveys().subscribe(surveys => {
+      this.surveysGivenCount = surveys?.length || 0;
+    });
+    this.homeService.getSurveyResponses().subscribe(responses => {
+      this.surveyResponsesCount = responses?.length || 0;
+    });
+  }
+
+  // Onboarding helper methods
+  get showOnboarding(): boolean {
+    return this.onboardingLoaded && (
+      this.showTeamOnboarding ||
+      this.showTrainingOnboarding ||
+      this.showInspectionsOnboarding
+    );
+  }
+
+  get showTeamOnboarding(): boolean {
+    return !this.hasTeamMembers && !this.dismissedCards.has('team');
+  }
+
+  get showTrainingOnboarding(): boolean {
+    return !this.hasTrainingContent && !this.dismissedCards.has('training');
+  }
+
+  get showInspectionsOnboarding(): boolean {
+    return !this.hasSelfInspections && !this.dismissedCards.has('inspections');
+  }
+
+  private loadDismissedCards(): void {
+    try {
+      const stored = localStorage.getItem('cc-onboarding-dismissed');
+      if (stored) {
+        this.dismissedCards = new Set(JSON.parse(stored));
+      }
+    } catch {
+      this.dismissedCards = new Set();
+    }
+  }
+
+  dismissOnboardingCard(cardId: string): void {
+    this.dismissedCards.add(cardId);
+    try {
+      localStorage.setItem('cc-onboarding-dismissed', JSON.stringify([...this.dismissedCards]));
+    } catch {}
+  }
 
   ngOnDestroy() {
     this.subscription.unsubscribe();

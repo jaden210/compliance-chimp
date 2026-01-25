@@ -1,40 +1,52 @@
 <div class="full">
   <div class="side">
-      <mat-form-field style="width: 300px">
-          <input matInput type="text" placeholder="collection name" [(ngModel)]="collection" (blur)="getCollection()">
-        </mat-form-field>
-      <div class="list">
-        <button mat-stroked-button color="primary" (click)="createDoc()">CREATE NEW CATEGORY</button>
-        <button mat-button *ngIf="collectionSubject.id" (click)="deleteDoc()" color="accent">DELETE</button>
-      <div class="list-item" *ngFor="let item of list" [ngClass]="{'active': item.id == collectionSubject.id}" (click)="selectDoc(item)">
-        {{item.subject}} - {{item.order}}
+    <mat-form-field class="collection-field">
+      <mat-label>Collection name</mat-label>
+      <input matInput type="text" [(ngModel)]="collectionName" (blur)="getCollection()" />
+    </mat-form-field>
+    <div class="list">
+      <div class="list-actions">
+        <button mat-stroked-button (click)="createCategory()">Create New Category</button>
+        @if (collectionSubject.id) {
+          <button mat-button color="warn" (click)="deleteCategory()">Delete</button>
+        }
       </div>
+      @for (item of list(); track item.id) {
+        <div class="list-item" [class.active]="item.id === collectionSubject.id" (click)="selectDoc(item)">
+          {{ item.subject }} - {{ item.order }}
+        </div>
+      }
     </div>
   </div>
-  <div class="side" style="flex:2">
+
+  <div class="side content-side">
     <mat-toolbar color="accent">
-      <mat-label style="margin-right:24px">name</mat-label>
-      <mat-form-field style="flex:1">
-        <input matInput type="text" [(ngModel)]="collectionSubject.subject" (blur)="push()">
+      <span class="toolbar-label">Name</span>
+      <mat-form-field class="toolbar-field">
+        <input matInput type="text" [(ngModel)]="collectionSubject.subject" (blur)="push()" />
       </mat-form-field>
-      <mat-label style="margin-right:24px">order</mat-label>
-      <mat-form-field>
-        <input matInput type="number" step="1" [(ngModel)]="collectionSubject.order" (blur)="push()">
+      <span class="toolbar-label">Order</span>
+      <mat-form-field class="toolbar-order">
+        <input matInput type="number" step="1" [(ngModel)]="collectionSubject.order" (blur)="push()" />
       </mat-form-field>
     </mat-toolbar>
+
     <div class="scroll">
-      <div class="list" style="width: 100%">
-        <div class="question" *ngFor="let question of collectionSubject.questions" style="display: flex;align-items: center;">
+      <div class="questions-list">
+        @for (question of collectionSubject.questions; track $index) {
+          <div class="question-row">
+            <mat-form-field class="fill">
+              <input matInput type="text" placeholder="Question" [(ngModel)]="question.name" (blur)="push()" />
+            </mat-form-field>
+            <button mat-button color="warn" (click)="deleteQuestion(question)">Delete</button>
+          </div>
+        }
+        <div class="question-row">
           <mat-form-field class="fill">
-            <input matInput type="text" placeholder="name" [(ngModel)]="question.name" (blur)="push()">
+            <mat-label>New question</mat-label>
+            <input matInput type="text" [(ngModel)]="newQuestion.name" />
           </mat-form-field>
-          <button mat-button color="accent" (click)="deleteQ(question)">DELETE</button>
-        </div>
-        <div class="row">
-          <mat-form-field class="fill">
-            <input matInput type="text" placeholder="name" [(ngModel)]="newQuestion.name">
-          </mat-form-field>
-          <button mat-raised-button color="primary" (click)="addQuestion()">ADD</button>
+          <button mat-flat-button color="primary" (click)="addQuestion()">Add</button>
         </div>
       </div>
     </div>

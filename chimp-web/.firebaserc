@@ -1,16 +1,5 @@
 {
   "projects": {
-    "default": "teamlog-2d74c",
-    "dev": "compliancechimp-dev",
-    "prod": "teamlog-2d74c"
-  },
-  "targets": {
-    "teamlog-2d74c": {
-      "hosting": {
-        "main": [
-          "teamlog-2d74c"
-        ]
-      }
-    }
+    "default": "teamlog-2d74c"
   }
 }

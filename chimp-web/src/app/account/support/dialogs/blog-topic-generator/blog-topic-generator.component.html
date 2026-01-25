@@ -1,9 +1,0 @@
-<h2 mat-dialog-title>New Topic</h2>
-  <mat-dialog-content>
-  <mat-form-field>
-    <input matInput placeholder="topic name" [(ngModel)]="topic.name">
-  </mat-form-field>
-  </mat-dialog-content>
-  <mat-dialog-actions style="margin-top:12px" align="end"><button mat-button color="primary" style="margin-right:8px" (click)="dialogRef.close()">CANCEL</button>
-  <button mat-raised-button color="accent" (click)="close(topic)">CREATE</button>
-  </mat-dialog-actions>

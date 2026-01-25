@@ -1,7 +1,8 @@
 import { Component, OnInit, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { SignUpComponent } from '../sign-up/sign-up.component';
 import { trigger, state, style, animate, transition } from '@angular/animations';
 
 @Component({
@@ -9,7 +10,7 @@ import { trigger, state, style, animate, transition } from '@angular/animations'
   selector: 'app-how',
   templateUrl: './how.component.html',
   styleUrls: ['./how.component.css'],
-  imports: [CommonModule, MatIconModule, SignUpComponent],
+  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule],
   animations: [
     trigger('scrollAnimation', [
       state('show', style({

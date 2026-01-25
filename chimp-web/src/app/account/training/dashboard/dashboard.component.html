@@ -1,137 +1,942 @@
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png">
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png">
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Training</div>
   <div class="flex"></div>
-  <button mat-stroked-button class="library-btn" routerLink="library">
-    <mat-icon>favorite_border</mat-icon>
-    Manage Library
-  </button>
 </mat-toolbar>
 
-<div class="window training-history-page">
-  <section class="splash">
-    <div class="splash-content">
-      <div class="splash-kicker">Training History</div>
-      <div class="splash-title">Track every training session.</div>
-      <div class="splash-body">
-        All completed training sessions are recorded here. Review attendance, track compliance, and ensure your team stays up to date.
-      </div>
-      <div class="splash-actions">
-        <button mat-flat-button color="accent" (click)="goToLibrary()">
-          <mat-icon>library_books</mat-icon>
-          Start a Training
-        </button>
-      </div>
-    </div>
-  </section>
-
-  @if (loading) {
-    <div class="loading-state">
-      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-      <div class="loading-text">Loading training history...</div>
-    </div>
-  } @else if (trainingHistory.length === 0) {
-    <div class="empty-state">
-      <mat-icon class="empty-icon">school</mat-icon>
-      <div class="empty-title">No training sessions yet</div>
-      <div class="empty-body">
-        All team trainings show up here. To get started, build your library of trainings—choose from OSHA documents or our in-house 'Chimp Chats'.
-      </div>
-      <button mat-flat-button color="accent" (click)="goToLibrary()">
-        <mat-icon>library_books</mat-icon>
-        Curate My Library
-      </button>
-    </div>
-  } @else {
-    <section class="history-section">
-      <div class="section-header">
-        <div>
-          <div class="section-title">All training sessions</div>
-          <div class="section-subtitle">{{ trainingHistory.length }} session{{ trainingHistory.length !== 1 ? 's' : '' }} on record</div>
-        </div>
-      </div>
-
-      <div class="search-bar">
-        <mat-icon>search</mat-icon>
-        <input 
-          type="text" 
-          placeholder="Search by title, trainer, or category..." 
-          [value]="searchTerm$ | async"
-          (input)="onSearch($any($event.target).value)">
-      </div>
-
-      @if (filteredHistory$ | async; as history) {
-        @if (history.length === 0) {
-          <div class="no-results">
-            <mat-icon>search_off</mat-icon>
-            <div>No training sessions match your search.</div>
+<div class="window training-page">
+      <!-- Team Members Required Notice -->
+      @if (accountService.teamMembersLoaded && !hasTeamMembers()) {
+        <section class="setup-notice">
+          <div class="setup-card">
+            <div class="setup-left">
+              <div class="setup-icon">
+                <mat-icon>group_add</mat-icon>
+              </div>
+              <div class="setup-content">
+                <h3>Add Your Team First</h3>
+                <p>
+                  To provide personalized training recommendations, we need to know who's on your team. 
+                  Adding members with their job titles helps us identify the right compliance requirements.
+                </p>
+                <button mat-flat-button routerLink="/account/team">
+                  <mat-icon>group_add</mat-icon>
+                  Add Team Members
+                </button>
+              </div>
+            </div>
+            <div class="setup-right">
+              <div class="benefits-header">With your team added, you'll get:</div>
+              <ul class="setup-benefits">
+                <li><mat-icon>check_circle</mat-icon> Role-specific training recommendations</li>
+                <li><mat-icon>check_circle</mat-icon> Compliance coverage for all job functions</li>
+                <li><mat-icon>check_circle</mat-icon> Training tracking by team member</li>
+              </ul>
+            </div>
           </div>
-        } @else {
-          <div class="history-table">
-            <!-- Table Header -->
-            <div class="table-header">
-              <div class="col-date sortable" (click)="toggleSort('date')" [class.active]="(sort$ | async)?.column === 'date'">
-                Date
-                @if ((sort$ | async)?.column === 'date') {
-                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </section>
+      }
+
+      <!-- Get Started Hero - shown when no trainings AND can analyze coverage -->
+      @if (library$ | async; as heroLibrary) {
+        @if (heroLibrary.length === 0 && canAnalyzeCoverage() && !autoBuildActive() && !autoBuildProgress()) {
+          <section class="get-started-hero">
+            <div class="hero-layout">
+              <!-- Left Column - What & Why -->
+              <div class="hero-left">
+                <div class="hero-kicker">Training</div>
+                <h1 class="hero-title">Keep your team trained, compliant, and prepared</h1>
+                <p class="hero-intro">
+                  Training is the foundation of workplace safety. Regular training ensures your team 
+                  knows how to work safely, reduces incidents, and keeps you compliant with OSHA 
+                  and industry regulations.
+                </p>
+                
+                <div class="hero-benefits">
+                  <div class="benefit-item">
+                    <mat-icon>shield</mat-icon>
+                    <div>
+                      <strong>Reduce workplace incidents</strong>
+                      <span>Trained employees are safer employees</span>
+                    </div>
+                  </div>
+                  <div class="benefit-item">
+                    <mat-icon>verified_user</mat-icon>
+                    <div>
+                      <strong>Stay compliant with regulations</strong>
+                      <span>Meet OSHA, PCI, HIPAA, and industry requirements</span>
+                    </div>
+                  </div>
+                  <div class="benefit-item">
+                    <mat-icon>trending_up</mat-icon>
+                    <div>
+                      <strong>Track progress over time</strong>
+                      <span>See who's trained and who needs attention</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column - Action -->
+              <div class="hero-right">
+                <div class="hero-action-card">
+                  <div class="action-header">
+                    <mat-icon>rocket_launch</mat-icon>
+                    <h2>Get Started in Seconds</h2>
+                  </div>
+                  <p class="action-description">
+                    We'll build a complete training program tailored to your 
+                    <strong>{{ accountService.aTeam?.industry }}</strong> industry and 
+                    <strong>{{ teamMembers?.length }}</strong> team members.
+                  </p>
+                  
+                  <ul class="action-features">
+                    <li>
+                      <mat-icon>check_circle</mat-icon>
+                      <span>Industry-specific training topics</span>
+                    </li>
+                    <li>
+                      <mat-icon>check_circle</mat-icon>
+                      <span>Auto-assigned based on team roles</span>
+                    </li>
+                    <li>
+                      <mat-icon>check_circle</mat-icon>
+                      <span>Scheduled to avoid training overload</span>
+                    </li>
+                  </ul>
+
+                  <button mat-flat-button color="accent" class="primary-action" (click)="startAutoBuild()">
+                    <mat-icon>rocket_launch</mat-icon>
+                    Build It For Me
+                  </button>
+
+                  <div class="action-divider">
+                    <span>or start from scratch</span>
+                  </div>
+
+                  <div class="secondary-actions">
+                    <button mat-stroked-button (click)="goToSmartBuilder()">
+                      <mat-icon>construction</mat-icon>
+                      Smart Builder
+                    </button>
+                    <button mat-stroked-button (click)="goToLibrary()">
+                      <mat-icon>library_books</mat-icon>
+                      Browse Library
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        }
+      }
+
+      <!-- Auto-Build Progress Section -->
+      @if (autoBuildActive() || autoBuildProgress()) {
+        <section class="auto-build-section">
+          <div class="auto-build-card">
+            <div class="auto-build-header">
+              <div class="auto-build-icon" [class.spinning]="autoBuildActive()">
+                <mat-icon>{{ autoBuildActive() ? 'sync' : 'check_circle' }}</mat-icon>
+              </div>
+              <div class="auto-build-title-section">
+                <h2 class="auto-build-title">
+                  {{ autoBuildActive() ? 'Building Your Training Library' : 'Training Library Built' }}
+                </h2>
+                <p class="auto-build-subtitle">{{ autoBuildProgress()?.currentAction }}</p>
+              </div>
+            </div>
+            
+            <div class="auto-build-progress">
+              <div class="progress-stats-cards">
+                <div class="stat-card coverage-card-stat" [ngClass]="{
+                  'score-excellent': (autoBuildProgress()?.currentScore || 0) >= 90,
+                  'score-good': (autoBuildProgress()?.currentScore || 0) >= 70 && (autoBuildProgress()?.currentScore || 0) < 90,
+                  'score-fair': (autoBuildProgress()?.currentScore || 0) >= 50 && (autoBuildProgress()?.currentScore || 0) < 70,
+                  'score-low': (autoBuildProgress()?.currentScore || 0) < 50
+                }">
+                  <div class="stat-card-icon">
+                    <mat-icon>shield</mat-icon>
+                  </div>
+                  <div class="stat-card-content">
+                    <div class="stat-card-value">{{ autoBuildProgress()?.currentScore || 0 }}%</div>
+                    <div class="stat-card-label">Coverage Score</div>
+                    <div class="stat-card-description">
+                      @if ((autoBuildProgress()?.currentScore || 0) >= 90) {
+                        Excellent! Your training program covers nearly all recommended topics.
+                      } @else if ((autoBuildProgress()?.currentScore || 0) >= 70) {
+                        Good progress. A few more trainings will strengthen your program.
+                      } @else if ((autoBuildProgress()?.currentScore || 0) >= 50) {
+                        Building up. We're adding essential trainings to fill gaps.
+                      } @else {
+                        Just getting started. We're creating your foundational trainings.
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div class="stat-card created-card-stat">
+                  <div class="stat-card-icon">
+                    <mat-icon>library_add</mat-icon>
+                  </div>
+                  <div class="stat-card-content">
+                    <div class="stat-card-value">{{ autoBuildProgress()?.trainingsCreated || 0 }}</div>
+                    <div class="stat-card-label">Articles Created</div>
+                    <div class="stat-card-description">
+                      @if ((autoBuildProgress()?.trainingsCreated || 0) === 0) {
+                        Analyzing your team to identify the right trainings...
+                      } @else if ((autoBuildProgress()?.trainingsCreated || 0) === 1) {
+                        First training added to your library and ready for your team.
+                      } @else {
+                        Training articles added to your library, tailored to your industry and team roles.
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="progress-bar-container">
+                @if (autoBuildActive()) {
+                  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                } @else {
+                  <mat-progress-bar mode="determinate" [value]="autoBuildProgress()?.currentScore || 0"></mat-progress-bar>
                 }
               </div>
-              <div class="col-title sortable" (click)="toggleSort('title')" [class.active]="(sort$ | async)?.column === 'title'">
-                Training Title
-                @if ((sort$ | async)?.column === 'title') {
-                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                }
-              </div>
-              <div class="col-trainer sortable" (click)="toggleSort('trainer')" [class.active]="(sort$ | async)?.column === 'trainer'">
-                Trainer
-                @if ((sort$ | async)?.column === 'trainer') {
-                  <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                }
-              </div>
-              <div class="col-attendees">Attendees</div>
-              <div class="col-actions">Actions</div>
+
+              @if (autoBuildProgress()?.log && autoBuildProgress()!.log.length > 0) {
+                <div class="auto-build-log enhanced">
+                  <div class="log-header">
+                    <mat-icon>terminal</mat-icon>
+                    Build Progress
+                  </div>
+                  <div class="log-entries">
+                    @for (entry of autoBuildProgress()!.log.slice().reverse(); track entry.timestamp) {
+                      <div class="log-entry" [ngClass]="entry.type">
+                        <div class="log-entry-indicator"></div>
+                        <mat-icon class="log-icon">
+                          @switch (entry.type) {
+                            @case ('created') { check_circle }
+                            @case ('error') { error }
+                            @case ('analysis') { auto_awesome }
+                            @default { arrow_forward }
+                          }
+                        </mat-icon>
+                        <span class="log-message">{{ entry.message }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
 
-            <!-- Table Rows -->
-            @for (item of history; track trackByHistoryId($index, item)) {
-              <div class="table-row" (click)="openTrainingDetails(item)">
-                <div class="col-date">
-                  <span class="date-primary">{{ formatDate(item.createdAt) }}</span>
-                  <span class="date-time">{{ formatTime(item.createdAt) }}</span>
-                </div>
+            <div class="auto-build-actions">
+              @if (autoBuildActive()) {
+                <button mat-stroked-button color="warn" (click)="cancelAutoBuild()">
+                  <mat-icon>cancel</mat-icon>
+                  Cancel
+                </button>
+              } @else {
+                <button mat-flat-button color="accent" (click)="viewTrainings()">
+                  <mat-icon>visibility</mat-icon>
+                  View Trainings
+                </button>
+              }
+            </div>
+          </div>
+        </section>
+      }
 
-                <div class="col-title">
-                  <span class="training-title">{{ item.title || 'Untitled Training' }}</span>
-                  @if (item.category) {
-                    <span class="training-category">{{ item.category }}</span>
+
+      <!-- Coverage Analysis Section -->
+      @if (library$ | async; as coverageLibrary) {
+        @if (coverageLibrary.length > 0 && canAnalyzeCoverage() && !autoBuildActive()) {
+          <section class="coverage-analysis-section">
+            @if (coverageLoading()) {
+              <div class="coverage-loading">
+                <mat-progress-spinner mode="indeterminate" diameter="24"></mat-progress-spinner>
+                <span>Analyzing training coverage...</span>
+              </div>
+            } @else if (coverageError()) {
+              <div class="coverage-error">
+                <mat-icon>error_outline</mat-icon>
+                <span>{{ coverageError() }}</span>
+                <button mat-button (click)="refreshCoverageAnalysis()">Retry</button>
+              </div>
+            } @else if (coverageAnalysis()) {
+              <div class="coverage-card" [class.coverage-collapsed]="coverageCollapsed()">
+                @if (coverageCollapsed()) {
+                  <!-- Collapsed view -->
+                  <div class="coverage-collapsed-row" (click)="toggleCoverageExpanded()">
+                    <div class="score-ring score-ring-small" [ngClass]="getScoreClass(coverageAnalysis()!.score)">
+                      <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="circle" [attr.stroke-dasharray]="coverageAnalysis()!.score + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                      <span class="score-value">{{ coverageAnalysis()!.score }}</span>
+                    </div>
+                    <div class="collapsed-info">
+                      <div class="collapsed-title">
+                        @if ((coverageAnalysis()?.score || 0) >= 90) {
+                          <mat-icon>verified</mat-icon>
+                          Excellent Training Coverage
+                        } @else {
+                          <mat-icon>analytics</mat-icon>
+                          Training Coverage Analysis
+                        }
+                      </div>
+                      <div class="collapsed-summary">{{ coverageAnalysis()!.summary }}</div>
+                    </div>
+                    <button mat-icon-button class="expand-btn">
+                      <mat-icon>expand_more</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <!-- Full coverage view -->
+                  <div class="coverage-header">
+                    <div class="score-ring" [ngClass]="getScoreClass(coverageAnalysis()!.score)">
+                      <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="circle" [attr.stroke-dasharray]="coverageAnalysis()!.score + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                      <span class="score-value">{{ coverageAnalysis()!.score }}</span>
+                    </div>
+                    <div class="coverage-info">
+                      <div class="coverage-title">
+                        <mat-icon>analytics</mat-icon>
+                        Training Coverage Analysis
+                        <button mat-icon-button class="refresh-btn" (click)="refreshCoverageAnalysis()" [disabled]="coverageLoading()">
+                          <mat-icon [class.spinning]="coverageLoading()">refresh</mat-icon>
+                        </button>
+                        <button mat-icon-button class="collapse-btn" (click)="toggleCoverageExpanded()">
+                          <mat-icon>unfold_less</mat-icon>
+                        </button>
+                      </div>
+                      <p class="coverage-summary">{{ coverageAnalysis()!.summary }}</p>
+                      <div class="coverage-meta">
+                        <span class="meta-item">
+                          <mat-icon>business</mat-icon>
+                          {{ coverageAnalysis()!.industry }}
+                        </span>
+                        <span class="meta-item">
+                          <mat-icon>library_books</mat-icon>
+                          {{ coverageAnalysis()!.existingCount }} trainings
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  @if (coverageAnalysis()!.strengths?.length || coverageAnalysis()!.gaps?.length) {
+                    <div class="coverage-details">
+                      @if (coverageAnalysis()!.strengths?.length) {
+                        <div class="detail-column">
+                          <div class="detail-header strengths">
+                            <mat-icon>check_circle</mat-icon>
+                            Strengths
+                          </div>
+                          <ul class="detail-list">
+                            @for (strength of coverageAnalysis()!.strengths; track strength) {
+                              <li>{{ strength }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                      @if (coverageAnalysis()!.gaps?.length) {
+                        <div class="detail-column">
+                          <div class="detail-header gaps">
+                            <mat-icon>warning</mat-icon>
+                            Gaps
+                          </div>
+                          <ul class="detail-list">
+                            @for (gap of coverageAnalysis()!.gaps; track gap) {
+                              <li>{{ gap }}</li>
+                            }
+                          </ul>
+                        </div>
+                      }
+                    </div>
                   }
-                </div>
 
-                <div class="col-trainer">
-                  <span class="trainer-name">{{ item.creator }}</span>
-                </div>
+                  @if (coverageAnalysis()!.recommendations?.length) {
+                    <div class="recommendations-section">
+                      <div class="recommendations-header">
+                        <mat-icon>lightbulb</mat-icon>
+                        Recommended Trainings
+                      </div>
+                      <div class="recommendations-list">
+                        @for (rec of coverageAnalysis()!.recommendations; track rec.name) {
+                          <div class="recommendation-item" [ngClass]="'priority-' + rec.priority" (click)="useRecommendation(rec)">
+                            <div class="rec-priority">
+                              <mat-icon>
+                                @switch (rec.priority) {
+                                  @case ('high') { priority_high }
+                                  @case ('medium') { drag_handle }
+                                  @default { low_priority }
+                                }
+                              </mat-icon>
+                            </div>
+                            <div class="rec-content">
+                              <div class="rec-name">{{ rec.name }}</div>
+                              <div class="rec-description">{{ rec.description }}</div>
+                              @if (rec.reason) {
+                                <div class="rec-reason">
+                                  <mat-icon>info</mat-icon>
+                                  {{ rec.reason }}
+                                </div>
+                              }
+                            </div>
+                            <div class="rec-meta">
+                              <span class="rec-cadence">{{ rec.cadence }}</span>
+                              @if (rec.assignedTags?.length) {
+                                <span class="rec-tags">{{ rec.assignedTags.join(', ') }}</span>
+                              }
+                            </div>
+                            <mat-icon class="rec-arrow">chevron_right</mat-icon>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
 
-                <div class="col-attendees">
-                  <span class="attendee-badge" [class.has-attendees]="getAttendeeCount(item) > 0">
-                    <mat-icon>people</mat-icon>
-                    {{ getAttendeeCount(item) }}
-                  </span>
-                </div>
-
-                <div class="col-actions">
-                  <button 
-                    mat-icon-button 
-                    matTooltip="View details" 
-                    (click)="openTrainingDetails(item); $event.stopPropagation()">
-                    <mat-icon>visibility</mat-icon>
-                  </button>
-                </div>
+                  @if ((coverageAnalysis()?.score || 0) >= 100) {
+                    <div class="perfect-score">
+                      <mat-icon>verified</mat-icon>
+                      <span>Perfect coverage! Your training program covers all recommended areas.</span>
+                    </div>
+                  }
+                }
               </div>
             }
+          </section>
+        }
+      }
+
+      <!-- View Mode Toggle - Only show when library has items -->
+      @if (library$ | async; as toggleLibrary) {
+        @if (toggleLibrary.length > 0) {
+          <div class="view-toggle">
+            <button 
+              mat-stroked-button 
+              class="view-btn" 
+              [class.active]="(viewMode$ | async) === 'schedule'"
+              (click)="setViewMode('schedule')">
+              <mat-icon>event_available</mat-icon>
+              Schedule
+            </button>
+            <button 
+              mat-stroked-button 
+              class="view-btn" 
+              [class.active]="(viewMode$ | async) === 'library'"
+              (click)="setViewMode('library')">
+              <mat-icon>library_books</mat-icon>
+              Library
+            </button>
+            <button 
+              mat-stroked-button 
+              class="view-btn" 
+              [class.active]="(viewMode$ | async) === 'history'"
+              (click)="setViewMode('history')">
+              <mat-icon>history</mat-icon>
+              History
+            </button>
           </div>
         }
       }
-    </section>
-  }
-</div>
+
+      @if (loading) {
+        <div class="loading-state">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="loading-text">Loading training data...</div>
+        </div>
+      } @else {
+        <!-- Schedule View -->
+        @if ((viewMode$ | async) === 'schedule') {
+          @if (library$ | async; as allLibrary) {
+            @if (allLibrary.length === 0 && !canAnalyzeCoverage()) {
+              <div class="empty-state">
+                <mat-icon class="empty-icon">school</mat-icon>
+                <div class="empty-title">No trainings in your library</div>
+                <div class="empty-body">
+                  Build your training library by adding OSHA articles or creating custom content. Once added, you can track schedules and compliance here.
+                </div>
+                <button mat-flat-button color="accent" (click)="goToLibrary()">
+                  <mat-icon>library_books</mat-icon>
+                  Build My Library
+                </button>
+              </div>
+            } @else if (allLibrary.length > 0) {
+              <section class="schedule-section">
+                <div class="section-header">
+                  <div>
+                    <div class="section-title">Training schedule</div>
+                    <div class="section-subtitle">Filter trainings by status to see what needs attention.</div>
+                  </div>
+                  <div class="filter-bar">
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip" 
+                      [class.active]="(activeFilter$ | async) === 'all'"
+                      (click)="setFilter('all')">
+                      All
+                    </button>
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip" 
+                      [class.active]="(activeFilter$ | async) === 'neverTrained'"
+                      (click)="setFilter('neverTrained')">
+                      <mat-icon>new_releases</mat-icon>
+                      Never Trained
+                    </button>
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip" 
+                      [class.active]="(activeFilter$ | async) === 'dueSoon'"
+                      (click)="setFilter('dueSoon')">
+                      <mat-icon>upcoming</mat-icon>
+                      Due Soon
+                    </button>
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip overdue-chip" 
+                      [class.active]="(activeFilter$ | async) === 'overdue'"
+                      (click)="setFilter('overdue')">
+                      <mat-icon>warning</mat-icon>
+                      Overdue
+                    </button>
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip" 
+                      [class.active]="(activeFilter$ | async) === 'current'"
+                      (click)="setFilter('current')">
+                      <mat-icon>check_circle</mat-icon>
+                      Current
+                    </button>
+                  </div>
+                </div>
+
+                @if (filteredLibrary$ | async; as trainings) {
+                  @if (trainings.length === 0) {
+                    <div class="no-results">
+                      <mat-icon>search_off</mat-icon>
+                      <div>No trainings match this filter.</div>
+                    </div>
+                  } @else {
+                    <div class="trainings-table">
+                      <!-- Table Header -->
+                      <div class="table-header">
+                        <div class="col-status sortable" (click)="toggleSort('status')" [class.active]="(sort$ | async)?.column === 'status'">
+                          Status
+                          @if ((sort$ | async)?.column === 'status') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                        </div>
+                        <div class="col-name sortable" (click)="toggleSort('name')" [class.active]="(sort$ | async)?.column === 'name'">
+                          Name
+                          @if ((sort$ | async)?.column === 'name') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                        </div>
+                        <div class="col-last sortable" (click)="toggleSort('lastTrained')" [class.active]="(sort$ | async)?.column === 'lastTrained'">
+                          Last Trained
+                          @if ((sort$ | async)?.column === 'lastTrained') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                        </div>
+                        <div class="col-next sortable" (click)="toggleSort('nextDue')" [class.active]="(sort$ | async)?.column === 'nextDue'">
+                          Next Due
+                          @if ((sort$ | async)?.column === 'nextDue') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                          <button 
+                            mat-icon-button 
+                            class="auto-start-info-btn" 
+                            [class.enabled]="autoStartTrainings"
+                            (click)="openAutoStartDialog(); $event.stopPropagation()"
+                            matTooltip="Auto Start {{ autoStartTrainings ? 'enabled' : 'disabled' }}">
+                            <mat-icon>schedule_send</mat-icon>
+                          </button>
+                        </div>
+                        <div class="col-cadence sortable" (click)="toggleSort('cadence')" [class.active]="(sort$ | async)?.column === 'cadence'">
+                          Cadence
+                          @if ((sort$ | async)?.column === 'cadence') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                        </div>
+                        <div class="col-compliance sortable" (click)="toggleSort('compliance')" [class.active]="(sort$ | async)?.column === 'compliance'">
+                          Compliance
+                          @if ((sort$ | async)?.column === 'compliance') {
+                            <mat-icon class="sort-icon">{{ (sort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                          }
+                        </div>
+                        <div class="col-actions">Actions</div>
+                      </div>
+
+                      <!-- Table Rows -->
+                      @for (item of trainings; track trackByItemId($index, item)) {
+                        <div 
+                          class="table-row" 
+                          [class.overdue]="item.status === 'overdue'" 
+                          [class.due-soon]="item.status === 'dueSoon'"
+                          (click)="viewFullArticle(item)">
+                          
+                          <div class="col-status">
+                            <span class="status-badge" [ngClass]="item.status">
+                              {{ getStatusLabel(item.status!) }}
+                            </span>
+                          </div>
+
+                          <div class="col-name">
+                            <span class="training-title">{{ item.name }}</span>
+                            @if (item.topic) {
+                              <span class="training-topic">{{ item.topic }}</span>
+                            }
+                          </div>
+
+                          <div class="col-last">
+                            @if (item.lastTrainedAt) {
+                              <span>{{ formatDate(item.lastTrainedAt) }}</span>
+                            } @else {
+                              <span class="muted">Never</span>
+                            }
+                          </div>
+
+                          <div class="col-next">
+                            @if (item.nextDueDate) {
+                              <span [class.overdue-text]="item.status === 'overdue'" [class.due-soon-text]="item.status === 'dueSoon'">
+                                {{ formatDate(item.nextDueDate) }}
+                              </span>
+                              @if (item.daysUntilDue !== undefined) {
+                                <span class="days-indicator">
+                                  @if (item.daysUntilDue < 0) {
+                                    ({{ -item.daysUntilDue }}d overdue)
+                                  } @else if (item.daysUntilDue === 0) {
+                                    (Today)
+                                  } @else {
+                                    ({{ item.daysUntilDue }}d)
+                                  }
+                                </span>
+                              }
+                            } @else {
+                              <span class="muted">—</span>
+                            }
+                          </div>
+
+                          <div class="col-cadence">
+                            <span>{{ getCadenceLabel(item.trainingCadence) }}</span>
+                          </div>
+
+                          <div class="col-compliance">
+                            @if (item.complianceStats && item.complianceStats.total > 0) {
+                              <div class="compliance-badge" [class.full]="item.complianceStats.percentage === 100" [class.low]="item.complianceStats.percentage < 50">
+                                <mat-icon>{{ item.complianceStats.percentage === 100 ? 'check_circle' : 'people' }}</mat-icon>
+                                {{ item.complianceStats.current }}/{{ item.complianceStats.total }}
+                              </div>
+                            } @else {
+                              <span class="muted">—</span>
+                            }
+                          </div>
+
+                          <div class="col-actions">
+                            <button 
+                              mat-icon-button 
+                              color="accent"
+                              class="start-action" 
+                              matTooltip="Start training" 
+                              (click)="startTraining(item, $event)">
+                              <mat-icon>play_arrow</mat-icon>
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                }
+              </section>
+            }
+          }
+        }
+
+        <!-- Library View -->
+        @if ((viewMode$ | async) === 'library') {
+          @if (!customArticle) {
+            <section class="library-section">
+              <div class="section-header">
+                <div>
+                  <div class="section-title">Browse content</div>
+                  <div class="section-subtitle">Manage your training library.</div>
+                </div>
+                <div class="filter-bar">
+                  <div class="search-bar">
+                    <mat-icon>search</mat-icon>
+                    <input 
+                      type="text" 
+                      placeholder="Search articles..." 
+                      [value]="librarySearchTerm$ | async"
+                      (input)="onLibrarySearch($any($event.target).value)">
+                  </div>
+                  <button mat-flat-button color="accent" (click)="goToSmartBuilder()">
+                    <mat-icon>construction</mat-icon>
+                    Smart Builder
+                  </button>
+                  <button mat-stroked-button color="primary" (click)="createCustomArticle()">
+                    <mat-icon>add</mat-icon>
+                    Create
+                  </button>
+                  @if (libraryFilteredContent$ | async; as headerContent) {
+                    @if (headerContent.length > 0 || selectionMode) {
+                      <button 
+                        mat-icon-button 
+                        class="select-mode-btn"
+                        [class.active]="selectionMode"
+                        matTooltip="{{ selectionMode ? 'Cancel selection' : 'Select multiple' }}"
+                        (click)="toggleSelectionMode()">
+                        <mat-icon>{{ selectionMode ? 'close' : 'checklist' }}</mat-icon>
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+
+              @if (libraryFilteredContent$ | async; as content) {
+                <!-- Selection Action Bar -->
+                @if (selectionMode && selectedItems.size > 0) {
+                  <div class="selection-action-bar">
+                    <div class="selection-info">
+                      <mat-icon>check_circle</mat-icon>
+                      <span>{{ selectedItems.size }} item{{ selectedItems.size > 1 ? 's' : '' }} selected</span>
+                    </div>
+                    <div class="selection-actions">
+                      <button 
+                        mat-flat-button 
+                        color="warn"
+                        [disabled]="processingBulkAction"
+                        (click)="bulkRemoveFromLibrary()">
+                        @if (processingBulkAction) {
+                          <ng-container>
+                            <mat-icon class="spinning">sync</mat-icon>
+                            Removing...
+                          </ng-container>
+                        } @else {
+                          <ng-container>
+                            <mat-icon>delete</mat-icon>
+                            Remove Selected ({{ getRemovableSelectedCount() }})
+                          </ng-container>
+                        }
+                      </button>
+                      <button mat-button (click)="clearSelection()">
+                        Clear Selection
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                @if (content.length === 0) {
+                  <div class="empty-state">
+                    @if ((librarySearchTerm$ | async)) {
+                      <mat-icon>search_off</mat-icon>
+                      <div class="empty-title">No articles found</div>
+                      <div class="empty-body">Try adjusting your search terms.</div>
+                    } @else {
+                      <mat-icon>library_books</mat-icon>
+                      <div class="empty-title">Your library is empty</div>
+                      <div class="empty-body">Use the Smart Builder to create training content, or create an article from scratch.</div>
+                    }
+                  </div>
+                } @else {
+                  <div class="library-table">
+                    <!-- Table Header -->
+                    <div class="table-header library-header" [class.with-checkbox]="selectionMode">
+                      @if (selectionMode) {
+                        <div class="col-checkbox">
+                          <mat-checkbox 
+                            [checked]="isAllSelected(content)"
+                            [indeterminate]="isSomeSelected(content)"
+                            (change)="toggleSelectAll(content)">
+                          </mat-checkbox>
+                        </div>
+                      }
+                      <div class="col-thumb"></div>
+                      <div class="col-name sortable" (click)="toggleLibrarySort('name')" [class.active]="(librarySort$ | async)?.column === 'name'">
+                        Name
+                        @if ((librarySort$ | async)?.column === 'name') {
+                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                        }
+                      </div>
+                      <div class="col-industry sortable" (click)="toggleLibrarySort('industry')" [class.active]="(librarySort$ | async)?.column === 'industry'">
+                        Industry
+                        @if ((librarySort$ | async)?.column === 'industry') {
+                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                        }
+                      </div>
+                      <div class="col-topic sortable" (click)="toggleLibrarySort('topic')" [class.active]="(librarySort$ | async)?.column === 'topic'">
+                        Topic
+                        @if ((librarySort$ | async)?.column === 'topic') {
+                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                        }
+                      </div>
+                      <div class="col-actions">Actions</div>
+                    </div>
+
+                    <!-- Table Rows -->
+                    @for (article of content; track trackByArticleId($index, article)) {
+                      <div 
+                        class="table-row library-row" 
+                        [class.checked]="isItemSelected(article)"
+                        [class.with-checkbox]="selectionMode"
+                        (click)="selectionMode ? toggleItemSelection(article) : selectArticle(article)">
+                        
+                        @if (selectionMode) {
+                          <div class="col-checkbox" (click)="$event.stopPropagation()">
+                            <mat-checkbox 
+                              [checked]="isItemSelected(article)"
+                              (change)="toggleItemSelection(article)">
+                            </mat-checkbox>
+                          </div>
+                        }
+
+                        <div class="col-thumb">
+                          <img [src]="article.thumbnail || '/assets/chimpTop.png'" alt="" onerror="this.src='/assets/chimpTop.png'">
+                        </div>
+
+                        <div class="col-name">
+                          <span class="training-title">{{ article.name }}</span>
+                          @if (article.assignedTags?.length) {
+                            <div class="article-tags">
+                              @for (tag of article.assignedTags; track tag) {
+                                <span 
+                                  class="mini-tag"
+                                  [style.backgroundColor]="getTagColor(tag).bg"
+                                  [style.color]="getTagColor(tag).text"
+                                  [style.borderColor]="getTagColor(tag).border">
+                                  {{ tag }}
+                                </span>
+                              }
+                            </div>
+                          }
+                        </div>
+
+                        <div class="col-industry">
+                          <span>{{ article.industry || '—' }}</span>
+                        </div>
+
+                        <div class="col-topic">
+                          <span>{{ article.topic || '—' }}</span>
+                        </div>
+
+                        <div class="col-actions">
+                          <button 
+                            mat-icon-button 
+                            color="accent"
+                            matTooltip="Start training" 
+                            (click)="startTrainingFromLibrary(article); $event.stopPropagation()">
+                            <mat-icon>play_arrow</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              } @else {
+                <div class="loading-state">
+                  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                  <div class="loading-text">Loading articles...</div>
+                </div>
+              }
+            </section>
+          } @else {
+            <app-create-edit-article [articleId]="selectedArticle?.id" (closed)="closeCustomArticle()"></app-create-edit-article>
+          }
+        }
+
+        <!-- History View -->
+        @if ((viewMode$ | async) === 'history') {
+          @if (trainingHistory.length === 0) {
+            <div class="empty-state">
+              <mat-icon class="empty-icon">history</mat-icon>
+              <div class="empty-title">No training history yet</div>
+              <div class="empty-body">
+                Once you run training sessions, they'll appear here so you can review attendance and track progress.
+              </div>
+              <button mat-flat-button color="accent" (click)="goToLibrary()">
+                <mat-icon>play_circle</mat-icon>
+                Start a Training
+              </button>
+            </div>
+          } @else {
+            <section class="history-section">
+              <div class="section-header">
+                <div>
+                  <div class="section-title">Training history</div>
+                  <div class="section-subtitle">Review past training sessions and attendance.</div>
+                </div>
+                <div class="search-bar">
+                  <mat-icon>search</mat-icon>
+                  <input 
+                    type="text" 
+                    placeholder="Search sessions..." 
+                    [value]="searchTerm$ | async"
+                    (input)="onSearch($any($event.target).value)">
+                </div>
+              </div>
+
+              @if (filteredHistory$ | async; as history) {
+                @if (history.length === 0) {
+                  <div class="no-results">
+                    <mat-icon>search_off</mat-icon>
+                    <div>No training sessions match your search.</div>
+                  </div>
+                } @else {
+                  <div class="history-table">
+                    <!-- Table Header -->
+                    <div class="table-header history-header">
+                      <div class="col-date">Date</div>
+                      <div class="col-title">Training</div>
+                      <div class="col-trainer">Trainer</div>
+                      <div class="col-attendees">Attendees</div>
+                      <div class="col-actions">Actions</div>
+                    </div>
+
+                    <!-- Table Rows -->
+                    @for (item of history; track trackByHistoryId($index, item)) {
+                      <div class="table-row history-row" (click)="viewHistoryArticle(item)">
+                        <div class="col-date">
+                          <span class="date-primary">{{ formatDate(item.createdAt) }}</span>
+                          <span class="date-time">{{ formatTime(item.createdAt) }}</span>
+                        </div>
+
+                        <div class="col-title">
+                          <span class="training-title">{{ item.title || 'Untitled Training' }}</span>
+                          @if (item.category) {
+                            <span class="training-topic">{{ item.category }}</span>
+                          }
+                        </div>
+
+                        <div class="col-trainer">
+                          <span class="trainer-name">{{ item.creator }}</span>
+                        </div>
+
+                        <div class="col-attendees">
+                          <span class="attendee-badge" [class.has-attendees]="getAttendeeCount(item) > 0">
+                            <mat-icon>people</mat-icon>
+                            {{ getAttendeeCount(item) }}
+                          </span>
+                        </div>
+
+                        <div class="col-actions">
+                          <button 
+                            mat-icon-button 
+                            matTooltip="View session details" 
+                            (click)="viewHistoryDetails(item); $event.stopPropagation()">
+                            <mat-icon>visibility</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </section>
+          }
+        }
+      }
+    </div>

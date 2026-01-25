@@ -1,4 +1,4 @@
-import { Component, Inject } from "@angular/core";
+import { Component } from "@angular/core";
 import { Router, NavigationEnd, RouterModule } from "@angular/router";
 import { CommonModule } from "@angular/common";
 import { AppService } from "./app.service";
@@ -9,8 +9,8 @@ import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
-import { SignUpComponent } from "./sign-up/sign-up.component";
-declare var gtag: Function;
+import { FooterComponent } from "./footer/footer.component";
+import { AnalyticsService, FunnelStep } from "./shared/analytics.service";
 
 @Component({
   standalone: true,
@@ -25,35 +25,49 @@ declare var gtag: Function;
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    SignUpComponent
+    FooterComponent
   ]
 })
 export class AppComponent {
   open: boolean = false;
   body: HTMLElement;
+  
+  // Check if we're on an account/user route (uses window.location for immediate availability)
+  get isAccountRoute(): boolean {
+    const path = window.location.pathname;
+    return path.startsWith('/account') || path.startsWith('/user');
+  }
 
   constructor(
     public router: Router,
     public appService: AppService,
-    public auth: Auth
+    public auth: Auth,
+    private analytics: AnalyticsService
   ) {
+    // Page view tracking is handled by AnalyticsService
+    // Just handle scroll reset here
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
-        gtag("config", "UA-125391496-1", { page_path: event.url });
+        document.getElementById("scroll")?.scrollTop && (document.getElementById("scroll").scrollTop = 0);
       }
-      if (!(event instanceof NavigationEnd)) {
-        return;
-      }
-      document.getElementById("scroll").scrollTop = 0;
     });
+    
+    // Listen for auth state changes and mark auth as ready once determined
+    onAuthStateChanged(this.auth, user => {
+      if (user && user.uid) {
+        this.appService.isLoggedIn = true;
+        // Set user ID for analytics attribution
+        this.analytics.setUserId(user.uid);
+      } else {
+        // Clear user from analytics on logout
+        this.analytics.clearUser();
+      }
+      this.appService.isAuthReady = true;
+    });
+    
     if (localStorage.getItem("cc-user")) {
       //they have been here before
       this.appService.isUser = true;
-      onAuthStateChanged(this.auth, user => {
-        if (user && user.uid) {
-          this.appService.isLoggedIn = true;
-        }
-      });
     }
   }
 
@@ -72,10 +86,7 @@ export class AppComponent {
       if (user && user.uid) {
         this.router.navigate(["account"]);
       } else {
-        gtag("event", "click", {
-          event_category: "sign up funnel",
-          event_label: "toolbar button"
-        });
+        this.analytics.trackCTA('sign_up', 'toolbar');
         this.router.navigate(["/sign-up"]);
       }
     });

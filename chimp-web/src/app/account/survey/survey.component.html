@@ -1,49 +1,183 @@
+<div class="page-layout">
 <mat-toolbar>
-  <button mat-icon-button (click)="goBack()">
+  <button mat-icon-button class="toolbar-back-mobile" (click)="goBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  Survey&nbsp;<a style="cursor: pointer" (click)="editSurvey(1)">{{ title }}</a>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
+  <div class="toolbar-title">Training Survey</div>
   <div class="flex"></div>
+  <button mat-button class="toolbar-button" (click)="export()">
+    <mat-icon>download</mat-icon>
+    Export PDF
+  </button>
 </mat-toolbar>
 
-<div id="chat-bubbles">
-  <div class="chat-line">
-    <div
-      class="bubble"
-      style="margin-left: auto; background: #BBDEFB; color: #0D47A1; cursor: pointer;"
-    >
-    <button mat-button color="primary" (click)="export()">EXPORT TO PDF</button>
-    </div>
-  </div>
-  <div class="chat-line">
-    <div
-      class="bubble"
-      style="margin-left: auto; background: #BBDEFB; color: #0D47A1; cursor: pointer;"
-      (click)="editSurvey(1)"
-    >
-      {{ survey?.title }}
-    </div>
-  </div>
-  
-  <div class="chat-line" *ngFor="let response of responses">
-    <div class="circle-container">
-      <div class="circle" [ngStyle]="{ background: response?.color }"></div>
-      <span [ngStyle]="{ color: response?.color }">{{response?.user?.name?.charAt(0)}}</span>
-      <img [src]="response?.user?.profileUrl" onerror="this.style.display='none'"/>
-    </div>
-    <div class="flexcol">
-      <span class="user" [ngStyle]="{ color: response?.color }">{{response?.user?.name}}</span>
-      <div class="bubble">
-        {{response.shortAnswer}}
-        <span *ngIf="response.shortAnswer">.&nbsp;</span>
-        {{ response.longAnswer }}
-        <br>
-        <br>
-        <img class="bi" *ngIf="response.signatureUrl" [src]="response.signatureUrl">
+<div class="page-content">
+  <div class="content-wrapper">
+    <!-- Survey Details Section -->
+    <section class="survey-header" *ngIf="survey">
+      <div class="header-content">
+        <button mat-icon-button class="back-btn desktop-only" (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div class="header-info">
+          <div class="header-category">
+            <mat-icon>poll</mat-icon>
+            <span>{{ survey.category || 'Training Survey' }}</span>
+          </div>
+          <h1 class="header-title">{{ survey.title }}</h1>
+          <div class="header-meta">
+            <div class="meta-item">
+              <mat-icon>calendar_today</mat-icon>
+              <span>Created {{ survey.createdAt | date:'MMM d, y' }}</span>
+            </div>
+            <div class="meta-item" *ngIf="sender">
+              <mat-icon>person</mat-icon>
+              <span>by {{ sender.name }}</span>
+            </div>
+            <div class="meta-item">
+              <mat-icon>group</mat-icon>
+              <span>{{ tmGroup?.length || 0 }} recipients</span>
+            </div>
+          </div>
+        </div>
+        <button mat-flat-button color="primary" class="edit-btn desktop-only" (click)="editSurvey(1)">
+          <mat-icon>edit</mat-icon>
+          Edit Survey
+        </button>
       </div>
-    </div>
+    </section>
+
+    <!-- Statistics Dashboard -->
+    <section class="stats-dashboard" *ngIf="survey">
+      <div class="metrics-grid">
+        <!-- Total Responses -->
+        <div class="metric-card">
+          <div class="metric-icon responses">
+            <mat-icon>chat</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Responses</div>
+            <div class="metric-value">{{ responses.length }}</div>
+          </div>
+          <div class="metric-detail">
+            of {{ tmGroup?.length || 0 }} sent
+          </div>
+        </div>
+
+        <!-- Response Rate -->
+        <div class="metric-card">
+          <div class="metric-icon" [class.success]="responseRate >= 75" [class.warning]="responseRate < 75 && responseRate >= 50" [class.error]="responseRate < 50">
+            <mat-icon>percent</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Response Rate</div>
+            <div class="metric-value">{{ responseRate }}%</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="responseRate" [class.success]="responseRate >= 75" [class.warning]="responseRate < 75 && responseRate >= 50" [class.error]="responseRate < 50"></div>
+          </div>
+        </div>
+
+        <!-- Yes Responses -->
+        <div class="metric-card">
+          <div class="metric-icon success">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Yes Responses</div>
+            <div class="metric-value success-text">{{ yesCount }}</div>
+          </div>
+          <div class="metric-detail">
+            {{ yesPercent }}% of responses
+          </div>
+        </div>
+
+        <!-- No Responses -->
+        <div class="metric-card">
+          <div class="metric-icon" [class.error]="noCount > 0" [class.neutral]="noCount === 0">
+            <mat-icon>cancel</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">No Responses</div>
+            <div class="metric-value" [class.error-text]="noCount > 0">{{ noCount }}</div>
+          </div>
+          <div class="metric-detail">
+            {{ noPercent }}% of responses
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recipients Overview -->
+    <section class="recipients-section" *ngIf="tmGroup?.length > 0">
+      <div class="section-header">
+        <mat-icon>groups</mat-icon>
+        <h2>Recipients</h2>
+        <span class="count-badge">{{ tmGroup.length }}</span>
+      </div>
+      <div class="recipients-grid">
+        <div class="recipient-chip" *ngFor="let tm of tmGroup" [class.responded]="hasResponded(tm.id)">
+          <div class="recipient-avatar" [style.background]="tm.color + '20'" [style.color]="tm.color">
+            <span *ngIf="!tm.profileUrl">{{ tm.name?.charAt(0) }}</span>
+            <img *ngIf="tm.profileUrl" [src]="tm.profileUrl" [alt]="tm.name" />
+          </div>
+          <span class="recipient-name">{{ tm.name }}</span>
+          <mat-icon class="responded-icon" *ngIf="hasResponded(tm.id)">check_circle</mat-icon>
+          <mat-icon class="pending-icon" *ngIf="!hasResponded(tm.id)">schedule</mat-icon>
+        </div>
+      </div>
+    </section>
+
+    <!-- Responses Section -->
+    <section class="responses-section">
+      <div class="section-header">
+        <mat-icon>forum</mat-icon>
+        <h2>Responses</h2>
+        <span class="count-badge" [class.empty]="responses.length === 0">{{ responses.length }}</span>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="responses.length === 0">
+        <div class="empty-icon">
+          <mat-icon>inbox</mat-icon>
+        </div>
+        <h3>No responses yet</h3>
+        <p>Team members haven't responded to this survey yet. They'll appear here once they submit their answers.</p>
+      </div>
+
+      <!-- Response Cards -->
+      <div class="responses-list" *ngIf="responses.length > 0">
+        <div class="response-card" *ngFor="let response of responses">
+          <div class="response-header">
+            <div class="responder-avatar" [style.background]="response.color + '20'" [style.color]="response.color">
+              <span *ngIf="!response.user?.profileUrl">{{ response.user?.name?.charAt(0) }}</span>
+              <img *ngIf="response.user?.profileUrl" [src]="response.user.profileUrl" [alt]="response.user?.name" />
+            </div>
+            <div class="responder-info">
+              <div class="responder-name">{{ response.user?.name || 'Unknown' }}</div>
+              <div class="response-date">{{ formatDate(response.createdAt) }}</div>
+            </div>
+            <div class="response-badge" [class.yes]="response.shortAnswer?.toLowerCase() === 'yes'" [class.no]="response.shortAnswer?.toLowerCase() === 'no'">
+              <mat-icon>{{ response.shortAnswer?.toLowerCase() === 'yes' ? 'check' : 'close' }}</mat-icon>
+              {{ response.shortAnswer }}
+            </div>
+          </div>
+          
+          <div class="response-body" *ngIf="response.longAnswer">
+            <div class="response-label">Additional Comments</div>
+            <div class="response-content">{{ response.longAnswer }}</div>
+          </div>
+          
+          <div class="response-signature" *ngIf="response.signatureUrl">
+            <div class="signature-label">Signature</div>
+            <div class="signature-container">
+              <img [src]="response.signatureUrl" alt="Signature" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
-  <span class="date" *ngIf="responses.length == 0"
-    >No responses yet</span
-  >
+</div>
 </div>

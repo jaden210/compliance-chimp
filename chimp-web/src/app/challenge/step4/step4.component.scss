@@ -1,0 +1,604 @@
+.step-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.step-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 960px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.step-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.step-indicator {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.step-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--chimp-text-primary);
+}
+
+.step-subtitle {
+  font-size: 16px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+}
+
+// Info Banner
+.info-banner {
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  
+  > mat-icon {
+    color: var(--chimp-accent);
+    flex-shrink: 0;
+  }
+  
+  .info-text {
+    strong {
+      font-size: 14px;
+      color: var(--chimp-text-primary);
+    }
+    
+    p {
+      font-size: 13px;
+      color: var(--chimp-text-secondary);
+      margin: 4px 0 0 0;
+    }
+  }
+}
+
+// QuickBooks Section
+.quickbooks-section {
+  margin-bottom: 24px;
+}
+
+.qb-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--chimp-bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  
+  &.connected {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+  }
+  
+  .qb-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    img {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    
+    mat-icon {
+      font-size: 32px;
+      height: 32px;
+      width: 32px;
+      color: var(--chimp-primary);
+    }
+  }
+  
+  .qb-content {
+    flex: 1;
+    
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: var(--chimp-text-primary);
+    }
+    
+    p {
+      font-size: 13px;
+      color: var(--chimp-text-secondary);
+      margin: 0;
+    }
+  }
+  
+  .connected-icon {
+    color: #4caf50;
+  }
+  
+  .connected-text {
+    flex: 1;
+    font-weight: 500;
+    color: #2e7d32;
+  }
+  
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.qb-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f44336;
+  font-size: 13px;
+  margin-top: 8px;
+  
+  mat-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+}
+
+// Divider
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+  
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--chimp-border);
+  }
+  
+  span {
+    font-size: 13px;
+    color: var(--chimp-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+// Members Table (inline input style - matches account/team)
+.members-table {
+  display: flex;
+  flex-direction: column;
+  background: var(--chimp-bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-border-light, rgba(0,0,0,0.08));
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1.2fr 1.3fr 90px;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--chimp-bg-secondary, #f8f9fa);
+  border-bottom: 1px solid var(--chimp-border-light, rgba(0,0,0,0.08));
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--chimp-text-hint, #999);
+  
+  .col-tags {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.help-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--chimp-text-hint, #999);
+  cursor: pointer;
+  transition: color 150ms ease;
+  
+  &:hover {
+    color: var(--chimp-primary);
+  }
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1.2fr 1.3fr 90px;
+  gap: 8px;
+  padding: 8px 16px;
+  align-items: start;
+  
+  &.add-row {
+    background: var(--chimp-surface-container, #fafafa);
+    
+    .inline-input::placeholder {
+      color: var(--chimp-primary);
+      font-weight: 500;
+    }
+  }
+}
+
+.col-name,
+.col-job,
+.col-contact,
+.col-tags,
+.col-actions {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.col-tags {
+  app-tag-input {
+    display: block;
+    width: 100%;
+  }
+}
+
+// Member display styles (for existing rows)
+.member-name-display {
+  font-weight: 500;
+  color: var(--chimp-text-primary);
+  padding: 8px 10px;
+}
+
+.member-job-display,
+.member-contact-display {
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  padding: 8px 10px;
+}
+
+.member-tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 6px;
+  border-radius: 14px;
+  border: 1px solid;
+  font-size: 12px;
+  
+  .tag-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  
+  .tag-name {
+    font-weight: 500;
+  }
+}
+
+.no-tags {
+  color: var(--chimp-text-hint, #999);
+  padding: 8px 10px;
+}
+
+.remove-btn {
+  color: var(--chimp-text-secondary);
+  
+  &:hover {
+    color: #f44336;
+  }
+}
+
+.inline-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 14px;
+  color: var(--chimp-text-primary);
+  transition: all 150ms ease;
+  
+  &:hover {
+    background: var(--chimp-bg-secondary, #f5f5f5);
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: var(--chimp-primary);
+    background: var(--chimp-bg-primary);
+  }
+  
+  &::placeholder {
+    color: var(--chimp-text-hint, #999);
+  }
+  
+  &.input-error {
+    border-color: var(--chimp-error, #f44336);
+    background: var(--chimp-error-bg, #ffebee);
+  }
+}
+
+.contact-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.contact-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  mat-slide-toggle {
+    transform: scale(0.8);
+    transform-origin: left center;
+  }
+  
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--chimp-text-hint, #999);
+  }
+}
+
+.email-input {
+  margin-top: 2px;
+}
+
+.col-actions {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.add-btn {
+  white-space: nowrap;
+  min-width: unset;
+  padding: 0 12px;
+}
+
+
+// Empty State
+.empty-state {
+  text-align: center;
+  padding: 32px;
+  color: var(--chimp-text-secondary);
+  
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+// Actions
+.step-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.back-btn {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 16px;
+  border-radius: 24px;
+  
+  mat-icon {
+    margin-right: 8px;
+  }
+}
+
+.next-btn {
+  height: 48px;
+  padding: 0 32px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 24px;
+  
+  mat-icon {
+    margin-left: 8px;
+  }
+}
+
+// Responsive
+@media screen and (max-width: 768px) {
+  .table-header {
+    display: none;
+  }
+  
+  .table-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+  
+  .col-name,
+  .col-job,
+  .col-contact,
+  .col-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    
+    &::before {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--chimp-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  .col-name::before { content: 'Name'; }
+  .col-job::before { content: 'Job Title'; }
+  .col-contact::before { content: 'Contact'; }
+  .col-tags::before { content: 'Tags'; }
+  
+  .col-actions {
+    margin-top: 8px;
+  }
+  
+  .add-btn {
+    width: 100%;
+  }
+  
+  .contact-fields {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .step-container {
+    padding: 24px 16px;
+  }
+  
+  .step-card {
+    padding: 32px 24px;
+  }
+  
+  .step-header h1 {
+    font-size: 24px;
+  }
+  
+  .info-banner {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  .qb-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px 16px;
+    
+    button {
+      width: 100%;
+      min-height: 44px;
+    }
+  }
+  
+  .contact-toggle {
+    mat-slide-toggle {
+      transform: scale(0.9);
+    }
+  }
+  
+  .table-row {
+    padding: 20px 16px;
+    gap: 16px;
+    border-bottom: 1px solid var(--chimp-border-light, rgba(0,0,0,0.08));
+    
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+  
+  .inline-input {
+    padding: 12px;
+    font-size: 16px;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+  
+  .add-btn {
+    min-height: 44px;
+  }
+  
+  .remove-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .step-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .back-btn,
+  .next-btn {
+    width: 100%;
+    min-height: 48px;
+  }
+}
+
+// Extra Small Mobile
+@media screen and (max-width: 374px) {
+  .step-container {
+    padding: 16px 12px;
+  }
+  
+  .step-card {
+    padding: 24px 16px;
+  }
+  
+  .step-header h1 {
+    font-size: 20px;
+  }
+  
+  .step-subtitle {
+    font-size: 14px;
+  }
+  
+  .info-banner .info-text {
+    strong {
+      font-size: 13px;
+    }
+    
+    p {
+      font-size: 12px;
+    }
+  }
+  
+  .qb-card {
+    .qb-content {
+      h3 {
+        font-size: 14px;
+      }
+      
+      p {
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .divider span {
+    font-size: 11px;
+  }
+}

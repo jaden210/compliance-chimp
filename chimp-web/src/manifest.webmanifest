@@ -6,21 +6,73 @@
   "display": "standalone",
   "scope": "/",
   "start_url": "/user",
-  "description": "Safety training, OSHA compliance, injury reporting, and self-inspections.",
+  "description": "Simplify OSHA compliance for your small business. Safety training, self-inspections, injury reporting, and compliance tracking—all in one platform.",
   "icons": [
     {
-      "src": "assets/chimp.png",
+      "src": "assets/maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
-      "src": "assets/chimpFace.png",
+      "src": "assets/maskable-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/maskable-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
     }
   ],
-  "categories": ["business", "productivity"],
-  "orientation": "portrait-primary"
+  "categories": ["business", "productivity", "utilities"],
+  "orientation": "portrait-primary",
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "assets/screens.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Compliance Chimp Dashboard"
+    }
+  ]
 }

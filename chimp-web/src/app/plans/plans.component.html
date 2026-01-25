@@ -1,47 +1,147 @@
-<h1>Start for Free</h1>
-<div class="more">Our free trial delivers real value. Enjoy Compliancechimp free for the first 500 survey requests, or 120 days, whichever comes first. We won't even ask for a card. If you decide to continue, simply choose the plan that fits your organization.</div>
-<div class="plans">
-  <div class="plan mat-elevation-z2" *ngFor="let plan of plans" [class.middle]="plan.mostPopular">
-    <!-- <div class="badge"><div class="b-icon" *ngIf="plan.mostPopular">Most Popular</div></div> -->
-    <div class="p-title">Team</div>
-    <div class="p-body">For organizations with 500 or fewer workers</div>
-    <div class="checklist">
-      ✓ Safety training and surveys<br>
-      ✓ Near miss and injury reporting<br>
-      ✓ Unlimited training articles<br>
-      ✓ Self-inspection<br>
-      ✓ Events tracking and reporting<br>
-      ✓ Easy to manage admin suite<br>
-      ✓ 500 free survey responses, or<br>
-      ✓ 120 days free, no card required<br>
-    </div>
-    <div class="price">$2 per user per month</div>
-    <button mat-raised-button color="primary" routerLink="/sign-up">Start Your Free Trial</button>
+<div class="plans-page">
+  <div class="hero">
+    <h1>Simple, Honest Pricing</h1>
+    <p class="subtitle">One plan. One price. Everything included.</p>
   </div>
-  <div class="plan mat-elevation-z2" *ngFor="let plan of plans" [class.middle]="plan.mostPopular">
-    <!-- <div class="badge"><div class="b-icon" *ngIf="plan.mostPopular">Most Popular</div></div> -->
-    <div class="p-title">Enterprise</div>
-    <div class="p-body">For organizations with greater than 500 workers</div>
-    <div class="checklist">
-      ✓ Safety training and surveys<br>
-      ✓ Near miss and injury reporting<br>
-      ✓ Unlimited training articles<br>
-      ✓ Self-inspection<br>
-      ✓ Events tracking and reporting<br>
-      ✓ Easy to manage admin suite<br>
-      ✓ 500 free survey responses, or<br>
-      ✓ 120 days free, no card required<br>
-    </div>
-    <div class="price">Let's talk</div>
-    <button mat-raised-button color="primary" routerLink="/sign-up">Start Your Free Trial</button>
-  </div>
-</div>
-<div class="container">
-  <img src="/assets/chimp.png" class="responsive-image"/>
-</div>
-<div class="chimp-text">
-  "You want to know what <em>is cool?</em> Safety."<br>
-  - The Chimp
-</div>
 
-<!-- <div class="bottom"><a routerLink="/sign-in">or sign into your account</a></div> -->
+  <div class="pricing-container">
+    <div class="plan-card featured">
+      <div class="ribbon">Best Value</div>
+      
+      <div class="plan-header">
+        <h2>Compliancechimp</h2>
+        <p class="tagline">Complete Safety Compliance Platform</p>
+      </div>
+
+      <div class="price-section">
+        <div class="price">
+          <span class="currency">$</span>
+          <span class="amount">99</span>
+          <span class="period">/month</span>
+        </div>
+        <p class="price-note">14-day free trial. No credit card required.</p>
+      </div>
+
+      <div class="features">
+        <div class="feature-group">
+          <h3>Core Features</h3>
+          <ul>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Unlimited team members</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Safety training & verification</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Unlimited training articles</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Survey distribution & tracking</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="feature-group">
+          <h3>Reporting & Compliance</h3>
+          <ul>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Near miss reporting</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Injury & incident reports</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Self-inspection tools</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Events tracking & audit logs</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="feature-group">
+          <h3>Platform Benefits</h3>
+          <ul>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Secure cloud storage</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Mobile-friendly access</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Easy admin dashboard</span>
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              <span>Priority support</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="cta-section">
+        <button mat-raised-button class="cta-button" (click)="startTrial()">
+          Start Free Trial
+        </button>
+        <p class="guarantee">14-day free trial — no credit card</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="enterprise-section">
+    <div class="enterprise-card">
+      <div class="enterprise-content">
+        <div class="enterprise-text">
+          <h2>Enterprise</h2>
+          <p>For organizations with 500+ workers or custom compliance needs</p>
+        </div>
+        <div class="enterprise-features">
+          <span><mat-icon>verified</mat-icon> Custom integrations</span>
+          <span><mat-icon>verified</mat-icon> Dedicated support</span>
+          <span><mat-icon>verified</mat-icon> Custom training content</span>
+        </div>
+      </div>
+      <a mat-stroked-button class="contact-btn" routerLink="/contact">
+        Contact Sales
+      </a>
+    </div>
+  </div>
+
+  <div class="faq-section">
+    <h2>Questions?</h2>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <h3>What's included in the $99/month?</h3>
+        <p>Everything! Unlimited team members, all features, no hidden fees. The same tools whether you have 5 employees or 500.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Can I cancel anytime?</h3>
+        <p>Absolutely. No long-term contracts. Cancel your subscription anytime from your account settings.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Is there a free trial?</h3>
+        <p>Yes! You get 14 days completely free with no credit card required. Try all features with no commitment—billing starts after 14 days.</p>
+      </div>
+      <div class="faq-item">
+        <h3>How does billing work?</h3>
+        <p>You'll be billed monthly via credit card through Stripe. Secure, simple, and transparent.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chimp-quote">
+    <img src="/assets/chimp.png" alt="Compliancechimp mascot" class="chimp-img"/>
+    <p>"You want to know what <em>is cool?</em> Safety."<br>— The Chimp</p>
+  </div>
+</div>

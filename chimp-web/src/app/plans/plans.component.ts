@@ -4,33 +4,38 @@ import { RouterModule } from "@angular/router";
 import { Title, Meta } from '@angular/platform-browser';
 import { Router } from "@angular/router";
 import { MatButtonModule } from "@angular/material/button";
-import { AppService, SubscriptionPlan } from "../app.service";
+import { MatIconModule } from "@angular/material/icon";
+import { AnalyticsService, EngagementEvent } from "../shared/analytics.service";
 
 @Component({
   standalone: true,
   templateUrl: "./plans.component.html",
   styleUrls: ["./plans.component.scss"],
-  imports: [CommonModule, RouterModule, MatButtonModule]
+  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule]
 })
 export class PlansComponent implements OnInit {
-
-  public plans: SubscriptionPlan[] = [];
 
   constructor(
     private titleService: Title,
     private metaTagService: Meta,
     private _router: Router,
-    private _appService: AppService
-    ) {
-    }
+    private analytics: AnalyticsService
+  ) {
+    this.titleService.setTitle('Pricing - Compliancechimp');
+    this.metaTagService.updateTag({ 
+      name: 'description', 
+      content: 'Simple, flat-rate pricing for safety compliance. $99/month for unlimited team members.' 
+    });
+  }
 
-    ngOnInit() {
-      this._appService.getSubscriptionPlans().subscribe(plans => {
-        this.plans = plans;
-      });
-    }
+  ngOnInit(): void {
+    // Track pricing page view
+    this.analytics.trackEngagement(EngagementEvent.PRICING_VIEWED);
+  }
 
-    public selectPlan(plan: SubscriptionPlan) {
-      this._router.navigate(['billing']);
-    }
+  public startTrial() {
+    // Track CTA click from pricing page
+    this.analytics.trackCTA('start_trial', 'pricing_page');
+    this._router.navigate(['/sign-up']);
+  }
 }

@@ -1,7 +1,7 @@
-import { Component } from "@angular/core";
+import { Component, signal, OnInit, OnDestroy } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { RouterModule } from "@angular/router";
-import { SelfInspectionsService, SelfInspection, Inspection } from "../self-inspections.service";
+import { SelfInspectionsService, SelfInspection, Inspection, CoverageAnalysis, CoverageRecommendation, AutoBuildProgress } from "../self-inspections.service";
 import { AccountService } from "../../account.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { MatToolbarModule } from "@angular/material/toolbar";
@@ -9,10 +9,11 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatChipsModule } from "@angular/material/chips";
-import { Observable, BehaviorSubject, combineLatest, forkJoin, of } from "rxjs";
-import { filter, map, shareReplay, switchMap, take } from "rxjs/operators";
+import { Observable, BehaviorSubject, combineLatest, forkJoin, of, Subject } from "rxjs";
+import { filter, map, shareReplay, switchMap, take, debounceTime, takeUntil, distinctUntilChanged } from "rxjs/operators";
 
 export type FilterType = 'all' | 'inProgress' | 'lastInspected' | 'dueSoon' | 'overdue';
 export type SortColumn = 'status' | 'name' | 'lastCompleted' | 'nextDue' | 'frequency' | null;
@@ -43,23 +44,37 @@ export interface SelfInspectionWithStatus extends SelfInspection {
     MatIconModule,
     MatTooltipModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatButtonToggleModule,
     MatChipsModule
   ],
   providers: [DatePipe]
 })
-export class SelfInspectionsListComponent {
+export class SelfInspectionsListComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
 
   selfInspections$: Observable<SelfInspectionWithStatus[]>;
   filteredInspections$: Observable<SelfInspectionWithStatus[]>;
   activeFilter$ = new BehaviorSubject<FilterType>('all');
   sort$ = new BehaviorSubject<SortState>({ column: null, direction: 'asc' });
+  
+  // Coverage analysis state
+  coverageAnalysis$ = new BehaviorSubject<CoverageAnalysis | null>(null);
+  coverageLoading = signal(false);
+  coverageError = signal<string | null>(null);
+  coverageCollapsed = signal(this.loadCoverageCollapsedState());
+  private analysisInProgress = false;
+
+  // Auto-build state
+  autoBuildActive = signal(false);
+  autoBuildProgress = signal<AutoBuildProgress | null>(null);
+  private autoBuildCancelFn: (() => void) | null = null;
 
   constructor(
     public router: Router,
     public route: ActivatedRoute,
     private selfInspectionsService: SelfInspectionsService,
-    public accountService: AccountService,
+    public accountService: AccountService
   ) {
     this.selfInspections$ = this.accountService.aTeamObservable.pipe(
       filter(team => !!team),
@@ -86,6 +101,204 @@ export class SelfInspectionsListComponent {
     this.filteredInspections$ = combineLatest([this.selfInspections$, this.activeFilter$, this.sort$]).pipe(
       map(([inspections, filterType, sort]) => this.applyFilterAndSort(inspections, filterType, sort))
     );
+  }
+
+  ngOnInit(): void {
+    // Subscribe to team changes to pick up cached coverage analysis
+    // This ensures we react when the Cloud Function stores new analysis
+    this.accountService.aTeamObservable.pipe(
+      filter(team => !!team),
+      takeUntil(this.destroy$)
+    ).subscribe(team => {
+      // If team has a valid, non-stale coverage analysis, use it
+      if (team.coverageAnalysis && !team.coverageAnalysisStale && team.coverageAnalysis.success) {
+        this.coverageAnalysis$.next(team.coverageAnalysis);
+        this.coverageLoading.set(false);
+      }
+    });
+
+    // Subscribe to inspection changes with debounce to trigger coverage analysis
+    this.selfInspections$.pipe(
+      debounceTime(500), // Wait for data to stabilize
+      takeUntil(this.destroy$)
+    ).subscribe(inspections => {
+      this.checkAndTriggerAnalysis(inspections);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Check if we should trigger a new analysis.
+   * Uses Firestore-cached analysis from team document when available.
+   * Only runs AI analysis if cache is stale or doesn't exist.
+   */
+  private checkAndTriggerAnalysis(inspections: SelfInspection[]): void {
+    // Don't analyze if no industry set or no team members
+    if (!this.canAnalyzeCoverage()) {
+      return;
+    }
+
+    // Skip if already running
+    if (this.analysisInProgress) {
+      return;
+    }
+
+    // Skip if we already have a valid analysis displayed
+    if (this.coverageAnalysis$.value?.success) {
+      return;
+    }
+
+    // Check for cached analysis from Firestore (stored on team document)
+    const team = this.accountService.aTeam;
+    const cachedAnalysis = team?.coverageAnalysis;
+    const isStale = team?.coverageAnalysisStale;
+    
+    console.log('[Coverage] Checking cache:', { 
+      hasCachedAnalysis: !!cachedAnalysis, 
+      isStale, 
+      cacheSuccess: cachedAnalysis?.success 
+    });
+    
+    if (cachedAnalysis && !isStale && cachedAnalysis.success) {
+      // Use cached analysis - it's valid and not stale
+      console.log('[Coverage] Using cached analysis from Firestore');
+      this.coverageAnalysis$.next(cachedAnalysis);
+      return;
+    }
+
+    // No valid cache, run the analysis
+    console.log('[Coverage] No valid cache, running analysis...');
+    this.runCoverageAnalysis(inspections);
+  }
+
+  /**
+   * Run the AI coverage analysis.
+   * The result is automatically stored in Firestore by the Cloud Function.
+   */
+  private runCoverageAnalysis(inspections: SelfInspection[]): void {
+    this.analysisInProgress = true;
+    this.coverageLoading.set(true);
+    this.coverageError.set(null);
+
+    this.selfInspectionsService.analyzeCoverage(inspections).pipe(
+      take(1),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (analysis) => {
+        this.analysisInProgress = false;
+        this.coverageLoading.set(false);
+        
+        if (analysis.success) {
+          this.coverageAnalysis$.next(analysis);
+          this.coverageError.set(null);
+        } else {
+          this.coverageError.set(analysis.error || 'Failed to analyze coverage');
+        }
+      },
+      error: (err) => {
+        this.analysisInProgress = false;
+        this.coverageLoading.set(false);
+        this.coverageError.set(err.message || 'Failed to analyze coverage');
+      }
+    });
+  }
+
+  /**
+   * Manually refresh coverage analysis
+   */
+  refreshCoverageAnalysis(): void {
+    this.selfInspections$.pipe(take(1)).subscribe(inspections => {
+      this.runCoverageAnalysis(inspections);
+    });
+  }
+
+  /**
+   * Handle clicking on a coverage recommendation
+   * Navigates to the guide with the recommendation pre-populated
+   */
+  useRecommendation(recommendation: CoverageRecommendation): void {
+    // Store the recommendation as a pending template
+    this.selfInspectionsService.setPendingTemplate({
+      title: recommendation.name,
+      frequency: recommendation.frequency,
+      baseQuestions: recommendation.baseQuestions,
+      description: recommendation.description,
+      reason: recommendation.reason
+    });
+    
+    // Navigate to the guide
+    this.router.navigate(['guide'], { relativeTo: this.route });
+  }
+
+  /**
+   * Get the score color class based on coverage score
+   */
+  getScoreColorClass(score: number): string {
+    if (score >= 90) return 'score-excellent';
+    if (score >= 70) return 'score-good';
+    if (score >= 50) return 'score-fair';
+    return 'score-needs-work';
+  }
+
+  /**
+   * Get priority color class for recommendations
+   */
+  getPriorityClass(priority: string): string {
+    switch (priority) {
+      case 'high': return 'priority-high';
+      case 'medium': return 'priority-medium';
+      case 'low': return 'priority-low';
+      default: return 'priority-medium';
+    }
+  }
+
+  /**
+   * Toggle coverage card collapsed state
+   */
+  toggleCoverageCollapsed(): void {
+    const newState = !this.coverageCollapsed();
+    this.coverageCollapsed.set(newState);
+    this.saveCoverageCollapsedState(newState);
+  }
+
+  private loadCoverageCollapsedState(): boolean {
+    try {
+      const stored = localStorage.getItem('cc-inspections-coverage-collapsed');
+      return stored === null ? false : stored === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  private saveCoverageCollapsedState(collapsed: boolean): void {
+    try {
+      localStorage.setItem('cc-inspections-coverage-collapsed', String(collapsed));
+    } catch {}
+  }
+
+  /**
+   * Check if team has an industry set
+   */
+  hasIndustry(): boolean {
+    return !!this.accountService.aTeam?.industry;
+  }
+
+  /**
+   * Check if team has any team members
+   */
+  hasTeamMembers(): boolean {
+    return !!(this.accountService.teamMembers && this.accountService.teamMembers.length > 0);
+  }
+
+  /**
+   * Check if team has both industry and team members (required for coverage analysis)
+   */
+  canAnalyzeCoverage(): boolean {
+    return this.hasIndustry() && this.hasTeamMembers();
   }
 
   private addStatusInfo(inspection: SelfInspection): SelfInspectionWithStatus {
@@ -244,8 +457,101 @@ export class SelfInspectionsListComponent {
     this.router.navigate([inspection.id], { relativeTo: this.route });
   }
 
-  startNewSelfInspection() {
+  goToGuide(): void {
+    this.router.navigate(['guide'], { relativeTo: this.route });
+  }
+
+  goToTemplates(): void {
     this.router.navigate(['new'], { relativeTo: this.route });
+  }
+
+  /**
+   * Start the auto-build process to automatically create inspections
+   * Iteratively analyzes coverage and creates recommended inspections
+   */
+  startAutoBuild(): void {
+    if (this.autoBuildActive()) return;
+
+    this.autoBuildActive.set(true);
+    this.autoBuildProgress.set(null);
+
+    const { progress$, cancel } = this.selfInspectionsService.autoBuildInspections();
+    this.autoBuildCancelFn = cancel;
+
+    progress$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (progress) => {
+        this.autoBuildProgress.set(progress);
+
+        // Check if complete or errored
+        if (progress.phase === 'complete' || progress.phase === 'error') {
+          this.autoBuildActive.set(false);
+          this.autoBuildCancelFn = null;
+          // Coverage cache is automatically invalidated by Cloud Function triggers
+          // when inspections are created, so no manual cache clearing needed
+        }
+      },
+      error: (err) => {
+        this.autoBuildActive.set(false);
+        this.autoBuildCancelFn = null;
+        this.autoBuildProgress.set({
+          phase: 'error',
+          iteration: 0,
+          maxIterations: 5,
+          currentScore: 0,
+          targetScore: 95,
+          inspectionsCreated: 0,
+          currentAction: `Error: ${err.message}`,
+          error: err.message,
+          log: [{
+            type: 'error',
+            message: err.message,
+            timestamp: new Date()
+          }]
+        });
+      }
+    });
+  }
+
+  /**
+   * Cancel the auto-build process
+   */
+  cancelAutoBuild(): void {
+    if (this.autoBuildCancelFn) {
+      this.autoBuildCancelFn();
+      this.autoBuildCancelFn = null;
+    }
+    this.autoBuildActive.set(false);
+  }
+
+  /**
+   * Check if auto-build is complete
+   */
+  isAutoBuildComplete(): boolean {
+    const progress = this.autoBuildProgress();
+    return progress?.phase === 'complete';
+  }
+
+  /**
+   * Check if auto-build had an error
+   */
+  isAutoBuildError(): boolean {
+    const progress = this.autoBuildProgress();
+    return progress?.phase === 'error';
+  }
+
+  /**
+   * Get the progress percentage for the auto-build
+   */
+  getAutoBuildProgressPercent(): number {
+    const progress = this.autoBuildProgress();
+    if (!progress) return 0;
+    
+    // Calculate based on iteration progress and score
+    const iterationProgress = ((progress.iteration - 1) / progress.maxIterations) * 50;
+    const scoreProgress = (progress.currentScore / progress.targetScore) * 50;
+    return Math.min(100, Math.round(iterationProgress + scoreProgress));
   }
 
   startInspection(inspection: SelfInspectionWithStatus) {

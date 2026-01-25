@@ -36,7 +36,10 @@ export class JoinTeamService {
     console.log(user);
     console.log(deleteId);
     
-    return setDoc(doc(this.db, `user/${userId}`), { ...user }).then(() => 
+    const cleanedUser = Object.fromEntries(
+      Object.entries(user).filter(([_, v]) => v !== undefined)
+    );
+    return setDoc(doc(this.db, `user/${userId}`), cleanedUser).then(() => 
       deleteDoc(doc(this.db, `user/${deleteId}`)).then(() => user)
     );
   }

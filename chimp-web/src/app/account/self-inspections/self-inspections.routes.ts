@@ -5,6 +5,7 @@ import { SelfInspectionsService } from "./self-inspections.service";
 import { CreateEditSelfInspectionComponent } from "./create-edit-self-inspection/create-edit-self-inspection.component";
 import { SelfInspectionsListComponent } from "./self-inspections-list/self-inspections-list.component";
 import { TakeSelfInspectionComponent } from "./take-self-inspection/take-self-inspection.component";
+import { GuideComponent } from "./guide/guide.component";
 
 export const selfInspectionsRoutes: Routes = [
   {
@@ -13,6 +14,7 @@ export const selfInspectionsRoutes: Routes = [
     providers: [SelfInspectionsService],
     children: [
       { path: "", component: SelfInspectionsListComponent },
+      { path: "guide", component: GuideComponent },
       { path: "new", component: CreateEditSelfInspectionComponent },
       { path: ":selfInspectionId", component: SelfInspectionComponent },
       { path: ":selfInspectionId/edit", component: CreateEditSelfInspectionComponent },

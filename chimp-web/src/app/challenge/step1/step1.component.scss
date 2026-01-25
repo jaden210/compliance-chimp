@@ -1,0 +1,90 @@
+.step-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.step-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.step-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.step-indicator {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.step-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--chimp-text-primary);
+}
+
+.step-subtitle {
+  font-size: 16px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.step-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.next-btn {
+  height: 48px;
+  padding: 0 32px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 24px;
+  
+  mat-icon {
+    margin-left: 8px;
+  }
+}
+
+// Responsive
+@media screen and (max-width: 600px) {
+  .step-container {
+    padding: 24px 16px;
+  }
+  
+  .step-card {
+    padding: 32px 24px;
+  }
+  
+  .step-header h1 {
+    font-size: 24px;
+  }
+  
+  .next-btn {
+    width: 100%;
+  }
+}

@@ -1,21 +1,17 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatLabel } from '@angular/material/form-field';
 import { SupportService } from '../support.service';
 import { addDoc, collection, deleteDoc, doc, updateDoc } from '@angular/fire/firestore';
 
 @Component({
-  standalone: true,
   selector: 'inspection-questions',
   templateUrl: './inspection-questions.component.html',
-  styleUrls: ['./inspection-questions.component.css'],
+  styleUrl: './inspection-questions.component.css',
   imports: [
-    CommonModule,
     FormsModule,
     MatToolbarModule,
     MatFormFieldModule,
@@ -24,78 +20,84 @@ import { addDoc, collection, deleteDoc, doc, updateDoc } from '@angular/fire/fir
   ]
 })
 export class InspectionQuestionsComponent implements OnInit {
+  private readonly supportService = inject(SupportService);
 
- 
-  collection: string = 'osha-assesment-template-en';
-  list;
+  collectionName = 'osha-assesment-template-en';
+  readonly list = signal<InspectionCategory[]>([]);
+  
+  collectionSubject: InspectionCategory = new InspectionCategory();
+  newQuestion: InspectionQuestion = new InspectionQuestion();
 
-  collectionSubject: collectionSubject = new collectionSubject();
-  newQuestion: NewQ = new NewQ();
-
-
-  constructor(
-    private supportService: SupportService
-  ) { }
-
-  ngOnInit() {
+  ngOnInit(): void {
     this.getCollection();
   }
   
-  getCollection() {
-    this.supportService.getInspectionCollection(this.collection).subscribe(collection => {
-      this.list = collection;
+  getCollection(): void {
+    this.supportService.getInspectionCollection(this.collectionName).subscribe(items => {
+      this.list.set(items);
     });
   }
 
-  selectDoc(item) {
+  selectDoc(item: InspectionCategory): void {
     this.collectionSubject = item;
   }
 
-  addQuestion() {
+  addQuestion(): void {
     this.newQuestion.createdAt = new Date();
-    this.collectionSubject.questions.push({...this.newQuestion});
-    updateDoc(doc(this.supportService.db, `${this.collection}/${this.collectionSubject.id}`), { ...this.collectionSubject }).then(() => {
-      this.newQuestion = new NewQ();
+    this.collectionSubject.questions.push({ ...this.newQuestion });
+    const cleanedSubject = Object.fromEntries(
+      Object.entries(this.collectionSubject).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.supportService.db, `${this.collectionName}/${this.collectionSubject.id}`), cleanedSubject).then(() => {
+      this.newQuestion = new InspectionQuestion();
     });
   }
 
-  deleteQ(q) {
-    this.collectionSubject.questions.splice(this.collectionSubject.questions.indexOf(q),1);
-    this.push();
+  deleteQuestion(question: InspectionQuestion): void {
+    const index = this.collectionSubject.questions.indexOf(question);
+    if (index > -1) {
+      this.collectionSubject.questions.splice(index, 1);
+      this.push();
+    }
   }
 
-  push() {
+  push(): void {
     if (this.collectionSubject.id) {
-      updateDoc(doc(this.supportService.db, `${this.collection}/${this.collectionSubject.id}`), { ...this.collectionSubject });
+      const cleanedSubject = Object.fromEntries(
+        Object.entries(this.collectionSubject).filter(([_, v]) => v !== undefined)
+      );
+      updateDoc(doc(this.supportService.db, `${this.collectionName}/${this.collectionSubject.id}`), cleanedSubject);
     } else {
-      addDoc(collection(this.supportService.db, this.collection), { ...this.collectionSubject }).then(snapshot => {
+      const cleanedSubject = Object.fromEntries(
+        Object.entries(this.collectionSubject).filter(([_, v]) => v !== undefined)
+      );
+      addDoc(collection(this.supportService.db, this.collectionName), cleanedSubject).then(snapshot => {
         this.collectionSubject.id = snapshot.id;
         this.selectDoc(this.collectionSubject);
       });
     }
   }
   
-  deleteDoc() {
-    deleteDoc(doc(this.supportService.db, `${this.collection}/${this.collectionSubject.id}`)).then(() => {
-    this.collectionSubject = new collectionSubject();
+  deleteCategory(): void {
+    deleteDoc(doc(this.supportService.db, `${this.collectionName}/${this.collectionSubject.id}`)).then(() => {
+      this.collectionSubject = new InspectionCategory();
     });
   }
 
-  createDoc() {
-    this.collectionSubject = new collectionSubject();
+  createCategory(): void {
+    this.collectionSubject = new InspectionCategory();
   }
-
 }
 
-export class collectionSubject {
+export class InspectionCategory {
   id?: string;
-  subject: string;
-  questions: any = [];
-  order: number = 0;
+  subject = '';
+  questions: InspectionQuestion[] = [];
+  order = 0;
 }
 
-export class NewQ {
+export class InspectionQuestion {
   id?: string;
-  name: string;
-  createdAt: Date;
+  name = '';
+  createdAt?: Date;
 }

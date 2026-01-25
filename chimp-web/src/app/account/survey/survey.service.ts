@@ -39,7 +39,10 @@ export class SurveyService {
     const id = survey.id;
     delete survey["user"];
     delete survey.id;
-    return updateDoc(doc(this.db, `team/${teamId}/survey/${id}`), { ...survey })
+    const cleanedSurvey = Object.fromEntries(
+      Object.entries(survey).filter(([_, v]) => v !== undefined)
+    );
+    return updateDoc(doc(this.db, `team/${teamId}/survey/${id}`), cleanedSurvey)
       .then(data => {
         return data;
       })
@@ -51,7 +54,10 @@ export class SurveyService {
   }
 
   public createSurvey(survey: Survey, teamId): Promise<any> {
-    return addDoc(collection(this.db, `team/${teamId}/survey`), { ...survey })
+    const cleanedSurvey = Object.fromEntries(
+      Object.entries(survey).filter(([_, v]) => v !== undefined)
+    );
+    return addDoc(collection(this.db, `team/${teamId}/survey`), cleanedSurvey)
       .then(data => {
         return data;
       })

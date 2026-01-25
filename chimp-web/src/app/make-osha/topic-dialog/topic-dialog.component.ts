@@ -73,7 +73,10 @@ export class TopicDialogComponent implements OnInit {
   public createTopic(): void {
     this.uploadImage().subscribe(imageUrl => {
       this.topic.imageUrl = imageUrl;
-      addDoc(collection(this.db, `${this.oshaManual}/${this.industryId}/topics`), { ...this.topic })
+      const cleanedTopic = Object.fromEntries(
+        Object.entries(this.topic).filter(([_, v]) => v !== undefined)
+      );
+      addDoc(collection(this.db, `${this.oshaManual}/${this.industryId}/topics`), cleanedTopic)
         .then(
           document => this.dialogRef.close(document.id),
           error => {
@@ -94,7 +97,10 @@ export class TopicDialogComponent implements OnInit {
       deleteObject(ref(this.storage, this.topic.imageUrl));
     this.uploadImage().subscribe(imageUrl => {
       this.topic.imageUrl = imageUrl;
-      updateDoc(doc(this.db, `${this.oshaManual}/${this.industryId}/topics/${this.topic.id}`), { ...this.topic })
+      const cleanedTopic = Object.fromEntries(
+        Object.entries(this.topic).filter(([_, v]) => v !== undefined)
+      );
+      updateDoc(doc(this.db, `${this.oshaManual}/${this.industryId}/topics/${this.topic.id}`), cleanedTopic)
         .then(
           () => this.dialogRef.close(this.topic.id),
           error => {

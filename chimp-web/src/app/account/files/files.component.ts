@@ -107,7 +107,10 @@ export class FilesComponent implements OnInit, OnDestroy {
         file.fileUrl = url;
         file.name = uFile.name;
         file.type = uFile.type;
-        return addDoc(collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`), { ...file })
+        const cleanedFile = Object.fromEntries(
+          Object.entries(file).filter(([_, v]) => v !== undefined)
+        );
+        return addDoc(collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`), cleanedFile)
           .then(snapshot => {
             this.loading = false;
             file.id = snapshot.id;
@@ -120,7 +123,10 @@ export class FilesComponent implements OnInit, OnDestroy {
   }
 
   save(): void {
-    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}/file/${this.aFile.id}`), { ...this.aFile });
+    const cleanedFile = Object.fromEntries(
+      Object.entries(this.aFile).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}/file/${this.aFile.id}`), cleanedFile);
   }
 
   delete(): void {

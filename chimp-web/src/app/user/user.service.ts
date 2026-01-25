@@ -85,28 +85,53 @@ export class UserService {
     return addDoc(collection(this.db, "survey-response"), cleanResponse);
   }
 
-  public setIsLoggedIn(): void {
-    onAuthStateChanged(this.auth, (u) => {
-      if (u && u.uid) {
-        this.isLoggedIn = true;
-        const userRef = doc(this.db, `user/${u.uid}`);
-        docData(userRef, { idField: "id" }).subscribe((user) => {
-          this.loggedInUser = user as User;
+  /**
+   * Check if the current user is authenticated (optional - for enhanced features).
+   * This is non-blocking and won't prevent the page from loading for unauthenticated users.
+   */
+  public checkAuthState(): void {
+    try {
+      // Check current auth state without triggering OAuth operations
+      const currentUser = this.auth.currentUser;
+      if (currentUser && currentUser.uid) {
+        this.setLoggedInUser(currentUser.uid);
+      } else {
+        // Set up listener for future auth state changes (non-blocking)
+        onAuthStateChanged(this.auth, (u) => {
+          if (u && u.uid) {
+            this.setLoggedInUser(u.uid);
+          }
         });
-        this.teamObservable.subscribe(t => {
-          if (t) {
-            const membersCollection = collection(this.db, "team-members");
-            const membersQuery = query(membersCollection, where("teamId", "==", t.id));
-            collectionData(membersQuery, { idField: "id" }).subscribe((tm: TeamMember[]) => {
-              if (tm) {
-                this.teamMembers = tm;
-                this.teamMembersObservable.next(tm);
-              }
-            });
+      }
+    } catch (error) {
+      // Auth check failed - continue without authenticated features
+      console.info('Auth state check skipped - user is not authenticated');
+    }
+  }
+
+  private setLoggedInUser(uid: string): void {
+    this.isLoggedIn = true;
+    const userRef = doc(this.db, `user/${uid}`);
+    docData(userRef, { idField: "id" }).subscribe((user) => {
+      this.loggedInUser = user as User;
+    });
+    this.teamObservable.subscribe(t => {
+      if (t) {
+        const membersCollection = collection(this.db, "team-members");
+        const membersQuery = query(membersCollection, where("teamId", "==", t.id));
+        collectionData(membersQuery, { idField: "id" }).subscribe((tm: TeamMember[]) => {
+          if (tm) {
+            this.teamMembers = tm;
+            this.teamMembersObservable.next(tm);
           }
         });
       }
     });
+  }
+
+  /** @deprecated Use checkAuthState() instead */
+  public setIsLoggedIn(): void {
+    this.checkAuthState();
   }
 
   private getTopics(teamId: string): Observable<Topic[]> {
@@ -173,7 +198,10 @@ export class UserService {
     const id = mc.id;
     delete mc.id;
     delete mc.needsTraining;
-    return updateDoc(doc(this.db, `team/${teamId}/my-training-content/${id}`), { ...mc })
+    const cleanedMc = Object.fromEntries(
+      Object.entries(mc).filter(([_, v]) => v !== undefined)
+    );
+    return updateDoc(doc(this.db, `team/${teamId}/my-training-content/${id}`), cleanedMc)
       .catch(error => {
         console.error(
           `An error occured updating my-content collection with myContent`,
@@ -185,7 +213,10 @@ export class UserService {
   }
 
   public createSurvey(survey: Survey, teamId: string): Promise<any> {
-    return addDoc(collection(this.db, `team/${teamId}/survey`), { ...survey })
+    const cleanedSurvey = Object.fromEntries(
+      Object.entries(survey).filter(([_, v]) => v !== undefined)
+    );
+    return addDoc(collection(this.db, `team/${teamId}/survey`), cleanedSurvey)
       .then(data => data)
       .catch(error => {
         console.error("Error creating survey.", error);

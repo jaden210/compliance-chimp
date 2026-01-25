@@ -1,7 +1,30 @@
 /* You can add global styles to this file, and also import other style files */
+/* Updated to use accessible theme tokens with proper surface hierarchy */
+
+:root {
+  --toolbar-height: 44px;
+}
 
 * {
   font-family: "Nunito", "Roboto", "Helvetica Neue", sans-serif;
+}
+
+/* Page Layout Grid - Use this for pages with a toolbar */
+.page-layout {
+  display: grid;
+  grid-template-rows: var(--toolbar-height) 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.page-layout > mat-toolbar {
+  grid-row: 1;
+}
+
+.page-layout > .page-content {
+  grid-row: 2;
+  overflow-y: auto;
+  background: var(--chimp-surface);
 }
 
 /* Material Symbols font class */
@@ -22,7 +45,7 @@
   position: fixed !important;
   bottom: 48px;
   right: 24px;
-  color: var(--chimp-text-on-primary) !important;
+  color: var(--chimp-on-primary) !important;
   border-radius: 30px !important;
   padding: 0px 12px !important;
 }
@@ -36,22 +59,26 @@
 }
 
 .toolbar-logo {
-  height: 46px;
+  height: 42px;
 }
 
 .toolbar-expand-mobile {
   display: none !important;
-  color: var(--chimp-text-secondary);
+  color: var(--chimp-on-primary);
+}
+
+.toolbar-back-mobile {
+  display: none !important;
+  color: var(--chimp-on-primary);
 }
 
 .toolbar-title {
   font-family: "co-headline";
-  color: var(--chimp-text-hint);
-  font-size: 21px;
-  border-left: 2px solid var(--chimp-shadow-medium);
+  color: var(--chimp-on-primary);
+  font-size: 16px;
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
   padding-left: 6px;
-  padding-bottom: 6px;
-  line-height: 17px;
+  line-height: 1.2;
 }
 
 button {
@@ -59,32 +86,44 @@ button {
 }
 
 mat-toolbar {
-  background-color: var(--chimp-bg-primary) !important;
-  box-shadow: 0 3px 2px -2px var(--chimp-shadow-light);
+  background-color: var(--chimp-primary) !important;
+  box-shadow: var(--chimp-elevation-1);
+  height: var(--toolbar-height) !important;
+  min-height: var(--toolbar-height) !important;
+}
+
+mat-toolbar button,
+mat-toolbar .mat-mdc-icon-button,
+mat-toolbar .mat-mdc-button {
+  color: var(--chimp-on-primary) !important;
+}
+
+mat-toolbar mat-icon {
+  color: var(--chimp-on-primary);
 }
 
 .window {
-  height: calc(100vh - 62px);
+  height: calc(100vh - var(--toolbar-height) - 2px);
   overflow: auto;
   margin-top: 2px;
+  background: var(--chimp-surface);
 }
 
 .hwindow {
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--toolbar-height));
   overflow: auto;
   background-color: var(--chimp-primary);
 }
 
 .active {
   transition: all 250ms;
-  /*border-bottom: 2px solid var(--chimp-accent) !important;*/
-  color: var(--chimp-accent) !important;
-  background-color: rgba(0, 0, 0, 0.17) !important;
+  color: var(--chimp-tertiary-bright) !important;
+  background-color: var(--chimp-state-pressed) !important;
 }
 
 .bactive {
   transition: all 250ms;
-  color: var(--chimp-accent) !important;
+  color: var(--chimp-tertiary-bright) !important;
 }
 
 .helper {
@@ -99,30 +138,30 @@ mat-toolbar {
 .help-card {
   margin: 24px auto;
   width: 80%;
-  border: 1px solid var(--chimp-border-light);
+  border: 1px solid var(--chimp-outline-variant);
   padding: 12px;
   border-radius: 12px;
   max-width: calc(100vw - 48px);
-  background: var(--chimp-bg-primary);
+  background: var(--chimp-surface-container-lowest);
 }
 
 .helper-box {
-  background-color: var(--chimp-bg-primary);
+  background-color: var(--chimp-surface-container-highest);
   border-radius: 24px;
   padding: 12px;
   box-sizing: border-box;
-  box-shadow: 0 2px 2px 0 var(--chimp-shadow-heavy), 0 0 0 1px var(--chimp-shadow-light);
+  box-shadow: var(--chimp-elevation-4);
   max-height: calc(100vh - 360px);
   overflow: hidden;
   position: relative;
 }
 
 .general {
-  background-color: var(--chimp-bg-primary);
+  background-color: var(--chimp-surface-container);
   border-radius: 24px;
   padding: 12px;
   box-sizing: border-box;
-  box-shadow: 0 2px 2px 0 var(--chimp-shadow-heavy), 0 0 0 1px var(--chimp-shadow-light);
+  box-shadow: var(--chimp-elevation-2);
   max-height: calc(100vh - 360px);
   overflow: hidden;
   margin-bottom: 8px;
@@ -132,7 +171,7 @@ mat-toolbar {
 
 .general-title {
   font-size: 18px;
-  color: var(--chimp-text-secondary);
+  color: var(--chimp-on-surface-variant);
   flex: 1;
 }
 
@@ -140,12 +179,12 @@ mat-toolbar {
   position: absolute !important;
   right: 8px;
   top: 8px;
-  color: var(--chimp-text-secondary) !important;
+  color: var(--chimp-on-surface-variant) !important;
 }
 
 .helper-name {
   font-size: 27px;
-  color: var(--chimp-accent);
+  color: var(--chimp-tertiary);
   margin-bottom: 12px;
   margin-right: 36px;
 }
@@ -153,7 +192,7 @@ mat-toolbar {
 .helper-description {
   font-size: 15px;
   font-weight: 300;
-  color: var(--chimp-text-primary);
+  color: var(--chimp-on-surface);
   max-height: calc(100vh - 450px);
   overflow: auto;
   display: flex;
@@ -191,12 +230,23 @@ agm-map {
   height: 28px;
   outline: none;
   border-radius: 20px;
-  background: var(--chimp-bg-primary);
+  background: var(--chimp-surface-container-lowest);
+  border: 1px solid var(--chimp-outline-variant);
   padding: 0 16px;
   font-size: 14px;
   line-height: 28px;
   margin-right: 12px;
   width: 240px;
+  color: var(--chimp-on-surface);
+}
+
+#search-box input::placeholder {
+  color: var(--chimp-outline);
+}
+
+#search-box input:focus {
+  border-color: var(--chimp-primary);
+  box-shadow: 0 0 0 2px var(--chimp-state-focus);
 }
 
 .expand {
@@ -215,15 +265,20 @@ agm-map {
 
 @media screen and (max-width: 785px) {
   .hwindow {
-    height: calc(100vh - 56px);
+    height: calc(100vh - var(--toolbar-height));
   }
   .helper {
     left: 12px !important;
   }
   .toolbar-logo {
-    display: none;
+    height: 32px;
   }
+  /* Hide hamburger menu on mobile - features not mobile-optimized */
   .toolbar-expand-mobile {
+    display: none !important;
+  }
+  /* Show back button on mobile for navigating back to dashboard */
+  .toolbar-back-mobile {
     display: block !important;
   }
   .fab {

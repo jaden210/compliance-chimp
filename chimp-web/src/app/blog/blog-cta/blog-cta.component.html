@@ -1,0 +1,19 @@
+<aside class="blog-cta" role="complementary" aria-label="Get started with Compliance Chimp">
+  <div class="cta-content">
+    <h3 class="cta-headline">{{ personalizedHeadline }}</h3>
+    <p class="cta-subheadline">{{ subheadline }}</p>
+
+    <ul class="cta-features" aria-label="Features included">
+      <li class="feature-item" *ngFor="let feature of features">
+        <span class="feature-icon" aria-hidden="true">✓</span>
+        <span class="feature-text">{{ feature }}</span>
+      </li>
+    </ul>
+
+    <button mat-flat-button [routerLink]="buttonRoute" class="cta-button">
+      {{ buttonText }}
+    </button>
+
+    <p class="cta-offer">{{ offerText }}</p>
+  </div>
+</aside>

@@ -1,4 +1,4 @@
-import { Component, Inject, ViewChild, OnDestroy } from "@angular/core";
+import { Component, Inject, ViewChild, OnDestroy, ElementRef } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
@@ -21,7 +21,12 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatMenuModule } from "@angular/material/menu";
+import { MatExpansionModule } from "@angular/material/expansion";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatDividerModule } from "@angular/material/divider";
 import { MapDialogComponent } from "../map-dialog/map-dialog.component";
+import { TagInputComponent } from "./tag-input/tag-input.component";
+import { getTagColor } from "../../shared/tag-colors";
 import { Observable, Subscription, forkJoin, combineLatest } from "rxjs";
 import { TeamService } from "./team.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -55,7 +60,11 @@ declare var gtag: Function;
     MatProgressSpinnerModule,
     MatSlideToggleModule,
     MatCheckboxModule,
-    MatMenuModule
+    MatMenuModule,
+    MatExpansionModule,
+    MatDividerModule,
+    MatTooltipModule,
+    TagInputComponent
   ]
 })
 export class TeamComponent implements OnDestroy {
@@ -64,6 +73,8 @@ export class TeamComponent implements OnDestroy {
   teamMembers:TeamMember[] = [];
   managers: User[] = [];
   @ViewChild(MatTable) table: MatTable<any>;
+  @ViewChild('emptyStateNameInput') emptyStateNameInput: ElementRef<HTMLInputElement>;
+  @ViewChild('mainTableNameInput') mainTableNameInput: ElementRef<HTMLInputElement>;
   displayedColumns: string[] = [
     "name",
     "compliance",
@@ -80,6 +91,107 @@ export class TeamComponent implements OnDestroy {
   completedCount: number;
   complianceLevel: number;
   showTable: boolean = false;
+  
+  // Inline table entry
+  newMember: TeamMember = new TeamMember();
+  
+  // Validation state
+  newMemberPhoneError: boolean = false;
+  newMemberEmailError: boolean = false;
+  memberValidationErrors: { [memberId: string]: { phone?: boolean; email?: boolean } } = {};
+  
+  // Search
+  searchQuery: string = '';
+  
+  // QuickBooks integration
+  qbConnecting: boolean = false;
+  qbSyncing: boolean = false;
+  qbError: string = null;
+  qbSyncResult: { added: number; skipped: number } = null;
+  
+  // Get all unique tags from team members for autocomplete
+  get allTags(): string[] {
+    const tagsSet = new Set<string>();
+    this.teamMembers.forEach(tm => {
+      (tm.tags || []).forEach(tag => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }
+
+  // Get tag counts for overview
+  get tagCounts(): { tag: string; count: number }[] {
+    const counts: { [tag: string]: number } = {};
+    this.teamMembers.forEach(tm => {
+      (tm.tags || []).forEach(tag => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count); // Sort by count descending
+  }
+
+  // Use shared tag color utility
+  getTagColor = getTagColor;
+
+  // Filtered team members based on search
+  get filteredTeamMembers(): TeamMember[] {
+    if (!this.searchQuery || this.searchQuery.trim() === '') {
+      return this.teamMembers;
+    }
+    const query = this.searchQuery.toLowerCase().trim();
+    return this.teamMembers.filter(tm => 
+      tm.name?.toLowerCase().includes(query) ||
+      tm.jobTitle?.toLowerCase().includes(query) ||
+      tm.email?.toLowerCase().includes(query) ||
+      tm.phone?.includes(query) ||
+      (tm.tags || []).some(tag => tag.toLowerCase().includes(query))
+    );
+  }
+
+  // Validation helpers
+  isValidEmail(email: string): boolean {
+    if (!email || email.trim() === '') return true; // Empty is valid (not required until preferEmail)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  }
+
+  isValidPhone(phone: string): boolean {
+    if (!phone || phone.trim() === '') return true; // Empty is valid (not required until SMS mode)
+    // Remove all non-digits and check if we have 10 digits
+    const digits = phone.replace(/\D/g, '');
+    return digits.length === 10 || digits.length === 11; // 10 or 11 (with country code)
+  }
+
+  validateNewMemberPhone(): void {
+    this.newMemberPhoneError = !this.isValidPhone(this.newMember.phone);
+  }
+
+  validateNewMemberEmail(): void {
+    this.newMemberEmailError = !this.isValidEmail(this.newMember.email);
+  }
+
+  validateMemberPhone(member: TeamMember): void {
+    if (!this.memberValidationErrors[member.id]) {
+      this.memberValidationErrors[member.id] = {};
+    }
+    this.memberValidationErrors[member.id].phone = !this.isValidPhone(member.phone);
+  }
+
+  validateMemberEmail(member: TeamMember): void {
+    if (!this.memberValidationErrors[member.id]) {
+      this.memberValidationErrors[member.id] = {};
+    }
+    this.memberValidationErrors[member.id].email = !this.isValidEmail(member.email);
+  }
+
+  hasMemberPhoneError(member: TeamMember): boolean {
+    return this.memberValidationErrors[member.id]?.phone || false;
+  }
+
+  hasMemberEmailError(member: TeamMember): boolean {
+    return this.memberValidationErrors[member.id]?.email || false;
+  }
 
   constructor(
     public accountService: AccountService,
@@ -116,20 +228,24 @@ export class TeamComponent implements OnDestroy {
     });
   }
 
-  inviteMember() {
-    let dialog = this.dialog.open(InviteDialog, {
-      data:  new TeamMember(),
-      disableClose: true
-    });
-    dialog.afterClosed().subscribe((invite: TeamMember) => {
-      if (invite) {
-        invite.email = invite.email ? invite.email.toLowerCase() : null;
-        invite.phone = invite.phone ? invite.phone.split(/\D+/g).join("") : null;
-        invite.teamId = this.accountService.aTeam.id;
-        invite.createdAt = new Date();
-        addDoc(collection(this.accountService.db, "team-members"), { ...invite });
+  scrollToAddMember(): void {
+    // Clear search to ensure the add row is visible
+    this.searchQuery = '';
+    
+    // Scroll to the add row and focus the name input
+    setTimeout(() => {
+      if (this.mainTableNameInput?.nativeElement) {
+        this.mainTableNameInput.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Focus after scroll animation completes
+        setTimeout(() => {
+          this.mainTableNameInput.nativeElement.focus();
+        }, 300);
       }
-    });
+    }, 0);
+  }
+
+  filterByTag(tag: string): void {
+    this.searchQuery = tag;
   }
 
   public resendInvite(teamMember: TeamMember): void {
@@ -154,8 +270,29 @@ export class TeamComponent implements OnDestroy {
     })
   }
 
-  public saveTeamMember(teamMember) {
-    updateDoc(doc(this.accountService.db, `team-members/${teamMember.id}`), { ...teamMember });
+  public saveTeamMember(teamMember: TeamMember) {
+    // Validate before saving
+    this.validateMemberPhone(teamMember);
+    this.validateMemberEmail(teamMember);
+    
+    // Don't save if there are validation errors
+    if (this.hasMemberPhoneError(teamMember) || this.hasMemberEmailError(teamMember)) {
+      return;
+    }
+    
+    // Format phone number if provided
+    if (teamMember.phone) {
+      const cleaned = ('' + teamMember.phone).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+      if (match) {
+        teamMember.phone = '(' + match[1] + ') ' + match[2] + '-' + match[3];
+      }
+    }
+    
+    const cleanedMember = Object.fromEntries(
+      Object.entries(teamMember).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.accountService.db, `team-members/${teamMember.id}`), cleanedMember);
   }
   
   editTeamMember(teamMember: TeamMember) {
@@ -166,20 +303,618 @@ export class TeamComponent implements OnDestroy {
     dialog.afterClosed().subscribe((data: TeamMember) => {
       if (data) {
         if (data['removeFromTeam']) {
-          this.teamService.removeUser(data).then(() => {
-            this.accountService.checkStripePlan(); // will alter the team payment plan
-          });
+          this.teamService.removeUser(data);
         } else {
-          updateDoc(doc(this.accountService.db, `team-members/${data.id}`), { ...data });
+          const cleanedData = Object.fromEntries(
+            Object.entries(data).filter(([_, v]) => v !== undefined)
+          );
+          updateDoc(doc(this.accountService.db, `team-members/${data.id}`), cleanedData);
         }
       }
     });
   }
 
+  // Inline table methods
+  trackByMemberId(index: number, member: TeamMember): string {
+    return member.id;
+  }
+
+  onTagsChange(member: TeamMember, tags: string[]): void {
+    member.tags = tags;
+    // Force change detection by creating new array reference so allTags updates across all tag-inputs
+    this.teamMembers = [...this.teamMembers];
+    this.saveTeamMember(member);
+  }
+
+  addNewMember(): void {
+    // Validate based on contact preference
+    if (!this.newMember.name) {
+      return;
+    }
+    if (this.newMember.preferEmail && !this.newMember.email) {
+      return;
+    }
+    if (!this.newMember.preferEmail && !this.newMember.phone) {
+      return;
+    }
+    
+    // Validate phone format if provided
+    if (this.newMember.phone && !this.isValidPhone(this.newMember.phone)) {
+      this.newMemberPhoneError = true;
+      return;
+    }
+    
+    // Validate email format if using email
+    if (this.newMember.preferEmail && !this.isValidEmail(this.newMember.email)) {
+      this.newMemberEmailError = true;
+      return;
+    }
+    
+    // Format phone number if provided
+    if (this.newMember.phone) {
+      const cleaned = ('' + this.newMember.phone).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+      if (match) {
+        this.newMember.phone = '(' + match[1] + ') ' + match[2] + '-' + match[3];
+      }
+    }
+    
+    const newMember: any = {
+      name: this.newMember.name,
+      phone: this.newMember.phone || null,
+      email: this.newMember.email ? this.newMember.email.toLowerCase() : null,
+      preferEmail: this.newMember.preferEmail || false,
+      jobTitle: this.newMember.jobTitle || null,
+      tags: this.newMember.tags || [],
+      teamId: this.accountService.aTeam.id,
+      createdAt: new Date()
+    };
+    
+    // Remove undefined/null fields
+    const cleanedMember = Object.fromEntries(
+      Object.entries(newMember).filter(([_, v]) => v !== undefined && v !== null)
+    );
+    
+    addDoc(collection(this.accountService.db, "team-members"), cleanedMember);
+    
+    // Reset the new member form and validation state
+    this.newMember = new TeamMember();
+    this.newMemberPhoneError = false;
+    this.newMemberEmailError = false;
+    
+    // Focus on the name input for the next entry
+    // Use setTimeout to allow the DOM to update after the form reset
+    setTimeout(() => {
+      // After adding the first member, the main table will be shown
+      // So we try the main table input first, then fall back to empty state
+      if (this.mainTableNameInput?.nativeElement) {
+        this.mainTableNameInput.nativeElement.focus();
+      } else if (this.emptyStateNameInput?.nativeElement) {
+        this.emptyStateNameInput.nativeElement.focus();
+      }
+    }, 0);
+  }
+
+  confirmDeleteMember(member: TeamMember): void {
+    if (confirm(`Are you sure you want to remove ${member.name} from the team?`)) {
+      this.teamService.removeUser(member);
+    }
+  }
+
+  // ============ QuickBooks Integration Methods ============
+
+  /**
+   * Check if QuickBooks is connected
+   */
+  get isQuickBooksConnected(): boolean {
+    return !!this.accountService.aTeam?.quickbooks?.realmId;
+  }
+
+  /**
+   * Get the last sync date for display
+   */
+  get lastQuickBooksSync(): Date | null {
+    const lastSync = this.accountService.aTeam?.quickbooks?.lastSyncAt;
+    if (!lastSync) return null;
+    return lastSync.toDate ? lastSync.toDate() : new Date(lastSync);
+  }
+
+  /**
+   * Get the count from last sync
+   */
+  get lastSyncCount(): number {
+    return this.accountService.aTeam?.quickbooks?.lastSyncCount || 0;
+  }
+
+  /**
+   * Initiate QuickBooks OAuth connection
+   */
+  async connectQuickBooks(): Promise<void> {
+    this.qbConnecting = true;
+    this.qbError = null;
+    
+    try {
+      const authUrl = await this.teamService.initiateQuickBooksConnect();
+      // Redirect to QuickBooks authorization
+      window.location.href = authUrl;
+    } catch (err: any) {
+      this.qbError = err.message || "Failed to initiate QuickBooks connection";
+      this.qbConnecting = false;
+    }
+  }
+
+  /**
+   * Trigger a manual sync of QuickBooks employees
+   */
+  async syncQuickBooks(): Promise<void> {
+    this.qbSyncing = true;
+    this.qbError = null;
+    this.qbSyncResult = null;
+    
+    try {
+      const result = await this.teamService.triggerQuickBooksSync();
+      this.qbSyncResult = { added: result.added, skipped: result.skipped };
+      
+      if (result.errors?.length > 0) {
+        console.warn("QuickBooks sync had errors:", result.errors);
+      }
+    } catch (err: any) {
+      this.qbError = err.message || "Failed to sync with QuickBooks";
+    } finally {
+      this.qbSyncing = false;
+    }
+  }
+
+  /**
+   * Disconnect QuickBooks from the team
+   */
+  async disconnectQuickBooks(): Promise<void> {
+    if (!confirm("Are you sure you want to disconnect QuickBooks? This will not remove any team members already synced.")) {
+      return;
+    }
+    
+    try {
+      await this.teamService.disconnectQuickBooks();
+      this.qbSyncResult = null;
+    } catch (err: any) {
+      this.qbError = err.message || "Failed to disconnect QuickBooks";
+    }
+  }
+
+  /**
+   * Open the QuickBooks integration dialog
+   */
+  openTagsHelpDialog(): void {
+    this.dialog.open(TagsHelpDialog, {
+      width: "520px"
+    });
+  }
+
+  openTeamCoverageDialog(): void {
+    this.dialog.open(TeamCoverageDialog, {
+      width: "520px"
+    });
+  }
+
+  openQuickBooksDialog(): void {
+    this.dialog.open(QuickBooksDialog, {
+      width: "500px",
+      data: {
+        isConnected: this.isQuickBooksConnected,
+        lastSync: this.lastQuickBooksSync,
+        lastSyncCount: this.lastSyncCount
+      }
+    }).afterClosed().subscribe((action: string) => {
+      if (action === "connect") {
+        this.connectQuickBooks();
+      } else if (action === "sync") {
+        this.syncQuickBooks();
+      } else if (action === "disconnect") {
+        this.disconnectQuickBooks();
+      }
+    });
+  }
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
   }
+}
+
+@Component({
+  standalone: true,
+  selector: "quickbooks-dialog",
+  template: `
+    <h2 mat-dialog-title>
+      <img src="/assets/quickbooks-logo.svg" alt="QuickBooks" style="height: 24px; vertical-align: middle; margin-right: 8px;" onerror="this.style.display='none'">
+      QuickBooks Integration
+    </h2>
+    <mat-dialog-content>
+      <div *ngIf="!data.isConnected" class="qb-not-connected">
+        <p>Connect your QuickBooks Online account to automatically sync your employees as team members.</p>
+        <div class="qb-benefits">
+          <div class="benefit"><mat-icon>sync</mat-icon> Daily automatic sync</div>
+          <div class="benefit"><mat-icon>person_add</mat-icon> Import name, email, phone, and job title</div>
+          <div class="benefit"><mat-icon>security</mat-icon> Secure OAuth connection</div>
+        </div>
+      </div>
+      
+      <div *ngIf="data.isConnected" class="qb-connected">
+        <div class="status-badge connected">
+          <mat-icon>check_circle</mat-icon>
+          Connected to QuickBooks
+        </div>
+        
+        <div class="sync-info" *ngIf="data.lastSync">
+          <p><strong>Last sync:</strong> {{ data.lastSync | date:'medium' }}</p>
+          <p><strong>Employees added:</strong> {{ data.lastSyncCount }}</p>
+        </div>
+        <p *ngIf="!data.lastSync" class="no-sync-yet">No sync has been performed yet.</p>
+        
+        <p class="sync-note">Employees are automatically synced daily. Use the button below to sync now.</p>
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close>Cancel</button>
+      <button *ngIf="!data.isConnected" mat-flat-button color="primary" [mat-dialog-close]="'connect'">
+        <mat-icon>link</mat-icon>
+        Connect QuickBooks
+      </button>
+      <button *ngIf="data.isConnected" mat-stroked-button color="warn" [mat-dialog-close]="'disconnect'">
+        Disconnect
+      </button>
+      <button *ngIf="data.isConnected" mat-flat-button color="primary" [mat-dialog-close]="'sync'">
+        <mat-icon>sync</mat-icon>
+        Sync Now
+      </button>
+    </mat-dialog-actions>
+  `,
+  styles: [`
+    .qb-benefits {
+      margin: 16px 0;
+    }
+    .qb-benefits .benefit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      color: #666;
+    }
+    .qb-benefits .benefit mat-icon {
+      color: #2ca01c;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .status-badge.connected {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-badge mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+    .sync-info {
+      background: #f5f5f5;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 12px 0;
+    }
+    .sync-info p {
+      margin: 4px 0;
+    }
+    .sync-note {
+      font-size: 13px;
+      color: #666;
+      margin-top: 12px;
+    }
+    .no-sync-yet {
+      color: #666;
+      font-style: italic;
+    }
+  `],
+  imports: [
+    CommonModule,
+    DatePipe,
+    MatDialogModule,
+    MatButtonModule,
+    MatIconModule
+  ]
+})
+export class QuickBooksDialog {
+  constructor(
+    public dialogRef: MatDialogRef<QuickBooksDialog>,
+    @Inject(MAT_DIALOG_DATA) public data: any
+  ) {}
+}
+
+@Component({
+  standalone: true,
+  selector: "tags-help-dialog",
+  template: `
+    <h2 mat-dialog-title>
+      <mat-icon class="title-icon">local_offer</mat-icon>
+      Understanding Tags
+    </h2>
+    <mat-dialog-content>
+      <div class="help-section">
+        <h3>What are tags?</h3>
+        <p>
+          Tags are labels you assign to team members to group them by role, department, 
+          or any other category that makes sense for your organization.
+        </p>
+      </div>
+
+      <div class="help-section">
+        <h3>Why use tags?</h3>
+        <p>
+          Tags help you organize your team and automate how safety content is distributed. 
+          Instead of manually assigning trainings to each person, you can assign trainings 
+          to a tag—and everyone with that tag automatically receives it.
+        </p>
+      </div>
+
+      <div class="help-section">
+        <h3>How tags work with training</h3>
+        <p>
+          In the Training Library, you can assign training articles to specific tags. 
+          When you do this, all team members with those tags will automatically have 
+          that training added to their requirements.
+        </p>
+        <div class="example-box">
+          <mat-icon>lightbulb</mat-icon>
+          <span>
+            <strong>Example:</strong> Assign "Forklift Safety" training to the "Warehouse" tag, 
+            and every team member tagged "Warehouse" will receive it.
+          </span>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h3>Best practices</h3>
+        <p>
+          Create tags based on job roles or departments within your company. Common examples include:
+        </p>
+        <div class="tag-examples">
+          <span class="tag-chip">Warehouse</span>
+          <span class="tag-chip">Office</span>
+          <span class="tag-chip">Driver</span>
+          <span class="tag-chip">Manager</span>
+          <span class="tag-chip">New Hire</span>
+          <span class="tag-chip">Forklift Operator</span>
+        </div>
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-flat-button color="primary" mat-dialog-close>Got it</button>
+    </mat-dialog-actions>
+  `,
+  styles: [`
+    h2[mat-dialog-title] {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    .title-icon {
+      color: #7c4dff;
+    }
+    mat-dialog-content {
+      padding: 0 24px 16px;
+    }
+    .help-section {
+      margin-bottom: 20px;
+    }
+    .help-section:last-child {
+      margin-bottom: 0;
+    }
+    .help-section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 8px 0;
+    }
+    .help-section p {
+      font-size: 14px;
+      color: #555;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .example-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .example-box mat-icon {
+      color: #ff9800;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .example-box span {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+    }
+    .tag-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tag-chip {
+      display: inline-block;
+      background: #e8eaf6;
+      color: #3f51b5;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  `],
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatIconModule
+  ]
+})
+export class TagsHelpDialog {
+  constructor(public dialogRef: MatDialogRef<TagsHelpDialog>) {}
+}
+
+@Component({
+  standalone: true,
+  selector: "team-coverage-dialog",
+  template: `
+    <h2 mat-dialog-title>
+      <mat-icon class="title-icon">groups</mat-icon>
+      Keep Your Team Up-to-Date
+    </h2>
+    <mat-dialog-content>
+      <div class="intro-text">
+        Different job titles have different safety requirements. By adding your full team with their roles, 
+        you ensure the right inspections, trainings, and surveys reach the right people—so nothing gets missed.
+      </div>
+
+      <div class="benefits-section">
+        <h3>Complete coverage means:</h3>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Tailored safety checklists</strong>
+            <p>Inspections based on actual job roles and responsibilities</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Targeted training assignments</strong>
+            <p>The right training content reaches the right people automatically</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Complete audit trail</strong>
+            <p>Documentation for every team member's compliance status</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip-box">
+        <mat-icon>lightbulb</mat-icon>
+        <span>
+          <strong>Tip:</strong> Use tags to group team members by department or role, 
+          then assign trainings to entire tags at once.
+        </span>
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-flat-button color="primary" mat-dialog-close>Got it</button>
+    </mat-dialog-actions>
+  `,
+  styles: [`
+    h2[mat-dialog-title] {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    .title-icon {
+      color: #ff9800;
+    }
+    mat-dialog-content {
+      padding: 0 24px 16px;
+    }
+    .intro-text {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .benefits-section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 12px 0;
+    }
+    .benefit-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .benefit-item mat-icon {
+      color: #4caf50;
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .benefit-item div {
+      flex: 1;
+    }
+    .benefit-item strong {
+      display: block;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 2px;
+    }
+    .benefit-item p {
+      margin: 0;
+      font-size: 13px;
+      color: #666;
+      line-height: 1.4;
+    }
+    .tip-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fff3e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    .tip-box mat-icon {
+      color: #ff9800;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .tip-box span {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+    }
+  `],
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatIconModule
+  ]
+})
+export class TeamCoverageDialog {
+  constructor(public dialogRef: MatDialogRef<TeamCoverageDialog>) {}
 }
 
 @Component({
@@ -340,6 +1075,10 @@ export class ManagersDialog {
 
   public formatPhone(): void {
     let numbers = this.newManager.phone;
+    if (!numbers || numbers.trim() === '') {
+      this.phoneError = false;
+      return;
+    }
     const cleaned = ('' + numbers).replace(/\D/g, '');
     const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
     if (match) {
@@ -348,7 +1087,6 @@ export class ManagersDialog {
     } else {
       this.phoneError = true;
     }
-    return null;
   }
 
 
@@ -422,7 +1160,10 @@ export class TeamFilesDialog {
         file.fileUrl = url;
         file.name = uFile.name;
         file.type = uFile.type;
-        return addDoc(collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`), { ...file })
+        const cleanedFile = Object.fromEntries(
+          Object.entries(file).filter(([_, v]) => v !== undefined)
+        );
+        return addDoc(collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`), cleanedFile)
           .then(snapshot => {
             this.loading = false;
             file.id = snapshot.id;
@@ -435,7 +1176,10 @@ export class TeamFilesDialog {
   }
 
   save() {
-    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}/file/${this.aFile.id}`), { ...this.aFile });
+    const cleanedFile = Object.fromEntries(
+      Object.entries(this.aFile).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}/file/${this.aFile.id}`), cleanedFile);
   }
 
   delete() {

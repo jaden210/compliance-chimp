@@ -13,7 +13,7 @@ export const accountRoutes: Routes = [
     path: "",
     component: AccountComponent,
     children: [
-      { path: "", redirectTo: "team", pathMatch: "full" },
+      { path: "", redirectTo: "dashboard", pathMatch: "full" },
       { path: "dashboard", component: HomeComponent },
       { path: "team", component: TeamComponent },
       { path: "survey/:surveyId", component: SurveyComponent },

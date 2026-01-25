@@ -7,7 +7,7 @@ import { Router } from "@angular/router";
 import { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { fetchSignInMethodsForEmail } from "firebase/auth";
-declare var gtag: Function;
+import { AnalyticsService, EngagementEvent } from "./shared/analytics.service";
 
 @Injectable({
   providedIn: "root"
@@ -21,6 +21,7 @@ export class AppService {
   isUser: boolean = false; // decides if a user has logged in before
   isLoggedIn: boolean = false; // decides if a user is logged in
   firstTimeUser: boolean = false; // lets the system show new member dialog
+  isAuthReady: boolean = false; // tracks if auth state has been determined
 
   removeFromInvite: boolean = false;
   toolbarShadow: boolean = true;
@@ -29,15 +30,13 @@ export class AppService {
     public db: Firestore,
     public dialog: MatDialog,
     private auth: Auth,
-    private router: Router
+    private router: Router,
+    private analytics: AnalyticsService
   ) {}
 
   watchVideo() {
     let dialog = this.dialog.open(VideoDialogComponent);
-    gtag("event", "video_watched", {
-      event_category: "video",
-      event_label: "video"
-    });
+    this.analytics.trackVideo('play', 'homepage_explainer');
   }
 
   /* When they put in their email address check it first */

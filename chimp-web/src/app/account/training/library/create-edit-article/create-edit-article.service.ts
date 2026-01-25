@@ -27,14 +27,14 @@ export class CreateEditArticleService {
       );
   }
 
-  /* If the article is created by one of us, add to the article collection
-  else add to team/article collection. This should also be favorited */
-  public createArticle(article: LibraryItem, teamId, isGlobal): Promise<any> {
-    const ref = isGlobal
-      ? collection(this.db, "chimp-chats")
-      : collection(this.db, "library");
-    const docId = isGlobal ? doc(ref).id : `${teamId}_${doc(ref).id}`;
-    return setDoc(doc(ref, docId), { ...article, id: docId })
+  /* Add article to team's library */
+  public createArticle(article: LibraryItem, teamId): Promise<any> {
+    const ref = collection(this.db, "library");
+    const docId = `${teamId}_${doc(ref).id}`;
+    const cleanedArticle = Object.fromEntries(
+      Object.entries({ ...article, id: docId }).filter(([_, v]) => v !== undefined)
+    );
+    return setDoc(doc(ref, docId), cleanedArticle)
       .then(() => {
         article.id = docId;
         return docId;
@@ -46,8 +46,11 @@ export class CreateEditArticleService {
   }
 
   /* Also need to update article names in myContent */
-  public updateArticle(article: LibraryItem, isGlobal: boolean): Promise<any> {
-    return updateDoc(doc(this.db, `library/${article.id}`), { ...article })
+  public updateArticle(article: LibraryItem): Promise<any> {
+    const cleanedArticle = Object.fromEntries(
+      Object.entries(article).filter(([_, v]) => v !== undefined)
+    );
+    return updateDoc(doc(this.db, `library/${article.id}`), cleanedArticle)
       .catch(error => {
         console.error(`Error updating article ${article.name}`, article, error);
         alert(
@@ -71,9 +74,7 @@ export class CreateEditArticleService {
 
   /* If article is deleted, set myContent.disabled, wipe articles */
   public deleteArticle(articleId, teamId): Promise<any> {
-    const docRef = articleId.includes(teamId)
-      ? doc(this.db, `team/${teamId}/article/${articleId}`)
-      : doc(this.db, `article/${articleId}`);
+    const docRef = doc(this.db, `library/${articleId}`);
     return deleteDoc(docRef)
       .then(() => {
         this.trainingService.wipeArticles();

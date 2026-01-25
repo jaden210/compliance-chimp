@@ -1,0 +1,99 @@
+<div class="step-container">
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-indicator">Step 2 of 4</div>
+      <h1>Create your account</h1>
+      <p class="step-subtitle">You're setting up {{ challengeService.businessName }}</p>
+    </div>
+
+    <div class="error-message" *ngIf="errorMessage">
+      <mat-icon>error</mat-icon>
+      {{ errorMessage }}
+    </div>
+
+    <div class="form-section">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Your Name</mat-label>
+        <input
+          matInput
+          [(ngModel)]="name"
+          placeholder="John Smith"
+          [disabled]="isLoading"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email</mat-label>
+        <input
+          matInput
+          type="email"
+          [(ngModel)]="email"
+          placeholder="john@example.com"
+          [disabled]="isLoading"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input
+          matInput
+          [type]="hidePassword ? 'password' : 'text'"
+          [(ngModel)]="password"
+          placeholder="Minimum 6 characters"
+          [disabled]="isLoading"
+        />
+        <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button" tabindex="-1">
+          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Confirm Password</mat-label>
+        <input
+          matInput
+          [type]="hideConfirmPassword ? 'password' : 'text'"
+          [(ngModel)]="confirmPassword"
+          [disabled]="isLoading"
+          (keyup.enter)="createAccount()"
+        />
+        <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button" tabindex="-1">
+          <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+        <mat-error *ngIf="confirmPassword && password !== confirmPassword">
+          Passwords do not match
+        </mat-error>
+      </mat-form-field>
+
+      <div class="terms-checkbox">
+        <mat-checkbox [(ngModel)]="agreedToTerms" [disabled]="isLoading">
+          I agree to the 
+          <a routerLink="/terms-of-service" target="_blank">Terms of Service</a>,
+          <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a>, and
+          <a routerLink="/customer-agreement" target="_blank">Customer Agreement</a>
+        </mat-checkbox>
+      </div>
+    </div>
+
+    <div class="step-actions">
+      <button
+        mat-stroked-button
+        class="back-btn"
+        (click)="goBack()"
+        [disabled]="isLoading"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
+      <button
+        mat-flat-button
+        color="accent"
+        class="next-btn"
+        [disabled]="!isValid() || isLoading"
+        (click)="createAccount()"
+      >
+        Next
+        <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

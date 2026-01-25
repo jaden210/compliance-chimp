@@ -1,5 +1,6 @@
+<div class="page-layout">
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">{{ accountService?.aTeam?.name }}</div>
   <div class="flex"></div>
@@ -13,16 +14,143 @@
     </div>
 
     <ng-container *ngIf="showTable">
-      <!-- Empty State -->
-      <section class="empty-state" *ngIf="teamMembers?.length === 0">
-        <mat-icon>group_add</mat-icon>
-        <h3>This is your team page!</h3>
-        <p>You'll manage your entire team from here. Add your first team member to get this party started. Like playing any great board game, this will make sense as you go.</p>
-        <button mat-flat-button color="accent" (click)="inviteMember()">
-          <mat-icon>person_add</mat-icon>
-          Add Your First Team Member
-        </button>
+      <!-- Splash Section - Empty State (Full) -->
+      <section class="splash" *ngIf="teamMembers?.length === 0">
+        <div class="splash-content">
+          <div class="splash-title">Every role matters for complete coverage.</div>
+          <div class="splash-body">
+            Different job titles have different safety requirements. By adding your full team with their roles, 
+            you ensure the right inspections, trainings, and surveys reach the right people—so nothing gets missed.
+          </div>
+          <div class="splash-benefits">
+            <div class="benefit">
+              <mat-icon>check_circle</mat-icon>
+              <span>Tailored safety checklists based on actual roles</span>
+            </div>
+            <div class="benefit">
+              <mat-icon>check_circle</mat-icon>
+              <span>Targeted training assignments per job function</span>
+            </div>
+            <div class="benefit">
+              <mat-icon>check_circle</mat-icon>
+              <span>Complete audit trail for every team member</span>
+            </div>
+          </div>
+        </div>
       </section>
+
+      <!-- QuickBooks Integration Option for Empty State -->
+      <div class="quickbooks-promo" *ngIf="teamMembers?.length === 0 && !isQuickBooksConnected">
+        <div class="promo-content">
+          <div class="promo-icon">
+            <mat-icon>sync</mat-icon>
+          </div>
+          <div class="promo-text">
+            <div class="promo-title">Already use QuickBooks?</div>
+            <div class="promo-body">
+              Connect your QuickBooks account and we'll automatically sync your employees. 
+              One click now, automatic updates forever.
+            </div>
+          </div>
+          <button mat-flat-button color="primary" class="promo-btn" (click)="connectQuickBooks()" [disabled]="qbConnecting">
+            <mat-icon>{{ qbConnecting ? 'hourglass_empty' : 'link' }}</mat-icon>
+            {{ qbConnecting ? 'Connecting...' : 'Connect QuickBooks' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Divider between options -->
+      <div class="options-divider" *ngIf="teamMembers?.length === 0 && !isQuickBooksConnected">
+        <span>or add team members manually</span>
+      </div>
+
+      <!-- Quick Add Table for Empty State -->
+      <div class="quick-add-section" *ngIf="teamMembers?.length === 0">
+        <div class="quick-add-header" *ngIf="isQuickBooksConnected">
+          <mat-icon>arrow_downward</mat-icon>
+          <span>Start adding your team below</span>
+        </div>
+        <div class="members-table empty-state-table">
+          <div class="table-header">
+            <div class="col-name">Name</div>
+            <div class="col-job">Job Title</div>
+            <div class="col-contact">Contact</div>
+            <div class="col-tags">Tags <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon></div>
+            <div class="col-actions"></div>
+          </div>
+          <div class="table-row add-row">
+            <div class="col-name">
+              <input 
+                #emptyStateNameInput
+                class="inline-input"
+                [(ngModel)]="newMember.name"
+                (keydown.enter)="addNewMember()"
+                placeholder="Enter name">
+            </div>
+            <div class="col-job">
+              <input 
+                class="inline-input"
+                [(ngModel)]="newMember.jobTitle"
+                (keydown.enter)="addNewMember()"
+                placeholder="Job title">
+            </div>
+            <div class="col-contact">
+              <div class="contact-fields">
+                <input 
+                  class="inline-input"
+                  [class.input-error]="newMemberPhoneError"
+                  [(ngModel)]="newMember.phone"
+                  (keydown.enter)="addNewMember()"
+                  (blur)="validateNewMemberPhone()"
+                  (input)="newMemberPhoneError = false"
+                  placeholder="Phone"
+                  type="tel">
+                <div class="contact-toggle">
+                  <mat-slide-toggle 
+                    [ngModel]="!newMember.preferEmail"
+                    (ngModelChange)="newMember.preferEmail = !$event"
+                    [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
+                    tabindex="-1">
+                    <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                  </mat-slide-toggle>
+                </div>
+                <input 
+                  *ngIf="newMember.preferEmail"
+                  class="inline-input email-input"
+                  [class.input-error]="newMemberEmailError"
+                  [(ngModel)]="newMember.email"
+                  (keydown.enter)="addNewMember()"
+                  (blur)="validateNewMemberEmail()"
+                  (input)="newMemberEmailError = false"
+                  placeholder="Email"
+                  type="email">
+              </div>
+            </div>
+            <div class="col-tags">
+              <app-tag-input
+                [tags]="newMember.tags || []"
+                [allTags]="allTags"
+                (tagsChange)="newMember.tags = $event"
+                (enterSubmit)="addNewMember()"
+                [compact]="true"
+                placeholder="Tags...">
+              </app-tag-input>
+            </div>
+            <div class="col-actions">
+              <button 
+                mat-flat-button 
+                color="accent" 
+                (click)="addNewMember()"
+                [disabled]="accountService.isReadOnly || !newMember.name || (!newMember.phone && !newMember.preferEmail) || (newMember.preferEmail && !newMember.email) || newMemberPhoneError || newMemberEmailError"
+                class="add-first-btn"
+                tabindex="-1">
+                <mat-icon>add</mat-icon>
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Dashboard -->
       <ng-container *ngIf="teamMembers?.length > 0">
@@ -31,15 +159,21 @@
           <div class="dashboard-title">
             <h1>Team Overview</h1>
           </div>
-          <button mat-flat-button color="accent" class="add-btn" (click)="inviteMember()">
-            <mat-icon>person_add</mat-icon>
-            Add Team Member
-          </button>
+          <div class="header-actions">
+            <button mat-flat-button class="coverage-btn" (click)="openTeamCoverageDialog()">
+              <mat-icon>groups</mat-icon>
+              Full Team Coverage
+            </button>
+            <button mat-flat-button color="accent" class="add-btn" (click)="scrollToAddMember()" [disabled]="accountService.isReadOnly">
+              <mat-icon>person_add</mat-icon>
+              Add Team Member
+            </button>
+          </div>
         </div>
 
         <div class="metrics-grid">
           <!-- Team Members -->
-          <div class="metric-card clickable" (click)="inviteMember()">
+          <div class="metric-card clickable" (click)="scrollToAddMember()">
             <div class="metric-icon accent">
               <mat-icon>group</mat-icon>
             </div>
@@ -61,46 +195,239 @@
             </div>
             <mat-icon class="metric-action">settings</mat-icon>
           </div>
+
+          <!-- QuickBooks Integration -->
+          <div class="metric-card clickable quickbooks-card" (click)="openQuickBooksDialog()">
+            <div class="metric-icon" [class.connected]="isQuickBooksConnected" [class.not-connected]="!isQuickBooksConnected">
+              <mat-icon>{{ isQuickBooksConnected ? 'sync' : 'link' }}</mat-icon>
+            </div>
+            <div class="metric-content">
+              <div class="metric-label">QuickBooks</div>
+              <div class="metric-value" *ngIf="isQuickBooksConnected">
+                {{ lastSyncCount }} synced
+              </div>
+              <div class="metric-value not-connected-text" *ngIf="!isQuickBooksConnected">
+                Not connected
+              </div>
+            </div>
+            <mat-icon class="metric-action">{{ isQuickBooksConnected ? 'settings' : 'add_circle' }}</mat-icon>
+          </div>
+        </div>
+
+        <!-- Tags Overview -->
+        <div class="tags-overview" *ngIf="tagCounts.length > 0">
+          <div class="tags-header">
+            <mat-icon>local_offer</mat-icon>
+            <span>Tags</span>
+            <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon>
+          </div>
+          <div class="tags-list">
+            <button 
+              *ngFor="let item of tagCounts" 
+              class="tag-chip clickable"
+              (click)="filterByTag(item.tag)"
+              [matTooltip]="'Click to filter by ' + item.tag"
+              [style.backgroundColor]="getTagColor(item.tag).bg"
+              [style.color]="getTagColor(item.tag).text"
+              [style.borderColor]="getTagColor(item.tag).border">
+              <span class="tag-dot" [style.backgroundColor]="getTagColor(item.tag).text"></span>
+              <span class="tag-name">{{ item.tag }}</span>
+              <span class="tag-count" [style.backgroundColor]="getTagColor(item.tag).text">{{ item.count }}</span>
+            </button>
+          </div>
         </div>
       </section>
 
-      <!-- Team Members Section -->
+      <!-- Team Members Table -->
       <section class="members-section">
         <div class="section-header">
           <mat-icon>people</mat-icon>
           <h2>Team Members</h2>
-          <span class="count-badge">{{ teamMembers?.length }}</span>
+          <span class="count-badge" *ngIf="!searchQuery">{{ teamMembers?.length }}</span>
+          <span class="count-badge filtered" *ngIf="searchQuery">{{ filteredTeamMembers?.length }} / {{ teamMembers?.length }}</span>
+          <div class="flex"></div>
+          <div class="search-box">
+            <mat-icon>search</mat-icon>
+            <input 
+              type="text" 
+              [(ngModel)]="searchQuery" 
+              placeholder="Search by name, job, tag..."
+              class="search-input">
+            <button 
+              *ngIf="searchQuery" 
+              mat-icon-button 
+              class="clear-search" 
+              (click)="searchQuery = ''">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
         </div>
 
-        <div class="members-list">
-          <div class="member-card" *ngFor="let user of teamMembers">
-            <div class="member-info">
-              <div class="member-avatar">
-                <mat-icon>person</mat-icon>
-              </div>
-              <div class="member-details">
-                <div class="member-name">
-                  {{ user.name }}
-                  <button mat-icon-button class="edit-btn" (click)="editTeamMember(user)">
-                    <mat-icon>edit</mat-icon>
-                  </button>
+        <!-- No results message -->
+        <div class="no-results" *ngIf="searchQuery && filteredTeamMembers.length === 0">
+          <mat-icon>search_off</mat-icon>
+          <span>No team members match "{{ searchQuery }}"</span>
+          <button mat-button color="primary" (click)="searchQuery = ''">Clear search</button>
+        </div>
+
+        <div class="members-table">
+          <!-- Table Header -->
+          <div class="table-header">
+            <div class="col-name">Name</div>
+            <div class="col-job">Job Title</div>
+            <div class="col-contact">Contact</div>
+            <div class="col-tags">Tags <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon></div>
+            <div class="col-actions"></div>
+          </div>
+
+          <!-- Existing Members -->
+          <div class="table-row" *ngFor="let member of filteredTeamMembers; trackBy: trackByMemberId">
+            <div class="col-name">
+              <input 
+                class="inline-input"
+                [(ngModel)]="member.name"
+                (blur)="saveTeamMember(member)"
+                (keydown.enter)="$event.target.blur()"
+                placeholder="Name">
+            </div>
+            <div class="col-job">
+              <input 
+                class="inline-input"
+                [(ngModel)]="member.jobTitle"
+                (blur)="saveTeamMember(member)"
+                (keydown.enter)="$event.target.blur()"
+                placeholder="Job title">
+            </div>
+            <div class="col-contact">
+              <div class="contact-fields">
+                <input 
+                  class="inline-input"
+                  [class.input-error]="hasMemberPhoneError(member)"
+                  [(ngModel)]="member.phone"
+                  (blur)="saveTeamMember(member)"
+                  (keydown.enter)="$event.target.blur()"
+                  (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].phone = false)"
+                  placeholder="Phone"
+                  type="tel">
+                <div class="contact-toggle">
+                  <mat-slide-toggle 
+                    [ngModel]="!member.preferEmail"
+                    (ngModelChange)="member.preferEmail = !$event; saveTeamMember(member)"
+                    [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'">
+                    <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                  </mat-slide-toggle>
                 </div>
-                <div class="member-stats">
-                  <span class="stat">
-                    <mat-icon>quiz</mat-icon>
-                    {{ $any(user).surveyCount }} responses | trainings
-                  </span>
-                </div>
+                <input 
+                  *ngIf="member.preferEmail"
+                  class="inline-input email-input"
+                  [class.input-error]="hasMemberEmailError(member)"
+                  [(ngModel)]="member.email"
+                  (blur)="saveTeamMember(member)"
+                  (keydown.enter)="$event.target.blur()"
+                  (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].email = false)"
+                  placeholder="Email"
+                  type="email">
               </div>
             </div>
-            <div class="member-actions">
-              <button mat-stroked-button color="primary" (click)="routeToUserPage(user.id)">
-                <mat-icon>open_in_new</mat-icon>
-                User Page
+            <div class="col-tags">
+              <app-tag-input
+                [tags]="member.tags || []"
+                [allTags]="allTags"
+                (tagsChange)="onTagsChange(member, $event)"
+                [compact]="true"
+                placeholder="Add tags...">
+              </app-tag-input>
+            </div>
+            <div class="col-actions">
+              <button mat-icon-button [matMenuTriggerFor]="memberMenu" class="action-btn">
+                <mat-icon>more_vert</mat-icon>
               </button>
-              <button mat-button (click)="resendInvite(user)" [disabled]="$any(user).sending">
-                <mat-icon>email</mat-icon>
-                {{ $any(user).sending ? 'Sending...' : 'Resend Invite' }}
+              <mat-menu #memberMenu="matMenu">
+                <button mat-menu-item (click)="routeToUserPage(member.id)">
+                  <mat-icon>open_in_new</mat-icon>
+                  <span>View User Page</span>
+                </button>
+                <button mat-menu-item (click)="resendInvite(member)" [disabled]="$any(member).sending">
+                  <mat-icon>send</mat-icon>
+                  <span>{{ $any(member).sending ? 'Sending...' : 'Send Access Link' }}</span>
+                </button>
+                <mat-divider></mat-divider>
+                <button mat-menu-item class="delete-action" (click)="confirmDeleteMember(member)">
+                  <mat-icon>delete</mat-icon>
+                  <span>Remove from Team</span>
+                </button>
+              </mat-menu>
+            </div>
+          </div>
+
+          <!-- Add New Row -->
+          <div class="table-row add-row">
+            <div class="col-name">
+              <input 
+                #mainTableNameInput
+                class="inline-input"
+                [(ngModel)]="newMember.name"
+                (keydown.enter)="addNewMember()"
+                placeholder="+ Add team member">
+            </div>
+            <div class="col-job">
+              <input 
+                class="inline-input"
+                [(ngModel)]="newMember.jobTitle"
+                (keydown.enter)="addNewMember()"
+                placeholder="Job title">
+            </div>
+            <div class="col-contact">
+              <div class="contact-fields">
+                <input 
+                  class="inline-input"
+                  [class.input-error]="newMemberPhoneError"
+                  [(ngModel)]="newMember.phone"
+                  (keydown.enter)="addNewMember()"
+                  (blur)="validateNewMemberPhone()"
+                  (input)="newMemberPhoneError = false"
+                  placeholder="Phone"
+                  type="tel">
+                <div class="contact-toggle">
+                  <mat-slide-toggle 
+                    [ngModel]="!newMember.preferEmail"
+                    (ngModelChange)="newMember.preferEmail = !$event"
+                    [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
+                    tabindex="-1">
+                    <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                  </mat-slide-toggle>
+                </div>
+                <input 
+                  *ngIf="newMember.preferEmail"
+                  class="inline-input email-input"
+                  [class.input-error]="newMemberEmailError"
+                  [(ngModel)]="newMember.email"
+                  (keydown.enter)="addNewMember()"
+                  (blur)="validateNewMemberEmail()"
+                  (input)="newMemberEmailError = false"
+                  placeholder="Email"
+                  type="email">
+              </div>
+            </div>
+            <div class="col-tags">
+              <app-tag-input
+                [tags]="newMember.tags || []"
+                [allTags]="allTags"
+                (tagsChange)="newMember.tags = $event"
+                (enterSubmit)="addNewMember()"
+                [compact]="true"
+                placeholder="Tags...">
+              </app-tag-input>
+            </div>
+            <div class="col-actions">
+              <button 
+                mat-icon-button 
+                color="primary" 
+                (click)="addNewMember()"
+                [disabled]="!newMember.name || (!newMember.phone && !newMember.preferEmail) || (newMember.preferEmail && !newMember.email) || newMemberPhoneError || newMemberEmailError"
+                class="add-btn-icon"
+                tabindex="-1">
+                <mat-icon>add_circle</mat-icon>
               </button>
             </div>
           </div>
@@ -109,4 +436,5 @@
       </ng-container>
     </ng-container>
   </div>
+</div>
 </div>

@@ -21,7 +21,7 @@ import {
 } from "../training.service";
 import { Subscription, BehaviorSubject, forkJoin } from "rxjs";
 import { AccountService, User } from "../../account.service";
-import { AttendanceDialog } from "./attendance.dialog";
+import { BlasterDialog } from "../../../blaster/blaster.component";
 import { tap } from "rxjs/operators";
 import { SurveysService } from "../../surveys/surveys.service";
 import { Survey } from "../../survey/survey";
@@ -153,7 +153,15 @@ export class ArticleComponent implements OnInit, OnDestroy {
   }
 
   public startTraining(): void {
-    let dialogRef = this.dialog.open(AttendanceDialog);
+    // Pass the article with assigned tags so they're pre-selected
+    let dialogRef = this.dialog.open(BlasterDialog, {
+      data: { 
+        libraryItem: { 
+          ...this.article, 
+          assignedTags: this.article?.myContent?.assignedTags || [] 
+        } 
+      }
+    });
     dialogRef.afterClosed().subscribe((traineeIds: string[]) => {
       if (traineeIds) {
         let userSurvey = {};

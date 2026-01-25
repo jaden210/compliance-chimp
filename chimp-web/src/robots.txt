@@ -1,0 +1,34 @@
+# Compliance Chimp - robots.txt
+# https://www.compliancechimp.com
+
+User-agent: *
+Allow: /
+
+# Public pages (crawlable)
+Allow: /home
+Allow: /pricing
+Allow: /how-it-works
+Allow: /common-questions
+Allow: /contact
+Allow: /blog
+Allow: /blog/*
+Allow: /terms-of-service
+Allow: /privacy-policy
+Allow: /customer-agreement
+Allow: /plans
+
+# Authentication pages (allow but low priority)
+Allow: /sign-in
+Allow: /sign-up
+
+# Private/authenticated areas (disallow)
+Disallow: /account
+Disallow: /account/*
+Disallow: /user
+Disallow: /user/*
+Disallow: /get-started
+Disallow: /get-started/*
+Disallow: /join-team
+
+# Sitemap location
+Sitemap: https://compliancechimp.com/sitemap.xml

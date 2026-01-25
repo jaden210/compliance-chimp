@@ -1,41 +1,58 @@
-<span id="title" mat-dialog-title>Filter Events</span>
+<div class="dialog-header">
+  <mat-icon>filter_list</mat-icon>
+  <h2 mat-dialog-title>Filter Events</h2>
+</div>
 
 <mat-dialog-content>
-
-
-  <div class="col">
-    By Type:
-    <mat-selection-list
-      dense
-      [(ngModel)]="data.filterTypes"
-      style="outline: none;"
-    >
-      <mat-list-option *ngFor="let type of data.eventTypes" [value]="type">
-        <h3 matLine>{{type}}</h3>
-      </mat-list-option>
-    </mat-selection-list>
+  <div class="filter-column">
+    <div class="filter-label">By Type</div>
+    @if (data.eventTypes?.length > 0) {
+      <mat-selection-list [(ngModel)]="data.filterTypes">
+        @for (type of data.eventTypes; track type) {
+          <mat-list-option [value]="type">
+            <div class="type-option">
+              <div class="type-icon" [ngClass]="getTypeClass(type)">
+                <mat-icon>{{ getTypeIcon(type) }}</mat-icon>
+              </div>
+              <span>{{ type }}</span>
+            </div>
+          </mat-list-option>
+        }
+      </mat-selection-list>
+    } @else {
+      <div class="empty-filter">No event types available</div>
+    }
   </div>
 
-  <div class="col">
-    By User:
-    <mat-selection-list
-      dense
-      [(ngModel)]="data.filterUsers"
-      style="outline: none;">
-      <mat-list-option *ngFor="let user of (users | async)" [value]="user.name">
-        <img
-          matListAvatar
-          [src]="user.profileUrl"
-          onerror="src='/assets/face.png'"
-        />
-        <h3 matLine>{{ user.name }}</h3>
-      </mat-list-option>
-    </mat-selection-list>
+  <div class="filter-column">
+    <div class="filter-label">By Team Member</div>
+    @if ((users | async)?.length > 0) {
+      <mat-selection-list [(ngModel)]="data.filterUsers">
+        @for (user of (users | async); track user.id) {
+          <mat-list-option [value]="user.name">
+            <div class="user-option">
+              <img 
+                class="user-avatar"
+                [src]="user.profileUrl" 
+                onerror="this.src='/assets/face.png'" 
+                alt="{{ user.name }}" />
+              <span class="user-name">{{ user.name }}</span>
+            </div>
+          </mat-list-option>
+        }
+      </mat-selection-list>
+    } @else {
+      <div class="empty-filter">No team members available</div>
+    }
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button mat-dialog-close>CANCEL</button>
-  <button mat-button (click)="clear()">CLEAR</button>
-  <button color="primary" mat-raised-button (click)="apply()">APPLY</button>
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-button (click)="clear()" [disabled]="data.filterUsers.length === 0 && data.filterTypes.length === 0">
+    Clear All
+  </button>
+  <button mat-flat-button color="primary" (click)="apply()">
+    Apply Filters
+  </button>
 </mat-dialog-actions>

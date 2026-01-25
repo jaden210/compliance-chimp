@@ -36,14 +36,14 @@
       </mat-form-field>
       
       <mat-form-field appearance="outline">
-        <mat-label>Phone</mat-label>
-        <input matInput [(ngModel)]="newManager.phone" type="tel" (keyup)="formatPhone()" required>
+        <mat-label>Phone (optional)</mat-label>
+        <input matInput [(ngModel)]="newManager.phone" type="tel" (keyup)="formatPhone()">
         <mat-hint align="end" class="error-text" *ngIf="phoneError">Must be a valid phone number</mat-hint>
       </mat-form-field>
       
       <div class="form-actions">
         <button mat-button (click)="newManager = null">Cancel</button>
-        <button mat-flat-button color="primary" [disabled]="!newManager.name || !newManager.email || !newManager.phone" (click)="createManager()">
+        <button mat-flat-button color="primary" [disabled]="!newManager.name || !newManager.email" (click)="createManager()">
           Add Manager
         </button>
       </div>

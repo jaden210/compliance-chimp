@@ -1,74 +1,320 @@
-<div class="hero">
-  <div class="hero-content">
-    <div class="hero-text">
-      <h1 class="headline">
-        The PCI compliance platform for small teams who hate PCI compliance.
-      </h1>
-      <div class="checklist-container">
-        <img src="/assets/chimp.png" alt="Compliance Chimp" class="chimp-image" />
-        <div class="checklist">
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>Self-assessment questionnaire guidance</span>
-          </div>
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>Policy documentation made simple</span>
-          </div>
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>Evidence collection and storage</span>
-          </div>
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>Team training and verification</span>
-          </div>
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>Compliance tracking and reminders</span>
-          </div>
-          <div class="check-row">
-            <mat-icon>check</mat-icon>
-            <span>All stored in one simple place, forever</span>
-          </div>
+<!-- 6-Minute Challenge Section -->
+<div class="challenge-hero">
+  <div class="challenge-card">
+    <div class="challenge-content">
+      <div class="challenge-timer-visual">
+        <div class="timer-circle">
+          <span class="timer-number">6</span>
+          <span class="timer-label">min</span>
         </div>
       </div>
-    </div>
-    
-    <div class="signup-card">
-      <div class="card-title">
-        <span class="blue">Start today,</span>
-        <span class="orange">&nbsp;no card required</span>
-      </div>
-      <div class="error" *ngIf="loginErrorStr">{{ loginErrorStr }}</div>
-      <div class="form-container">
-        <mat-form-field appearance="outline">
-          <mat-label>Email</mat-label>
-          <input
-            matInput
-            (keyup.enter)="createAccount()"
-            type="email"
-            required
-            [(ngModel)]="email"
-          />
-        </mat-form-field>
-        <button
-          mat-flat-button
-          color="accent"
-          class="create-btn"
-          (click)="createAccount()"
-        >
-          Create Account
+      <div class="challenge-text">
+        <h2 class="challenge-headline desktop-headline">
+          The chimp can have your business fully on track to compliance in under six minutes.
+        </h2>
+        <h2 class="challenge-headline mobile-headline">
+          Get compliant in 6 minutes
+        </h2>
+        <p class="challenge-subheadline">
+          Take the challenge. Beat the clock. Get 2 months free.
+        </p>
+        <div class="challenge-benefits">
+          <div class="benefit-pill">
+            <mat-icon>credit_card_off</mat-icon>
+            <span>No credit card</span>
+          </div>
+          <div class="benefit-pill">
+            <mat-icon>card_giftcard</mat-icon>
+            <span>2 months free</span>
+          </div>
+          <div class="benefit-pill">
+            <mat-icon>rocket_launch</mat-icon>
+            <span>Instant access</span>
+          </div>
+        </div>
+        <button mat-flat-button color="primary" class="challenge-btn" routerLink="/get-started">
+          <mat-icon>play_arrow</mat-icon>
+          Accept the Challenge
         </button>
-      </div>
-      <div class="signin-link">
-        Already have an account?
-        <a routerLink="/sign-in">Sign in</a>
       </div>
     </div>
   </div>
 </div>
 
-<div class="border"></div>
 
-<sign-up></sign-up>
+<!-- What's Included Section -->
+<div class="hero">
+  <div class="hero-content-centered">
+    <p class="section-title">Everything you need</p>
+    <h1 class="headline">
+      Compliance Made Simple for Small Teams Who'd Rather Focus on the Work
+    </h1>
+    <p class="subheadline">
+      Whether it's OSHA safety, PCI, or industry-specific regulations—we handle the busywork so you can get back to business.
+    </p>
+    <div class="checklist-grid">
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>Automated training via text and email</span>
+      </div>
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>QuickBooks integration for team sync</span>
+      </div>
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>Guided self-inspections and assessments</span>
+      </div>
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>SMS surveys with automatic reminders</span>
+      </div>
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>Audit-ready compliance documentation</span>
+      </div>
+      <div class="check-row">
+        <mat-icon>check</mat-icon>
+        <span>Set it and forget it—the chimp handles the rest</span>
+      </div>
+    </div>
+    <div class="hero-cta">
+      <button mat-flat-button class="get-started-btn" routerLink="/get-started">
+        Take the Challenge
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+      <span class="cta-note">Set up in 6 minutes — 14-day free trial</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- Feature Sections - White Background -->
+<div class="features-container">
+  
+  <!-- Section 1: Training Management -->
+  <section class="feature-section">
+    <div class="feature-content">
+      <h2>Automated Training That Runs Itself</h2>
+      <p>
+        Training goes out automatically via text and email—no chasing down employees. 
+        The chimp sends reminders, tracks completion, and verifies understanding with built-in quizzes. You set it up once and forget about it.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>schedule_send</mat-icon>
+          <span>Training starts automatically via SMS and email</span>
+        </li>
+        <li>
+          <mat-icon>library_books</mat-icon>
+          <span>Pre-built safety and compliance training library</span>
+        </li>
+        <li>
+          <mat-icon>assignment_turned_in</mat-icon>
+          <span>Quiz verification ensures team members understand</span>
+        </li>
+        <li>
+          <mat-icon>autorenew</mat-icon>
+          <span>Automatic reminders until training is complete</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">school</mat-icon>
+    </div>
+  </section>
+
+  <!-- Section 2: Self-Inspections & Assessments -->
+  <section class="feature-section reverse">
+    <div class="feature-content">
+      <h2>Self-Inspections Made Easy</h2>
+      <p>
+        Walk through guided checklists for OSHA, workplace safety, or any compliance requirement. 
+        Snap photos, document findings, and the chimp generates a needs report showing exactly what needs attention.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>fact_check</mat-icon>
+          <span>Guided checklists tailored to your industry</span>
+        </li>
+        <li>
+          <mat-icon>photo_camera</mat-icon>
+          <span>Attach photos as evidence during inspections</span>
+        </li>
+        <li>
+          <mat-icon>assessment</mat-icon>
+          <span>Auto-generated needs reports highlight gaps</span>
+        </li>
+        <li>
+          <mat-icon>schedule</mat-icon>
+          <span>Schedule recurring inspections with reminders</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">checklist</mat-icon>
+    </div>
+  </section>
+
+  <!-- Mid-page CTA -->
+  <div class="mid-cta">
+    <div class="mid-cta-content">
+      <span class="mid-cta-text">Ready to get compliant in 6 minutes?</span>
+      <button mat-flat-button class="mid-cta-btn" routerLink="/get-started">
+        Accept the Challenge
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Section 3: Team Management -->
+  <section class="feature-section">
+    <div class="feature-content">
+      <h2>Team Management with QuickBooks Sync</h2>
+      <p>
+        Connect QuickBooks and your team syncs automatically—new hires get added, departures get removed. 
+        See your entire team's compliance status from one dashboard without lifting a finger.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>sync</mat-icon>
+          <span>QuickBooks integration keeps your team in sync</span>
+        </li>
+        <li>
+          <mat-icon>person_add</mat-icon>
+          <span>New employees automatically start their training</span>
+        </li>
+        <li>
+          <mat-icon>dashboard</mat-icon>
+          <span>Real-time compliance dashboard for the whole team</span>
+        </li>
+        <li>
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span>Manager and admin roles with different permissions</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">groups</mat-icon>
+    </div>
+  </section>
+
+  <!-- Section 4: Surveys via Text/Email -->
+  <section class="feature-section reverse">
+    <div class="feature-content">
+      <h2>Surveys That Send Themselves</h2>
+      <p>
+        Schedule compliance surveys and safety check-ins to go out automatically via text or email. 
+        Team members respond from their phones—no app needed. Track responses in real time.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>schedule_send</mat-icon>
+          <span>Surveys go out automatically on your schedule</span>
+        </li>
+        <li>
+          <mat-icon>textsms</mat-icon>
+          <span>Text and email delivery for maximum reach</span>
+        </li>
+        <li>
+          <mat-icon>speed</mat-icon>
+          <span>Real-time response tracking as answers come in</span>
+        </li>
+        <li>
+          <mat-icon>touch_app</mat-icon>
+          <span>One-tap responses—no login required</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">send</mat-icon>
+    </div>
+  </section>
+
+  <!-- Section 5: Mobile User App -->
+  <section class="feature-section">
+    <div class="feature-content">
+      <h2>Your Team Gets a Mobile App</h2>
+      <p>
+        When training or a survey goes out, team members get a text with a link. They tap, complete it on their phone, and they're done.
+        No app download, no login headaches—just compliance that works.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>touch_app</mat-icon>
+          <span>One tap from text message to complete training</span>
+        </li>
+        <li>
+          <mat-icon>smartphone</mat-icon>
+          <span>Works on any smartphone—no download needed</span>
+        </li>
+        <li>
+          <mat-icon>report_problem</mat-icon>
+          <span>Report incidents with photos from the field</span>
+        </li>
+        <li>
+          <mat-icon>lock_open</mat-icon>
+          <span>No passwords to remember—secure magic links</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">phone_iphone</mat-icon>
+    </div>
+  </section>
+
+  <!-- Section 6: Compliance Tracking & Evidence -->
+  <section class="feature-section reverse">
+    <div class="feature-content">
+      <h2>Always Audit-Ready</h2>
+      <p>
+        Every training completion, survey response, and inspection gets documented automatically. 
+        When an auditor shows up, pull up your records in seconds—everything's organized and ready to go.
+      </p>
+      <ul class="feature-benefits">
+        <li>
+          <mat-icon>auto_awesome</mat-icon>
+          <span>Documentation happens automatically as you go</span>
+        </li>
+        <li>
+          <mat-icon>folder_special</mat-icon>
+          <span>Everything in one place—training, inspections, surveys</span>
+        </li>
+        <li>
+          <mat-icon>history</mat-icon>
+          <span>Complete audit trail with timestamps</span>
+        </li>
+        <li>
+          <mat-icon>download</mat-icon>
+          <span>Export reports for auditors in one click</span>
+        </li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <mat-icon class="feature-icon">verified</mat-icon>
+    </div>
+  </section>
+
+</div>
+
+<!-- Final CTA Section -->
+<div class="final-cta">
+  <div class="final-cta-content">
+    <h2>Ready to take the challenge?</h2>
+    <p>Join thousands of small businesses who got compliant in under 6 minutes.</p>
+    <div class="final-cta-actions">
+      <button mat-flat-button class="final-cta-btn" routerLink="/get-started">
+        <mat-icon>play_arrow</mat-icon>
+        Start the 6-Minute Challenge
+      </button>
+      <div class="final-cta-note">
+        <mat-icon>check_circle</mat-icon>
+        <span>14 days free</span>
+        <mat-icon>check_circle</mat-icon>
+        <span>No credit card</span>
+        <mat-icon>check_circle</mat-icon>
+        <span>2 months free if you beat the clock</span>
+      </div>
+    </div>
+  </div>
+</div>

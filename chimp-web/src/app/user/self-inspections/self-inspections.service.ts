@@ -84,12 +84,18 @@ export class SelfInspectionsService {
     selfInspection.baseQuestions = baseQuestions;
     if (selfInspection.id) {
       const inspectionRef = doc(this.db, `team/${this.userService.aTeam.id}/self-inspection/${selfInspection.id}`);
-      return setDoc(inspectionRef, { ...selfInspection });
+      const cleanedInspection = Object.fromEntries(
+        Object.entries(selfInspection).filter(([_, v]) => v !== undefined)
+      );
+      return setDoc(inspectionRef, cleanedInspection);
     } else {
       selfInspection.teamId = this.userService.aTeam.id;
       selfInspection.createdAt = new Date();
       const inspectionsRef = collection(this.db, `team/${this.userService.aTeam.id}/self-inspection`);
-      return addDoc(inspectionsRef, { ...selfInspection });
+      const cleanedInspection = Object.fromEntries(
+        Object.entries(selfInspection).filter(([_, v]) => v !== undefined)
+      );
+      return addDoc(inspectionsRef, cleanedInspection);
     }
   }
 
@@ -110,7 +116,10 @@ export class SelfInspectionsService {
     newInspection.createdAt = new Date();
     newInspection.categories = selfInspection.baseQuestions;
     const inspectionsRef = collection(this.db, `team/${this.userService.aTeam.id}/self-inspection/${selfInspection.id}/inspections`);
-    return addDoc(inspectionsRef, { ...newInspection }).then(snapshot => {
+    const cleanedInspection = Object.fromEntries(
+      Object.entries(newInspection).filter(([_, v]) => v !== undefined)
+    );
+    return addDoc(inspectionsRef, cleanedInspection).then(snapshot => {
       newInspection.id = snapshot.id;
       return newInspection;
     });
@@ -127,13 +136,19 @@ export class SelfInspectionsService {
     inspection.completedBy = this.userService.loggedInUser.id;
     selfInspection.lastCompletedAt = new Date();
     const selfInspectionRef = doc(this.db, `team/${this.userService.aTeam.id}/self-inspection/${selfInspection.id}`);
-    updateDoc(selfInspectionRef, { ...selfInspection });
+    const cleanedSelfInspection = Object.fromEntries(
+      Object.entries(selfInspection).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(selfInspectionRef, cleanedSelfInspection);
     return this.saveSelfInspection(inspection, selfInspection);
   }
 
   saveSelfInspection(inspection, selfInspection): Promise<any> {
     const inspectionRef = doc(this.db, `team/${this.userService.aTeam.id}/self-inspection/${selfInspection.id}/inspections/${inspection.id}`);
-    return setDoc(inspectionRef, { ...inspection });
+    const cleanedInspection = Object.fromEntries(
+      Object.entries(inspection).filter(([_, v]) => v !== undefined)
+    );
+    return setDoc(inspectionRef, cleanedInspection);
   }
 }
 

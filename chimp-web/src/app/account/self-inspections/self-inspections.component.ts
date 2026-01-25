@@ -9,7 +9,4 @@ import { RouterModule } from "@angular/router";
   styleUrls: ["./self-inspections.component.css"],
   imports: [CommonModule, RouterModule]
 })
-export class SelfInspectionsComponent {
-
-  constructor() {}
-}
+export class SelfInspectionsComponent {}

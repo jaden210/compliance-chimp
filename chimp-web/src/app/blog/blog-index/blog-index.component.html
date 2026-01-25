@@ -1,0 +1,59 @@
+<!-- Hero Section -->
+<header class="blog-header">
+  <h1 class="blog-title">Compliance Resources</h1>
+  <p class="blog-subtitle">
+    Guides, tips, and insights to help your business stay compliant—without the headache.
+  </p>
+</header>
+
+<!-- Blog Container -->
+<main class="blog-container" role="main">
+  <div class="blog-content">
+    
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="loading" role="status" aria-live="polite">
+      <mat-spinner diameter="40" aria-label="Loading articles"></mat-spinner>
+      <p>Loading articles...</p>
+    </div>
+
+    <ng-container *ngIf="!loading">
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <mat-icon aria-hidden="true">search</mat-icon>
+        <input 
+          type="text" 
+          placeholder="Search articles..." 
+          [(ngModel)]="searchQuery"
+          (input)="onSearch()"
+          aria-label="Search articles">
+        <button 
+          *ngIf="searchQuery" 
+          class="clear-btn" 
+          (click)="clearSearch()" 
+          aria-label="Clear search">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Posts Grid -->
+      <section class="posts-grid" aria-label="Blog articles">
+        <article class="post-card" *ngFor="let post of filteredPosts">
+          <a [routerLink]="['/blog', post.slug]" class="post-link" [attr.aria-label]="'Read article: ' + post.title">
+            <div class="post-meta">
+              <span class="post-category">{{ post.category }}</span>
+              <span class="post-read-time" aria-label="Reading time">{{ post.readTime }}</span>
+            </div>
+            <h2 class="post-title">{{ post.title }}</h2>
+          </a>
+        </article>
+      </section>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="filteredPosts.length === 0" role="status">
+        <mat-icon aria-hidden="true">article</mat-icon>
+        <p>No posts found. Check back soon!</p>
+      </div>
+    </ng-container>
+
+  </div>
+</main>

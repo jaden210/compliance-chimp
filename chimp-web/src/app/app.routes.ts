@@ -10,7 +10,7 @@ import { CustomerAgreementComponent } from "./customer-agreement/customer-agreem
 import { AuthGuard } from "./auth.gaurd";
 import { JoinTeamComponent } from "./join-team/join-team.component";
 import { CommonQuestionsComponent } from "./common-questions/common-questions.component";
-import { SignUpComponent } from "./sign-up/sign-up.component";
+import { PlansComponent } from "./plans/plans.component";
 
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
@@ -18,11 +18,21 @@ export const appRoutes: Routes = [
   { path: "contact", component: ContactComponent },
   { path: "how-it-works", component: HowComponent },
   { path: "common-questions", component: CommonQuestionsComponent },
+  { path: "plans", component: PlansComponent },
   { path: "sign-up", component: SignUpPageComponent },
   { path: "sign-in", component: SignInComponent },
   {
+    path: "blog",
+    loadChildren: () => import('./blog/blog.routes').then(m => m.blogRoutes)
+  },
+  {
     path: "get-started",
-    loadChildren: () => import('./get-started/get-started.routes').then(m => m.getStartedRoutes)
+    loadChildren: () => import('./challenge/challenge.routes').then(m => m.challengeRoutes)
+  },
+  {
+    path: "challenge",
+    redirectTo: "get-started",
+    pathMatch: "prefix"
   },
   { path: "terms-of-service", component: TermsOfUseComponent },
   { path: "privacy-policy", component: PrivacyPolicyComponent },

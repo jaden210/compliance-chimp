@@ -1,46 +1,142 @@
 <mat-toolbar>
-    <img class="toolbar-logo" src="/assets/ccLogoDark.png">
-    <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
-    <div class="toolbar-title">Events</div>
-    <div class="flex"></div>
-    <div id="search-box" [class.expand]="searchVisible">
-      <button mat-icon-button (click)="searchVisible = !searchVisible">
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png">
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <div class="toolbar-title">Events</div>
+  <div class="flex"></div>
+  @if (hasEvents) {
+    <div class="search-container" [class.expanded]="searchVisible">
+      <button mat-icon-button (click)="searchVisible = !searchVisible" matTooltip="Search events">
         <mat-icon>search</mat-icon>
       </button>
-      <input [(ngModel)]="searchStr" placeholder="search events" (keyup)="filterEvents()" />
-      </div>
-      <button
+      @if (searchVisible) {
+        <input 
+          type="text"
+          [(ngModel)]="searchStr" 
+          placeholder="Search events..." 
+          (input)="filterEvents()"
+          class="search-input" />
+        @if (searchStr) {
+          <button mat-icon-button class="clear-btn" (click)="clearSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      }
+    </div>
+    <button
       mat-icon-button
-      style="margin-right: 12px;"
       (click)="filter()"
-      matTooltip="Filter by people"
-      [matBadge]="filterUsers.length + filterTypes.length"
-      [matBadgeHidden]="!filterUsers.length"
-      matBadgeSize="small">
+      matTooltip="Filter events"
+      [matBadge]="activeFilterCount"
+      [matBadgeHidden]="activeFilterCount === 0"
+      matBadgeSize="small"
+      matBadgeColor="accent">
       <mat-icon>filter_list</mat-icon>
     </button>
+  }
 </mat-toolbar>
-<div class="window" id="window" (scroll)="onScroll($event)">
-  <div id="bbody">
-    <div class="month">{{now}}</div>
-    <ng-container *ngFor="let day of days; index as i">
-      <div class="day-box">
-        <div class="day" (click)="aDay ? aDay = null : aDay = day.id">
-          <div class="date box">
-            <div class="date" [ngClass]="{'small': day.events.length == 0}">{{day.day}}</div>
-            <div class="dow" [ngClass]="{'hide': day.events.length == 0}">{{day.dOW}}</div>
-          </div>
-          <div class="row">
-            <div class="event" [ngClass]="event.type" *ngFor="let event of day.events">
-              <div class="block" (click)="routeToEventOrigin(event)">
-                <div class="type">{{event?.user?.name}} {{event?.action}} a {{event?.type}} -&nbsp;</div>
-                <div class="title">{{event?.description}}</div>
-              </div>
-            </div>
+
+<div class="window events-page" id="window" (scroll)="onScroll($event)">
+  <!-- Splash Section -->
+  <section class="splash">
+    <div class="splash-content">
+      <div class="splash-kicker">Activity Feed</div>
+      <div class="splash-title">Your team's activity, all in one place.</div>
+      <div class="splash-body">
+        Track training completions, incident reports, inspections, time entries, and more. 
+        Every action your team takes is logged here for complete visibility and accountability.
+      </div>
+    </div>
+  </section>
+
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading activity...</div>
+    </div>
+  } @else if (!hasEvents) {
+    <div class="empty-state">
+      <div class="empty-icon-container">
+        <mat-icon class="empty-icon">event_note</mat-icon>
+      </div>
+      <div class="empty-title">No activity yet</div>
+      <div class="empty-body">
+        As your team completes trainings, submits reports, and logs time, 
+        their activity will appear here in a timeline view.
+      </div>
+      <div class="empty-actions">
+        <button mat-flat-button color="accent" routerLink="/account/dashboard">
+          <mat-icon>groups</mat-icon>
+          View Team Dashboard
+        </button>
+        <button mat-stroked-button color="primary" routerLink="/account/training">
+          <mat-icon>school</mat-icon>
+          Start Training
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- Events Timeline -->
+    <section class="timeline-section">
+      <div class="section-header">
+        <div class="section-info">
+          <div class="section-title">Activity Timeline</div>
+          <div class="section-subtitle">
+            @if (searchStr || activeFilterCount > 0) {
+              Showing {{ visibleEventsCount }} of {{ totalEventsCount }} events
+            } @else {
+              {{ totalEventsCount }} event{{ totalEventsCount !== 1 ? 's' : '' }} recorded
+            }
           </div>
         </div>
       </div>
-      <div class="month" *ngIf="day.day == 1">{{days[i + 1]?.month}}</div>
-    </ng-container>
-  </div>
+
+      <div id="bbody" class="timeline-content">
+        @for (day of days; track trackByDayId($index, day); let i = $index) {
+          <!-- Month divider -->
+          @if (i === 0 || day.day === '01') {
+            <div class="month-divider">
+              <span class="month-label">{{ day.month }} {{ day.date.format('YYYY') }}</span>
+            </div>
+          }
+
+          <!-- Day with events -->
+          @if (day.events.length > 0) {
+            <div class="day-row">
+              <div class="day-marker">
+                <div class="day-number">{{ day.day }}</div>
+                <div class="day-name">{{ day.dOW }}</div>
+              </div>
+              <div class="day-events">
+                @for (event of day.events; track trackByEventId($index, event)) {
+                  <div class="event-card" [class]="'event-type-' + event.type.toLowerCase().replace(' ', '-')" (click)="routeToEventOrigin(event)">
+                    <div class="event-icon">
+                      <mat-icon>{{ getEventIcon(event.type) }}</mat-icon>
+                    </div>
+                    <div class="event-content">
+                      <div class="event-header">
+                        <span class="event-user">{{ $any(event)?.user?.name || 'Unknown' }}</span>
+                        <span class="event-action">{{ event?.action }}</span>
+                        <span class="event-type-label">{{ event?.type }}</span>
+                      </div>
+                      <div class="event-description">{{ event?.description }}</div>
+                    </div>
+                    <mat-icon class="event-arrow">chevron_right</mat-icon>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        } @empty {
+          <div class="no-results">
+            <mat-icon>search_off</mat-icon>
+            <div class="no-results-title">No events match your search</div>
+            <div class="no-results-body">Try adjusting your search terms or filters.</div>
+            <button mat-stroked-button (click)="clearSearch(); filterUsers = []; filterTypes = []; filterEvents()">
+              Clear all filters
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+  }
 </div>

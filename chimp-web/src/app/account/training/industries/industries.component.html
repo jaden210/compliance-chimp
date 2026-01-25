@@ -12,7 +12,7 @@
       *ngFor="let industry of (industries | async)"
       (click)="routeTo(industry)"
     >
-      <img matListAvatar [src]="industry.imageUrl" alt="..." />
+      <mat-icon matListItemAvatar class="industry-list-icon">{{ industry.icon }}</mat-icon>
       <h2 matLine>{{ industry.name }}</h2>
     </mat-list-item>
   </mat-nav-list>

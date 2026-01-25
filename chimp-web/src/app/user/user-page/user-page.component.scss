@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 // Variables
 $primary: #054D8A;
 $primary-light: #0a6fc2;
@@ -31,7 +33,7 @@ $radius-xl: 24px;
   .hero-bg {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, $primary 0%, $primary-light 50%, darken($primary-light, 5%) 100%);
+    background: linear-gradient(135deg, $primary 0%, $primary-light 50%, color.adjust($primary-light, $lightness: -5%) 100%);
     
     &::after {
       content: '';
@@ -266,7 +268,7 @@ $radius-xl: 24px;
 
   // Card color variants
   &.injury .action-icon {
-    background: linear-gradient(135deg, $danger, lighten($danger, 10%));
+    background: linear-gradient(135deg, $danger, color.adjust($danger, $lightness: 10%));
   }
 
   &.files .action-icon {
@@ -274,11 +276,11 @@ $radius-xl: 24px;
   }
 
   &.training .action-icon {
-    background: linear-gradient(135deg, $success, lighten($success, 10%));
+    background: linear-gradient(135deg, $success, color.adjust($success, $lightness: 10%));
   }
 
   &.inspections .action-icon {
-    background: linear-gradient(135deg, $warning, lighten($warning, 10%));
+    background: linear-gradient(135deg, $warning, color.adjust($warning, $lightness: 10%));
   }
 }
 
@@ -397,7 +399,7 @@ $radius-xl: 24px;
   .empty-icon {
     width: 72px;
     height: 72px;
-    background: linear-gradient(135deg, lighten($success, 35%), lighten($success, 40%));
+    background: linear-gradient(135deg, color.adjust($success, $lightness: 35%), color.adjust($success, $lightness: 40%));
     border-radius: 50%;
     display: flex;
     align-items: center;

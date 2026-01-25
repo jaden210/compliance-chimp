@@ -13,6 +13,7 @@ import { FormControl, Validators } from "@angular/forms";
 import { Team, User } from "../account/account.service";
 import { doc, docData } from "@angular/fire/firestore";
 import { Observable } from "rxjs";
+import { AnalyticsService, FunnelStep } from "../shared/analytics.service";
 
 @Component({
   standalone: true,
@@ -47,10 +48,14 @@ export class JoinTeamComponent implements OnInit {
     private _router: Router,
     private _route: ActivatedRoute,
     private joinTeamService: JoinTeamService,
-    private appService: AppService
+    private appService: AppService,
+    private analytics: AnalyticsService
   ) {}
 
   ngOnInit() {
+    // Track join team page view
+    this.analytics.trackFunnelStep(FunnelStep.JOIN_TEAM_PAGE_VIEW);
+    
     this._route.queryParamMap.subscribe(params => {
       this.userId = params.get("userId");
       this.userId == null ? this.loaded = false : this.getData();
@@ -81,10 +86,21 @@ export class JoinTeamComponent implements OnInit {
         : null;
     if (!this.error)
     this.joinTeamService.createAuthUser(this.password, this.user.email).then(
-      (authUser: any) => this.joinTeamService.createUser(this.user, authUser.user.uid).then(() =>
-      this._router.navigate(["/account"])),
+      (authUser: any) => {
+        this.joinTeamService.createUser(this.user, authUser.user.uid).then(() => {
+          // Track successful join team completion
+          this.analytics.setUserId(authUser.user.uid);
+          this.analytics.setTeamId(this.user.teamId);
+          this.analytics.trackFunnelStep(FunnelStep.JOIN_TEAM_COMPLETE, {
+            team_id: this.user.teamId,
+            user_id: authUser.user.uid
+          });
+          this._router.navigate(["/account"]);
+        });
+      },
         error => {
           console.error(error);
+          this.analytics.trackError('join_team', error.code || 'unknown');
           this.error =
             error.code == "auth/email-already-in-use"
               ? "This email is already in use by another account, please contact support"

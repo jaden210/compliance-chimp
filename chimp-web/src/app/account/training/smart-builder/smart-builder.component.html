@@ -1,0 +1,188 @@
+<mat-toolbar>
+  <button mat-icon-button (click)="goBack()">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="toolbar-title">
+    @switch (mode) {
+      @case ('edit') { Edit Training }
+      @case ('scratch') { Create Training }
+      @default { Smart Builder }
+    }
+  </span>
+  <div class="flex"></div>
+</mat-toolbar>
+
+<div class="page-content">
+  <!-- Prefilled Banner -->
+  <div class="prefilled-banner" *ngIf="prefilledRecommendation?.reason && !showEditor">
+    <mat-icon>lightbulb</mat-icon>
+    <div class="banner-content">
+      <span>{{ prefilledRecommendation.reason }}</span>
+    </div>
+    <button mat-icon-button (click)="prefilledRecommendation = null" matTooltip="Dismiss">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Step 1: Describe Your Training (Generate mode, before content exists) -->
+  <section class="builder-section" *ngIf="mode === 'generate' && !showEditor">
+    <div class="section-header">
+      <div class="step-badge">1</div>
+      <div class="section-info">
+        <h2>Describe your training</h2>
+        <p>Tell us what you want this training to cover. You can type or use voice input.</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <mat-form-field appearance="outline" class="description-field">
+        <mat-label>Training description</mat-label>
+        <textarea
+          matInput
+          [(ngModel)]="description"
+          rows="4"
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="3"
+          cdkAutosizeMaxRows="10"
+          placeholder="e.g., Create a training about proper ladder safety for warehouse workers, covering inspection, setup, and safe climbing practices..."
+          [disabled]="isGenerating"
+        ></textarea>
+      </mat-form-field>
+
+      <button
+        *ngIf="recordingSupported"
+        mat-fab
+        [color]="isRecording ? 'warn' : 'primary'"
+        (click)="toggleRecording()"
+        [disabled]="isGenerating"
+        class="mic-button"
+        [matTooltip]="isRecording ? 'Stop recording' : 'Start voice input'"
+      >
+        <mat-icon>{{ isRecording ? 'stop' : 'mic' }}</mat-icon>
+      </button>
+    </div>
+
+    <div class="recording-indicator" *ngIf="isRecording">
+      <span class="pulse-dot"></span>
+      <span>Listening... Speak now</span>
+    </div>
+
+    <div class="error-message" *ngIf="error">
+      <mat-icon>error_outline</mat-icon>
+      {{ error }}
+    </div>
+
+    <div class="generating-state" *ngIf="isGenerating">
+      <mat-spinner diameter="48"></mat-spinner>
+      <h3>Writing your training article...</h3>
+      <p>Creating comprehensive, compliance-focused content based on your description.</p>
+    </div>
+
+    <div class="action-row" *ngIf="!isGenerating">
+      <button
+        mat-flat-button
+        color="accent"
+        (click)="generateArticle()"
+        [disabled]="!description.trim() || isGenerating || isRecording"
+        class="generate-btn"
+      >
+        <mat-icon>construction</mat-icon>
+        Generate Training Article
+      </button>
+    </div>
+  </section>
+
+  <!-- Editor Section (shown in edit mode, scratch mode, OR after content is generated) -->
+  <section class="editor-section" *ngIf="showEditor || mode === 'edit'">
+    <div class="section-header">
+      <div class="step-badge success" *ngIf="mode === 'generate'">
+        <mat-icon>check</mat-icon>
+      </div>
+      <div class="section-info">
+        @switch (mode) {
+          @case ('edit') {
+            <h2>Edit your training</h2>
+            <p>Update the content and settings for this training article.</p>
+          }
+          @case ('generate') {
+            <h2>Article generated!</h2>
+            <p>Edit the content and configure your training settings.</p>
+          }
+          @default {
+            <h2>Create your training</h2>
+            <p>Edit the content and configure your training settings.</p>
+          }
+        }
+      </div>
+      <div class="header-actions">
+        <button mat-icon-button 
+                *ngIf="mode === 'generate'"
+                (click)="clearGenerated(); mode = 'generate'" 
+                matTooltip="Start over"
+                class="reset-btn">
+          <mat-icon>restart_alt</mat-icon>
+        </button>
+        <button mat-flat-button 
+                color="primary" 
+                (click)="saveTraining()" 
+                [disabled]="isCreating || !title?.trim() || !generatedContent?.trim()">
+          <mat-icon *ngIf="!isCreating">check</mat-icon>
+          <mat-spinner *ngIf="isCreating" diameter="18"></mat-spinner>
+          {{ isCreating ? 'Saving...' : (mode === 'edit' ? 'Save Changes' : 'Create Training') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="config-section">
+      <div class="config-row">
+        <mat-form-field appearance="outline" class="title-field">
+          <mat-label>Training Title</mat-label>
+          <input matInput [(ngModel)]="title" placeholder="Enter a title for this training">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="cadence-field">
+          <mat-label>Training Cadence</mat-label>
+          <mat-select [(ngModel)]="selectedCadence">
+            <mat-option *ngFor="let option of cadenceOptions" [value]="option.value">
+              {{ option.label }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="config-row">
+        <div class="tags-field">
+          <label class="tags-label">Assigned Tags</label>
+          <app-tag-input
+            [(tags)]="assignedTags"
+            [allTags]="allTags"
+            placeholder="Add tags to assign this training to specific team members..."
+          ></app-tag-input>
+          <p class="tags-hint">Team members with matching tags will be assigned this training.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rich Text Editor -->
+    <div class="editor-wrapper">
+      <div class="editor-label">
+        <mat-icon>article</mat-icon>
+        <span>Training Content</span>
+      </div>
+      <div class="ngx-editor-wrapper">
+        <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+        <ngx-editor
+          [editor]="editor"
+          [(ngModel)]="generatedContent"
+          [placeholder]="'Start writing your training content...'"
+        ></ngx-editor>
+      </div>
+    </div>
+
+    <div class="error-message" *ngIf="error">
+      <mat-icon>error_outline</mat-icon>
+      {{ error }}
+    </div>
+  </section>
+</div>

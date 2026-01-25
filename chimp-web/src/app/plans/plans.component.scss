@@ -1,141 +1,364 @@
-h1 {
-  width: 800px;
-  max-width: calc(100vw - 16px);
-  padding-top: 80px;
-  margin: 0 auto 24px;
-  text-align: center;
-  color: var(--chimp-text-on-primary);
+.plans-page {
+  min-height: 100vh;
+  padding-bottom: 80px;
 }
-.more {
-  width: 680px;
-  max-width: calc(100vw - 16px);
-  margin: 0 auto 24px;
+
+// Hero Section
+.hero {
   text-align: center;
-  color: var(--chimp-text-on-primary);
-  font-size: 20px;
+  padding: 80px 24px 48px;
+  
+  h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--chimp-text-on-primary);
+    margin: 0 0 16px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 1.35rem;
+    color: var(--chimp-text-on-primary);
+    opacity: 0.9;
+    margin: 0;
+  }
 }
-.bottom {
-  width: 800px;
-  max-width: calc(100vw - 16px);
-  margin: 48px auto 24px;
+
+// Pricing Container
+.pricing-container {
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  margin-bottom: 64px;
+}
+
+// Plan Card
+.plan-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+
+  &.featured {
+    border: 3px solid var(--chimp-accent);
+  }
+}
+
+.ribbon {
+  position: absolute;
+  top: 24px;
+  right: -35px;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+  padding: 8px 48px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transform: rotate(45deg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.plan-header {
+  padding: 40px 40px 24px;
   text-align: center;
-  opacity: 0.87;
-  text-decoration: underline;
-  cursor: pointer;
+  
+  h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--chimp-text-primary);
+    margin: 0 0 8px;
+  }
+
+  .tagline {
+    color: var(--chimp-text-secondary);
+    margin: 0;
+    font-size: 1rem;
+  }
 }
-.plans {
+
+.price-section {
+  text-align: center;
+  padding: 0 40px 32px;
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+}
+
+.price {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1;
+  
+  .currency {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+    margin-top: 8px;
+  }
+
+  .amount {
+    font-size: 5rem;
+    font-weight: 800;
+    color: var(--chimp-primary);
+    letter-spacing: -3px;
+  }
+
+  .period {
+    font-size: 1.25rem;
+    color: var(--chimp-text-secondary);
+    align-self: flex-end;
+    margin-bottom: 12px;
+    margin-left: 4px;
+  }
+}
+
+.price-note {
+  color: var(--chimp-text-secondary);
+  margin: 12px 0 0;
+  font-size: 0.95rem;
+}
+
+// Features
+.features {
+  padding: 32px 40px;
+}
+
+.feature-group {
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--chimp-text-secondary);
+    margin: 0 0 12px;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    @media (max-width: 500px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--chimp-text-primary);
+    font-size: 0.95rem;
+
+    mat-icon {
+      color: var(--chimp-accent);
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+// CTA Section
+.cta-section {
+  padding: 32px 40px 40px;
+  background: linear-gradient(180deg, transparent 0%, rgba(var(--chimp-primary-rgb, 33, 150, 243), 0.05) 100%);
+  text-align: center;
+}
+
+.cta-button {
+  width: 100%;
+  height: 56px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--chimp-accent), #2e9d83) !important;
+  color: white !important;
+  border-radius: 28px !important;
+}
+
+.guarantee {
+  margin: 16px 0 0;
+  color: var(--chimp-text-secondary);
+  font-size: 0.9rem;
+}
+
+// Enterprise Section
+.enterprise-section {
+  max-width: 800px;
+  margin: 0 auto 64px;
+  padding: 0 24px;
+}
+
+.enterprise-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 32px 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-top: 64px;
-  .middle {
-    transform: scale(1.1);
-    border-top: 5px solid #2ebd9c;
-  }
-  .plan {
-    display: flex;
+  justify-content: space-between;
+  gap: 24px;
+
+  @media (max-width: 600px) {
     flex-direction: column;
+    text-align: center;
+  }
+}
+
+.enterprise-content {
+  flex: 1;
+}
+
+.enterprise-text {
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 0 0 8px;
+    color: var(--chimp-text-on-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    color: var(--chimp-text-on-primary);
+    opacity: 0.85;
+  }
+}
+
+.enterprise-features {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+
+  span {
+    display: flex;
     align-items: center;
-    min-height: 424px;
-    margin: 8px;
+    gap: 6px;
+    color: var(--chimp-text-on-primary);
+    opacity: 0.9;
+    font-size: 0.9rem;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--chimp-accent);
+    }
+  }
+
+  @media (max-width: 600px) {
     justify-content: center;
-    padding: 24px;
-    box-sizing: border-box;
-    width: 330px;
-    background: var(--chimp-bg-primary);
-    .badge {
-      height: 100px;
-      margin-bottom: 12px;
-      color: var(--chimp-text-on-primary);
-      .b-icon {
-        height: 24px;
-        background: var(--chimp-gray-500);
-        border-radius: 50px;
-        padding: 4px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+  }
+}
+
+.contact-btn {
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  padding: 12px 32px !important;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+}
+
+// FAQ Section
+.faq-section {
+  max-width: 900px;
+  margin: 0 auto 64px;
+  padding: 0 24px;
+
+  h2 {
+    text-align: center;
+    color: var(--chimp-text-on-primary);
+    font-size: 2rem;
+    margin: 0 0 40px;
+  }
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.faq-item {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 24px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    color: var(--chimp-text-primary);
+  }
+
+  p {
+    margin: 0;
+    color: var(--chimp-text-secondary);
+    line-height: 1.6;
+  }
+}
+
+// Chimp Quote
+.chimp-quote {
+  text-align: center;
+  padding: 0 24px;
+
+  .chimp-img {
+    width: 100px;
+    height: auto;
+    margin-bottom: 16px;
+  }
+
+  p {
+    color: var(--chimp-text-on-primary);
+    font-size: 1.25rem;
+    margin: 0;
+    line-height: 1.6;
+  }
+}
+
+// Responsive
+@media screen and (max-width: 768px) {
+  .hero {
+    padding-top: 48px;
+
+    h1 {
+      font-size: 2rem;
     }
-    .p-title {
-      font-size: 1.75rem;
-      font-weight: bold;
-    }
-    .p-body {
-      margin-bottom: 12px;
-      color: var(--chimp-text-secondary);
+
+    .subtitle {
       font-size: 1.1rem;
-      line-height: 1.5em;
-      padding: 10px 0 0;
-      text-align: center;
-    }
-    .checklist {
-      color: var(--chimp-text-secondary);
-      margin-bottom: 24px;
-    }
-    .price {
-      font-weight: bold;
-      font-size: 17px;
-    }
-    .p-additional {
-      font-size: 14px;
-      text-align: center;
-    }
-    button {
-      margin: 24px 0;
-      width: 100%;
-      background-color: var(--chimp-accent);
-    }
-    .primary {
-      background-color: var(--chimp-primary-dark);
-      color: var(--chimp-text-on-primary) !important;
-    }
-    .terms {
-      font-size: 12px;
     }
   }
-}
 
-.container {
-  max-width: 800px;
-  padding: 12px;
-  margin: auto;
-  align-items: center;
-  overflow: hidden;
-  font-size: 18px;
-  text-align: center;
-  margin-top: 48px;
-}
-
-.responsive-image {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  width: 25%;
-}
-
-.chimp-text {
-  max-width: 800px;
-  padding: 12px;
-  margin: auto;
-  align-items: center;
-  overflow: hidden;
-  font-size: 20px;
-  text-align: center;
-  color: var(--chimp-text-on-primary);
-}
-
-@media screen and (max-width: 785px) {
-  h1 {
-    font-size: 24px !important;
+  .plan-header,
+  .price-section,
+  .features,
+  .cta-section {
+    padding-left: 24px;
+    padding-right: 24px;
   }
-  .plans {
-    flex-direction: column !important;
-    .middle {
-      transform: scale(1) !important;
-    }
-    .plan {
-      margin: 8px 0;
-    }
+
+  .price .amount {
+    font-size: 4rem;
   }
 }

@@ -1,0 +1,56 @@
+<div class="step-container">
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-indicator">Step 1 of 4</div>
+      <h1>Tell us about your business</h1>
+      <p class="step-subtitle">We'll use this to build your custom compliance program.</p>
+    </div>
+
+    <div class="form-section">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Business Name</mat-label>
+        <input
+          matInput
+          [(ngModel)]="businessName"
+          placeholder="Acme Construction LLC"
+          (keyup.enter)="next()"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Business Website</mat-label>
+        <input
+          matInput
+          [(ngModel)]="businessWebsite"
+          placeholder="www.example.com"
+          (keyup.enter)="next()"
+        />
+        <mat-hint>We'll use this to understand your business better</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Describe your industry</mat-label>
+        <input
+          matInput
+          [(ngModel)]="industry"
+          placeholder="e.g., Residential construction, Auto body shop, Healthcare clinic"
+          (keyup.enter)="next()"
+        />
+        <mat-hint>Describe what your business does so we can tailor your compliance program</mat-hint>
+      </mat-form-field>
+    </div>
+
+    <div class="step-actions">
+      <button
+        mat-flat-button
+        color="accent"
+        class="next-btn"
+        [disabled]="!isValid()"
+        (click)="next()"
+      >
+        Next
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

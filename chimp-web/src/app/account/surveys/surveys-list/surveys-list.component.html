@@ -1,5 +1,5 @@
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/ccLogoDark.png" />
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Surveys</div>
   <div class="flex"></div>
@@ -54,6 +54,7 @@
     class="fab"
     color="accent"
     (click)="createSurvey()"
+    [disabled]="accountService.isReadOnly"
   >
     <mat-icon>assignment</mat-icon>New Survey
   </button>

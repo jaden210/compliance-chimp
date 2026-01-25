@@ -1,0 +1,217 @@
+<div class="step-container">
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-indicator">Step 3 of 4</div>
+      <h1>Build your team</h1>
+      <p class="step-subtitle">Add your team members to get personalized compliance recommendations.</p>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+      <mat-icon>info</mat-icon>
+      <div class="info-text">
+        <strong>Enter your full team for accurate recommendations</strong>
+        <p>The more complete your team, the better we can tailor your compliance program.</p>
+      </div>
+    </div>
+
+    <!-- QuickBooks Section -->
+    <div class="quickbooks-section">
+      <div class="qb-card" *ngIf="!isQuickBooksConnected">
+        <div class="qb-icon">
+          <img src="/assets/quickbooks-logo.png" alt="QuickBooks" onerror="this.style.display='none'" />
+          <mat-icon *ngIf="!isQuickBooksConnected">business</mat-icon>
+        </div>
+        <div class="qb-content">
+          <h3>Import from QuickBooks</h3>
+          <p>Automatically sync your employee list from QuickBooks Online.</p>
+        </div>
+        <button 
+          mat-stroked-button 
+          color="primary"
+          (click)="connectQuickBooks()"
+          [disabled]="qbConnecting"
+        >
+          <mat-spinner *ngIf="qbConnecting" diameter="20"></mat-spinner>
+          <span *ngIf="!qbConnecting">Connect QuickBooks</span>
+        </button>
+      </div>
+
+      <div class="qb-card connected" *ngIf="isQuickBooksConnected">
+        <mat-icon class="connected-icon">check_circle</mat-icon>
+        <span class="connected-text">QuickBooks Connected</span>
+        <button 
+          mat-stroked-button 
+          (click)="syncQuickBooks()"
+          [disabled]="qbSyncing"
+        >
+          <mat-spinner *ngIf="qbSyncing" diameter="20"></mat-spinner>
+          <span *ngIf="!qbSyncing">Sync Now</span>
+        </button>
+      </div>
+
+      <div class="qb-error" *ngIf="qbError">
+        <mat-icon>error</mat-icon>
+        {{ qbError }}
+      </div>
+    </div>
+
+    <div class="divider">
+      <span>or add manually</span>
+    </div>
+
+    <!-- Members Table -->
+    <div class="members-table">
+      <div class="table-header">
+        <div class="col-name">Name</div>
+        <div class="col-job">Job Title</div>
+        <div class="col-contact">Contact</div>
+        <div class="col-tags">Tags <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon></div>
+        <div class="col-actions"></div>
+      </div>
+
+      <!-- Existing Members -->
+      <div class="table-row" *ngFor="let member of teamMembers">
+        <div class="col-name">
+          <span class="member-name-display">{{ member.name }}</span>
+        </div>
+        <div class="col-job">
+          <span class="member-job-display">{{ member.jobTitle || '—' }}</span>
+        </div>
+        <div class="col-contact">
+          <span class="member-contact-display">{{ member.preferEmail ? member.email : member.phone }}</span>
+        </div>
+        <div class="col-tags">
+          <div class="member-tags-display" *ngIf="member.tags && member.tags.length > 0">
+            <span 
+              class="tag-chip" 
+              *ngFor="let tag of member.tags"
+              [style.backgroundColor]="getTagColor(tag).bg"
+              [style.color]="getTagColor(tag).text"
+              [style.borderColor]="getTagColor(tag).border">
+              <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+              <span class="tag-name">{{ tag }}</span>
+            </span>
+          </div>
+          <span class="no-tags" *ngIf="!member.tags || member.tags.length === 0">—</span>
+        </div>
+        <div class="col-actions">
+          <button 
+            mat-icon-button 
+            class="remove-btn"
+            (click)="removeMember(member)"
+            matTooltip="Remove"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Add New Row -->
+      <div class="table-row add-row">
+        <div class="col-name">
+          <input 
+            #nameInput
+            class="inline-input"
+            [(ngModel)]="newMember.name"
+            (keydown.enter)="addMember()"
+            (focus)="onInputFocus()"
+            (blur)="onInputBlur()"
+            [placeholder]="teamMembers.length === 0 ? 'Enter name' : '+ Add another'"
+          />
+        </div>
+        <div class="col-job">
+          <input 
+            class="inline-input"
+            [(ngModel)]="newMember.jobTitle"
+            (keydown.enter)="addMember()"
+            (focus)="onInputFocus()"
+            (blur)="onInputBlur()"
+            placeholder="Job title"
+          />
+        </div>
+        <div class="col-contact">
+          <div class="contact-fields">
+            <input 
+              class="inline-input"
+              [class.input-error]="phoneError"
+              [(ngModel)]="newMember.phone"
+              (keydown.enter)="addMember()"
+              (focus)="onInputFocus()"
+              (blur)="validatePhone(); onInputBlur()"
+              (input)="phoneError = false"
+              placeholder="Phone"
+              type="tel"
+            />
+            <div class="contact-toggle">
+              <mat-slide-toggle 
+                [ngModel]="!newMember.preferEmail"
+                (ngModelChange)="newMember.preferEmail = !$event"
+                [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
+                tabindex="-1"
+              >
+                <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
+              </mat-slide-toggle>
+            </div>
+            <input 
+              *ngIf="newMember.preferEmail"
+              class="inline-input email-input"
+              [class.input-error]="emailError"
+              [(ngModel)]="newMember.email"
+              (keydown.enter)="addMember()"
+              (focus)="onInputFocus()"
+              (blur)="validateEmail(); onInputBlur()"
+              (input)="emailError = false"
+              placeholder="Email"
+              type="email"
+            />
+          </div>
+        </div>
+        <div class="col-tags" (focusin)="onInputFocus()" (focusout)="onInputBlur()">
+          <app-tag-input
+            [tags]="newMember.tags"
+            [allTags]="allTags"
+            (tagsChange)="newMember.tags = $event"
+            (enterSubmit)="addMember()"
+            [compact]="true"
+            placeholder="Tags...">
+          </app-tag-input>
+        </div>
+        <div class="col-actions">
+          <button 
+            mat-flat-button 
+            color="accent" 
+            (click)="addMember()"
+            [disabled]="!canAddMember()"
+            class="add-btn"
+            tabindex="-1"
+          >
+            <mat-icon>add</mat-icon>
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-actions">
+      <button
+        mat-stroked-button
+        class="back-btn"
+        (click)="goBack()"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
+      <button
+        mat-flat-button
+        color="accent"
+        class="next-btn"
+        [disabled]="!canProceed()"
+        (click)="next()"
+      >
+        Next
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

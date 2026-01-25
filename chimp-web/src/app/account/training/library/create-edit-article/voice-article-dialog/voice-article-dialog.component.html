@@ -1,0 +1,79 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">auto_awesome</mat-icon>
+  Help me generate this article
+</h2>
+
+<mat-dialog-content class="dialog-content">
+  <p class="instructions">
+    Describe the safety training article you'd like to create. You can type or use the microphone to speak your description.
+  </p>
+
+  <div class="input-section">
+    <mat-form-field appearance="outline" class="description-field">
+      <mat-label>Article description</mat-label>
+      <textarea
+        matInput
+        [(ngModel)]="description"
+        rows="4"
+        placeholder="e.g., Create an article about proper ladder safety for warehouse workers, covering inspection, setup, and safe climbing practices..."
+        [disabled]="isGenerating"
+      ></textarea>
+    </mat-form-field>
+
+    @if (recordingSupported) {
+      <button
+        mat-fab
+        [color]="isRecording ? 'warn' : 'primary'"
+        (click)="toggleRecording()"
+        [disabled]="isGenerating"
+        class="mic-button"
+        [matTooltip]="isRecording ? 'Stop recording' : 'Start recording'"
+      >
+        <mat-icon>{{ isRecording ? 'stop' : 'mic' }}</mat-icon>
+      </button>
+    }
+  </div>
+
+  @if (isRecording) {
+    <div class="recording-indicator">
+      <span class="pulse-dot"></span>
+      <span>Listening... Speak now</span>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-message">
+      <mat-icon>error_outline</mat-icon>
+      {{ error }}
+    </div>
+  }
+
+  @if (isGenerating) {
+    <div class="generating-state">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Writing your training article...</p>
+      <p class="generating-hint">This may take a moment</p>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="isGenerating">
+    Cancel
+  </button>
+  <button
+    mat-flat-button
+    color="primary"
+    (click)="generateArticle()"
+    [disabled]="!description.trim() || isGenerating || isRecording"
+  >
+    @if (isGenerating) {
+      Writing...
+    } @else {
+      <ng-container>
+        <mat-icon>auto_awesome</mat-icon>
+        Write Article
+      </ng-container>
+    }
+  </button>
+</mat-dialog-actions>

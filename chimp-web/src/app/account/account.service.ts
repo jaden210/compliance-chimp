@@ -11,6 +11,7 @@ import {
 } from "@angular/material/dialog";
 import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatIconModule } from "@angular/material/icon";
 import {
   MatSidenav
 } from "@angular/material/sidenav";
@@ -23,6 +24,8 @@ import { signOut } from "firebase/auth";
 import { Router } from "@angular/router";
 import moment from "moment";
 import { HelperService, Helper } from "./helper.service";
+import { environment } from "src/environments/environment";
+import { AnalyticsService } from "../shared/analytics.service";
 
 @Injectable({
   providedIn: "root"
@@ -35,12 +38,19 @@ export class AccountService {
   aTeam: Team = new Team();
   teamMembers: TeamMember[];
   teamMembersObservable: BehaviorSubject<any> = new BehaviorSubject(null);
+  teamMembersLoaded: boolean = false;
   teamManagers: User[];
   teamManagersObservable: BehaviorSubject<any> = new BehaviorSubject(null);
   showHelper: boolean = false;
   showFeedback: boolean = false;
   searchForHelper: string; // template var to assist event system;
   public showLD: boolean = false;
+
+  // Trial and read-only mode
+  public isReadOnly: boolean = false;
+  public trialDaysRemaining: number = 0;
+  public isTrialExpired: boolean = false;
+  private trialDialogShown: boolean = false;
 
   helperProfiles: any;
   helper: Helper;
@@ -52,13 +62,15 @@ export class AccountService {
     public dialog: MatDialog,
     public router: Router,
     public snackbar: MatSnackBar,
-    private helperService: HelperService
+    private helperService: HelperService,
+    private analytics: AnalyticsService
   ) {
     this.helperProfiles = this.helperService.helperProfiles;
     this.feedback = this.helperProfiles.feedback;
   }
 
   buildTeam(teamId: string) {
+    this.teamMembersLoaded = false;
     if (!this.user.teamId) {
       let dialog = this.dialog.open(NoAccessDialog, {
         disableClose: true
@@ -78,7 +90,18 @@ export class AccountService {
       } else if (team) {
         this.aTeamObservable.next(team);
         this.aTeam = team;
-        this.checkFreeTrial(team);
+        
+        // Set analytics user properties for segmentation
+        this.analytics.setTeamId(team.id);
+        this.analytics.setUserProperties({
+          team_name: team.name,
+          industry: team.industry || 'unknown',
+          has_subscription: !!team.stripeSubscriptionId,
+          has_quickbooks: !!team.quickbooks?.realmId
+        });
+        
+        // Check trial expiration status
+        this.checkTrialStatus(team);
       }
     });
     
@@ -95,6 +118,7 @@ export class AccountService {
     collectionData(membersQuery, { idField: "id" }).subscribe((teamMembers: TeamMember[]) => {
       teamMembers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       this.teamMembers = teamMembers;
+      this.teamMembersLoaded = true;
       this.teamMembersObservable.next(teamMembers);
     });
   }
@@ -119,6 +143,84 @@ export class AccountService {
     });
   }
 
+  /**
+   * Check if the team's 14-day trial has expired
+   * If no subscription and trial expired, set read-only mode
+   */
+  private checkTrialStatus(team: Team): void {
+    // If team has a Stripe subscription, they're not in trial
+    if (team.stripeSubscriptionId) {
+      this.isReadOnly = false;
+      this.isTrialExpired = false;
+      this.trialDaysRemaining = 0;
+      return;
+    }
+
+    // Calculate trial status
+    const createdAt = team.createdAt instanceof Date 
+      ? team.createdAt 
+      : (team.createdAt as any)?.toDate?.() || new Date(team.createdAt);
+    
+    const trialDays = 14;
+    const trialEndDate = new Date(createdAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    
+    const msRemaining = trialEndDate.getTime() - now.getTime();
+    this.trialDaysRemaining = Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)));
+    
+    if (now > trialEndDate) {
+      // Trial has expired
+      this.isTrialExpired = true;
+      this.isReadOnly = true;
+      
+      // Show trial expired dialog once per session
+      if (!this.trialDialogShown) {
+        this.trialDialogShown = true;
+        this.showTrialExpiredDialog(team);
+      }
+    } else {
+      this.isTrialExpired = false;
+      this.isReadOnly = false;
+    }
+  }
+
+  /**
+   * Show dialog when trial has expired
+   */
+  showTrialExpiredDialog(team: Team): void {
+    const dialog = this.dialog.open(TrialExpiredDialog, {
+      disableClose: true,
+      data: {
+        teamId: team.id,
+        teamEmail: team.email || this.user?.email
+      }
+    });
+    
+    dialog.afterClosed().subscribe(result => {
+      if (result?.subscribe) {
+        // User clicked subscribe - redirect to Stripe
+        this.startCheckout();
+      }
+      // If they clicked continue in read-only, just close dialog
+      // isReadOnly is already set to true
+    });
+  }
+
+  /**
+   * Redirect to Stripe checkout
+   */
+  public startCheckout(): void {
+    // Track checkout initiation
+    this.analytics.trackSubscription('begin_checkout', 'standard', 99);
+    
+    const email = this.user?.email || this.aTeam?.email;
+    let paymentUrl = `${environment.stripe.paymentLink}?client_reference_id=${this.aTeam.id}`;
+    if (email) {
+      paymentUrl += `&prefilled_email=${encodeURIComponent(email)}`;
+    }
+    window.location.href = paymentUrl;
+  }
+
   public getShouldShowAgain(): boolean {
     return JSON.parse(localStorage.getItem('ccld')) || true;
   }
@@ -126,75 +228,19 @@ export class AccountService {
   public createUser(user: User): Promise<any> {
     user.teamId = this.aTeam.id;
     user.createdAt = new Date();
-    return addDoc(collection(this.db, "user"), { ...user });
+    const cleanedUser = Object.fromEntries(
+      Object.entries(user).filter(([_, v]) => v !== undefined)
+    );
+    return addDoc(collection(this.db, "user"), cleanedUser);
   }
 
   public updateUser(user: User): Promise<any> {
-    return setDoc(doc(this.db, `user/${user.id}`), { ...user });
+    const cleanedUser = Object.fromEntries(
+      Object.entries(user).filter(([_, v]) => v !== undefined)
+    );
+    return setDoc(doc(this.db, `user/${user.id}`), cleanedUser);
   }
 
-  checkFreeTrial(team): void {
-    // if (!team.cardToken) {
-    //   this.trialDaysLeft =
-    //     30 - moment().diff(this.aTeam.createdAt, "days") < 0
-    //       ? 0
-    //       : 30 - moment().diff(this.aTeam.createdAt, "days");
-    //   let shouldOpen: boolean = false;
-    //   if (this.trialDaysLeft == 28) shouldOpen = true;
-    //   if (this.trialDaysLeft == 20) shouldOpen = true;
-    //   if (this.trialDaysLeft == 10) shouldOpen = true;
-    //   if (this.trialDaysLeft <= 5) shouldOpen = true;
-    //   if (shouldOpen) {
-    //     this.isTrialVersion = true;
-    //     this.trialSnackbar = this.snackbar.open(
-    //       `${this.trialDaysLeft} days left in your free trial`,
-    //       "enter billing info",
-    //       {
-    //         horizontalPosition: "right"
-    //       }
-    //     );
-    //     this.trialSnackbar.onAction().subscribe(() => {
-    //       this.router.navigate(["account/account"]);
-    //     });
-    //   }
-    // } else {
-    //   this.isTrialVersion = false;
-    //   this.closeSnackbar();
-    // }
-  }
-
-  checkStripePlan() {
-    this.teamMembersObservable.subscribe(async users => {
-      if (users) {
-        let plan;
-        let q = 1;
-        if (users.length <= 10) {
-          plan = "small-teams";
-        } else if (11 < users.length && users.length <= 100) {
-          plan = "large-teams";
-        } else {
-          plan = "enterprise";
-          q = users.length;
-        }
-        if (this.aTeam.stripePlanId !== plan && this.aTeam.cardToken) {
-          const res = await fetch(
-            "https://teamlog-2d74c.cloudfunctions.net/setStripePlan",
-            {
-              method: "POST",
-              body: JSON.stringify({
-                stripeSubscriptionId: this.aTeam.stripeSubscriptionId,
-                quantity: q,
-                plan
-              })
-            }
-          );
-          const data = await res.json();
-          data.body = JSON.parse(data.body);
-          return data;
-        }
-      }
-    });
-  }
 
   logout(): void {
     signOut(this.auth).then(() => {
@@ -257,6 +303,28 @@ export class TeamDisabledDialog {
   }
 }
 
+@Component({
+  standalone: true,
+  selector: "trial-expired-dialog",
+  templateUrl: "trial-expired-dialog.html",
+  styleUrls: ["./account.component.css"],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule]
+})
+export class TrialExpiredDialog {
+  constructor(
+    public dialogRef: MatDialogRef<TrialExpiredDialog>,
+    @Inject(MAT_DIALOG_DATA) public data: any
+  ) {}
+
+  subscribe(): void {
+    this.dialogRef.close({ subscribe: true });
+  }
+
+  continueReadOnly(): void {
+    this.dialogRef.close({ subscribe: false });
+  }
+}
+
 export class User {
   email: string;
   username?: string;
@@ -283,18 +351,33 @@ export class TeamMember {
   id?: string;
   createdAt: any;
   teamId: string;
+  tags?: string[];
+  preferEmail?: boolean;
+  quickbooksEmployeeId?: string; // Links to QuickBooks Employee ID
+  source?: string; // 'quickbooks' if synced from QB
+}
+
+export interface QuickBooksConnection {
+  realmId: string;           // QuickBooks company ID
+  accessToken: string;       // OAuth access token
+  refreshToken: string;      // OAuth refresh token
+  tokenExpiresAt: any;       // Token expiration time
+  connectedAt: any;          // When first connected
+  lastSyncAt?: any;          // Last successful sync
+  lastSyncCount?: number;    // Number of employees synced in last sync
 }
 
 export class Team {
-  id: string;
+  id?: string; // Optional - generated by Firestore on creation
   name: string;
   createdAt: Date;
   ownerId: string;
   logoUrl?: string;
   phone?: string;
   email?: string;
-  industries?: string[];
-  cardToken?: any;
+  website?: string; // Business website URL for AI context
+  industry?: string; // Freeform industry description (new approach)
+  industries?: string[]; // Legacy - array of industry IDs
   disabled: boolean = false;
   disabledAt?: any;
   stripeSubscriptionId?: string;
@@ -307,6 +390,18 @@ export class Team {
   city?: string;
   state?: string;
   zip?: string;
+  quickbooks?: QuickBooksConnection; // QuickBooks integration data
+  // Coverage analysis cache for inspections (populated by Cloud Function)
+  coverageAnalysis?: any;
+  coverageAnalysisStale?: boolean;
+  coverageAnalysisUpdatedAt?: any;
+  coverageAnalysisInvalidatedAt?: any;
+  // Training coverage analysis cache (populated by Cloud Function)
+  trainingCoverageAnalysis?: any;
+  trainingCoverageAnalysisStale?: boolean;
+  trainingCoverageAnalysisUpdatedAt?: any;
+  // Auto-start trainings setting - defaults to true for new teams
+  autoStartTrainings?: boolean;
 }
 
 export class Log {

@@ -12,66 +12,114 @@
   </div>
 
   <div class="dialog-body">
-    <div class="search-bar">
-      <mat-icon>search</mat-icon>
-      <input 
-        type="text" 
-        placeholder="Search team members..." 
-        [(ngModel)]="searchTerm"
-        (input)="filterUsers()">
-      @if (searchTerm) {
-        <button mat-icon-button class="clear-btn" (click)="clearSearch()">
-          <mat-icon>close</mat-icon>
-        </button>
-      }
-    </div>
-
-    <div class="selection-controls">
-      <button mat-stroked-button class="select-all-btn" (click)="toggleSelectAll()">
-        <mat-icon>{{ allSelected ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-        {{ allSelected ? 'Deselect All' : 'Select All' }}
-      </button>
-      <div class="selection-count">
-        <span class="count-badge" [class.has-selection]="srt.length > 0">
-          {{ srt.length }}
-        </span>
-        <span class="count-label">selected</span>
-      </div>
-    </div>
-
-    @if (filteredUsers.length === 0) {
-      <div class="empty-state">
-        <mat-icon>person_search</mat-icon>
-        <div class="empty-title">No team members found</div>
-        <div class="empty-body">Try adjusting your search terms.</div>
-      </div>
-    } @else {
-      <div class="users-list">
-        @for (user of filteredUsers; track user.id) {
-          <div 
-            class="user-card" 
-            [class.selected]="isSelected(user.id)"
-            (click)="toggleUser(user)">
-            <div class="user-avatar" [class.has-image]="user.profileUrl">
-              @if (user.profileUrl) {
-                <img [src]="user.profileUrl" alt="">
-              }
-              <div class="selection-indicator">
-                <mat-icon>check</mat-icon>
-              </div>
-            </div>
-            <div class="user-info">
-              <div class="user-name">{{ user.name }}</div>
-              @if (user.preferEmail && user.email) {
-                <div class="user-contact">{{ user.email }}</div>
-              } @else if (user.phone) {
-                <div class="user-contact">{{ user.phone }}</div>
+    <!-- Tags Section -->
+    @if (allTags.length > 0) {
+      <div class="section-block">
+        <div class="section-label">
+          <mat-icon>sell</mat-icon>
+          <span>Select by Tag</span>
+        </div>
+        <div class="tags-grid">
+          @for (tag of allTags; track tag) {
+            <div 
+              class="tag-card" 
+              [class.selected]="isTagSelected(tag)"
+              [style.borderColor]="isTagSelected(tag) ? getTagColor(tag).text : getTagColor(tag).border"
+              [style.backgroundColor]="isTagSelected(tag) ? getTagColor(tag).bg : 'transparent'"
+              (click)="toggleTag(tag)">
+              <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+              <span class="tag-name">{{ tag }}</span>
+              <span class="tag-count" [style.color]="getTagColor(tag).text">{{ getMemberCountForTag(tag) }}</span>
+              @if (isTagSelected(tag)) {
+                <mat-icon class="tag-check" [style.color]="getTagColor(tag).text">check_circle</mat-icon>
               }
             </div>
-          </div>
-        }
+          }
+        </div>
       </div>
     }
+
+    <!-- Individuals Section -->
+    <div class="section-block">
+      <div class="section-label">
+        <mat-icon>person</mat-icon>
+        <span>{{ allTags.length > 0 ? 'Add Individuals' : 'Select Team Members' }}</span>
+      </div>
+      
+      <div class="search-bar">
+        <mat-icon>search</mat-icon>
+        <input 
+          type="text" 
+          placeholder="Search team members..." 
+          [(ngModel)]="searchTerm"
+          (input)="filterUsers()">
+        @if (searchTerm) {
+          <button mat-icon-button class="clear-btn" (click)="clearSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </div>
+
+      <div class="selection-controls">
+        <button mat-stroked-button class="select-all-btn" (click)="toggleSelectAll()">
+          <mat-icon>{{ allSelected ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+          {{ allSelected ? 'Deselect All' : 'Select All' }}
+        </button>
+        <div class="selection-count">
+          <span class="count-badge" [class.has-selection]="srt.length > 0">
+            {{ srt.length }}
+          </span>
+          <span class="count-label">selected</span>
+        </div>
+      </div>
+
+      @if (filteredUsers.length === 0) {
+        <div class="empty-state">
+          <mat-icon>person_search</mat-icon>
+          <div class="empty-title">No team members found</div>
+          <div class="empty-body">Try adjusting your search terms.</div>
+        </div>
+      } @else {
+        <div class="users-list">
+          @for (user of filteredUsers; track user.id) {
+            <div 
+              class="user-card" 
+              [class.selected]="isSelected(user.id)"
+              [class.via-tag]="isSelectedViaTag(user.id)"
+              (click)="toggleUser(user)">
+              <div class="user-checkbox">
+                @if (isSelected(user.id)) {
+                  <mat-icon class="checked">check_box</mat-icon>
+                } @else {
+                  <mat-icon>check_box_outline_blank</mat-icon>
+                }
+              </div>
+              <div class="user-info">
+                <div class="user-name">{{ user.name }}</div>
+                @if (user.preferEmail && user.email) {
+                  <div class="user-contact">{{ user.email }}</div>
+                } @else if (user.phone) {
+                  <div class="user-contact">{{ user.phone }}</div>
+                }
+                @if (getTagsForUser(user.id).length > 0) {
+                  <div class="user-tags">
+                    @for (tag of getTagsForUser(user.id); track tag) {
+                      <span 
+                        class="user-tag"
+                        [style.backgroundColor]="getTagColor(tag).bg"
+                        [style.color]="getTagColor(tag).text"
+                        [style.borderColor]="getTagColor(tag).border">
+                        {{ tag }}
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
   </div>
 
   <div class="dialog-footer">

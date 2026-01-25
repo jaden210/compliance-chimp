@@ -87,7 +87,7 @@
 /* Layout */
 .inspection-layout {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--toolbar-height));
   overflow: hidden;
 }
 

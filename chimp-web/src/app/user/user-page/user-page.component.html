@@ -1,145 +1,138 @@
-@if (Team.id) {
-  <div class="user-page">
-    <!-- Hero Header -->
-    <header class="hero">
-      <div class="hero-bg"></div>
-      <div class="hero-content">
-        <div class="team-branding">
-          @if (Team.logoUrl) {
-            <img class="team-logo" [src]="Team.logoUrl" [alt]="Team.name">
-          } @else {
-            <div class="team-initial">{{ Team?.name?.charAt(0) }}</div>
-          }
-        </div>
-        <h1 class="greeting">Hey, {{ TeamMember?.name?.split(' ')[0] || 'there' }}! 👋</h1>
-        <p class="team-name">{{ Team?.name }}</p>
+<div class="user-page">
+  <!-- Hero Header -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="team-branding">
+        @if (Team?.logoUrl) {
+          <img class="team-logo" [src]="Team.logoUrl" [alt]="Team.name">
+        } @else {
+          <div class="team-initial">{{ Team?.name?.charAt(0) || '?' }}</div>
+        }
       </div>
-    </header>
+      <h1 class="greeting">Hey, {{ TeamMember?.name?.split(' ')[0] || 'there' }}! 👋</h1>
+      <p class="team-name">{{ Team?.name }}</p>
+    </div>
+  </header>
 
-    <main class="content">
-      <!-- PWA Install Prompt -->
-      @if (pwaInstallService.canInstall$ | async) {
-        <div class="install-prompt" (click)="installApp()">
-          <div class="install-content">
-            <div class="install-icon-wrap">
-              <mat-icon>add_to_home_screen</mat-icon>
-            </div>
-            <div class="install-text">
-              <strong>Add to Home Screen</strong>
-              <span>Quick access anytime</span>
-            </div>
+  <main class="content">
+    <!-- PWA Install Prompt -->
+    @if (pwaInstallService.canInstall$ | async) {
+      <div class="install-prompt" (click)="installApp()">
+        <div class="install-content">
+          <div class="install-icon-wrap">
+            <mat-icon>add_to_home_screen</mat-icon>
           </div>
-          <mat-icon class="install-arrow">arrow_forward</mat-icon>
+          <div class="install-text">
+            <strong>Add to Home Screen</strong>
+            <span>Quick access anytime</span>
+          </div>
         </div>
-      }
+        <mat-icon class="install-arrow">arrow_forward</mat-icon>
+      </div>
+    }
 
-      <!-- Quick Actions -->
-      <section class="actions-section">
-        <div class="action-cards">
-          <div class="action-card injury" (click)="startInjuryReport()">
+    <!-- Quick Actions -->
+    <section class="actions-section">
+      <div class="action-cards">
+        <div class="action-card injury" (click)="startInjuryReport()">
+          <div class="action-icon">
+            <mat-icon>healing</mat-icon>
+          </div>
+          <div class="action-details">
+            <span class="action-title">Report Incident</span>
+            <span class="action-subtitle">Injury or near miss</span>
+          </div>
+          <mat-icon class="action-arrow">chevron_right</mat-icon>
+        </div>
+
+        @if (Files?.length > 0) {
+          <div class="action-card files" routerLink="files">
             <div class="action-icon">
-              <mat-icon>healing</mat-icon>
+              <mat-icon>folder_open</mat-icon>
             </div>
             <div class="action-details">
-              <span class="action-title">Report Incident</span>
-              <span class="action-subtitle">Injury or near miss</span>
+              <span class="action-title">Team Files</span>
+              <span class="action-subtitle">{{ Files.length }} file{{ Files.length !== 1 ? 's' : '' }} available</span>
+            </div>
+            <mat-icon class="action-arrow">chevron_right</mat-icon>
+          </div>
+        }
+
+        @if (IsLoggedIn) {
+          <div class="action-card training" routerLink="articles">
+            <div class="action-icon">
+              <mat-icon>school</mat-icon>
+            </div>
+            <div class="action-details">
+              <span class="action-title">Training</span>
+              <span class="action-subtitle">Start a new session</span>
             </div>
             <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>
 
-          @if (Files?.length > 0) {
-            <div class="action-card files" routerLink="files">
-              <div class="action-icon">
-                <mat-icon>folder_open</mat-icon>
-              </div>
-              <div class="action-details">
-                <span class="action-title">Team Files</span>
-                <span class="action-subtitle">{{ Files.length }} file{{ Files.length !== 1 ? 's' : '' }} available</span>
-              </div>
-              <mat-icon class="action-arrow">chevron_right</mat-icon>
+          <div class="action-card inspections" routerLink="self-inspections">
+            <div class="action-icon">
+              <mat-icon>checklist</mat-icon>
             </div>
-          }
-
-          @if (IsLoggedIn) {
-            <div class="action-card training" routerLink="articles">
-              <div class="action-icon">
-                <mat-icon>school</mat-icon>
-              </div>
-              <div class="action-details">
-                <span class="action-title">Training</span>
-                <span class="action-subtitle">Start a new session</span>
-              </div>
-              <mat-icon class="action-arrow">chevron_right</mat-icon>
+            <div class="action-details">
+              <span class="action-title">Self-Inspections</span>
+              <span class="action-subtitle">Safety checklists</span>
             </div>
-
-            <div class="action-card inspections" routerLink="self-inspections">
-              <div class="action-icon">
-                <mat-icon>checklist</mat-icon>
-              </div>
-              <div class="action-details">
-                <span class="action-title">Self-Inspections</span>
-                <span class="action-subtitle">Safety checklists</span>
-              </div>
-              <mat-icon class="action-arrow">chevron_right</mat-icon>
-            </div>
-          }
-        </div>
-      </section>
-
-      <!-- Surveys Section -->
-      <section class="surveys-section">
-        <div class="section-header">
-          <h2 class="section-title">Your Surveys</h2>
-          @if (Surveys?.length) {
-            <span class="survey-badge">{{ Surveys.length }}</span>
-          }
-        </div>
-
-        @if (Surveys?.length) {
-          <div class="survey-cards">
-            @for (survey of Surveys; track survey.id) {
-              <div class="survey-card" [routerLink]="'survey/' + survey.id">
-                <div class="survey-avatar">
-                  <img [src]="survey?.author?.profileUrl || '/assets/achievements/survey.png'" 
-                       onerror="this.src='/assets/achievements/survey.png'"
-                       [alt]="survey?.author?.name">
-                </div>
-                <div class="survey-info">
-                  <span class="survey-title">{{ survey?.title }}</span>
-                  <span class="survey-meta">
-                    @if (survey.author?.name) {
-                      From {{ survey.author.name }} · 
-                    }
-                    {{ survey?.createdAt?.toDate() | date:'MMM d' }}
-                  </span>
-                </div>
-                <div class="survey-action">
-                  <mat-icon>arrow_forward</mat-icon>
-                </div>
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="empty-state">
-            <div class="empty-icon">
-              <mat-icon>check_circle</mat-icon>
-            </div>
-            <h3>All caught up!</h3>
-            <p>No surveys waiting for you. We'll notify you when something new arrives.</p>
+            <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>
         }
-      </section>
+      </div>
+    </section>
 
-      <!-- Footer -->
-      <footer class="page-footer">
-        <span>Powered by</span>
-        <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
-      </footer>
-    </main>
-  </div>
-} @else {
-  <div class="loading-screen">
-    <img src="./assets/chimp.png" alt="Loading...">
-    <div class="loading-text">Loading your dashboard...</div>
-  </div>
-}
+    <!-- Surveys Section -->
+    <section class="surveys-section">
+      <div class="section-header">
+        <h2 class="section-title">Your Surveys</h2>
+        @if (Surveys?.length) {
+          <span class="survey-badge">{{ Surveys.length }}</span>
+        }
+      </div>
+
+      @if (Surveys?.length) {
+        <div class="survey-cards">
+          @for (survey of Surveys; track survey.id) {
+            <div class="survey-card" [routerLink]="'survey/' + survey.id">
+              <div class="survey-avatar">
+                <img [src]="survey?.author?.profileUrl || '/assets/achievements/survey.png'" 
+                     onerror="this.src='/assets/achievements/survey.png'"
+                     [alt]="survey?.author?.name">
+              </div>
+              <div class="survey-info">
+                <span class="survey-title">{{ survey?.title }}</span>
+                <span class="survey-meta">
+                  @if (survey.author?.name) {
+                    From {{ survey.author.name }} · 
+                  }
+                  {{ survey?.createdAt?.toDate() | date:'MMM d' }}
+                </span>
+              </div>
+              <div class="survey-action">
+                <mat-icon>arrow_forward</mat-icon>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <div class="empty-icon">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <h3>All caught up!</h3>
+          <p>No surveys waiting for you. We'll notify you when something new arrives.</p>
+        </div>
+      }
+    </section>
+
+    <!-- Footer -->
+    <footer class="page-footer">
+      <span>Powered by</span>
+      <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+    </footer>
+  </main>
+</div>

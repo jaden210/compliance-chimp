@@ -1,7 +1,8 @@
 /* Changes here need to happen on the app too */
 
 export class Survey {
-  articleId: string;
+  articleId?: string;
+  libraryId?: string; // Legacy property - some older surveys use this instead of articleId
   receivedTraining: string[] = [];
   userId: string;
   active: boolean = true;

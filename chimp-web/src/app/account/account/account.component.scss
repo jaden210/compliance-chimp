@@ -1,126 +1,698 @@
-#tabs {
-  height: calc(100vh - 64px);
+/* Page content height handled by .page-layout grid */
+
+.account-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  padding-bottom: 100px;
 }
 
-.column {
-  flex: 1;
+.section {
+  padding: 32px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+  }
+
+  .section-icon {
+    color: var(--chimp-primary);
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+
+    &.danger {
+      color: var(--mat-warn-color, #f44336);
+    }
+  }
+}
+
+// Company Section
+.company-content {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 48px;
+  align-items: start;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.logo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px;
-  margin-bottom: 64px;
+  gap: 16px;
 }
 
-.image-cont {
-  width: 100%;
-  height: 300px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.image {
-  height: 150px;
-  width: 350px;
-  border-radius: 24px;
-  position: relative;
-}
-
-.image-circle {
-  height: 150px;
-  width: 150px;
-  border-radius: 8px;
+.logo-container {
+  width: 200px;
+  height: 200px;
+  border-radius: 16px;
   overflow: hidden;
+  background: var(--chimp-bg-secondary, #f5f5f5);
   position: relative;
+  border: 2px dashed var(--chimp-border-light, #e0e0e0);
 }
 
-.img {
+.logo-loader {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.company-logo {
+  width: 100%;
   height: 100%;
+  object-fit: contain;
+}
+
+.logo-placeholder {
   width: 100%;
-  object-fit: cover;
-}
-
-.image-button {
-  margin-top: 24px;
-}
-
-.title {
-  font-size: 32px;
-  color: var(--chimp-text-primary);
-  margin: 12px 0;
-  min-height: 44px;
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-}
-
-mat-form-field {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-}
-
-#ctype {
-  width: 100%;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-#cti {
-  display: flex;
-}
-
-.radio-group {
-  display: inline-flex;
-  flex-direction: column;
-  padding: 12px;
-}
-
-.radio-button {
-  margin: 5px;
-}
-
-.label {
-  font-size: 17px;
-  align-self: flex-start;
-  margin: 0 24px;
-}
-
-
-.industries {
-  width: 600px;
-  max-width: calc(100% - 16px);
-  margin: 24px 0;
-  img {
-    border-radius: 4px !important;
-    margin: 0 8px;
-  }
-}
-
-.box {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-sizing: border-box;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--chimp-text-secondary);
-  min-width: 400px;
-  margin: 12px;
-  .title {
-    font-size: 32px;
+  justify-content: center;
+  gap: 8px;
+  color: var(--chimp-text-hint, #9e9e9e);
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
   }
-  .info {
-    font-size: 16px;
-    color: var(--chimp-text-secondary);
-    font-style: italic;
+
+  span {
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 }
 
-.full {
-  width: 400px;
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.address-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Industry Section
+.industry-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.industry-info-box {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+  border: 1px solid #fde047;
+  border-radius: 12px;
+
+  > mat-icon {
+    color: #ca8a04;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .info-content {
+    strong {
+      display: block;
+      color: #854d0e;
+      margin-bottom: 4px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      color: #a16207;
+      line-height: 1.5;
+    }
+  }
+}
+
+.industry-field {
+  max-width: 600px;
+}
+
+// Training Settings Section - Auto Start Card
+.auto-start-card {
+  background: var(--chimp-bg-primary, #ffffff);
+  border: 1px solid var(--chimp-border-light, #e0e0e0);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.auto-start-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(5, 77, 138, 0.04), rgba(5, 77, 138, 0.02));
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+}
+
+.auto-start-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: var(--chimp-primary, #054d8a);
+  flex-shrink: 0;
+}
+
+.auto-start-title-section {
+  flex: 1;
+  
+  h3 {
+    margin: 0 0 4px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--chimp-text-secondary);
+    line-height: 1.5;
+  }
+}
+
+.auto-start-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--chimp-bg-secondary, #f8f9fa);
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9375rem;
+  color: var(--chimp-text-primary);
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #4caf50;
+    flex-shrink: 0;
+  }
+  
+  &.included {
+    margin-top: 4px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.08), rgba(76, 175, 80, 0.04));
+    border-radius: 10px;
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    
+    mat-icon {
+      color: #f59e0b;
+    }
+  }
+}
+
+.auto-start-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--chimp-border-light, #e0e0e0);
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+}
+
+.toggle-status {
+  font-size: 0.8125rem;
+  color: var(--chimp-text-hint, #9e9e9e);
+  
+  &.enabled {
+    color: #4caf50;
+  }
+}
+
+// Billing Section
+.billing-content {
+  max-width: 500px;
+}
+
+.plan-card {
+  background: linear-gradient(135deg, var(--chimp-bg-secondary, #f8f9fa) 0%, var(--chimp-bg-primary, #ffffff) 100%);
+  border: 2px solid var(--chimp-border-light, #e0e0e0);
+  border-radius: 20px;
+  padding: 32px;
+  transition: all 0.3s ease;
+
+  &.active {
+    border-color: var(--chimp-primary);
+    box-shadow: 0 4px 20px rgba(var(--chimp-primary-rgb, 33, 150, 243), 0.15);
+  }
+}
+
+.plan-header {
+  margin-bottom: 16px;
+}
+
+.plan-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  color: white;
+
+  &.inactive {
+    background: linear-gradient(135deg, #9e9e9e, #757575);
+  }
+}
+
+.plan-details {
+  margin-bottom: 24px;
+}
+
+.plan-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--chimp-text-primary);
+  margin-bottom: 8px;
+}
+
+.plan-price {
+  margin-bottom: 8px;
+
+  .price-amount {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--chimp-primary);
+  }
+
+  .price-period {
+    font-size: 1.25rem;
+    color: var(--chimp-text-secondary);
+  }
+}
+
+.plan-description {
+  color: var(--chimp-text-secondary);
+  font-size: 0.95rem;
+}
+
+.plan-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 20px 0;
+  border-top: 1px solid var(--chimp-border-light, #e0e0e0);
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--chimp-text-primary);
+
+  mat-icon {
+    color: var(--chimp-accent, #4caf50);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.plan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  button {
+    width: 100%;
+    height: 48px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .subscribe-btn {
+    background: linear-gradient(135deg, var(--chimp-primary), var(--chimp-primary-dark, #1565c0));
+    
+    mat-spinner {
+      display: inline-block;
+    }
+  }
+
+  .manage-btn {
+    mat-spinner {
+      display: inline-block;
+    }
+  }
+}
+
+// Danger Section
+.danger-section {
+  .section-header h2 {
+    color: var(--mat-warn-color, #f44336);
+  }
+}
+
+.danger-content {
+  padding: 24px;
+  background: rgba(244, 67, 54, 0.05);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 12px;
+
+  p {
+    margin: 0 0 16px 0;
+    color: var(--chimp-text-secondary);
+  }
+
+  button {
+    mat-icon {
+      margin-right: 8px;
+    }
+  }
+}
+
+// No Access State
+.no-access {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 32px;
+  text-align: center;
+
+  mat-icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    color: var(--chimp-text-hint);
+    margin-bottom: 24px;
+  }
+
+  h2 {
+    margin: 0 0 12px 0;
+    color: var(--chimp-text-primary);
+  }
+
+  p {
+    margin: 0 0 24px 0;
+    color: var(--chimp-text-secondary);
+    max-width: 400px;
+  }
+
+  .no-access-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    button {
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+// Sign Out Button
+.sign-out-btn {
+  color: var(--chimp-on-primary);
+
+  mat-icon {
+    margin-right: 6px;
+  }
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+// Mobile: icon-only sign out
+.sign-out-mobile {
+  display: none !important;
+  
+  mat-icon {
+    margin-right: 0;
+  }
+}
+
+// Desktop/mobile visibility for toolbar elements
+.sign-out-desktop {
+  display: inline-flex;
+}
+
+.toolbar-logo-desktop {
+  display: block;
+}
+
+mat-divider {
+  margin: 0;
+}
+
+// Mobile Improvements
+@media screen and (max-width: 768px) {
+  // Toolbar adjustments for mobile
+  .toolbar-logo-desktop {
+    display: none !important;
+  }
+  
+  .sign-out-desktop {
+    display: none !important;
+  }
+  
+  .sign-out-mobile {
+    display: inline-flex !important;
+  }
+
+  .account-container {
+    padding: 24px 16px;
+    overflow-x: hidden;
+  }
+  
+  .section {
+    padding: 24px 0;
+  }
+  
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .logo-container {
+    width: 160px;
+    height: 160px;
+  }
+  
+  // Better touch targets for buttons
+  .plan-actions button {
+    min-height: 48px;
+  }
+  
+  .danger-content button {
+    min-height: 44px;
+    padding: 0 20px;
+  }
+  
+  // Auto-start toggle touch target
+  .auto-start-toggle mat-slide-toggle {
+    transform: scale(1.1);
+    transform-origin: right center;
+  }
+  
+  .industry-info-box {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  
+  // Form fields overflow fix
+  .form-section {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  mat-form-field {
+    max-width: 100%;
+  }
+}
+
+// Extra Small Mobile
+@media screen and (max-width: 374px) {
+  .account-container {
+    padding: 16px 12px;
+  }
+  
+  .section-header {
+    gap: 10px;
+    margin-bottom: 20px;
+    
+    h2 {
+      font-size: 1.125rem;
+    }
+    
+    .section-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+  }
+  
+  .logo-container {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .logo-placeholder {
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+    }
+    
+    span {
+      font-size: 0.8rem;
+    }
+  }
+  
+  .plan-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+  
+  .plan-price .price-amount {
+    font-size: 2.5rem;
+  }
+  
+  .plan-price .price-period {
+    font-size: 1rem;
+  }
+  
+  .plan-name {
+    font-size: 1.125rem;
+  }
+  
+  .plan-description {
+    font-size: 0.875rem;
+  }
+  
+  .auto-start-header {
+    padding: 20px 16px;
+    gap: 12px;
+  }
+  
+  .auto-start-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+  
+  .auto-start-title-section h3 {
+    font-size: 1.125rem;
+  }
+  
+  .auto-start-benefits {
+    padding: 16px;
+    gap: 10px;
+  }
+  
+  .benefit-item {
+    font-size: 0.875rem;
+  }
+  
+  .auto-start-toggle {
+    padding: 16px;
+  }
+  
+  .toggle-label {
+    font-size: 0.875rem;
+  }
+  
+  .industry-info-box .info-content {
+    strong {
+      font-size: 0.875rem;
+    }
+    
+    p {
+      font-size: 0.8125rem;
+    }
+  }
+  
+  .no-access {
+    padding: 24px 16px;
+    
+    mat-icon {
+      font-size: 60px;
+      width: 60px;
+      height: 60px;
+    }
+    
+    h2 {
+      font-size: 1.25rem;
+    }
+    
+    p {
+      font-size: 0.9rem;
+    }
+  }
+  
+  mat-divider {
+    margin: 0;
+  }
 }

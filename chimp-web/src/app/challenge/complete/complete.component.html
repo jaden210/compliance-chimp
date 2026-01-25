@@ -1,0 +1,91 @@
+<div class="complete-container">
+  <div class="complete-card">
+    <!-- Success Animation -->
+    <div class="result-animation" [class.winner]="beatTimer">
+      <div class="result-circle">
+        <mat-icon *ngIf="beatTimer">emoji_events</mat-icon>
+        <mat-icon *ngIf="!beatTimer">thumb_up</mat-icon>
+      </div>
+    </div>
+
+    <!-- Result Header -->
+    <div class="result-header">
+      <h1 *ngIf="beatTimer">You crushed it!</h1>
+      <h1 *ngIf="!beatTimer">Great effort!</h1>
+      
+      <p class="result-subtitle" *ngIf="beatTimer">
+        You completed the challenge in just <strong>{{ finalTime }}</strong>!
+      </p>
+      <p class="result-subtitle" *ngIf="!beatTimer">
+        You finished in <strong>{{ finalTime }}</strong>. That's still impressive!
+      </p>
+    </div>
+
+    <!-- Timer Result -->
+    <div class="timer-result" [class.winner]="beatTimer">
+      <div class="timer-icon">
+        <mat-icon>timer</mat-icon>
+      </div>
+      <div class="timer-info">
+        <span class="timer-label">Final Time</span>
+        <span class="timer-value">{{ finalTime }}</span>
+      </div>
+      <div class="timer-status">
+        <mat-icon *ngIf="beatTimer">check_circle</mat-icon>
+        <mat-icon *ngIf="!beatTimer">schedule</mat-icon>
+        <span *ngIf="beatTimer">Under 6 minutes!</span>
+        <span *ngIf="!beatTimer">Over 6 minutes</span>
+      </div>
+    </div>
+
+    <!-- Coupon Section -->
+    <div class="coupon-section">
+      <h2>Your Reward</h2>
+      <p class="coupon-description">
+        {{ couponMonths }} month{{ couponMonths > 1 ? 's' : '' }} free on your subscription!
+      </p>
+      
+      <div class="coupon-box">
+        <span class="coupon-code">{{ couponCode }}</span>
+        <button mat-icon-button (click)="copyCoupon()" class="copy-btn">
+          <mat-icon>content_copy</mat-icon>
+        </button>
+      </div>
+      
+      <p class="coupon-instructions">
+        Apply this code in your billing settings to redeem your free months.
+      </p>
+    </div>
+
+    <!-- What's Ready -->
+    <div class="ready-section">
+      <h3>Your compliance program is ready</h3>
+      <div class="ready-items">
+        <div class="ready-item">
+          <mat-icon>checklist</mat-icon>
+          <span>Custom self-inspections</span>
+        </div>
+        <div class="ready-item">
+          <mat-icon>school</mat-icon>
+          <span>Training library</span>
+        </div>
+        <div class="ready-item">
+          <mat-icon>groups</mat-icon>
+          <span>Team members added</span>
+        </div>
+        <div class="ready-item">
+          <mat-icon>calendar_month</mat-icon>
+          <span>Schedules configured</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Button -->
+    <div class="action-section">
+      <button mat-flat-button color="accent" class="finish-btn" (click)="finish()">
+        <mat-icon>rocket_launch</mat-icon>
+        Go to My Dashboard
+      </button>
+    </div>
+  </div>
+</div>

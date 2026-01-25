@@ -1,0 +1,48 @@
+<!-- Loading State -->
+<div class="loading-container" *ngIf="loading" role="status" aria-live="polite">
+  <mat-spinner diameter="40" aria-label="Loading article"></mat-spinner>
+  <p>Loading article...</p>
+</div>
+
+<ng-container *ngIf="!loading && post">
+  <!-- Post Header (Hero) -->
+  <header class="post-header">
+    <div class="post-header-content">
+      <a routerLink="/blog" class="back-link" aria-label="Back to all articles">
+        <mat-icon aria-hidden="true">arrow_back</mat-icon>
+        <span>All Articles</span>
+      </a>
+      
+      <div class="post-meta">
+        <span class="post-category">{{ post.category }}</span>
+        <span class="post-dot" aria-hidden="true">•</span>
+        <time class="post-date" [attr.datetime]="post.publishedDate">{{ formatDate(post.publishedDate) }}</time>
+        <span class="post-dot" aria-hidden="true">•</span>
+        <span class="post-read-time" aria-label="Reading time">{{ post.readTime }}</span>
+      </div>
+
+      <h1 class="post-title">{{ post.title }}</h1>
+      
+      <p class="post-description">{{ post.description }}</p>
+
+      <div class="post-tags">
+        <div class="post-industry" *ngIf="post.industry">
+          <mat-icon aria-hidden="true">business</mat-icon>
+          <span>{{ post.industry }}</span>
+        </div>
+        <div class="post-author" *ngIf="post.author">
+          <mat-icon aria-hidden="true">edit</mat-icon>
+          <span>Written by {{ post.author }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Post Content -->
+  <main class="post-container" role="main">
+    <div class="post-body">
+      <article class="post-content" [innerHTML]="renderedContent"></article>
+      <blog-cta [industry]="post.industry"></blog-cta>
+    </div>
+  </main>
+</ng-container>

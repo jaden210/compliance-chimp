@@ -1,4 +1,16 @@
-<mat-sidenav-container>
+<!-- Splash screen for account/user routes while auth is loading -->
+<div class="splash-screen" *ngIf="!appService.isAuthReady && isAccountRoute">
+  <div class="splash-content">
+    <img class="splash-logo" src="/assets/ccLogoDark.png" alt="Compliancechimp" />
+    <div class="splash-loader">
+      <div class="splash-dot"></div>
+      <div class="splash-dot"></div>
+      <div class="splash-dot"></div>
+    </div>
+  </div>
+</div>
+
+<mat-sidenav-container [class.hidden]="!appService.isAuthReady && isAccountRoute">
   <mat-sidenav
     mode="over"
     #sidenav
@@ -8,7 +20,7 @@
   >
     <mat-toolbar class="toolbar sidenav-toolbar">
       <img
-        src="/assets/ccLogo.png"
+        src="/assets/complianceChimpLogoLight.png"
         class="title"
         (click)="navRoute('home')"
         alt="Compliancechimp"
@@ -18,45 +30,53 @@
         <mat-icon style="color:#ffffff">close</mat-icon>
       </button>
     </mat-toolbar>
-    <div class="cwindow">
-      <div id="links">
-        <button
-          mat-button
-          class="link"
+    <div class="sidenav-content">
+      <div class="sidenav-challenge" (click)="navRoute('get-started')">
+        <div class="challenge-pill-text">
+          <span class="challenge-pill-headline">Get compliant in 6 minutes</span>
+          <span class="challenge-pill-sub">Beat the clock, get 2 months free</span>
+        </div>
+        <button mat-flat-button class="challenge-pill-btn">
+          Accept
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+      <nav class="sidenav-nav">
+        <a
+          class="sidenav-link"
           (click)="navRoute('how-it-works')"
-          routerLinkActive="tactive"
+          routerLinkActive="sidenav-link-active"
         >
-          How it Works
-        </button>
+          <mat-icon class="sidenav-link-icon">play_circle_outline</mat-icon>
+          <span>How it Works</span>
+        </a>
 
-        <button
-          mat-button
-          class="link"
+        <a
+          class="sidenav-link"
           (click)="navRoute('common-questions')"
-          routerLinkActive="tactive"
+          routerLinkActive="sidenav-link-active"
         >
-          Common Questions
-        </button>
+          <mat-icon class="sidenav-link-icon">help_outline</mat-icon>
+          <span>Common Questions</span>
+        </a>
 
-        <!-- <button mat-button class="link" (click)="goToBlog()">Blog</button> -->
-        <button
-          mat-button
-          class="link"
+        <a
+          class="sidenav-link"
+          (click)="navRoute('blog')"
+          routerLinkActive="sidenav-link-active"
+        >
+          <mat-icon class="sidenav-link-icon">article</mat-icon>
+          <span>Blog</span>
+        </a>
+
+        <a
+          class="sidenav-link"
           (click)="trySignIn()"
         >
-          Sign in
-        </button>
-
-        <button
-          mat-stroked-button
-          style="margin: 24px 0;color:#ffffff;border-color:#ffffff !important"
-          (click)="routeSignUp()"
-        >
-          Start for Free
-        </button>
-        <div class="border"></div>
-        <sign-up></sign-up>
-      </div>
+          <mat-icon class="sidenav-link-icon">login</mat-icon>
+          <span>Sign in</span>
+        </a>
+      </nav>
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
@@ -70,7 +90,7 @@
       [class.shadow]="appService.toolbarShadow"
     >
       <img
-        src="/assets/ccLogo.png"
+        src="/assets/complianceChimpLogoLight.png"
         class="title"
         routerLink="home"
         alt="Compliancechimp"
@@ -97,14 +117,21 @@
           Common Questions
         </button>
 
-        <!-- <button mat-button class="link" (click)="goToBlog()">Blog</button> -->
+        <button
+          mat-button
+          class="link"
+          routerLink="blog"
+          routerLinkActive="tactive"
+        >
+          Blog
+        </button>
         <button mat-button class="link" (click)="trySignIn()">Sign in</button>
         <button
-          mat-stroked-button
-          style="color: #ffffff;border-color:#ffffff !important"
+          mat-flat-button
+          class="cta-btn"
           (click)="routeSignUp()"
         >
-          Start for Free
+          Get Started for Free
         </button>
       </div>
       <div class="mobile">
@@ -113,6 +140,21 @@
         </button>
       </div>
     </mat-toolbar>
+    
+    <!-- Simplified toolbar for get-started flow -->
+    <mat-toolbar
+      class="toolbar"
+      *ngIf="router.isActive('/get-started', false)"
+    >
+      <img
+        src="/assets/complianceChimpLogoLight.png"
+        class="title"
+        routerLink="/home"
+        alt="Compliancechimp"
+      />
+      <div class="flex"></div>
+    </mat-toolbar>
+    
     <div id="spacer"></div>
     <div class="hwindow" id="scroll">
       <router-outlet></router-outlet>

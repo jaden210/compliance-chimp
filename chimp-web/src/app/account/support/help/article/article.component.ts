@@ -1,49 +1,40 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgxEditorModule, Editor, Toolbar } from 'ngx-editor';
-import { Observable } from 'rxjs';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SupportService } from '../../support.service';
 import { HelpArticle } from 'src/app/help-dialog/help-dialog.component';
-import { BlogPhotoDialog } from '../../dialogs/blog-photo-upload/blog-photo-upload.component';
-import { BlogVideoDialog } from '../../dialogs/blog-video-upload/blog-video-upload.component';
 import { doc, docData, setDoc, updateDoc, deleteDoc } from '@angular/fire/firestore';
+import { take } from 'rxjs/operators';
 
 @Component({
-  standalone: true,
   selector: 'app-article',
   templateUrl: './article.component.html',
-  styleUrls: ['./article.component.scss'],
+  styleUrl: './article.component.scss',
   imports: [
-    CommonModule,
     FormsModule,
     NgxEditorModule,
-    MatDialogModule,
-    MatSnackBarModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressBarModule,
     MatProgressSpinnerModule
   ]
 })
 export class ArticleComponent implements OnInit, OnDestroy {
+  private readonly supportService = inject(SupportService);
+  private readonly snackbar = inject(MatSnackBar);
 
-  article: HelpArticle;
-  loading: boolean = false;
+  article: HelpArticle = new HelpArticle();
+  readonly loading = signal(false);
 
-  // NgxEditor setup
-  public editor: Editor;
-  public toolbar: Toolbar = [
+  editor!: Editor;
+  readonly toolbar: Toolbar = [
     ['bold', 'italic', 'underline', 'strike'],
     ['blockquote', 'code'],
     ['ordered_list', 'bullet_list'],
@@ -54,71 +45,68 @@ export class ArticleComponent implements OnInit, OnDestroy {
     ['undo', 'redo']
   ];
 
-  constructor(
-    public dialog: MatDialog,
-    private supportService: SupportService,
-    private _snackbar: MatSnackBar
-  ) { }
-
-  ngOnInit() {
+  ngOnInit(): void {
     this.editor = new Editor();
-    this.supportService.article ? this.article = this.supportService.article : this.article = new HelpArticle();
-  }
-
-  ngOnDestroy() {
-    this.editor.destroy();
-  }
-
-  submit() {
-    this.loading = true;
-    if (this.article.createdAt) { //edit
-      updateDoc(doc(this.supportService.db, `help-article/${this.article.id}`), { ...this.article }).then(() => {
-        this.supportService.article = new HelpArticle();
-        this.supportService.makeArticle = false;
-        this.loading = false;
-      })
-    } else {
-      this.article.id = this.article.id ? this.article.id.split(' ').join('-').toLowerCase() : this.article.name.split(' ').join('-').toLowerCase();
-      docData(doc(this.supportService.db, `help-article/${this.article.id}`)).subscribe(article => {
-        if (!article) {
-          this.article.createdAt = new Date();
-          setDoc(doc(this.supportService.db, `help-article/${this.article.id}`), { ...this.article }).then(() => {
-            this.supportService.article = new HelpArticle();
-            this.supportService.makeArticle = false;
-            this.loading = false;
-          }, error => console.error(error));
-        } else {
-          this._snackbar.open("name is taken", "", {duration: 4000});
-          this.loading = false;
-        }
-      })
+    const existingArticle = this.supportService.article();
+    if (existingArticle) {
+      this.article = existingArticle;
     }
   }
 
-  articlePhoto() {
-    this.dialog.open(BlogPhotoDialog, {
-      data: this.article,
-      disableClose: true
-    });
+  ngOnDestroy(): void {
+    this.editor.destroy();
   }
 
-  articleVideo() {
-    this.dialog.open(BlogVideoDialog, {
-      data: this.article,
-      disableClose: true
-    });
+  submit(): void {
+    this.loading.set(true);
+    
+    if (this.article.createdAt) {
+      // Edit existing article
+      const cleanedArticle = Object.fromEntries(
+        Object.entries(this.article).filter(([_, v]) => v !== undefined)
+      );
+      updateDoc(doc(this.supportService.db, `help-article/${this.article.id}`), cleanedArticle).then(() => {
+        this.close();
+      });
+    } else {
+      // Create new article
+      this.article.id = this.article.id 
+        ? this.article.id.split(' ').join('-').toLowerCase() 
+        : this.article.name.split(' ').join('-').toLowerCase();
+      
+      docData(doc(this.supportService.db, `help-article/${this.article.id}`))
+        .pipe(take(1))
+        .subscribe(existingArticle => {
+          if (!existingArticle) {
+            this.article.createdAt = new Date();
+            const cleanedArticle = Object.fromEntries(
+              Object.entries(this.article).filter(([_, v]) => v !== undefined)
+            );
+            setDoc(doc(this.supportService.db, `help-article/${this.article.id}`), cleanedArticle).then(() => {
+              this.close();
+            }).catch(error => console.error(error));
+          } else {
+            this.snackbar.open('Name is already taken', '', { duration: 4000 });
+            this.loading.set(false);
+          }
+        });
+    }
   }
 
-  cancel() {
-    this.supportService.article = new HelpArticle();
-    this.supportService.makeArticle = false;
+  cancel(): void {
+    this.close();
   }
 
-  deleteArticle() {
+  deleteArticle(): void {
     deleteDoc(doc(this.supportService.db, `help-article/${this.article.id}`)).then(() => {
-      this.cancel();
+      this.close();
     });
   }
 
+  private close(): void {
+    this.supportService.article.set(null);
+    this.supportService.makeArticle.set(false);
+    this.loading.set(false);
+  }
 }
 

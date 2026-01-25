@@ -1,15 +1,10 @@
 @if (!isEditing()) {
   <mat-toolbar>
-    <button mat-icon-button (click)="goBack()" matTooltip="Back to library">
+    <button mat-icon-button (click)="goBack()" matTooltip="Back to training">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <div class="toolbar-title">
-      @if (article(); as art) {
-        {{ art.name }}
-      } @else {
-        Article
-      }
-    </div>
+    <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp">
+    <div class="toolbar-title">Training Article</div>
     <div class="flex"></div>
   </mat-toolbar>
 
@@ -53,13 +48,42 @@
               <mat-icon>text_fields</mat-icon>
               {{ wordCount() }} words
             </span>
-            @if (article.createdAt) {
+            <span class="stat">
+              <mat-icon>repeat</mat-icon>
+              {{ cadenceLabel() }}
+            </span>
+            <span class="stat">
+              <mat-icon>history</mat-icon>
+              {{ article.lastTrainedAt ? 'Last: ' + formatDate(article.lastTrainedAt) : 'Never trained' }}
+            </span>
+            @if (nextDueDate()) {
               <span class="stat">
-                <mat-icon>calendar_today</mat-icon>
-                {{ article.createdAt | date:'mediumDate' }}
+                <mat-icon>event</mat-icon>
+                Next: {{ formatDate(nextDueDate()) }}
               </span>
             }
+            <span class="stat">
+              <mat-icon>groups</mat-icon>
+              {{ trainingHistory().length }} sessions
+            </span>
           </div>
+
+          <!-- Assigned Tags -->
+          @if (article.assignedTags?.length) {
+            <div class="article-tags">
+              <span class="tags-label">Assigned to:</span>
+              @for (tag of article.assignedTags; track tag) {
+                <span 
+                  class="tag-chip"
+                  [style.backgroundColor]="getTagColor(tag).bg"
+                  [style.color]="getTagColor(tag).text"
+                  [style.borderColor]="getTagColor(tag).border">
+                  <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+                  <span class="tag-name">{{ tag }}</span>
+                </span>
+              }
+            </div>
+          }
 
           <!-- Action Bar -->
           <div class="action-bar">
@@ -71,14 +95,10 @@
               <mat-icon>groups</mat-icon>
               Classroom Training
             </button>
-            <div class="action-spacer"></div>
-            <button 
-              mat-icon-button 
-              [class.favorited]="isFavorited()" 
-              (click)="toggleFavorite()"
-              matTooltip="Add to favorites">
-              <mat-icon>{{ isFavorited() ? 'star' : 'star_outline' }}</mat-icon>
+            <button mat-icon-button (click)="scrollToHistory()" matTooltip="View training history">
+              <mat-icon>history</mat-icon>
             </button>
+            <div class="action-spacer"></div>
             <button mat-icon-button (click)="shareArticle()" matTooltip="Share article">
               <mat-icon>share</mat-icon>
             </button>
@@ -88,6 +108,9 @@
             @if (canEdit()) {
               <button mat-icon-button (click)="editArticle()" matTooltip="Edit article">
                 <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
+                <mat-icon>delete</mat-icon>
               </button>
             }
           </div>
@@ -102,6 +125,7 @@
 
         <!-- Article Content -->
         <section class="article-content" [innerHTML]="article.content"></section>
+
 
         <!-- Article Footer -->
         <footer class="article-footer">
@@ -124,6 +148,64 @@
           </div>
         </footer>
       </article>
+
+      <!-- History Side Panel -->
+      <aside class="history-panel" [class.open]="historyPanelOpen()">
+        <div class="panel-header">
+          <h3>
+            <mat-icon>history</mat-icon>
+            Training History
+          </h3>
+          <button mat-icon-button (click)="toggleHistoryPanel()" matTooltip="Close panel">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        
+        <div class="panel-content">
+          @if (trainingHistory().length === 0) {
+            <div class="empty-history">
+              <mat-icon>history_toggle_off</mat-icon>
+              <div class="empty-title">No training sessions yet</div>
+              <div class="empty-subtitle">Start a training to see history here</div>
+            </div>
+          } @else {
+            @for (session of trainingHistory(); track session.id) {
+              <div class="history-card">
+                <div class="card-header">
+                  <div class="session-date">
+                    <mat-icon>event</mat-icon>
+                    {{ formatDate(session.createdAt) }}
+                  </div>
+                </div>
+                <div class="card-stats">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ getAttendeeCount(session) }}</div>
+                    <div class="stat-label">Attendees</div>
+                  </div>
+                  <div class="stat-item">
+                    <div class="stat-value">{{ getCompletionRate(session) }}%</div>
+                    <div class="stat-label">Completion</div>
+                  </div>
+                </div>
+                <div class="card-actions">
+                  <button mat-stroked-button (click)="viewSessionDetails(session)">
+                    <mat-icon>visibility</mat-icon>
+                    View Details
+                  </button>
+                  <button mat-icon-button (click)="exportSession(session)" matTooltip="Export attendance">
+                    <mat-icon>download</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </aside>
+
+      <!-- Panel backdrop -->
+      @if (historyPanelOpen()) {
+        <div class="panel-backdrop" (click)="toggleHistoryPanel()"></div>
+      }
     }
   </div>
 } @else {

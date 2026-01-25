@@ -5,9 +5,10 @@ import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from "@angular/materia
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { User } from "src/app/app.service";
-import { AccountService } from "../account/account.service";
+import { AccountService, TeamMember } from "../account/account.service";
 import { LibraryItem } from "../account/training/training.service";
 import { BlasterService } from "./blaster.service";
+import { getTagColor } from "../shared/tag-colors";
 
 @Component({
   standalone: true,
@@ -23,10 +24,13 @@ import { BlasterService } from "./blaster.service";
 })
 export class BlasterDialog implements OnInit {
   users: User[] = [];
+  teamMembers: TeamMember[] = [];
   filteredUsers: User[] = [];
   userGroups: any;
   srt: string[] = [];
+  selectedTags: string[] = [];
   searchTerm: string = '';
+  
 
   constructor(
     private accountService: AccountService,
@@ -38,10 +42,91 @@ export class BlasterDialog implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Pre-select tags from the library item
+    if (this.data?.libraryItem?.assignedTags?.length > 0) {
+      this.selectedTags = [...this.data.libraryItem.assignedTags];
+    }
+    
     this.accountService.teamMembersObservable.subscribe(users => {
       this.users = users || [];
+      this.teamMembers = users || [];
       this.filteredUsers = [...this.users];
+      
+      // Apply pre-selected tags after users load
+      this.applyPreselectedTags();
     });
+  }
+  
+  private applyPreselectedTags(): void {
+    // Select all members from pre-selected tags
+    this.selectedTags.forEach(tag => {
+      const memberIds = this.getMemberIdsForTag(tag);
+      memberIds.forEach(id => {
+        if (!this.srt.includes(id)) {
+          this.srt.push(id);
+        }
+      });
+    });
+  }
+  
+  // Get all unique tags from team members
+  get allTags(): string[] {
+    const tagsSet = new Set<string>();
+    this.teamMembers.forEach(tm => {
+      (tm.tags || []).forEach(tag => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }
+  
+  // Use shared tag color utility
+  getTagColor = getTagColor;
+  
+  getMemberCountForTag(tag: string): number {
+    return this.teamMembers.filter(tm => tm.tags?.includes(tag)).length;
+  }
+  
+  getMemberIdsForTag(tag: string): string[] {
+    return this.teamMembers
+      .filter(tm => tm.tags?.includes(tag) && tm.id)
+      .map(tm => tm.id);
+  }
+  
+  isTagSelected(tag: string): boolean {
+    return this.selectedTags.includes(tag);
+  }
+  
+  toggleTag(tag: string): void {
+    const memberIds = this.getMemberIdsForTag(tag);
+    
+    if (this.isTagSelected(tag)) {
+      this.selectedTags = this.selectedTags.filter(t => t !== tag);
+      memberIds.forEach(id => {
+        const stillSelectedByTag = this.selectedTags.some(t => 
+          this.getMemberIdsForTag(t).includes(id)
+        );
+        if (!stillSelectedByTag) {
+          this.srt = this.srt.filter(u => u !== id);
+        }
+      });
+    } else {
+      this.selectedTags.push(tag);
+      memberIds.forEach(id => {
+        if (!this.srt.includes(id)) {
+          this.srt.push(id);
+        }
+      });
+    }
+  }
+  
+  isSelectedViaTag(userId: string): boolean {
+    return this.selectedTags.some(tag => 
+      this.getMemberIdsForTag(tag).includes(userId)
+    );
+  }
+  
+  getTagsForUser(userId: string): string[] {
+    const member = this.teamMembers.find(tm => tm.id === userId);
+    return member?.tags || [];
   }
 
   filterUsers(): void {

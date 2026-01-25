@@ -1,74 +1,88 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { FormsModule } from "@angular/forms";
-import { RouterModule, Router } from "@angular/router";
+import { Router, RouterModule } from "@angular/router";
 import { MatButtonModule } from "@angular/material/button";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatInputModule } from "@angular/material/input";
 import { MatIconModule } from "@angular/material/icon";
-import { Auth } from "@angular/fire/auth";
-import { onAuthStateChanged } from "firebase/auth";
-import { AppService } from "../app.service";
-import { SignUpComponent } from "../sign-up/sign-up.component";
-
-declare var gtag: Function;
+import { AnalyticsService } from "../shared/analytics.service";
 
 @Component({
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterModule,
     MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    SignUpComponent
+    MatIconModule
   ],
   selector: "app-home",
   templateUrl: "./home.component.html",
   styleUrls: ["./home.component.css"]
 })
-export class HomeComponent implements OnInit {
-  loginErrorStr;
-  email;
+export class HomeComponent implements OnInit, OnDestroy {
+  private scrollMilestones = new Set<25 | 50 | 75 | 90 | 100>();
+  private scrollContainer: HTMLElement | null = null;
+  private boundScrollHandler: (() => void) | null = null;
 
   constructor(
-    public appService: AppService,
-    private router: Router,
-    public auth: Auth
+    private analytics: AnalyticsService,
+    private router: Router
   ) {}
 
-  ngOnInit() {}
-
-  createAccount(): void {
-    this.loginErrorStr = !this.email ? "email required" : null;
-    if (!this.loginErrorStr) {
-      this.appService.email = this.email;
-      this.appService.checkForExistingUser(this.email).then(
-        isExistingUser => {
-          if (!isExistingUser) {
-            this.router.navigate(["/get-started"]);
-          } else {
-            this.router.navigate(["/sign-in"]);
-          }
-        },
-        error => (this.loginErrorStr = error)
-      );
+  ngOnInit(): void {
+    // Get the scroll container (the #scroll element in app.component)
+    // Use try-catch to ensure this never breaks the component
+    try {
+      this.scrollContainer = document.getElementById('scroll');
+      if (this.scrollContainer) {
+        this.boundScrollHandler = this.onScroll.bind(this);
+        this.scrollContainer.addEventListener('scroll', this.boundScrollHandler, { passive: true });
+      }
+    } catch (e) {
+      // Silently fail - scroll tracking is optional
     }
   }
 
-  routeSignUp() {
-    onAuthStateChanged(this.auth, user => {
-      if (user && user.uid) {
-        this.router.navigate(["account"]);
-      } else {
-        gtag("event", "click", {
-          event_category: "sign up funnel",
-          event_label: "start today its free"
-        });
-        this.router.navigate(["/sign-up"]);
+  ngOnDestroy(): void {
+    try {
+      if (this.scrollContainer && this.boundScrollHandler) {
+        this.scrollContainer.removeEventListener('scroll', this.boundScrollHandler);
       }
-    });
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  private onScroll(): void {
+    try {
+      if (!this.scrollContainer) return;
+      
+      const scrollTop = this.scrollContainer.scrollTop;
+      const scrollHeight = this.scrollContainer.scrollHeight - this.scrollContainer.clientHeight;
+      
+      // Avoid division by zero
+      if (scrollHeight <= 0) return;
+      
+      const scrollPercent = Math.round((scrollTop / scrollHeight) * 100);
+
+      const milestones: (25 | 50 | 75 | 90 | 100)[] = [25, 50, 75, 90, 100];
+      for (const milestone of milestones) {
+        if (scrollPercent >= milestone && !this.scrollMilestones.has(milestone)) {
+          this.scrollMilestones.add(milestone);
+          this.analytics.trackScrollDepth(milestone);
+        }
+      }
+    } catch (e) {
+      // Silently fail - scroll tracking should never break the page
+    }
+  }
+
+  // Track CTA clicks from the home page
+  trackCTA(ctaName: string): void {
+    this.analytics.trackCTA(ctaName, 'home_page');
+  }
+
+  // Navigate to sign-up with tracking
+  goToSignUp(location: string): void {
+    this.analytics.trackCTA('sign_up', `home_${location}`);
+    this.router.navigate(['/sign-up']);
   }
 }

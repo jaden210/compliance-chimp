@@ -1,7 +1,7 @@
-import { Component, HostListener, OnDestroy} from '@angular/core';
+import { Component, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { RouterModule } from "@angular/router";
+import { RouterModule, Router } from "@angular/router";
 import { AccountService, Event } from "../account.service";
 import { map, take } from "rxjs/operators";
 import moment from "moment";
@@ -11,10 +11,19 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatBadgeModule } from "@angular/material/badge";
 import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { Observable, Subscription } from "rxjs";
-import { Router } from '@angular/router';
 import { EventsFilterDialog } from './filter-dialog/filter.dialog';
 import { collection, collectionData, query, orderBy, limit as limitQuery } from "@angular/fire/firestore";
+
+interface CalendarDay {
+  id: number;
+  date: moment.Moment;
+  month: string;
+  day: string;
+  dOW: string;
+  events: Event[];
+}
 
 @Component({
   standalone: true,
@@ -30,29 +39,38 @@ import { collection, collectionData, query, orderBy, limit as limitQuery } from 
     MatButtonModule,
     MatIconModule,
     MatBadgeModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatProgressBarModule
   ]
 })
 export class EventComponent implements OnDestroy {
   private subscription: Subscription;
-  searchVisible = true;
-  searchStr; // template variable
-  filterUsers = []; // template variable
-  filterTypes = []; // template variable
-  aDay: string | null = null; // template variable for calendar day selection
+  searchVisible = false;
+  searchStr = '';
+  filterUsers: string[] = [];
+  filterTypes: string[] = [];
+  aDay: string | null = null;
 
-  eventTypes = [];
-  days = [];
-  calendarDays = [];
+  eventTypes: string[] = [];
+  days: CalendarDay[] = [];
+  calendarDays: CalendarDay[] = [];
 
-  resultsLimit: number = 0; // for pagination
-  lastLength: number = 0; // for pagination
+  resultsLimit: number = 0;
+  lastLength: number = 0;
 
-  now: any = moment().format('MMM');
+  loading = true;
+  hasEvents = false;
 
-  constructor(public accountService: AccountService, public dialog: MatDialog, public router: Router) {
+  now: string = moment().format('MMM');
+  currentYear: string = moment().format('YYYY');
+
+  constructor(
+    public accountService: AccountService,
+    public dialog: MatDialog,
+    public router: Router
+  ) {
     this.accountService.helper = this.accountService.helperProfiles.event;
-    this.subscription = this.subscription = this.accountService.teamManagersObservable.subscribe(aTeam => {
+    this.subscription = this.accountService.teamManagersObservable.subscribe(aTeam => {
       if (aTeam) {
         this.getLogs();
       }
@@ -62,23 +80,30 @@ export class EventComponent implements OnDestroy {
   getLogs() {
     this.resultsLimit = this.resultsLimit + 50;
     this.getEvents().subscribe(events => {
-      if (events.length == 0) {
+      this.loading = false;
+      
+      if (events.length === 0) {
+        this.hasEvents = false;
         this.accountService.showHelper = true;
         return;
-      };
-      if (events.length == this.lastLength) return;
+      }
+      
+      this.hasEvents = true;
+      if (events.length === this.lastLength) return;
       this.lastLength = events.length;
+      
       events.forEach(event => {
-        const fullTeam = this.accountService.teamManagers.map(u => {return {id: u.id, name: u.name}}).concat(this.accountService.teamMembers.map(u => {return{id: u.id, name: u.name}}));
-        event.user = fullTeam.find(user => user.id == (event.userId || event.teamMemberId));
-        if (!event.user) {
-          console.log(event.userId);
-          console.log(this.accountService.teamMembers);
+        const fullTeam = this.accountService.teamManagers
+          .map(u => ({ id: u.id, name: u.name }))
+          .concat(this.accountService.teamMembers.map(u => ({ id: u.id, name: u.name })));
+        event.user = fullTeam.find(user => user.id === (event.userId || event.teamMemberId));
+        if (!this.eventTypes.find(type => type === event.type)) {
+          this.eventTypes.push(event.type);
         }
-        if (!this.eventTypes.find(type => type == event.type)) this.eventTypes.push(event.type);
       });
+      
       this.buildCalendar(events);
-      });  
+    });
   }
 
   public getEvents(): Observable<any> {
@@ -100,26 +125,30 @@ export class EventComponent implements OnDestroy {
   @HostListener('scroll', ['$event'])
   onScroll(event?: any) {
     if (!event) {
-      if (document.getElementById('bbody').clientHeight < document.getElementById('window').clientHeight) {
-        this.getLogs(); // if there isn't enough results to pass the fold, load more
+      const bbody = document.getElementById('bbody');
+      const window = document.getElementById('window');
+      if (bbody && window && bbody.clientHeight < window.clientHeight) {
+        this.getLogs();
         return;
-      } 
+      }
     } else {
       if (event.target.offsetHeight + event.target.scrollTop + 1 >= event.target.scrollHeight) {
         this.getLogs();
       }
     }
   }
-  
-  buildCalendar(events) {
+
+  buildCalendar(events: Event[]) {
     this.calendarDays = [];
-    let total_days = moment().diff(events[events.length -1].createdAt, 'days') + 7; //buffer week
-    for (let i = 0; i <= total_days; i++) {
-      let date = moment().subtract(i, "days");
-      let month = date.format("MMM");
-      let day = date.format("DD");
-      let dOW = date.format("ddd");
-      let dayEvents = events.filter(event => moment(event.createdAt).isSame(date, "day"));
+    const totalDays = moment().diff(events[events.length - 1].createdAt, 'days') + 7;
+    
+    for (let i = 0; i <= totalDays; i++) {
+      const date = moment().subtract(i, "days");
+      const month = date.format("MMM");
+      const day = date.format("DD");
+      const dOW = date.format("ddd");
+      const dayEvents = events.filter(event => moment(event.createdAt).isSame(date, "day"));
+      
       this.calendarDays.push({
         id: i + 1,
         date,
@@ -129,6 +158,7 @@ export class EventComponent implements OnDestroy {
         events: dayEvents
       });
     }
+    
     this.filterEvents();
     setTimeout(() => {
       this.onScroll();
@@ -136,35 +166,31 @@ export class EventComponent implements OnDestroy {
   }
 
   routeToEventOrigin(event: Event) {
-    console.log(event.type);
     switch (event.type) {
       case EventType.log:
-      this.accountService.searchForHelper = event.documentId;
-      this.router.navigate(['account/log']);
-      return;
+        this.accountService.searchForHelper = event.documentId;
+        this.router.navigate(['account/log']);
+        return;
       case EventType.timeclock:
-      this.accountService.searchForHelper = event.documentId;
-      this.router.navigate(['account/time']);
-      return;
+        this.accountService.searchForHelper = event.documentId;
+        this.router.navigate(['account/time']);
+        return;
       case EventType.member:
-      this.accountService.searchForHelper = event.documentId;
-      this.router.navigate(['account/dashboard']);
-      return;
+        this.accountService.searchForHelper = event.documentId;
+        this.router.navigate(['account/dashboard']);
+        return;
       case EventType.incidentReport:
-      this.router.navigate(['account/incident-reports']);
-      return;
+        this.router.navigate(['account/incident-reports']);
+        return;
       case EventType.selfInspection:
-      this.router.navigate(['account/self-inspections']);
-      return;
+        this.router.navigate(['account/self-inspections']);
+        return;
       case EventType.survey:
-      console.log(event.documentId);
-      this.router.navigate(['account/surveys/' + event.documentId]);
-      return;
+        this.router.navigate(['account/surveys/' + event.documentId]);
+        return;
       case EventType.surveyResponse:
-      console.log(event.documentId);
-      
-      this.router.navigate(['account/surveys/' + event.documentId]);
-      return;
+        this.router.navigate(['account/surveys/' + event.documentId]);
+        return;
     }
   }
 
@@ -188,28 +214,70 @@ export class EventComponent implements OnDestroy {
   }
 
   filterEvents(): void {
-    if (this.searchStr && this.searchStr != "" || this.filterUsers.length > 0 || this.filterTypes.length > 0) {
-      let filter: string[] = [].concat(
-        this.searchStr ? this.searchStr.trim().split(/\s+/) : [],
-        this.filterUsers,
-        this.filterTypes
-      );
-      let results = JSON.parse(JSON.stringify(this.calendarDays));
+    if (this.searchStr?.trim() || this.filterUsers.length > 0 || this.filterTypes.length > 0) {
+      const filter: string[] = [
+        ...(this.searchStr ? this.searchStr.trim().split(/\s+/) : []),
+        ...this.filterUsers,
+        ...this.filterTypes
+      ];
+      
+      const results: CalendarDay[] = JSON.parse(JSON.stringify(this.calendarDays));
       this.days = results.filter(day => {
         day.events = day.events.filter((event: Event) => {
           let eventFiltersFound = 0;
-          for (let f of filter) {
-            event.documentId.toLowerCase().includes(f.toLowerCase()) ? eventFiltersFound ++ : null;
-            event.description.toLowerCase().includes(f.toLowerCase()) ? eventFiltersFound ++ : null;
-            event.action.toLowerCase().includes(f.toLowerCase()) ? eventFiltersFound ++ : null;
-            event.type.toLowerCase().includes(f.toLowerCase()) ? eventFiltersFound ++ : null;
-            event['user'] ? event['user'].name.toLowerCase().includes(f.toLowerCase()) ? eventFiltersFound ++ : null : null;
-          };
-          return eventFiltersFound >= filter.length ?  true : false;
+          for (const f of filter) {
+            if (event.documentId?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+            if (event.description?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+            if (event.action?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+            if (event.type?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+            if (event['user']?.name?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+          }
+          return eventFiltersFound >= filter.length;
         });
-        return day.events.length;
-      })
-    } else this.days = this.calendarDays;
+        return day.events.length > 0;
+      });
+    } else {
+      this.days = this.calendarDays;
+    }
+  }
+
+  clearSearch(): void {
+    this.searchStr = '';
+    this.filterEvents();
+  }
+
+  get activeFilterCount(): number {
+    return this.filterUsers.length + this.filterTypes.length;
+  }
+
+  get totalEventsCount(): number {
+    return this.calendarDays.reduce((sum, day) => sum + day.events.length, 0);
+  }
+
+  get visibleEventsCount(): number {
+    return this.days.reduce((sum, day) => sum + day.events.length, 0);
+  }
+
+  getEventIcon(type: string): string {
+    switch (type) {
+      case EventType.log: return 'description';
+      case EventType.timeclock: return 'schedule';
+      case EventType.member: return 'person';
+      case EventType.incidentReport: return 'warning';
+      case EventType.selfInspection: return 'checklist';
+      case EventType.survey: return 'poll';
+      case EventType.surveyResponse: return 'how_to_vote';
+      case EventType.training: return 'school';
+      default: return 'event';
+    }
+  }
+
+  trackByDayId(index: number, day: CalendarDay): number {
+    return day.id;
+  }
+
+  trackByEventId(index: number, event: Event): string {
+    return event.documentId || index.toString();
   }
 
   ngOnDestroy() {
@@ -227,28 +295,3 @@ enum EventType {
   training = "Training",
   member = "Member"
 }
-
-// if (this.searchStr) {
-//   let newDays = this.calendarDays.filter(day => {
-//     let filter: string[] = this.searchStr ? this.searchStr.trim().split(/\s+/) : null;
-//     let fFound = 0;
-//     filter.forEach(f => {
-//       day.day.includes(f) ? fFound ++ : null;
-//       day.month.toLowerCase().includes(f) ? fFound ++ : null;
-//       day.dOW.toLowerCase().includes(f) ? fFound ++ : null;
-//     });
-//     day.events.filter(event => {
-//       console.log(event)
-//       let ret = false;
-//       filter.forEach(f => {
-//         if (event.description.includes(f)) {
-//           fFound ++;
-//           ret = true;
-//         }
-//       });
-//       return ret
-//     })
-//     return fFound >= filter.length ? true : false;
-//   });
-//   this.days = newDays;
-// } else this.days = this.calendarDays;

@@ -1,0 +1,395 @@
+.complete-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.complete-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 48px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+// Result Animation
+.result-animation {
+  margin-bottom: 24px;
+}
+
+.result-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(255, 152, 0, 0.3);
+  
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    color: white;
+  }
+  
+  .winner & {
+    background: linear-gradient(135deg, #ffd700 0%, #ff9800 100%);
+    box-shadow: 0 8px 32px rgba(255, 215, 0, 0.4);
+    animation: pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 32px rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 12px 48px rgba(255, 215, 0, 0.5);
+  }
+}
+
+// Result Header
+.result-header {
+  margin-bottom: 24px;
+  
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--chimp-text-primary);
+  }
+  
+  .result-subtitle {
+    font-size: 18px;
+    color: var(--chimp-text-secondary);
+    margin: 0;
+    
+    strong {
+      color: var(--chimp-accent);
+    }
+  }
+}
+
+// Timer Result
+.timer-result {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--chimp-bg-secondary);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 32px;
+  
+  &.winner {
+    background: rgba(76, 175, 80, 0.1);
+    border: 2px solid #4caf50;
+  }
+}
+
+.timer-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--chimp-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  mat-icon {
+    color: white;
+  }
+  
+  .winner & {
+    background: #4caf50;
+  }
+}
+
+.timer-info {
+  flex: 1;
+  text-align: left;
+}
+
+.timer-label {
+  display: block;
+  font-size: 12px;
+  color: var(--chimp-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.timer-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Monaco', 'Consolas', monospace;
+  color: var(--chimp-text-primary);
+}
+
+.timer-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  
+  mat-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+  
+  .winner & {
+    color: #4caf50;
+  }
+}
+
+// Coupon Section
+.coupon-section {
+  margin-bottom: 32px;
+  
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--chimp-text-primary);
+  }
+  
+  .coupon-description {
+    font-size: 16px;
+    color: var(--chimp-accent);
+    font-weight: 500;
+    margin: 0 0 16px 0;
+  }
+}
+
+.coupon-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 87, 34, 0.1) 100%);
+  border: 2px dashed var(--chimp-accent);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.coupon-code {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'Monaco', 'Consolas', monospace;
+  color: var(--chimp-text-primary);
+  letter-spacing: 2px;
+}
+
+.copy-btn {
+  color: var(--chimp-accent);
+}
+
+.coupon-instructions {
+  font-size: 13px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+}
+
+// Ready Section
+.ready-section {
+  background: var(--chimp-bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+  
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--chimp-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+  }
+}
+
+.ready-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ready-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--chimp-text-primary);
+  
+  mat-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+    color: #4caf50;
+  }
+}
+
+// Action Section
+.action-section {
+  margin-top: 24px;
+}
+
+.finish-btn {
+  height: 56px;
+  padding: 0 48px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 28px;
+  
+  mat-icon {
+    margin-right: 8px;
+  }
+}
+
+// Responsive - Mobile
+@media screen and (max-width: 600px) {
+  .complete-container {
+    padding: 24px 16px;
+  }
+  
+  .complete-card {
+    padding: 32px 24px;
+  }
+  
+  .result-circle {
+    width: 80px;
+    height: 80px;
+    
+    mat-icon {
+      font-size: 36px;
+      height: 36px;
+      width: 36px;
+    }
+  }
+  
+  .result-header h1 {
+    font-size: 26px;
+  }
+  
+  .result-header .result-subtitle {
+    font-size: 16px;
+  }
+  
+  .timer-result {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+  
+  .timer-info {
+    text-align: center;
+  }
+  
+  .timer-value {
+    font-size: 24px;
+  }
+  
+  .timer-status {
+    justify-content: center;
+  }
+  
+  .coupon-box {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 12px;
+    padding: 16px;
+  }
+  
+  .coupon-code {
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+  
+  .copy-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .ready-items {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .ready-item {
+    justify-content: center;
+  }
+  
+  .finish-btn {
+    width: 100%;
+    min-height: 52px;
+  }
+}
+
+// Responsive - Extra Small Mobile
+@media screen and (max-width: 374px) {
+  .complete-container {
+    padding: 16px 12px;
+  }
+  
+  .complete-card {
+    padding: 24px 16px;
+  }
+  
+  .result-circle {
+    width: 64px;
+    height: 64px;
+    
+    mat-icon {
+      font-size: 28px;
+      height: 28px;
+      width: 28px;
+    }
+  }
+  
+  .result-header h1 {
+    font-size: 22px;
+  }
+  
+  .result-header .result-subtitle {
+    font-size: 14px;
+  }
+  
+  .timer-value {
+    font-size: 20px;
+  }
+  
+  .coupon-section h2 {
+    font-size: 16px;
+  }
+  
+  .coupon-section .coupon-description {
+    font-size: 14px;
+  }
+  
+  .coupon-code {
+    font-size: 16px;
+  }
+  
+  .coupon-instructions {
+    font-size: 12px;
+  }
+  
+  .ready-section h3 {
+    font-size: 12px;
+  }
+  
+  .ready-item {
+    font-size: 13px;
+  }
+}
