@@ -1,3 +1,162 @@
-<p>
-  contact works!
-</p>
+<!-- Contact Hero Section -->
+<div class="contact-hero">
+  <div class="hero-content">
+    <h1>Contact Us</h1>
+    <p class="hero-subtitle">
+      Have questions about OSHA compliance or need help getting started? 
+      We're here to help your business stay compliant.
+    </p>
+  </div>
+</div>
+
+<!-- Main Content Section -->
+<div class="contact-container">
+  <div class="contact-grid">
+    
+    <!-- Contact Information -->
+    <div class="contact-info">
+      <h2>Get in Touch</h2>
+      <p class="info-intro">
+        Our team is ready to answer your questions about compliance, safety training, 
+        and how Compliance Chimp can help your business.
+      </p>
+      
+      <div class="contact-methods">
+        <div class="contact-method">
+          <div class="method-icon">
+            <mat-icon>phone</mat-icon>
+          </div>
+          <div class="method-details">
+            <span class="method-label">Phone</span>
+            <a href="tel:+18016248640" class="method-value">(801) 624-8640</a>
+            <span class="method-note">Mon-Fri, 9am-5pm MT</span>
+          </div>
+        </div>
+        
+        <div class="contact-method">
+          <div class="method-icon">
+            <mat-icon>email</mat-icon>
+          </div>
+          <div class="method-details">
+            <span class="method-label">Email</span>
+            <a href="mailto:support@compliancechimp.com" class="method-value">support&#64;compliancechimp.com</a>
+            <span class="method-note">We typically respond within 24 hours</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="quick-links">
+        <h3>Quick Links</h3>
+        <a routerLink="/common-questions" class="quick-link">
+          <mat-icon>help_outline</mat-icon>
+          <span>FAQ</span>
+        </a>
+        <a routerLink="/how-it-works" class="quick-link">
+          <mat-icon>play_circle_outline</mat-icon>
+          <span>How It Works</span>
+        </a>
+        <a routerLink="/plans" class="quick-link">
+          <mat-icon>view_list</mat-icon>
+          <span>Plans & Features</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Contact Form -->
+    <div class="contact-form-section">
+      <div class="form-card">
+        <h2>Send Us a Message</h2>
+        <p class="form-intro">Fill out the form below and we'll get back to you as soon as possible.</p>
+        
+        @if (submitted) {
+          <div class="success-message">
+            <mat-icon>check_circle</mat-icon>
+            <h3>Message Sent!</h3>
+            <p>Thank you for reaching out. We'll get back to you within 24 hours.</p>
+            <button mat-stroked-button color="primary" (click)="resetForm()">Send Another Message</button>
+          </div>
+        } @else {
+          <form [formGroup]="contactForm" (ngSubmit)="onSubmit()">
+            <mat-form-field appearance="outline">
+              <mat-label>Full Name</mat-label>
+              <input matInput formControlName="name" placeholder="John Smith" required>
+              @if (contactForm.get('name')?.hasError('required') && contactForm.get('name')?.touched) {
+                <mat-error>Name is required</mat-error>
+              }
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Email Address</mat-label>
+              <input matInput formControlName="email" type="email" placeholder="john@company.com" required>
+              @if (contactForm.get('email')?.hasError('required') && contactForm.get('email')?.touched) {
+                <mat-error>Email is required</mat-error>
+              }
+              @if (contactForm.get('email')?.hasError('email') && contactForm.get('email')?.touched) {
+                <mat-error>Please enter a valid email address</mat-error>
+              }
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Phone Number (Optional)</mat-label>
+              <input matInput formControlName="phone" type="tel" placeholder="(555) 123-4567">
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Company Name (Optional)</mat-label>
+              <input matInput formControlName="company" placeholder="Acme Corporation">
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>How can we help?</mat-label>
+              <textarea 
+                matInput 
+                formControlName="message" 
+                placeholder="Tell us about your compliance needs or questions..."
+                rows="5"
+                required>
+              </textarea>
+              @if (contactForm.get('message')?.hasError('required') && contactForm.get('message')?.touched) {
+                <mat-error>Please enter a message</mat-error>
+              }
+            </mat-form-field>
+            
+            @if (errorMessage) {
+              <div class="error-banner">
+                <mat-icon>error_outline</mat-icon>
+                <span>{{ errorMessage }}</span>
+              </div>
+            }
+            
+            <button 
+              mat-flat-button 
+              color="primary" 
+              type="submit" 
+              class="submit-btn"
+              [disabled]="isSubmitting || contactForm.invalid">
+              @if (isSubmitting) {
+                <mat-spinner diameter="20"></mat-spinner>
+                <span>Sending...</span>
+              } @else {
+                <mat-icon>send</mat-icon>
+                <span>Send Message</span>
+              }
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<!-- CTA Section -->
+<div class="contact-cta">
+  <div class="cta-content">
+    <h2>Ready to get started?</h2>
+    <p>See how easy OSHA compliance can be with a free trial.</p>
+    <button mat-flat-button class="cta-btn" routerLink="/get-started">
+      <mat-icon>play_arrow</mat-icon>
+      Start Free Trial
+    </button>
+  </div>
+</div>

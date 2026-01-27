@@ -1,8 +1,9 @@
-import { Component, OnInit, OnDestroy, NgZone } from "@angular/core";
+import { Component, OnInit, OnDestroy, NgZone, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule, Router, ActivatedRoute } from "@angular/router";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
+import { MatDialog, MatDialogModule, MatDialogRef } from "@angular/material/dialog";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
@@ -21,6 +22,42 @@ import { AccountService } from "../../account.service";
 import { TrainingService, TrainingCadence, LibraryItem, TrainingRecommendation } from "../training.service";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { TagInputComponent } from "../../team/tag-input/tag-input.component";
+
+// Confirmation dialog for leaving without saving
+@Component({
+  selector: 'confirm-leave-dialog',
+  template: `
+    <h2 mat-dialog-title>Leave without saving?</h2>
+    <mat-dialog-content>
+      <p>You haven't added this training to your library yet. If you leave now, your work will be lost.</p>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="onCancel()">Cancel</button>
+      <button mat-flat-button color="warn" (click)="onConfirm()">Leave</button>
+    </mat-dialog-actions>
+  `,
+  styles: [`
+    mat-dialog-content {
+      min-width: 300px;
+    }
+    p {
+      color: var(--chimp-text-secondary);
+      line-height: 1.5;
+    }
+  `],
+  imports: [MatDialogModule, MatButtonModule]
+})
+export class ConfirmLeaveDialog {
+  private readonly dialogRef = inject(MatDialogRef<ConfirmLeaveDialog>);
+
+  onCancel(): void {
+    this.dialogRef.close(false);
+  }
+
+  onConfirm(): void {
+    this.dialogRef.close(true);
+  }
+}
 
 // Web Speech API types
 interface SpeechRecognitionEvent extends Event {
@@ -81,7 +118,8 @@ interface SpeechRecognition extends EventTarget {
     MatSelectModule,
     MatChipsModule,
     NgxEditorModule,
-    TagInputComponent
+    TagInputComponent,
+    MatDialogModule
   ]
 })
 export class SmartBuilderComponent implements OnInit, OnDestroy {
@@ -151,7 +189,8 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     private trainingService: TrainingService,
     private snackbar: MatSnackBar,
     private functions: Functions,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private dialog: MatDialog
   ) {
     this.initSpeechRecognition();
   }
@@ -399,8 +438,9 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
           this.router.navigate(['/account/training/library', this.editingArticle!.id]);
         });
         
-        // Navigate back to the article view
-        this.router.navigate(['/account/training/library', this.editingArticle.id]);
+        // Navigate back to the article view, replacing this page in history
+        // so clicking back from the article goes to training home, not back to edit
+        this.router.navigate(['/account/training/library', this.editingArticle.id], { replaceUrl: true });
       } else {
         // Create a new library item
         const newItem = new LibraryItem();
@@ -424,8 +464,8 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
           this.router.navigate(['/account/training/library', id]);
         });
         
-        // Navigate back to training with library view
-        this.router.navigate(['/account/training'], { queryParams: { view: 'library' } });
+        // Navigate back to training schedule
+        this.router.navigate(['/account/training']);
       }
     } catch (err: any) {
       console.error('Error saving training:', err);
@@ -436,7 +476,23 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.router.navigate(['/account/training']);
+    // Check if user has unsaved content (not in edit mode)
+    const hasUnsavedContent = this.mode !== 'edit' && (
+      this.generatedContent?.trim() || 
+      this.title?.trim() || 
+      this.description?.trim()
+    );
+
+    if (hasUnsavedContent) {
+      const dialogRef = this.dialog.open(ConfirmLeaveDialog);
+      dialogRef.afterClosed().subscribe(confirmed => {
+        if (confirmed) {
+          window.history.back();
+        }
+      });
+    } else {
+      window.history.back();
+    }
   }
 
   clearGenerated(): void {

@@ -124,7 +124,14 @@
           </div>
           <span class="recipient-name">{{ tm.name }}</span>
           <mat-icon class="responded-icon" *ngIf="hasResponded(tm.id)">check_circle</mat-icon>
-          <mat-icon class="pending-icon" *ngIf="!hasResponded(tm.id)">schedule</mat-icon>
+          <mat-icon 
+            class="pending-icon" 
+            *ngIf="!hasResponded(tm.id) && !tm.sending"
+            (click)="resendNotification(tm); $event.stopPropagation()"
+            matTooltip="Click to resend notification">schedule</mat-icon>
+          <mat-icon 
+            class="pending-icon spinning" 
+            *ngIf="!hasResponded(tm.id) && tm.sending">sync</mat-icon>
         </div>
       </div>
     </section>

@@ -28,8 +28,10 @@ import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { BlasterDialog } from "src/app/blaster/blaster.component";
 import { CreateEditArticleComponent } from "../library/create-edit-article/create-edit-article.component";
+import { WelcomeService } from "../../welcome.service";
+import { WelcomeBannerComponent, WelcomeFeature } from "../../welcome-banner/welcome-banner.component";
 
-export type ViewMode = 'schedule' | 'library' | 'history';
+export type ViewMode = 'schedule' | 'history';
 export type FilterType = 'all' | 'overdue' | 'dueSoon' | 'current' | 'neverTrained';
 export type SortColumn = 'status' | 'name' | 'lastTrained' | 'nextDue' | 'cadence' | 'compliance' | null;
 export type SortDirection = 'asc' | 'desc';
@@ -82,7 +84,8 @@ export interface TrainingHistoryItem {
     MatSnackBarModule,
     MatCheckboxModule,
     MatSlideToggleModule,
-    CreateEditArticleComponent
+    CreateEditArticleComponent,
+    WelcomeBannerComponent
   ],
   providers: [DatePipe]
 })
@@ -103,6 +106,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   filteredLibrary$: Observable<LibraryItemWithStatus[]>;
   activeFilter$ = new BehaviorSubject<FilterType>('all');
   sort$ = new BehaviorSubject<SortState>({ column: null, direction: 'asc' });
+  scheduleSearchTerm$ = new BehaviorSubject<string>('');
   
   // History view state
   trainingHistory: TrainingHistoryItem[] = [];
@@ -142,6 +146,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
   coverageError: WritableSignal<string | null> = signal(null);
   coverageCollapsed: WritableSignal<boolean> = signal(this.loadCoverageCollapsedState());
 
+  // Welcome banner features
+  trainingWelcomeFeatures: WelcomeFeature[] = [
+    {
+      icon: 'calendar_today',
+      title: 'Schedule Tab',
+      description: 'See what\'s due, overdue, or coming up. Filter and search trainings that need attention right now.',
+      action: 'schedule'
+    },
+    {
+      icon: 'history',
+      title: 'History Tab',
+      description: 'Review past training sessions - who ran them, when, and which team members attended.',
+      action: 'history'
+    },
+    {
+      icon: 'construction',
+      title: 'Smart Builder',
+      description: 'Create custom training articles with AI assistance or browse OSHA content to add to your library.',
+      action: 'smartBuilder'
+    },
+    {
+      icon: 'schedule_send',
+      title: 'Auto-Send',
+      description: 'Enable automatic SMS/email notifications when training is due. Never miss a deadline again.',
+      action: 'autoSend'
+    },
+    {
+      icon: 'local_offer',
+      title: 'Tag-Based Assignment',
+      description: 'Assign training to tags (like "Warehouse") and everyone with that tag automatically receives it.',
+      action: 'tagAssignment'
+    },
+    {
+      icon: 'analytics',
+      title: 'Coverage Analysis',
+      description: 'Identify gaps in your training program and get recommendations for comprehensive coverage.',
+      action: 'coverageAnalysis'
+    }
+  ];
+
   constructor(
     private trainingService: TrainingService,
     public accountService: AccountService,
@@ -151,7 +195,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private datePipe: DatePipe,
     private cdr: ChangeDetectorRef,
     private snackBar: MatSnackBar,
-    private db: Firestore
+    private db: Firestore,
+    public welcomeService: WelcomeService
   ) {}
 
   // Auto-start trainings - undefined/missing means disabled (grandfather existing teams)
@@ -186,9 +231,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     
     // Check for view query parameter
     this.route.queryParams.pipe(take(1)).subscribe(params => {
-      if (params['view'] === 'library') {
-        this.viewMode$.next('library');
-      } else if (params['view'] === 'history') {
+      if (params['view'] === 'history') {
         this.viewMode$.next('history');
       }
     });
@@ -273,9 +316,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.filteredLibrary$ = combineLatest([
       this.library$,
       this.activeFilter$,
-      this.sort$
+      this.sort$,
+      this.scheduleSearchTerm$
     ]).pipe(
-      map(([library, filterType, sort]) => this.applyFilterAndSort(library, filterType, sort))
+      map(([library, filterType, sort, searchTerm]) => this.applyFilterSortAndSearch(library, filterType, sort, searchTerm))
     );
     
     // Update loading state and trigger coverage analysis
@@ -317,10 +361,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  private applyFilterAndSort(library: LibraryItemWithStatus[], filterType: FilterType, sort: SortState): LibraryItemWithStatus[] {
+  private applyFilterSortAndSearch(library: LibraryItemWithStatus[], filterType: FilterType, sort: SortState, searchTerm: string): LibraryItemWithStatus[] {
     let filtered = [...library];
 
-    // Apply filter
+    // Apply search filter first
+    if (searchTerm.trim()) {
+      filtered = this.applyScheduleSearch(filtered, searchTerm);
+    }
+
+    // Apply status filter
     switch (filterType) {
       case 'overdue':
         filtered = filtered.filter(i => i.status === 'overdue');
@@ -358,6 +407,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     return filtered;
+  }
+
+  private applyScheduleSearch(items: LibraryItemWithStatus[], search: string): LibraryItemWithStatus[] {
+    const terms = search.toLowerCase().trim().split(' ');
+    return items.filter(item => {
+      const name = item.name.toLowerCase();
+      const topic = (item.topic || '').toLowerCase();
+      const industry = (item.industry || '').toLowerCase();
+      const tags = (item.assignedTags || []).join(' ').toLowerCase();
+      
+      return terms.every(term => 
+        name.includes(term) || 
+        topic.includes(term) || 
+        industry.includes(term) ||
+        tags.includes(term)
+      );
+    });
+  }
+
+  onScheduleSearch(term: string): void {
+    this.scheduleSearchTerm$.next(term);
   }
 
   private sortLibrary(library: LibraryItemWithStatus[], sort: SortState): LibraryItemWithStatus[] {
@@ -498,12 +568,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  goToLibrary(): void {
-    this.setViewMode('library');
-  }
-
   goToSmartBuilder(): void {
     this.router.navigate(['/account/training/smart-builder']);
+  }
+
+  // Handle welcome banner feature clicks
+  onWelcomeFeatureClick(action: string): void {
+    switch (action) {
+      case 'schedule':
+        this.setViewMode('schedule');
+        break;
+      case 'history':
+        this.setViewMode('history');
+        break;
+      case 'smartBuilder':
+        this.goToSmartBuilder();
+        break;
+      case 'autoSend':
+        this.openAutoStartDialog();
+        break;
+      case 'tagAssignment':
+        this.router.navigate(['/account/team']);
+        break;
+      case 'coverageAnalysis':
+        // Expand coverage analysis if it's collapsed
+        if (this.coverageCollapsed()) {
+          this.toggleCoverageExpanded();
+        }
+        break;
+    }
   }
 
   // Auto-build methods

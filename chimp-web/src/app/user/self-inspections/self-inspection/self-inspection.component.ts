@@ -240,6 +240,18 @@ export class SelfInspectionComponent {
       y += lineHeight;
     }
 
+    // Add chimp logo at the bottom
+    try {
+      const logoData = await getImage('/assets/chimp.png');
+      const logoWidth = 1.0;
+      const logoHeight = 1.4;
+      const logoX = (pageWidth - logoWidth) / 2;
+      checkPageBreak(logoHeight + 0.3);
+      doc.addImage(logoData, "PNG", logoX, y + 0.2, logoWidth, logoHeight);
+    } catch (e) {
+      console.error('Failed to load chimp logo:', e);
+    }
+
     doc.save(`${this.selfInspection.title} - ${completedDate}.pdf`);
   }
 }

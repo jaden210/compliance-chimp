@@ -25,187 +25,177 @@
         </button>
       </div>
     } @else if (article(); as article) {
-      <article class="article-container">
-        <!-- Article Header -->
-        <header class="article-header">
-          <div class="header-meta">
-            @if (article.industry) {
-              <span class="meta-tag industry">{{ article.industry }}</span>
-            }
-            @if (article.topic) {
-              <span class="meta-tag topic">{{ article.topic }}</span>
-            }
-          </div>
-
-          <h1 class="article-title">{{ article.name }}</h1>
-
-          <div class="article-stats">
-            <span class="stat">
-              <mat-icon>schedule</mat-icon>
-              {{ readingTime() }}
-            </span>
-            <span class="stat">
-              <mat-icon>text_fields</mat-icon>
-              {{ wordCount() }} words
-            </span>
-            <span class="stat">
-              <mat-icon>repeat</mat-icon>
-              {{ cadenceLabel() }}
-            </span>
-            <span class="stat">
-              <mat-icon>history</mat-icon>
-              {{ article.lastTrainedAt ? 'Last: ' + formatDate(article.lastTrainedAt) : 'Never trained' }}
-            </span>
-            @if (nextDueDate()) {
-              <span class="stat">
-                <mat-icon>event</mat-icon>
-                Next: {{ formatDate(nextDueDate()) }}
-              </span>
-            }
-            <span class="stat">
-              <mat-icon>groups</mat-icon>
-              {{ trainingHistory().length }} sessions
-            </span>
-          </div>
-
-          <!-- Assigned Tags -->
-          @if (article.assignedTags?.length) {
-            <div class="article-tags">
-              <span class="tags-label">Assigned to:</span>
-              @for (tag of article.assignedTags; track tag) {
-                <span 
-                  class="tag-chip"
-                  [style.backgroundColor]="getTagColor(tag).bg"
-                  [style.color]="getTagColor(tag).text"
-                  [style.borderColor]="getTagColor(tag).border">
-                  <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
-                  <span class="tag-name">{{ tag }}</span>
-                </span>
+      <div class="article-layout">
+        <article class="article-container">
+          <!-- Article Header -->
+          <header class="article-header">
+            <div class="header-meta">
+              @if (article.industry) {
+                <span class="meta-tag industry">{{ article.industry }}</span>
+              }
+              @if (article.topic) {
+                <span class="meta-tag topic">{{ article.topic }}</span>
               }
             </div>
-          }
 
-          <!-- Action Bar -->
-          <div class="action-bar">
+            <h1 class="article-title">{{ article.name }}</h1>
+
+            <div class="article-stats">
+              <span class="stat">
+                <mat-icon>schedule</mat-icon>
+                {{ readingTime() }}
+              </span>
+              <span class="stat">
+                <mat-icon>text_fields</mat-icon>
+                {{ wordCount() }} words
+              </span>
+              <span class="stat">
+                <mat-icon>repeat</mat-icon>
+                {{ cadenceLabel() }}
+              </span>
+              <span class="stat">
+                <mat-icon>history</mat-icon>
+                {{ article.lastTrainedAt ? 'Last: ' + formatDate(article.lastTrainedAt) : 'Never trained' }}
+              </span>
+              @if (nextDueDate()) {
+                <span class="stat">
+                  <mat-icon>event</mat-icon>
+                  Next: {{ formatDate(nextDueDate()) }}
+                </span>
+              }
+              <span class="stat">
+                <mat-icon>groups</mat-icon>
+                {{ trainingHistory().length }} sessions
+              </span>
+            </div>
+
+            <!-- Assigned Tags -->
+            @if (article.assignedTags?.length) {
+              <div class="article-tags">
+                <span class="tags-label">Assigned to:</span>
+                @for (tag of article.assignedTags; track tag) {
+                  <span 
+                    class="tag-chip"
+                    [style.backgroundColor]="getTagColor(tag).bg"
+                    [style.color]="getTagColor(tag).text"
+                    [style.borderColor]="getTagColor(tag).border">
+                    <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+                    <span class="tag-name">{{ tag }}</span>
+                  </span>
+                }
+              </div>
+            }
+
+            <!-- Action Bar -->
+            <div class="action-bar">
             <button mat-flat-button color="accent" class="train-btn" (click)="startTraining()">
               <mat-icon>play_circle</mat-icon>
               Start Training
             </button>
-            <button mat-stroked-button (click)="startClassroomTraining()">
-              <mat-icon>groups</mat-icon>
-              Classroom Training
-            </button>
-            <button mat-icon-button (click)="scrollToHistory()" matTooltip="View training history">
-              <mat-icon>history</mat-icon>
-            </button>
-            <div class="action-spacer"></div>
-            <button mat-icon-button (click)="shareArticle()" matTooltip="Share article">
-              <mat-icon>share</mat-icon>
-            </button>
-            <button mat-icon-button (click)="printArticle()" matTooltip="Print article">
-              <mat-icon>print</mat-icon>
-            </button>
-            @if (canEdit()) {
-              <button mat-icon-button (click)="editArticle()" matTooltip="Edit article">
-                <mat-icon>edit</mat-icon>
+            <button mat-icon-button (click)="toggleHistoryPanel()" [matTooltip]="historyPanelOpen() ? 'Hide training history' : 'Show training history'">
+                <mat-icon>history</mat-icon>
               </button>
-              <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
-                <mat-icon>delete</mat-icon>
+              <div class="action-spacer"></div>
+              <button mat-icon-button (click)="shareArticle()" matTooltip="Share article">
+                <mat-icon>share</mat-icon>
               </button>
-            }
-          </div>
-        </header>
-
-        <!-- Article Thumbnail -->
-        @if (article.thumbnail) {
-          <div class="article-hero">
-            <img [src]="article.thumbnail" [alt]="article.name" />
-          </div>
-        }
-
-        <!-- Article Content -->
-        <section class="article-content" [innerHTML]="article.content"></section>
-
-
-        <!-- Article Footer -->
-        <footer class="article-footer">
-          <div class="footer-cta">
-            <div class="cta-text">
-              <mat-icon>school</mat-icon>
-              <span>Ready to train your team on this topic?</span>
+              <button mat-icon-button (click)="printArticle()" matTooltip="Print article">
+                <mat-icon>print</mat-icon>
+              </button>
+              @if (canEdit()) {
+                <button mat-icon-button (click)="editArticle()" matTooltip="Edit article">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-icon-button (click)="deleteArticle()" matTooltip="Delete article">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
             </div>
-            <button mat-flat-button color="accent" (click)="startTraining()">
-              <mat-icon>play_circle</mat-icon>
-              Start Training Session
-            </button>
-          </div>
+          </header>
 
-          <div class="footer-nav">
-            <button mat-stroked-button (click)="goBack()">
-              <mat-icon>arrow_back</mat-icon>
-              Back to Library
-            </button>
-          </div>
-        </footer>
-      </article>
-
-      <!-- History Side Panel -->
-      <aside class="history-panel" [class.open]="historyPanelOpen()">
-        <div class="panel-header">
-          <h3>
-            <mat-icon>history</mat-icon>
-            Training History
-          </h3>
-          <button mat-icon-button (click)="toggleHistoryPanel()" matTooltip="Close panel">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-        
-        <div class="panel-content">
-          @if (trainingHistory().length === 0) {
-            <div class="empty-history">
-              <mat-icon>history_toggle_off</mat-icon>
-              <div class="empty-title">No training sessions yet</div>
-              <div class="empty-subtitle">Start a training to see history here</div>
+          <!-- Article Thumbnail -->
+          @if (article.thumbnail) {
+            <div class="article-hero">
+              <img [src]="article.thumbnail" [alt]="article.name" />
             </div>
-          } @else {
-            @for (session of trainingHistory(); track session.id) {
-              <div class="history-card">
-                <div class="card-header">
-                  <div class="session-date">
-                    <mat-icon>event</mat-icon>
-                    {{ formatDate(session.createdAt) }}
-                  </div>
-                </div>
-                <div class="card-stats">
-                  <div class="stat-item">
-                    <div class="stat-value">{{ getAttendeeCount(session) }}</div>
-                    <div class="stat-label">Attendees</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-value">{{ getCompletionRate(session) }}%</div>
-                    <div class="stat-label">Completion</div>
-                  </div>
-                </div>
-                <div class="card-actions">
-                  <button mat-stroked-button (click)="viewSessionDetails(session)">
-                    <mat-icon>visibility</mat-icon>
-                    View Details
-                  </button>
-                  <button mat-icon-button (click)="exportSession(session)" matTooltip="Export attendance">
-                    <mat-icon>download</mat-icon>
-                  </button>
-                </div>
-              </div>
-            }
           }
-        </div>
-      </aside>
 
-      <!-- Panel backdrop -->
-      @if (historyPanelOpen()) {
-        <div class="panel-backdrop" (click)="toggleHistoryPanel()"></div>
-      }
+          <!-- Article Content -->
+          <section class="article-content" [innerHTML]="article.content"></section>
+
+          <!-- Print Footer - only visible when printing -->
+          <div class="print-footer">
+            <img class="print-logo" src="/assets/chimp.png" alt="Compliance Chimp">
+            <div class="print-info">
+              Printed from Compliance Chimp<br>
+              compliancechimp.com
+            </div>
+          </div>
+
+          <!-- Article Footer -->
+          <footer class="article-footer">
+            <div class="footer-cta">
+              <div class="cta-text">
+                <mat-icon>school</mat-icon>
+                <span>Ready to train your team on this topic?</span>
+              </div>
+              <button mat-flat-button color="accent" (click)="startTraining()">
+                <mat-icon>play_circle</mat-icon>
+                Start Training Session
+              </button>
+            </div>
+
+            <div class="footer-nav">
+              <button mat-stroked-button (click)="goBack()">
+                <mat-icon>arrow_back</mat-icon>
+                Back to Library
+              </button>
+            </div>
+          </footer>
+        </article>
+
+        <!-- Inline History Section -->
+        <aside class="history-sidebar" [class.visible]="historyPanelOpen()">
+          <div class="sidebar-header">
+            <h3>
+              <mat-icon>history</mat-icon>
+              Training History
+            </h3>
+          </div>
+          
+          <div class="sidebar-content">
+            @if (trainingHistory().length === 0) {
+              <div class="empty-history">
+                <mat-icon>history_toggle_off</mat-icon>
+                <div class="empty-title">No training sessions yet</div>
+                <div class="empty-subtitle">Start a training to see history here</div>
+              </div>
+            } @else {
+              @for (session of trainingHistory(); track session.id) {
+                <div class="history-card" (click)="viewSessionDetails(session)">
+                  <div class="card-header">
+                    <div class="session-date">
+                      <mat-icon>event</mat-icon>
+                      {{ formatDate(session.createdAt) }}
+                    </div>
+                    <mat-icon class="card-arrow">chevron_right</mat-icon>
+                  </div>
+                  <div class="card-stats">
+                    <div class="stat-item">
+                      <div class="stat-value">{{ getAttendeeCount(session) }}</div>
+                      <div class="stat-label">Recipients</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-value">{{ getCompletionRate(session) }}%</div>
+                      <div class="stat-label">Completed</div>
+                    </div>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        </aside>
+      </div>
     }
   </div>
 } @else {

@@ -9,8 +9,15 @@
   margin: 0 auto;
   padding: 48px 24px 32px;
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: auto 1fr 2fr;
   gap: 48px;
+}
+
+.footer-mascot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .footer-brand {
@@ -36,7 +43,6 @@
   gap: 10px;
   margin-top: 24px;
   font-size: 13px;
-  opacity: 0.9;
 }
 
 .footer-flag {
@@ -46,6 +52,12 @@
   background-position: center;
   height: 20px;
   width: 32px;
+}
+
+.footer-chimp {
+  height: 120px;
+  width: auto;
+  margin-top: -10px;
 }
 
 .footer-links {
@@ -123,23 +135,34 @@
 
 @media screen and (max-width: 900px) {
   .footer-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto 1fr;
     gap: 40px;
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
   }
 
   .footer-links {
     grid-template-columns: repeat(3, 1fr);
+    grid-column: 1 / -1;
   }
 }
 
 @media screen and (max-width: 600px) {
   .footer-content {
     padding: 32px 20px 24px;
+    grid-template-columns: 1fr;
+  }
+
+  .footer-mascot {
+    order: -1;
   }
 
   .footer-brand {
     align-items: center;
     text-align: center;
+    grid-column: 1;
   }
 
   .footer-usa {
@@ -150,6 +173,7 @@
     grid-template-columns: 1fr;
     gap: 28px;
     text-align: center;
+    grid-column: 1;
   }
 
   .footer-column h4 {

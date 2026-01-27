@@ -5,9 +5,13 @@ import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { Firestore, collection, collectionData, query, orderBy, where, limit, getCountFromServer } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import { map } from 'rxjs/operators';
 import { forkJoin, from, of } from 'rxjs';
+import { ConfirmDeleteTeamDialog } from './confirm-delete-team.dialog';
 
 interface TeamStats {
   id?: string;
@@ -32,16 +36,21 @@ interface TeamStats {
     MatSortModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    MatChipsModule
+    MatChipsModule,
+    MatButtonModule,
+    MatDialogModule
   ]
 })
 export class StatisticsComponent implements OnInit, AfterViewInit {
   private readonly db = inject(Firestore);
+  private readonly functions = inject(Functions);
+  private readonly dialog = inject(MatDialog);
   private readonly sort = viewChild(MatSort);
 
   readonly teams = signal<TeamStats[]>([]);
   readonly loading = signal(true);
-  readonly displayedColumns = ['status', 'name', 'email', 'created', 'users', 'logs', 'lastActivity'];
+  readonly deleting = signal(false);
+  readonly displayedColumns = ['status', 'name', 'email', 'created', 'users', 'logs', 'lastActivity', 'delete'];
   readonly dataSource = new MatTableDataSource<TeamStats>([]);
 
   readonly paidTeamsCount = signal(0);
@@ -120,5 +129,40 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
     if (daysSince <= 7) return 'active';
     if (daysSince <= 30) return 'moderate';
     return 'inactive';
+  }
+
+  confirmDeleteTeam(team: TeamStats): void {
+    const dialogRef = this.dialog.open(ConfirmDeleteTeamDialog, {
+      width: '400px',
+      data: { teamName: team.name, teamEmail: team.email }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.deleteTeam(team);
+      }
+    });
+  }
+
+  private async deleteTeam(team: TeamStats): Promise<void> {
+    if (!team.id) return;
+
+    this.deleting.set(true);
+    try {
+      const deleteTeamFn = httpsCallable(this.functions, 'deleteTeamCompletely');
+      await deleteTeamFn({ teamId: team.id });
+      
+      // Remove from local data
+      const updatedTeams = this.teams().filter(t => t.id !== team.id);
+      this.teams.set(updatedTeams);
+      this.dataSource.data = updatedTeams;
+      this.paidTeamsCount.set(updatedTeams.filter(t => t.stripeSubscriptionId).length);
+      this.updateTotalUsers();
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      alert('Failed to delete team. Please try again.');
+    } finally {
+      this.deleting.set(false);
+    }
   }
 }

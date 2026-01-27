@@ -28,6 +28,7 @@ import { Subscription } from 'rxjs';
 import { TrainingService, LibraryItem, TrainingExpiration, TrainingCadence } from '../training.service';
 import { AccountService, User } from '../../account.service';
 import { SurveysService } from '../../surveys/surveys.service';
+import { SurveyService } from '../../survey/survey.service';
 import { Survey } from '../../survey/survey';
 import { BlasterDialog } from '../../../blaster/blaster.component';
 import { CreateEditArticleComponent } from '../library/create-edit-article/create-edit-article.component';
@@ -64,6 +65,7 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   private trainingService = inject(TrainingService);
   private accountService = inject(AccountService);
   private surveysService = inject(SurveysService);
+  private surveyService = inject(SurveyService);
   private articleService = inject(CreateEditArticleService);
 
   // Input signals for when component is used embedded
@@ -78,7 +80,10 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   isEditing = signal(false);
   trainingHistory = signal<Survey[]>([]);
-  historyPanelOpen = signal(false);
+  historyPanelOpen = signal(true);
+  
+  // Store response counts for each survey: { surveyId: responseCount }
+  responseCountsMap = signal<Record<string, number>>({});
   
   // Convert observables to signals for reactivity
   private user = toSignal(this.accountService.userObservable);
@@ -209,17 +214,60 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
       take(1)
     ).subscribe(history => {
       this.trainingHistory.set(history);
+      // Load response counts for each survey
+      this.loadResponseCounts(history);
     });
 
     this.subscriptions.add(historySub);
+  }
+
+  /** Load response counts for each survey in the training history */
+  private loadResponseCounts(surveys: any[]): void {
+    surveys.forEach(survey => {
+      if (survey.id) {
+        this.surveyService.getSurveyResponses(survey.id).pipe(
+          take(1)
+        ).subscribe(responses => {
+          this.responseCountsMap.update(counts => ({
+            ...counts,
+            [survey.id]: responses.length
+          }));
+        });
+      }
+    });
+  }
+
+  /** Refresh article and training history data */
+  private refreshData(): void {
+    const article = this.article();
+    if (!article?.id || !this.teamId) return;
+
+    // Reload article to get updated lastTrainedAt
+    this.trainingService.getLibrary(this.teamId).pipe(
+      map(library => library.find(item => item.id === article.id)),
+      take(1)
+    ).subscribe(updatedArticle => {
+      if (updatedArticle) {
+        this.article.set(updatedArticle);
+      }
+    });
+
+    // Reload training history
+    this.loadTrainingHistory(article.id);
   }
 
   startTraining(): void {
     const article = this.article();
     if (!article) return;
 
-    this.dialog.open(BlasterDialog, {
+    const dialogRef = this.dialog.open(BlasterDialog, {
       data: { libraryItem: article }
+    });
+    
+    // Refresh data after dialog closes (training may have been started)
+    dialogRef.afterClosed().subscribe(() => {
+      // Small delay to allow Firestore to update
+      setTimeout(() => this.refreshData(), 1000);
     });
   }
 
@@ -246,6 +294,9 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
 
         this.surveysService.createSurvey(survey, this.teamId);
         this.snackbar.open('Training session started', 'OK', { duration: 3000 });
+        
+        // Refresh data after creating the survey
+        setTimeout(() => this.refreshData(), 1000);
       }
     });
   }
@@ -253,8 +304,11 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   editArticle(): void {
     const article = this.article();
     if (article?.id) {
+      // Use replaceUrl so the article page is replaced in history
+      // This way when returning from edit and clicking back, user goes to training home
       this.router.navigate(['/account/training/smart-builder'], { 
-        queryParams: { edit: article.id } 
+        queryParams: { edit: article.id },
+        replaceUrl: true
       });
     }
   }
@@ -290,21 +344,17 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     window.print();
   }
 
-  scrollToHistory(): void {
-    this.toggleHistoryPanel();
-  }
-
   toggleHistoryPanel(): void {
     this.historyPanelOpen.update(open => !open);
   }
 
-  getCompletionRate(survey: Survey): number {
-    if (!survey.userSurvey) return 0;
-    const total = Object.keys(survey.userSurvey).length;
+  getCompletionRate(survey: any): number {
+    const total = this.getAttendeeCount(survey);
     if (total === 0) return 0;
-    // Count how many have completed (value > 0 means they responded)
-    const completed = (Object.values(survey.userSurvey) as number[]).filter(v => v > 0).length;
-    return Math.round((completed / total) * 100);
+    
+    // Get response count from our loaded data
+    const responseCount = this.responseCountsMap()[survey.id] || 0;
+    return Math.round((responseCount / total) * 100);
   }
 
   viewSessionDetails(session: Survey): void {
@@ -372,7 +422,12 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  getAttendeeCount(survey: Survey): number {
+  getAttendeeCount(survey: any): number {
+    // Check trainees array first (used in newer surveys)
+    if (survey.trainees?.length) {
+      return survey.trainees.length;
+    }
+    // Fall back to userSurvey object (legacy format)
     if (!survey.userSurvey) return 0;
     return Object.keys(survey.userSurvey).length;
   }
@@ -381,7 +436,8 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     if (this.articleInput()) {
       this.closed.emit();
     } else {
-      this.router.navigate(['account', 'training'], { queryParams: { view: 'library' } });
+      // Use browser history to return to the previous tab they were on
+      window.history.back();
     }
   }
 

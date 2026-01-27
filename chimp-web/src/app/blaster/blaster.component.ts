@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from "@angular/core";
+import { Component, Inject, OnInit, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from "@angular/material/dialog";
@@ -9,6 +9,7 @@ import { AccountService, TeamMember } from "../account/account.service";
 import { LibraryItem } from "../account/training/training.service";
 import { BlasterService } from "./blaster.service";
 import { getTagColor } from "../shared/tag-colors";
+import { Subscription } from "rxjs";
 
 @Component({
   standalone: true,
@@ -22,7 +23,7 @@ import { getTagColor } from "../shared/tag-colors";
     MatIconModule
   ]
 })
-export class BlasterDialog implements OnInit {
+export class BlasterDialog implements OnInit, OnDestroy {
   users: User[] = [];
   teamMembers: TeamMember[] = [];
   filteredUsers: User[] = [];
@@ -30,6 +31,7 @@ export class BlasterDialog implements OnInit {
   srt: string[] = [];
   selectedTags: string[] = [];
   searchTerm: string = '';
+  private teamMembersSub: Subscription | null = null;
   
 
   constructor(
@@ -47,7 +49,7 @@ export class BlasterDialog implements OnInit {
       this.selectedTags = [...this.data.libraryItem.assignedTags];
     }
     
-    this.accountService.teamMembersObservable.subscribe(users => {
+    this.teamMembersSub = this.accountService.teamMembersObservable.subscribe(users => {
       this.users = users || [];
       this.teamMembers = users || [];
       this.filteredUsers = [...this.users];
@@ -55,6 +57,12 @@ export class BlasterDialog implements OnInit {
       // Apply pre-selected tags after users load
       this.applyPreselectedTags();
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.teamMembersSub) {
+      this.teamMembersSub.unsubscribe();
+    }
   }
   
   private applyPreselectedTags(): void {

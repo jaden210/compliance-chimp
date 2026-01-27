@@ -1,15 +1,22 @@
-import { Injectable, Component } from "@angular/core";
+import { Injectable } from "@angular/core";
 import { combineLatest, Observable } from "rxjs";
 import { Firestore, collection, collectionData, doc, updateDoc, addDoc, deleteDoc, query, where, orderBy } from "@angular/fire/firestore";
-import { Functions, httpsCallable } from "@angular/fire/functions";
-import { map, take, mergeMap } from "rxjs/operators";
-import { AccountService, InviteToTeam, TeamMember } from "../account.service";
+import { map } from "rxjs/operators";
+import { AccountService, TeamMember } from "../account.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
 
-export interface QuickBooksSyncResult {
+export interface ParsedCsvMember {
+  name: string;
+  jobTitle: string;
+  phone: string;
+  email: string;
+  preferEmail: boolean;
+  errors: string[];
+}
+
+export interface CsvImportResult {
   success: boolean;
   added: number;
-  skipped: number;
   errors: string[];
 }
 
@@ -19,8 +26,7 @@ export interface QuickBooksSyncResult {
 export class TeamService {
   constructor(
     public db: Firestore,
-    private accountService: AccountService,
-    private functions: Functions
+    private accountService: AccountService
   ) {}
 
   getSelfInspections(): Observable<SelfInspection[]> {
@@ -71,7 +77,7 @@ export class TeamService {
     return collectionData(achievementQuery, { idField: "id" });
   }
 
-  removeUser(user: TeamMember): Promise<any> {
+  async removeUser(user: TeamMember): Promise<any> {
     return deleteDoc(doc(this.db, `team-members/${user.id}`));
   }
 
@@ -88,57 +94,227 @@ export class TeamService {
     ]);
   }
 
-  // ============ QuickBooks Integration ============
+  // ============ CSV Import ============
 
   /**
-   * Initiate QuickBooks OAuth connection
-   * Returns the authorization URL to redirect the user to
+   * Generate CSV template content
    */
-  public async initiateQuickBooksConnect(): Promise<string> {
-    if (!this.accountService.aTeam?.id) {
-      throw new Error("Team not loaded");
-    }
+  public generateCsvTemplate(): string {
+    const headers = ['Name', 'Job Title', 'Phone Number', 'Email', 'Prefer SMS'];
+    const exampleRows = [
+      ['John Doe', 'Manager', '555-123-4567', 'john@example.com', 'Yes'],
+      ['Jane Smith', 'Warehouse Associate', '555-987-6543', '', 'Yes'],
+      ['Bob Wilson', 'Driver', '', 'bob@example.com', 'No']
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...exampleRows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    return csvContent;
+  }
 
-    // Pass current origin so callback redirects back to correct environment (localhost or production)
-    const returnUrl = window.location.origin;
+  /**
+   * Trigger download of CSV template file
+   */
+  public downloadCsvTemplate(): void {
+    const csvContent = this.generateCsvTemplate();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'team_import_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
-    const getAuthUrl = httpsCallable(this.functions, "quickbooks-getQuickBooksAuthUrl");
-    const result: any = await getAuthUrl({ 
-      teamId: this.accountService.aTeam.id,
-      returnUrl 
+  /**
+   * Parse CSV file and return parsed members with validation
+   */
+  public async parseCsvFile(file: File): Promise<ParsedCsvMember[]> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const lines = text.split(/\r?\n/).filter(line => line.trim());
+          
+          if (lines.length < 2) {
+            reject(new Error('CSV file must have a header row and at least one data row'));
+            return;
+          }
+          
+          // Parse header
+          const headers = this.parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
+          const nameIdx = headers.findIndex(h => h.includes('name'));
+          const jobIdx = headers.findIndex(h => h.includes('job') || h.includes('title'));
+          const phoneIdx = headers.findIndex(h => h.includes('phone'));
+          const emailIdx = headers.findIndex(h => h.includes('email'));
+          const smsIdx = headers.findIndex(h => h.includes('sms') || h.includes('prefer'));
+          
+          if (nameIdx === -1) {
+            reject(new Error('CSV must have a "Name" column'));
+            return;
+          }
+          
+          const parsedMembers: ParsedCsvMember[] = [];
+          
+          // Parse data rows
+          for (let i = 1; i < lines.length; i++) {
+            const values = this.parseCsvLine(lines[i]);
+            const errors: string[] = [];
+            
+            const name = values[nameIdx]?.trim() || '';
+            const jobTitle = jobIdx >= 0 ? values[jobIdx]?.trim() || '' : '';
+            const phone = phoneIdx >= 0 ? this.formatPhone(values[phoneIdx]?.trim() || '') : '';
+            const email = emailIdx >= 0 ? values[emailIdx]?.trim().toLowerCase() || '' : '';
+            const preferSmsRaw = smsIdx >= 0 ? values[smsIdx]?.trim().toLowerCase() || '' : '';
+            const preferEmail = preferSmsRaw === 'no' || preferSmsRaw === 'false' || preferSmsRaw === '0';
+            
+            // Validation
+            if (!name) {
+              errors.push(`Row ${i + 1}: Name is required`);
+            }
+            
+            if (!preferEmail && !phone) {
+              errors.push(`Row ${i + 1}: Phone is required when Prefer SMS is Yes`);
+            }
+            
+            if (preferEmail && !email) {
+              errors.push(`Row ${i + 1}: Email is required when Prefer SMS is No`);
+            }
+            
+            if (phone && !this.isValidPhone(phone)) {
+              errors.push(`Row ${i + 1}: Invalid phone number format`);
+            }
+            
+            if (email && !this.isValidEmail(email)) {
+              errors.push(`Row ${i + 1}: Invalid email format`);
+            }
+            
+            parsedMembers.push({
+              name,
+              jobTitle,
+              phone,
+              email,
+              preferEmail,
+              errors
+            });
+          }
+          
+          resolve(parsedMembers);
+        } catch (error) {
+          reject(new Error('Failed to parse CSV file'));
+        }
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
     });
-    return result.data.authUrl;
   }
 
   /**
-   * Trigger a manual sync of QuickBooks employees
+   * Parse a single CSV line handling quoted values
    */
-  public async triggerQuickBooksSync(): Promise<QuickBooksSyncResult> {
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  }
+
+  /**
+   * Format phone number to (XXX) XXX-XXXX
+   */
+  private formatPhone(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.length === 11 && digits[0] === '1') {
+      return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+    }
+    return phone;
+  }
+
+  /**
+   * Validate phone number (10-11 digits)
+   */
+  private isValidPhone(phone: string): boolean {
+    const digits = phone.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 11;
+  }
+
+  /**
+   * Validate email format
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Import parsed CSV members into the team
+   */
+  public async importCsvMembers(members: ParsedCsvMember[]): Promise<CsvImportResult> {
     if (!this.accountService.aTeam?.id) {
-      throw new Error("Team not loaded");
+      return { success: false, added: 0, errors: ['Team not loaded'] };
     }
 
-    const syncEmployees = httpsCallable(this.functions, "quickbooks-syncQuickBooksEmployees");
-    const result: any = await syncEmployees({ teamId: this.accountService.aTeam.id });
-    return result.data as QuickBooksSyncResult;
-  }
-
-  /**
-   * Disconnect QuickBooks from the team
-   */
-  public async disconnectQuickBooks(): Promise<void> {
-    if (!this.accountService.aTeam?.id) {
-      throw new Error("Team not loaded");
+    const validMembers = members.filter(m => m.errors.length === 0 && m.name);
+    const allErrors = members.flatMap(m => m.errors);
+    
+    if (validMembers.length === 0) {
+      return { success: false, added: 0, errors: allErrors.length ? allErrors : ['No valid members to import'] };
     }
 
-    const disconnect = httpsCallable(this.functions, "quickbooks-disconnectQuickBooks");
-    await disconnect({ teamId: this.accountService.aTeam.id });
-  }
+    let added = 0;
+    const importErrors: string[] = [];
 
-  /**
-   * Check if QuickBooks is connected for the current team
-   */
-  public isQuickBooksConnected(): boolean {
-    return !!this.accountService.aTeam?.quickbooks?.realmId;
+    for (const member of validMembers) {
+      try {
+        const teamMember = {
+          name: member.name,
+          jobTitle: member.jobTitle || '',
+          phone: member.phone || '',
+          email: member.email || '',
+          preferEmail: member.preferEmail,
+          teamId: this.accountService.aTeam.id,
+          createdAt: new Date(),
+          tags: []
+        };
+
+        await addDoc(collection(this.db, 'team-members'), teamMember);
+        added++;
+      } catch (error) {
+        importErrors.push(`Failed to add ${member.name}`);
+      }
+    }
+
+    return {
+      success: added > 0,
+      added,
+      errors: [...allErrors, ...importErrors]
+    };
   }
 }

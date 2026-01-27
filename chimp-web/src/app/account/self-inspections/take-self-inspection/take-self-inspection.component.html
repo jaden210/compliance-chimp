@@ -2,8 +2,8 @@
   <button mat-icon-button (click)="routeBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span class="toolbar-label">Self-Inspection</span>
-  <span class="toolbar-title">{{ selfInspection?.title }}</span>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp">
+  <div class="toolbar-title">{{ selfInspection?.title }}</div>
   <div class="flex"></div>
   <div class="toolbar-actions">
     <span class="toolbar-date">Started {{ inspection?.createdAt?.toDate() | date:'MMM d, y' }}</span>

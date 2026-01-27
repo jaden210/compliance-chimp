@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, OnDestroy } from "@angular/core";
+import { Component, signal, OnInit, OnDestroy, ViewChild, ElementRef } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { RouterModule } from "@angular/router";
 import { SelfInspectionsService, SelfInspection, Inspection, CoverageAnalysis, CoverageRecommendation, AutoBuildProgress } from "../self-inspections.service";
@@ -14,6 +14,8 @@ import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatChipsModule } from "@angular/material/chips";
 import { Observable, BehaviorSubject, combineLatest, forkJoin, of, Subject } from "rxjs";
 import { filter, map, shareReplay, switchMap, take, debounceTime, takeUntil, distinctUntilChanged } from "rxjs/operators";
+import { WelcomeService } from "../../welcome.service";
+import { WelcomeBannerComponent, WelcomeFeature } from "../../welcome-banner/welcome-banner.component";
 
 export type FilterType = 'all' | 'inProgress' | 'lastInspected' | 'dueSoon' | 'overdue';
 export type SortColumn = 'status' | 'name' | 'lastCompleted' | 'nextDue' | 'frequency' | null;
@@ -46,12 +48,14 @@ export interface SelfInspectionWithStatus extends SelfInspection {
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatButtonToggleModule,
-    MatChipsModule
+    MatChipsModule,
+    WelcomeBannerComponent
   ],
   providers: [DatePipe]
 })
 export class SelfInspectionsListComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
+  @ViewChild('inspectionsSection') inspectionsSection: ElementRef<HTMLElement>;
 
   selfInspections$: Observable<SelfInspectionWithStatus[]>;
   filteredInspections$: Observable<SelfInspectionWithStatus[]>;
@@ -70,11 +74,46 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
   autoBuildProgress = signal<AutoBuildProgress | null>(null);
   private autoBuildCancelFn: (() => void) | null = null;
 
+  // Welcome banner features
+  inspectionsWelcomeFeatures: WelcomeFeature[] = [
+    {
+      icon: 'calendar_today',
+      title: 'Schedule View',
+      description: 'See all your inspections at a glance. Filter by status to focus on what\'s due or overdue.',
+      action: 'scrollToInspections'
+    },
+    {
+      icon: 'play_circle',
+      title: 'Run an Inspection',
+      description: 'Tap any inspection to start. Add notes and photos as you go through each checklist item.',
+      action: 'scrollToInspections'
+    },
+    {
+      icon: 'repeat',
+      title: 'Frequency Settings',
+      description: 'Set how often each inspection should run - monthly, quarterly, semi-annually, or annually.',
+      action: 'scrollToInspections'
+    },
+    {
+      icon: 'trending_up',
+      title: 'History & Trends',
+      description: 'Each inspection tracks compliance over time. See how your scores improve with each run.',
+      action: 'scrollToInspections'
+    },
+    {
+      icon: 'analytics',
+      title: 'Coverage Analysis',
+      description: 'Get recommendations for inspections you might be missing based on your industry.',
+      action: 'coverageAnalysis'
+    }
+  ];
+
   constructor(
     public router: Router,
     public route: ActivatedRoute,
     private selfInspectionsService: SelfInspectionsService,
-    public accountService: AccountService
+    public accountService: AccountService,
+    public welcomeService: WelcomeService
   ) {
     this.selfInspections$ = this.accountService.aTeamObservable.pipe(
       filter(team => !!team),
@@ -463,6 +502,27 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
 
   goToTemplates(): void {
     this.router.navigate(['new'], { relativeTo: this.route });
+  }
+
+  // Handle welcome banner feature clicks
+  onWelcomeFeatureClick(action: string): void {
+    switch (action) {
+      case 'scrollToInspections':
+        this.scrollToInspectionsSection();
+        break;
+      case 'coverageAnalysis':
+        // Expand coverage analysis if collapsed
+        if (this.coverageCollapsed()) {
+          this.toggleCoverageCollapsed();
+        }
+        break;
+    }
+  }
+
+  scrollToInspectionsSection(): void {
+    if (this.inspectionsSection?.nativeElement) {
+      this.inspectionsSection.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   /**

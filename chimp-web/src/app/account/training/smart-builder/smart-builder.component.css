@@ -1,8 +1,17 @@
+/* Host - enable scrolling within parent container */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
 /* Toolbar */
 mat-toolbar {
   position: sticky;
   top: 0;
   z-index: 100;
+  flex-shrink: 0;
 }
 
 .toolbar-title {
@@ -20,6 +29,7 @@ mat-toolbar {
   max-width: 800px;
   margin: 0 auto;
   padding: 24px;
+  flex: 1;
 }
 
 /* Prefilled Banner */
@@ -226,6 +236,8 @@ mat-toolbar {
 .action-row {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
   margin-top: 24px;
 }
 
@@ -266,6 +278,11 @@ mat-toolbar {
 
 .scratch-btn {
   color: var(--chimp-text-secondary);
+  height: 44px;
+}
+
+.scratch-btn mat-icon {
+  margin-right: 8px;
 }
 
 /* Editor Section */

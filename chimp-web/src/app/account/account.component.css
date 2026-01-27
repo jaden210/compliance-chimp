@@ -134,7 +134,7 @@ mat-sidenav-content {
   width: calc(100vw - 100px);
   position: relative;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--chimp-surface);
 }
 
@@ -462,4 +462,27 @@ a:hover {
 
 .trial-expired-dialog mat-dialog-actions button mat-icon {
   margin-right: 8px;
+}
+
+/* Print styles */
+@media print {
+  #left {
+    display: none !important;
+  }
+
+  #body {
+    width: 100% !important;
+  }
+
+  mat-sidenav-container,
+  mat-sidenav-content {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .account-popup,
+  .account-popup-overlay {
+    display: none !important;
+  }
 }

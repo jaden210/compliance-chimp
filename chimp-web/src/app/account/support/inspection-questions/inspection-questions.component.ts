@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,6 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { SupportService } from '../support.service';
 import { addDoc, collection, deleteDoc, doc, updateDoc } from '@angular/fire/firestore';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'inspection-questions',
@@ -19,8 +20,9 @@ import { addDoc, collection, deleteDoc, doc, updateDoc } from '@angular/fire/fir
     MatButtonModule
   ]
 })
-export class InspectionQuestionsComponent implements OnInit {
+export class InspectionQuestionsComponent implements OnInit, OnDestroy {
   private readonly supportService = inject(SupportService);
+  private collectionSub: Subscription | null = null;
 
   collectionName = 'osha-assesment-template-en';
   readonly list = signal<InspectionCategory[]>([]);
@@ -31,9 +33,18 @@ export class InspectionQuestionsComponent implements OnInit {
   ngOnInit(): void {
     this.getCollection();
   }
+
+  ngOnDestroy(): void {
+    if (this.collectionSub) {
+      this.collectionSub.unsubscribe();
+    }
+  }
   
   getCollection(): void {
-    this.supportService.getInspectionCollection(this.collectionName).subscribe(items => {
+    if (this.collectionSub) {
+      this.collectionSub.unsubscribe();
+    }
+    this.collectionSub = this.supportService.getInspectionCollection(this.collectionName).subscribe(items => {
       this.list.set(items);
     });
   }

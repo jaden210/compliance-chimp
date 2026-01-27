@@ -4,7 +4,7 @@
   font-size: 18px;
   font-weight: 500;
   margin-left: 8px;
-  color: var(--chimp-on-surface);
+  color: white;
 }
 
 .flex {
@@ -36,9 +36,8 @@
   padding: 24px;
   max-width: 900px;
   margin: 0 auto;
-  min-height: calc(100vh - var(--toolbar-height, 64px));
+  width: 100%;
   box-sizing: border-box;
-  background: var(--chimp-surface);
 }
 
 /* Template Applied Banner */

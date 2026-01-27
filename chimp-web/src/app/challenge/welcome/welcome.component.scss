@@ -1,0 +1,287 @@
+.welcome-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px;
+  min-height: calc(100vh - 100px);
+}
+
+.welcome-card {
+  background: var(--chimp-bg-primary);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 700px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+// Full-width header
+.welcome-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.welcome-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--chimp-text-primary);
+}
+
+.welcome-subtitle {
+  font-size: 16px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+}
+
+// Two-column layout for steps + chimp
+.steps-layout {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.steps-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chimp-column {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chimp-mascot {
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+}
+
+// Step items
+.overview-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.step-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--chimp-primary-rgb), 0.15) 0%, rgba(var(--chimp-primary-rgb), 0.08) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--chimp-primary);
+  }
+}
+
+.step-info {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.step-info h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--chimp-text-primary);
+}
+
+.step-info p {
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+// Trial info with orange accent
+.trial-info {
+  background: linear-gradient(135deg, rgba(var(--chimp-accent-rgb), 0.12) 0%, rgba(var(--chimp-accent-rgb), 0.06) 100%);
+  border: 1px solid rgba(var(--chimp-accent-rgb), 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.trial-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--chimp-accent);
+  }
+}
+
+.trial-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chimp-accent);
+}
+
+.trial-divider {
+  color: var(--chimp-accent);
+  opacity: 0.5;
+}
+
+.trial-details {
+  font-size: 14px;
+  color: var(--chimp-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+  
+  strong {
+    color: var(--chimp-text-primary);
+  }
+}
+
+// Actions row
+.welcome-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.back-home-btn {
+  color: var(--chimp-text-secondary);
+  
+  mat-icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.get-started-btn {
+  flex: 1;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 24px;
+  
+  mat-icon {
+    margin-left: 8px;
+  }
+}
+
+// Responsive
+@media screen and (max-width: 600px) {
+  .welcome-container {
+    padding: 24px 16px;
+  }
+  
+  .welcome-card {
+    padding: 24px 20px;
+  }
+  
+  .welcome-header {
+    margin-bottom: 24px;
+  }
+  
+  .welcome-header h1 {
+    font-size: 24px;
+  }
+  
+  .welcome-subtitle {
+    font-size: 15px;
+  }
+  
+  .steps-layout {
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .chimp-mascot {
+    width: 120px;
+  }
+  
+  .steps-column {
+    gap: 16px;
+  }
+  
+  .overview-step {
+    gap: 12px;
+  }
+  
+  .step-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+  
+  .step-info {
+    padding-top: 2px;
+  }
+  
+  .step-info h3 {
+    font-size: 15px;
+  }
+  
+  .step-info p {
+    font-size: 13px;
+  }
+  
+  .trial-info {
+    padding: 16px;
+  }
+  
+  .trial-highlight {
+    gap: 6px;
+    
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+  
+  .trial-text {
+    font-size: 14px;
+  }
+  
+  .trial-details {
+    font-size: 13px;
+  }
+  
+  .welcome-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+  
+  .get-started-btn {
+    width: 100%;
+    height: 48px;
+    font-size: 16px;
+  }
+  
+  .back-home-btn {
+    width: 100%;
+  }
+}

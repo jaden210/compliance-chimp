@@ -18,7 +18,7 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Business Website</mat-label>
+        <mat-label>Business Website (optional)</mat-label>
         <input
           matInput
           [(ngModel)]="businessWebsite"
@@ -41,6 +41,14 @@
     </div>
 
     <div class="step-actions">
+      <button
+        mat-button
+        class="back-btn"
+        routerLink="/get-started/welcome"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
       <button
         mat-flat-button
         color="accent"

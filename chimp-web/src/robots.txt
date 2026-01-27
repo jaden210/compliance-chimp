@@ -6,7 +6,6 @@ Allow: /
 
 # Public pages (crawlable)
 Allow: /home
-Allow: /pricing
 Allow: /how-it-works
 Allow: /common-questions
 Allow: /contact
@@ -17,17 +16,17 @@ Allow: /privacy-policy
 Allow: /customer-agreement
 Allow: /plans
 
+# Get started flow (public)
+Allow: /get-started
+
 # Authentication pages (allow but low priority)
 Allow: /sign-in
-Allow: /sign-up
 
 # Private/authenticated areas (disallow)
 Disallow: /account
 Disallow: /account/*
 Disallow: /user
 Disallow: /user/*
-Disallow: /get-started
-Disallow: /get-started/*
 Disallow: /join-team
 
 # Sitemap location

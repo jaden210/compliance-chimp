@@ -1,0 +1,83 @@
+<div class="welcome-container">
+  <div class="welcome-card">
+    <!-- Full-width header -->
+    <div class="welcome-header">
+      <h1>Welcome to Compliance Chimp</h1>
+      <p class="welcome-subtitle">Get your compliance program up and running in minutes.</p>
+    </div>
+
+    <!-- Two-column: Chimp + Steps -->
+    <div class="steps-layout">
+      <div class="chimp-column">
+        <img src="assets/chimp.png" alt="Compliance Chimp" class="chimp-mascot" />
+      </div>
+
+      <div class="steps-column">
+        <div class="overview-step">
+          <div class="step-icon-wrapper">
+            <mat-icon>business</mat-icon>
+          </div>
+          <div class="step-info">
+            <h3>Tell us about your business</h3>
+            <p>A few quick questions about you and your company.</p>
+          </div>
+        </div>
+
+        <div class="overview-step">
+          <div class="step-icon-wrapper">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="step-info">
+            <h3>Build your team</h3>
+            <p>Add team members manually or import from CSV.</p>
+          </div>
+        </div>
+
+        <div class="overview-step">
+          <div class="step-icon-wrapper">
+            <mat-icon>auto_awesome</mat-icon>
+          </div>
+          <div class="step-info">
+            <h3>We generate everything</h3>
+            <p>Trainings, self-inspections, and automated outreach.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trial info with orange accent -->
+    <div class="trial-info">
+      <div class="trial-highlight">
+        <mat-icon>stars</mat-icon>
+        <span class="trial-text">14-Day Free Trial</span>
+        <span class="trial-divider">•</span>
+        <mat-icon>credit_card_off</mat-icon>
+        <span class="trial-text">No Credit Card Required</span>
+      </div>
+      <p class="trial-details">
+        Full access for 14 days. Then <strong>$99/month</strong> for Chimp Unlimited.
+      </p>
+    </div>
+
+    <!-- Actions row -->
+    <div class="welcome-actions">
+      <button
+        mat-button
+        class="back-home-btn"
+        routerLink="/"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        Back to Home
+      </button>
+      <button
+        mat-flat-button
+        color="accent"
+        class="get-started-btn"
+        (click)="getStarted()"
+      >
+        Get Started
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { Router } from "@angular/router";
+import { Router, RouterModule } from "@angular/router";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
@@ -17,6 +17,7 @@ import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -35,19 +36,13 @@ export class Step1Component implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Reset the challenge state whenever Step 1 is loaded
-    // This ensures a fresh start when returning to the beginning
-    this.challengeService.reset();
-    
-    // Track challenge start and step 1 view
-    this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_START);
+    // Track step 1 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP1_VIEW);
   }
 
   isValid(): boolean {
     return !!(
       this.businessName?.trim() &&
-      this.businessWebsite?.trim() &&
       this.industry?.trim() &&
       this.industry.trim().length >= 3
     );
@@ -67,9 +62,6 @@ export class Step1Component implements OnInit {
       industry: this.industry.trim(),
       has_website: !!this.businessWebsite.trim()
     });
-    
-    // Start the timer when they proceed from step 1
-    this.challengeService.startTimer();
     
     this.router.navigate(['/get-started/step2']);
   }

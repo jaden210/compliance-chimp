@@ -57,3 +57,30 @@ mat-chip {
 #good {
   color: #4caf50;
 }
+
+/* Print styles */
+@media print {
+  mat-toolbar {
+    display: none !important;
+  }
+
+  #toolbar {
+    display: none !important;
+  }
+
+  #content {
+    margin: 0;
+  }
+
+  #content h3 {
+    margin-top: 0;
+  }
+
+  #article {
+    margin: 16px 0;
+  }
+
+  .window {
+    padding: 0;
+  }
+}

@@ -2,109 +2,178 @@
   <div class="step-card">
     <div class="step-header">
       <div class="step-indicator">Step 4 of 4</div>
-      <h1>Building your compliance program</h1>
-      <p class="step-subtitle">The Chimp is creating personalized inspections and trainings for your team.</p>
+      <h1>{{ buildStarted ? 'Building your compliance program' : 'Ready to build your compliance program' }}</h1>
+      <p class="step-subtitle" *ngIf="!buildStarted">
+        The Chimp will analyze your team and industry to create everything you need — in 6 minutes or less.
+      </p>
+      <p class="step-subtitle" *ngIf="buildStarted">
+        The Chimp is creating personalized inspections and trainings for your team.
+      </p>
     </div>
 
-    <!-- Overall Progress -->
-    <div class="progress-section">
-      <div class="progress-header">
-        <span class="progress-label">Overall Progress</span>
-        <span class="progress-percent">{{ getOverallProgress() }}%</span>
-      </div>
-      <mat-progress-bar 
-        mode="determinate" 
-        [value]="getOverallProgress()"
-        color="accent">
-      </mat-progress-bar>
-    </div>
-
-    <!-- Builder Cards -->
-    <div class="builders-grid">
-      <!-- Inspections Builder -->
-      <div class="builder-card" [class.complete]="inspectionComplete">
-        <div class="builder-header">
-          <div class="builder-icon">
-            <mat-icon *ngIf="!inspectionComplete">checklist</mat-icon>
-            <mat-icon *ngIf="inspectionComplete" class="complete-icon">check_circle</mat-icon>
+    <!-- Pre-build intro -->
+    <div class="intro-section" *ngIf="!buildStarted">
+      <div class="intro-cards">
+        <div class="intro-card">
+          <div class="intro-card-icon">
+            <mat-icon>checklist</mat-icon>
           </div>
-          <div class="builder-info">
-            <h3>Self-Inspections</h3>
-            <p *ngIf="inspectionProgress && !inspectionComplete">{{ inspectionProgress.currentAction }}</p>
-            <p *ngIf="inspectionComplete">Created {{ inspectionProgress?.inspectionsCreated || 0 }} inspections</p>
+          <h4>Self-Inspection Checklists</h4>
+          <p>We'll create custom safety checklists tailored to your industry. Use them to document regular walkthroughs and catch hazards before they become incidents.</p>
+        </div>
+        <div class="intro-card">
+          <div class="intro-card-icon">
+            <mat-icon>school</mat-icon>
+          </div>
+          <h4>Training Library</h4>
+          <p>Your team will get compliance training tailored to your industry — covering OSHA, HIPAA, PCI-DSS, and other regulations relevant to your business.</p>
+        </div>
+        <div class="intro-card">
+          <div class="intro-card-icon">
+            <mat-icon>schedule_send</mat-icon>
+          </div>
+          <h4>Scheduled Outreach</h4>
+          <p>Trainings are scheduled on a smart cadence based on priority. Your team will receive assignments via text or email as each training comes due.</p>
+        </div>
+      </div>
+      
+      <div class="go-section">
+        <div class="challenge-cta-card">
+          <div class="cta-timer-visual">
+            <div class="timer-circle">
+              <span class="timer-number">6</span>
+              <span class="timer-label">min</span>
+            </div>
+          </div>
+          <div class="cta-content">
+            <h3 class="cta-headline">The Chimp will build your entire compliance program while you watch.</h3>
+            <button
+              mat-flat-button
+              class="cta-start-btn"
+              (click)="startBuild()"
+            >
+              <mat-icon>play_arrow</mat-icon>
+              Begin
+            </button>
           </div>
         </div>
-        <mat-progress-bar 
-          *ngIf="!inspectionComplete"
-          mode="indeterminate" 
-          color="primary">
-        </mat-progress-bar>
-      </div>
-
-      <!-- Trainings Builder -->
-      <div class="builder-card" [class.complete]="trainingComplete">
-        <div class="builder-header">
-          <div class="builder-icon">
-            <mat-icon *ngIf="!trainingComplete">school</mat-icon>
-            <mat-icon *ngIf="trainingComplete" class="complete-icon">check_circle</mat-icon>
-          </div>
-          <div class="builder-info">
-            <h3>Training Library</h3>
-            <p *ngIf="trainingProgress && !trainingComplete">{{ trainingProgress.currentAction }}</p>
-            <p *ngIf="trainingComplete">Created {{ trainingProgress?.trainingsCreated || 0 }} trainings</p>
-          </div>
-        </div>
-        <mat-progress-bar 
-          *ngIf="!trainingComplete"
-          mode="indeterminate" 
-          color="primary">
-        </mat-progress-bar>
-      </div>
-    </div>
-
-    <!-- Activity Log -->
-    <div class="activity-log">
-      <div class="log-header">
-        <mat-icon>list_alt</mat-icon>
-        <span>Activity Log</span>
-      </div>
-      <div class="log-entries">
-        <div 
-          class="log-entry" 
-          *ngFor="let entry of activityLogReversed" 
-          [ngClass]="entry.type"
+        <button
+          mat-button
+          class="back-btn-standalone"
+          (click)="goBack()"
         >
-          <mat-icon class="log-icon">{{ getLogIcon(entry.type) }}</mat-icon>
-          <div class="log-content">
-            <span class="log-source" [class.inspection]="entry.source === 'inspection'" [class.training]="entry.source === 'training'">
-              {{ entry.source === 'inspection' ? 'Inspections' : 'Training' }}
-            </span>
-            <span class="log-message">{{ entry.message }}</span>
-          </div>
-        </div>
+          <mat-icon>arrow_back</mat-icon>
+          Back to Team
+        </button>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="step-actions">
-      <button
-        mat-stroked-button
-        class="back-btn"
-        (click)="goBack()"
-      >
-        <mat-icon>arrow_back</mat-icon>
-        Back
-      </button>
-      <button
-        mat-flat-button
-        color="accent"
-        class="next-btn"
-        [disabled]="!isComplete"
-        (click)="next()"
-      >
-        View Results
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
+    <!-- Build in progress -->
+    <div class="build-section" *ngIf="buildStarted">
+      <!-- Overall Progress -->
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-label">Overall Progress</span>
+          <span class="progress-percent">{{ getOverallProgress() }}%</span>
+        </div>
+        <mat-progress-bar 
+          mode="determinate" 
+          [value]="getOverallProgress()"
+          color="accent">
+        </mat-progress-bar>
+      </div>
+
+      <!-- Builder Cards -->
+      <div class="builders-grid">
+        <!-- Inspections Builder -->
+        <div class="builder-card" [class.complete]="inspectionComplete">
+          <div class="builder-header">
+            <div class="builder-icon">
+              <mat-icon *ngIf="!inspectionComplete">checklist</mat-icon>
+              <mat-icon *ngIf="inspectionComplete" class="complete-icon">check_circle</mat-icon>
+            </div>
+            <div class="builder-info">
+              <h3>Self-Inspections</h3>
+              <p *ngIf="inspectionProgress && !inspectionComplete">{{ inspectionProgress.currentAction }}</p>
+              <p *ngIf="inspectionComplete">Created {{ inspectionProgress?.inspectionsCreated || 0 }} inspections</p>
+              <p *ngIf="!inspectionProgress && !inspectionComplete">Waiting...</p>
+            </div>
+          </div>
+          <mat-progress-bar 
+            *ngIf="!inspectionComplete"
+            mode="indeterminate" 
+            color="primary">
+          </mat-progress-bar>
+        </div>
+
+        <!-- Trainings Builder -->
+        <div class="builder-card" [class.complete]="trainingComplete">
+          <div class="builder-header">
+            <div class="builder-icon">
+              <mat-icon *ngIf="!trainingComplete">school</mat-icon>
+              <mat-icon *ngIf="trainingComplete" class="complete-icon">check_circle</mat-icon>
+            </div>
+            <div class="builder-info">
+              <h3>Training Library</h3>
+              <p *ngIf="trainingProgress && !trainingComplete">{{ trainingProgress.currentAction }}</p>
+              <p *ngIf="trainingComplete">Created {{ trainingProgress?.trainingsCreated || 0 }} trainings</p>
+              <p *ngIf="!trainingProgress && !trainingComplete">Waiting...</p>
+            </div>
+          </div>
+          <mat-progress-bar 
+            *ngIf="!trainingComplete"
+            mode="indeterminate" 
+            color="primary">
+          </mat-progress-bar>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="activity-log">
+        <div class="log-header">
+          <mat-icon>list_alt</mat-icon>
+          <span>Activity Log</span>
+        </div>
+        <div class="log-entries">
+          <div 
+            class="log-entry" 
+            *ngFor="let entry of activityLogReversed; let i = index"
+            [ngClass]="entry.type"
+            [@logEntryAnimation]
+          >
+            <mat-icon class="log-icon" [class.spinning]="entry.type === 'working'">{{ getLogIcon(entry.type) }}</mat-icon>
+            <div class="log-content">
+              <span class="log-source" [class.inspection]="entry.source === 'inspection'" [class.training]="entry.source === 'training'">
+                {{ entry.source === 'inspection' ? 'Inspections' : 'Training' }}
+              </span>
+              <span class="log-message">{{ entry.message }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="step-actions">
+        <button
+          mat-button
+          class="back-btn"
+          (click)="goBack()"
+          [disabled]="!isComplete"
+        >
+          <mat-icon>arrow_back</mat-icon>
+          Back
+        </button>
+        <button
+          mat-flat-button
+          color="accent"
+          class="next-btn"
+          [disabled]="!isComplete"
+          (click)="next()"
+        >
+          View Results
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
     </div>
   </div>
 </div>

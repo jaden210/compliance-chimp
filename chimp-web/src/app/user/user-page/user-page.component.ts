@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, DestroyRef } from "@angular/core";
+import { Component, OnInit, inject, DestroyRef, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterModule, Router, ActivatedRoute } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
@@ -37,7 +37,12 @@ export class UserPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly bottomSheet = inject(MatBottomSheet);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
   readonly pwaInstallService = inject(PwaInstallService);
+
+  // Reactive surveys that update when the service data changes
+  filteredSurveys: Survey[] = [];
+  surveysLoaded = false;
 
   ngOnInit() {
     this.userService.teamObservable
@@ -47,6 +52,58 @@ export class UserPageComponent implements OnInit {
           // Team loaded
         }
       });
+
+    // Subscribe to surveys changes to trigger UI updates
+    this.userService.surveysObservable
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(surveys => {
+        console.log('[UserPageComponent] surveysObservable received:', surveys);
+        this.updateFilteredSurveys(surveys);
+      });
+
+    // Subscribe to surveys loaded state
+    this.userService.surveysLoaded
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(loaded => {
+        console.log('[UserPageComponent] surveysLoaded:', loaded);
+        this.surveysLoaded = loaded;
+        this.cdr.detectChanges();
+      });
+
+    // Also subscribe to team member changes (needed for filtering)
+    this.userService.teamMemberObservable
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(tm => {
+        if (tm) {
+          console.log('[UserPageComponent] teamMemberObservable received:', tm.id);
+          this.updateFilteredSurveys(this.userService.surveys);
+        }
+      });
+  }
+
+  private updateFilteredSurveys(surveys: Survey[] | null): void {
+    const teamMemberId = this.userService.teamMember?.id;
+    if (!teamMemberId) {
+      console.log('[UserPageComponent] updateFilteredSurveys: No teamMemberId yet');
+      this.filteredSurveys = [];
+      return;
+    }
+
+    const allSurveys = surveys || [];
+    console.log('[UserPageComponent] updateFilteredSurveys - teamMemberId:', teamMemberId);
+    console.log('[UserPageComponent] updateFilteredSurveys - allSurveys:', allSurveys.length);
+
+    this.filteredSurveys = allSurveys.filter(s => {
+      const responses = (s as any)['responses'] || [];
+      const hasResponded = responses.some((sr: any) => sr.teamMemberId == teamMemberId);
+      console.log('[UserPageComponent] Survey', s.id, (s as any)['title'], '- responses:', responses.length, '- hasResponded:', hasResponded);
+      return !hasResponded;
+    });
+
+    console.log('[UserPageComponent] filteredSurveys result:', this.filteredSurveys.length, this.filteredSurveys);
+    
+    // Force change detection since Firebase callbacks happen outside Angular's zone
+    this.cdr.detectChanges();
   }
 
   public routeTo(topic: Topic): void {
@@ -96,7 +153,7 @@ export class UserPageComponent implements OnInit {
   }
 
   get Surveys(): Survey[] {
-    return (this.userService.surveys || []).filter(s => !(s['responses'] || []).some(sr => sr.teamMemberId == this.TeamMember.id));
+    return this.filteredSurveys;
   }
 
   get PImage() {

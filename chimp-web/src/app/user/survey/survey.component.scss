@@ -240,7 +240,7 @@ $radius-lg: 16px;
     border: none;
     background: transparent;
     resize: none;
-    font-size: 15px;
+    font-size: 16px; // 16px prevents iOS auto-zoom on focus
     font-family: inherit;
     color: $gray-800;
     outline: none;

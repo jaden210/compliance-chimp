@@ -319,20 +319,50 @@
 .recipient-name {
   color: var(--chimp-on-surface);
   font-weight: 500;
+  line-height: 1;
 }
 
 .responded-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
+  line-height: 18px;
   color: var(--chimp-success);
+  flex-shrink: 0;
 }
 
 .pending-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
+  line-height: 18px;
   color: var(--chimp-outline);
+  cursor: pointer;
+  transition: color 150ms ease, transform 150ms ease;
+  flex-shrink: 0;
+}
+
+.pending-icon:hover {
+  color: var(--chimp-primary);
+  transform: scale(1.1);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+  cursor: default;
+}
+
+.spinning:hover {
+  transform: none;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responses Section */

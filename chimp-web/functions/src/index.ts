@@ -36,7 +36,6 @@ function createStripeClient() {
 
 // Re-export functions from other modules
 export * from './outbound';
-export * from './quickbooks';
 
 // Get count of industry articles that would be added to a team's library
 export const getIndustryArticleCount = onCall(
@@ -219,6 +218,855 @@ export const applyIndustryTemplates = onCall(
   }
 );
 
+// Auto-build compliance program for challenge flow (step 4)
+// Creates inspections and training based on team's industry
+export const autoBuildCompliance = onCall(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 300,
+    memory: "1GiB"
+  },
+  async (request) => {
+    const { teamId } = request.data as any;
+
+    if (!teamId) {
+      throw new HttpsError('invalid-argument', 'Team ID is required');
+    }
+
+    console.log(`[AutoBuild] Starting auto-build for team ${teamId}`);
+    const db = admin.firestore();
+    const teamRef = db.doc(`team/${teamId}`);
+
+    try {
+      // Get the team
+      const teamDoc = await teamRef.get();
+      const team = teamDoc.data();
+
+      if (!team) {
+        throw new HttpsError('not-found', 'Team not found');
+      }
+
+      // Get team members for job title and tag context
+      const teamMembersSnapshot = await db
+        .collection('teamMember')
+        .where('teamId', '==', teamId)
+        .get();
+      
+      const teamMembers = teamMembersSnapshot.docs.map(doc => doc.data());
+      const jobTitles = [...new Set(teamMembers.map(tm => tm.jobTitle).filter(Boolean))] as string[];
+      
+      // Collect all unique tags from team members
+      const allTags = [...new Set(
+        teamMembers.flatMap(tm => tm.tags || []).filter(Boolean)
+      )] as string[];
+
+      // Get industry name - check both 'industry' (string from challenge) and 'industries' (array of IDs)
+      let industryName = team.industry || 'General Business';
+      if (!team.industry && team.industries && team.industries.length > 0) {
+        const industryDoc = await db.doc(`industry/${team.industries[0]}`).get();
+        if (industryDoc.exists) {
+          industryName = industryDoc.data()?.name || industryName;
+        }
+      }
+      
+      console.log(`[AutoBuild] Team ${teamId}: industry="${industryName}", ${teamMembers.length} members, jobTitles=[${jobTitles.join(', ')}], allTags=[${allTags.join(', ')}]`);
+
+      // ========== STEP 1: Generate inspection and training topics in parallel ==========
+      await teamRef.update({
+        'autoBuildProgress.inspections': {
+          currentAction: 'Analyzing compliance requirements...',
+          created: 0,
+          complete: false
+        },
+        'autoBuildProgress.trainings': {
+          currentAction: 'Identifying training needs...',
+          created: 0,
+          complete: false
+        }
+      });
+
+      // Generate BOTH inspection recommendations AND training topics in parallel
+      console.log(`[AutoBuild] Generating inspections and training topics in parallel for ${industryName}...`);
+      console.log(`[AutoBuild] Team has ${allTags.length} tags: ${allTags.join(', ')}`);
+      const [inspectionRecommendations, trainingTopics] = await Promise.all([
+        generateInspectionRecommendationsForAutoBuild(industryName, jobTitles, teamMembers.length),
+        generateTrainingTopicsForAutoBuild(industryName, jobTitles, allTags)
+      ]);
+      console.log(`[AutoBuild] Got ${inspectionRecommendations.length} inspections and ${trainingTopics.length} training topics`);
+
+      // ========== STEP 2: Create inspections sequentially for streaming progress ==========
+      let inspectionsCreated = 0;
+      const totalInspections = inspectionRecommendations.length;
+      
+      await teamRef.update({
+        'autoBuildProgress.inspections': {
+          currentAction: `Creating inspection 1 of ${totalInspections}...`,
+          created: 0,
+          complete: false
+        }
+      });
+
+      for (const rec of inspectionRecommendations) {
+        let frequency = rec.frequency || 'Monthly';
+        if (frequency === 'Semi-Annually') frequency = 'Semi-Anually';
+        if (frequency === 'Annually') frequency = 'Anually';
+
+        // Map to baseQuestions format expected by frontend
+        const baseQuestions = (rec.customCategories || []).map((cat: any) => ({
+          subject: cat.subject,
+          questions: (cat.questions || []).map((q: string) => ({
+            name: q
+          }))
+        }));
+
+        const selfInspection = {
+          title: rec.name,  // Frontend uses 'title' not 'name'
+          description: rec.description || '',
+          inspectionExpiration: frequency,  // Frontend uses 'inspectionExpiration' not 'frequency'
+          teamId: teamId,
+          createdAt: new Date(),
+          baseQuestions: baseQuestions,  // Frontend uses 'baseQuestions' not 'categories'
+          source: 'auto-build',
+          userId: 'system'  // Required for event logging
+        };
+
+        await db.collection(`team/${teamId}/self-inspection`).add(selfInspection);
+        inspectionsCreated++;
+        console.log(`[AutoBuild] Created inspection ${inspectionsCreated}: ${rec.name}`);
+        
+        // Update progress with streaming feedback
+        await teamRef.update({
+          'autoBuildProgress.inspections': {
+            currentAction: `Created: ${rec.name}`,
+            created: inspectionsCreated,
+            complete: false
+          }
+        });
+      }
+
+      // Mark inspections complete
+      await teamRef.update({
+        'autoBuildProgress.inspections': {
+          currentAction: 'Inspections complete',
+          created: inspectionsCreated,
+          complete: true
+        }
+      });
+
+      // ========== STEP 3: Generate and create trainings one at a time for streaming progress ==========
+      let trainingsCreated = 0;
+      const totalTrainings = trainingTopics.length;
+      
+      await teamRef.update({
+        'autoBuildProgress.trainings': {
+          currentAction: `Generating training 1 of ${totalTrainings}...`,
+          created: 0,
+          complete: false
+        }
+      });
+
+      for (let index = 0; index < trainingTopics.length; index++) {
+        const topic = trainingTopics[index];
+        
+        // Update progress to show which training is being generated
+        await teamRef.update({
+          'autoBuildProgress.trainings': {
+            currentAction: `Generating: ${topic.name}...`,
+            created: trainingsCreated,
+            complete: false
+          }
+        });
+        
+        // Generate training content for this topic
+        console.log(`[AutoBuild] Generating training ${index + 1}/${totalTrainings}: ${topic.name}`);
+        const articleContent = await generateTrainingContentForAutoBuild(topic.name, topic.description, industryName);
+        
+        const scheduledDueDate = new Date();
+        scheduledDueDate.setDate(scheduledDueDate.getDate() + 7 + (index * 60));
+
+        const libraryItem = {
+          name: articleContent.title || topic.name,
+          content: articleContent.content,
+          topic: topic.category || 'General Safety',
+          industry: industryName,
+          teamId: teamId,
+          addedBy: 'system',
+          teamMemberId: 'system',  // Required for event logging
+          createdAt: new Date(),
+          thumbnail: null,
+          isTemplateContent: false,
+          isAiGenerated: true,
+          trainingCadence: topic.cadence || 'Annually',
+          scheduledDueDate: scheduledDueDate,
+          assignedTags: topic.assignedTags || []
+        };
+
+        await db.collection('library').add(libraryItem);
+        trainingsCreated++;
+        const tagsInfo = libraryItem.assignedTags.length > 0 
+          ? `(tags: ${libraryItem.assignedTags.join(', ')})`
+          : '(all team)';
+        console.log(`[AutoBuild] Created training ${trainingsCreated}: ${articleContent.title || topic.name} ${tagsInfo}`);
+
+        // Update progress with the created training
+        await teamRef.update({
+          'autoBuildProgress.trainings': {
+            currentAction: `Created: ${articleContent.title || topic.name}`,
+            created: trainingsCreated,
+            complete: false
+          }
+        });
+      }
+
+      // Mark trainings complete (inspections already marked complete earlier)
+      await teamRef.update({
+        'autoBuildProgress.trainings': {
+          currentAction: 'Training library complete',
+          created: trainingsCreated,
+          complete: true
+        }
+      });
+
+      console.log(`[AutoBuild] Complete for team ${teamId}: ${inspectionsCreated} inspections, ${trainingsCreated} trainings`);
+
+      return {
+        success: true,
+        inspectionsCreated,
+        trainingsCreated
+      };
+
+    } catch (error: any) {
+      console.error('[AutoBuild] Error:', error);
+      
+      // Update progress with error
+      await teamRef.update({
+        'autoBuildProgress.error': error.message || 'Unknown error occurred'
+      }).catch(() => {});
+      
+      throw new HttpsError('internal', error.message);
+    }
+  }
+);
+
+// Helper function to generate inspection recommendations using AI (for auto-build)
+async function generateInspectionRecommendationsForAutoBuild(
+  industry: string,
+  jobTitles: string[],
+  teamSize: number
+): Promise<any[]> {
+  const jobTitlesText = jobTitles.length > 0
+    ? `Team job titles include: ${jobTitles.join(', ')}`
+    : 'No specific job titles provided';
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an OSHA compliance and workplace safety expert. Create a COMPREHENSIVE set of 8-10 self-inspection checklists that would ensure FULL regulatory compliance for the given industry.
+
+Your goal is to ensure this company would PASS an OSHA inspection. This is critical - missing inspections could result in fines, injuries, or deaths.
+
+MANDATORY INSPECTIONS FOR ALL INDUSTRIES:
+1. Fire Safety & Emergency Equipment (monthly)
+2. General Workplace Safety & Housekeeping (weekly/monthly)
+3. First Aid & Emergency Preparedness (quarterly)
+4. PPE Condition & Availability (monthly)
+5. Electrical Safety (quarterly)
+
+INDUSTRY-SPECIFIC INSPECTIONS:
+- Construction/Masonry/Stone: Silica dust controls, fall protection equipment, scaffold safety, power tool condition
+- Healthcare: Infection control, sharps disposal, medication storage, patient safety equipment
+- Manufacturing: Machine guarding, lockout/tagout verification, forklift daily checks
+- Food Service: Temperature logs, sanitation, pest control, food storage
+- Warehouse: Rack safety, forklift charging area, loading dock safety
+- Auto/Mechanic: Lift safety, hazmat storage, ventilation systems
+
+FREQUENCY OPTIONS (use ONLY these):
+- "Weekly" - For daily operational checks
+- "Monthly" - For regular safety checks
+- "Quarterly" - For quarterly reviews
+- "Semi-Annually" - For semi-annual reviews
+- "Annually" - For annual audits
+
+Return JSON:
+{
+  "recommendations": [
+    {
+      "name": "Inspection Name (e.g., 'Monthly Fire Safety Inspection')",
+      "description": "Brief description of what this covers and why it's required",
+      "frequency": "Monthly",
+      "regulation": "Relevant OSHA standard if applicable",
+      "customCategories": [
+        {
+          "subject": "Category Name",
+          "questions": ["Is the emergency exit clearly marked and unobstructed?", "Are fire extinguishers accessible and inspected?"]
+        }
+      ]
+    }
+  ]
+}
+
+Generate 8-10 inspections with 2-4 categories each, 4-8 yes/no questions per category. Be thorough and specific to the industry. It's better to have more comprehensive inspections than to miss critical safety checks.`
+          },
+          {
+            role: 'user',
+            content: `Industry: ${industry}\n${jobTitlesText}\nTeam size: ${teamSize}`
+          }
+        ],
+        temperature: 0.5
+      })
+    });
+
+    if (!response.ok) {
+      console.error('[AutoBuild] AI API error for inspections:', await response.text());
+      return getDefaultInspections(industry);
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.recommendations && parsed.recommendations.length > 0) {
+        // Allow up to 10 inspections for comprehensive coverage
+        return parsed.recommendations.slice(0, 10);
+      }
+    }
+
+    return getDefaultInspections(industry);
+  } catch (error) {
+    console.error('[AutoBuild] Error generating inspection recommendations:', error);
+    return getDefaultInspections(industry);
+  }
+}
+
+// Helper function to generate training topics for auto-build
+async function generateTrainingTopicsForAutoBuild(
+  industry: string,
+  jobTitles: string[],
+  teamTags: string[] = []
+): Promise<any[]> {
+  console.log(`[AutoBuild] generateTrainingTopicsForAutoBuild called with industry="${industry}", jobTitles=[${jobTitles.join(', ')}], teamTags=[${teamTags.join(', ')}]`);
+  
+  const jobTitlesText = jobTitles.length > 0
+    ? `Team job titles: ${jobTitles.join(', ')}`
+    : '';
+  
+  const tagsContext = teamTags.length > 0
+    ? `\n\nTEAM TAGS AVAILABLE FOR ASSIGNMENT: ${teamTags.join(', ')}
+
+IMPORTANT - You MUST assign tags to role-specific trainings:
+- For trainings that apply to EVERYONE (harassment prevention, emergency plans, fire safety): use assignedTags: []
+- For role-specific trainings: assign the relevant tags from the list above
+- ONLY use tags from this exact list: ${teamTags.join(', ')}
+- Match trainings to the job roles - e.g., if there's a "Warehouse" tag and you're creating forklift training, assign ["Warehouse"]`
+    : '\n\nNo team tags defined - all trainings will go to all team members.';
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a compliance and workplace safety expert covering OSHA, HIPAA, PCI-DSS, and other regulatory frameworks. Generate a COMPREHENSIVE set of 10-12 training topics that would be required for FULL regulatory compliance for the given industry.
+
+Your goal is to ensure this company would be FULLY PREPARED if regulators inspected them. This is critical - missing trainings could result in fines, injuries, data breaches, or worse.
+
+MANDATORY TOPICS FOR ALL INDUSTRIES (include relevant ones):
+1. Hazard Communication (HazCom/GHS) - OSHA 1910.1200
+2. Emergency Action Plans - OSHA 1910.38
+3. Fire Prevention - OSHA 1910.39
+4. Personal Protective Equipment (PPE) - OSHA 1910.132
+5. Bloodborne Pathogens (if any first aid duties) - OSHA 1910.1030
+6. Workplace Violence Prevention
+7. Harassment Prevention (required in many states)
+8. Cybersecurity Awareness (if any computer use)
+9. Data Privacy Basics (for businesses handling customer data)
+
+INDUSTRY-SPECIFIC REQUIREMENTS:
+- Construction/Masonry/Stone: Silica dust exposure (1910.1053), fall protection, scaffold safety, crane/rigging, excavation, electrical safety
+- Healthcare/Medical: HIPAA privacy & security, infection control, patient handling, medication safety, PHI protection
+- IT/Software/Tech: PCI-DSS (if payment data), SOC 2 awareness, secure coding practices, data breach response
+- Retail/E-commerce: PCI-DSS compliance, customer data protection, fraud prevention
+- Financial Services: SOX compliance, anti-money laundering (AML), data security, fraud detection
+- Manufacturing: Machine guarding, lockout/tagout, powered industrial trucks
+- Food Service: Food safety, allergens, proper hygiene, temperature control, FDA requirements
+- Auto/Mechanic: Hazardous materials, lift safety, electrical systems
+- Warehousing: Forklift certification, material handling, ergonomics
+- Any with customer data: Data privacy, breach notification procedures
+
+Return JSON:
+{
+  "topics": [
+    {
+      "name": "Training Topic Title",
+      "description": "What employees will learn and why it's required",
+      "category": "Category",
+      "cadence": "Annually|Quarterly|Upon Hire",
+      "regulation": "Relevant OSHA standard or regulation if applicable",
+      "assignedTags": ["tag1", "tag2"] or [] for all team members
+    }
+  ]
+}
+
+CRITICAL TAG ASSIGNMENT RULES:
+- General safety trainings (harassment, emergency plans, fire safety, emergency action) should have assignedTags: [] to go to everyone
+- Role-specific trainings MUST be assigned to relevant tags:
+  - Forklift/material handling → assign to warehouse/operations tags
+  - Driving/CDL → assign to driver tags
+  - Machine/equipment operation → assign to operations/technician tags
+  - Office/computer/data → assign to office tags
+- You MUST use the exact tags provided in the TEAM TAGS AVAILABLE list
+- Do NOT make up new tags - only use tags from the provided list
+- If no tags are provided, use assignedTags: [] for all trainings
+
+Generate 10-12 training topics that provide COMPLETE compliance coverage. Be thorough - it's better to have more coverage than to leave gaps that could result in violations.`
+          },
+          {
+            role: 'user',
+            content: `Industry: ${industry}\n${jobTitlesText}${tagsContext}`
+          }
+        ],
+        temperature: 0.5
+      })
+    });
+
+    if (!response.ok) {
+      console.error('[AutoBuild] AI API error for training topics:', await response.text());
+      return getDefaultTrainingTopics(industry);
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.topics && parsed.topics.length > 0) {
+        // Allow up to 12 trainings for comprehensive coverage
+        // Validate and clean assignedTags - use case-insensitive matching
+        const teamTagsLower = teamTags.map(t => t.toLowerCase());
+        console.log(`[AutoBuild] Available team tags: ${teamTags.join(', ')}`);
+        
+        return parsed.topics.slice(0, 12).map((topic: any) => {
+          let matchedTags: string[] = [];
+          if (Array.isArray(topic.assignedTags)) {
+            // For each AI-suggested tag, find the matching team tag (case-insensitive)
+            matchedTags = topic.assignedTags
+              .map((aiTag: string) => {
+                const lowerAiTag = aiTag.toLowerCase();
+                const matchIndex = teamTagsLower.indexOf(lowerAiTag);
+                if (matchIndex !== -1) {
+                  return teamTags[matchIndex]; // Return the original case from team tags
+                }
+                return null;
+              })
+              .filter(Boolean) as string[];
+          }
+          
+          if (topic.assignedTags?.length > 0 && matchedTags.length === 0) {
+            console.log(`[AutoBuild] Warning: AI suggested tags [${topic.assignedTags.join(', ')}] for "${topic.name}" but none matched team tags`);
+          } else if (matchedTags.length > 0) {
+            console.log(`[AutoBuild] Assigned tags [${matchedTags.join(', ')}] to "${topic.name}"`);
+          }
+          
+          return {
+            ...topic,
+            assignedTags: matchedTags
+          };
+        });
+      }
+    }
+
+    return getDefaultTrainingTopics(industry);
+  } catch (error) {
+    console.error('[AutoBuild] Error generating training topics:', error);
+    return getDefaultTrainingTopics(industry);
+  }
+}
+
+// Helper function to generate training content for auto-build
+async function generateTrainingContentForAutoBuild(
+  topic: string,
+  description: string,
+  industry: string
+): Promise<{ title: string; content: string }> {
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a safety and compliance training writer. Create engaging, OSHA-compliant training articles.
+
+Requirements:
+- Write at 8th-grade reading level
+- Include practical, actionable steps
+- Reference relevant regulations when applicable
+- Use clear HTML formatting
+
+Return JSON:
+{
+  "title": "Professional article title",
+  "content": "<h2>Introduction</h2><p>Why this matters...</p><h2>Key Concepts</h2>..."
+}
+
+HTML Structure:
+- <h2> for main sections
+- <h3> for subsections  
+- <ul>/<li> for bullet lists
+- <ol>/<li> for numbered procedures
+- <p> for paragraphs (keep short)
+- <strong> for emphasis
+- <blockquote> for regulation quotes
+
+Sections: Introduction, Key Concepts, Procedures/Steps, Summary/Takeaways`
+          },
+          {
+            role: 'user',
+            content: `Topic: ${topic}\nDescription: ${description || 'N/A'}\nIndustry: ${industry}`
+          }
+        ],
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      console.error('[AutoBuild] AI API error for training content:', await response.text());
+      return { title: topic, content: `<h2>${topic}</h2><p>Training content for ${topic} in the ${industry} industry.</p>` };
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        title: parsed.title || topic,
+        content: parsed.content || `<h2>${topic}</h2><p>Training content for this topic.</p>`
+      };
+    }
+
+    return { title: topic, content: `<h2>${topic}</h2><p>Training content for ${topic}.</p>` };
+  } catch (error) {
+    console.error('[AutoBuild] Error generating training content:', error);
+    return { title: topic, content: `<h2>${topic}</h2><p>Training content for ${topic}.</p>` };
+  }
+}
+
+// Fallback inspections if AI fails
+function getDefaultInspections(industry: string): any[] {
+  return [
+    {
+      name: 'Monthly Fire Safety Inspection',
+      description: 'Fire prevention equipment and emergency exit checks per OSHA 1910.39',
+      frequency: 'Monthly',
+      regulation: 'OSHA 1910.39',
+      customCategories: [
+        {
+          subject: 'Fire Extinguishers',
+          questions: [
+            'Are all fire extinguishers accessible and unobstructed?',
+            'Are fire extinguishers fully charged (gauge in green)?',
+            'Are fire extinguisher inspection tags current?',
+            'Are fire extinguishers mounted at proper height?',
+            'Do employees know location of nearest fire extinguisher?'
+          ]
+        },
+        {
+          subject: 'Emergency Exits',
+          questions: [
+            'Are all emergency exits clearly marked with illuminated signs?',
+            'Are all exit paths clear and unobstructed?',
+            'Do all emergency exit doors open easily?',
+            'Is emergency lighting functional?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Monthly Workplace Safety Walkthrough',
+      description: 'General safety and housekeeping inspection',
+      frequency: 'Monthly',
+      customCategories: [
+        {
+          subject: 'Walking/Working Surfaces',
+          questions: [
+            'Are floors clean and free of slip/trip hazards?',
+            'Are spills cleaned up immediately?',
+            'Are walkways and aisles clear and unobstructed?',
+            'Are floor mats in good condition and laying flat?',
+            'Is proper lighting maintained in all work areas?'
+          ]
+        },
+        {
+          subject: 'General Safety',
+          questions: [
+            'Are safety signs and labels visible and legible?',
+            'Is the first aid kit fully stocked and accessible?',
+            'Are emergency contact numbers posted?',
+            'Are SDS/MSDS sheets accessible for all chemicals?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Monthly PPE Inspection',
+      description: 'Personal protective equipment availability and condition check per OSHA 1910.132',
+      frequency: 'Monthly',
+      regulation: 'OSHA 1910.132',
+      customCategories: [
+        {
+          subject: 'PPE Availability',
+          questions: [
+            'Is appropriate PPE available for all required tasks?',
+            'Are safety glasses/goggles available and in good condition?',
+            'Are work gloves available in appropriate sizes?',
+            'Is hearing protection available where required?',
+            'Are hard hats available and in good condition (if required)?'
+          ]
+        },
+        {
+          subject: 'PPE Condition',
+          questions: [
+            'Is all PPE free from damage and defects?',
+            'Is PPE being properly stored when not in use?',
+            'Are employees using required PPE for their tasks?',
+            'Is PPE properly sized for each employee?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Monthly Electrical Safety Inspection',
+      description: 'Electrical hazard identification per OSHA 1910.303',
+      frequency: 'Monthly',
+      regulation: 'OSHA 1910.303',
+      customCategories: [
+        {
+          subject: 'Electrical Equipment',
+          questions: [
+            'Are all electrical panels accessible (36" clearance)?',
+            'Are electrical panel covers in place?',
+            'Are extension cords in good condition (no fraying/damage)?',
+            'Are GFCIs installed and functional where required?',
+            'Are electrical cords kept away from water sources?'
+          ]
+        },
+        {
+          subject: 'Outlets and Wiring',
+          questions: [
+            'Are outlet covers in place and undamaged?',
+            'Are outlets overloaded with multiple adapters?',
+            'Is any exposed wiring visible?',
+            'Are junction box covers in place?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Quarterly First Aid & Emergency Equipment',
+      description: 'Emergency preparedness equipment verification',
+      frequency: 'Quarterly',
+      customCategories: [
+        {
+          subject: 'First Aid',
+          questions: [
+            'Is the first aid kit fully stocked?',
+            'Are first aid supplies within expiration dates?',
+            'Is the AED (if present) charged and inspected?',
+            'Are eyewash stations functional and flushed weekly?',
+            'Is emergency shower functional (if present)?'
+          ]
+        },
+        {
+          subject: 'Emergency Preparedness',
+          questions: [
+            'Are evacuation maps posted and current?',
+            'Has emergency drill been conducted this quarter?',
+            'Are emergency phone numbers current and posted?',
+            'Is weather emergency plan in place and communicated?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Quarterly Hazard Communication Inspection',
+      description: 'Chemical safety and HazCom compliance per OSHA 1910.1200',
+      frequency: 'Quarterly',
+      regulation: 'OSHA 1910.1200',
+      customCategories: [
+        {
+          subject: 'Chemical Storage',
+          questions: [
+            'Are all chemical containers properly labeled?',
+            'Are incompatible chemicals stored separately?',
+            'Are flammable materials stored in approved cabinets?',
+            'Are secondary containment measures in place?',
+            'Is chemical storage area well-ventilated?'
+          ]
+        },
+        {
+          subject: 'SDS/Documentation',
+          questions: [
+            'Is the SDS binder accessible to all employees?',
+            'Are SDS sheets available for all chemicals on site?',
+            'Do employees know where to find SDS information?',
+            'Is the chemical inventory list current?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Quarterly Equipment & Tool Safety',
+      description: 'Equipment condition and safety feature verification',
+      frequency: 'Quarterly',
+      customCategories: [
+        {
+          subject: 'Power Tools & Equipment',
+          questions: [
+            'Are all power tools in good working condition?',
+            'Are safety guards in place and functional?',
+            'Are tool cords free from damage?',
+            'Are tools being used for intended purposes only?',
+            'Are damaged tools removed from service?'
+          ]
+        },
+        {
+          subject: 'Ladders & Fall Protection',
+          questions: [
+            'Are ladders in good condition without damage?',
+            'Are ladder safety labels legible?',
+            'Is fall protection equipment inspected and available?',
+            'Are employees trained on proper ladder use?'
+          ]
+        }
+      ]
+    },
+    {
+      name: 'Annual Comprehensive Safety Audit',
+      description: 'Full annual safety compliance review and program assessment',
+      frequency: 'Annually',
+      customCategories: [
+        {
+          subject: 'Training & Documentation',
+          questions: [
+            'Have all required annual trainings been completed?',
+            'Are training records properly documented?',
+            'Is the written safety program current and reviewed?',
+            'Are all safety certifications current?',
+            'Have new employee orientations included safety training?'
+          ]
+        },
+        {
+          subject: 'Program Review',
+          questions: [
+            'Have all incidents been properly investigated?',
+            'Have corrective actions been implemented?',
+            'Has the hazard assessment been reviewed?',
+            'Are all regulatory requirements being met?',
+            'Have safety goals been established for next year?'
+          ]
+        }
+      ]
+    }
+  ];
+}
+
+// Fallback training topics if AI fails
+function getDefaultTrainingTopics(industry: string): any[] {
+  return [
+    {
+      name: 'Hazard Communication (HazCom/GHS)',
+      description: 'Understanding chemical hazards, Safety Data Sheets, and proper labeling per OSHA 1910.1200',
+      category: 'OSHA Compliance',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.1200'
+    },
+    {
+      name: 'Emergency Action Plans',
+      description: 'Procedures for emergencies including evacuation routes, alarm systems, and emergency contacts',
+      category: 'Emergency Preparedness',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.38'
+    },
+    {
+      name: 'Fire Prevention and Safety',
+      description: 'Fire hazards, prevention methods, fire extinguisher use, and evacuation procedures',
+      category: 'Emergency Preparedness',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.39'
+    },
+    {
+      name: 'Personal Protective Equipment (PPE)',
+      description: 'Selection, use, and maintenance of appropriate PPE for workplace hazards',
+      category: 'Safety Equipment',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.132'
+    },
+    {
+      name: 'Bloodborne Pathogens',
+      description: 'Protection from bloodborne diseases for employees with potential exposure',
+      category: 'Health & Safety',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.1030'
+    },
+    {
+      name: 'Workplace Violence Prevention',
+      description: 'Recognizing warning signs, de-escalation techniques, and reporting procedures',
+      category: 'Workplace Safety',
+      cadence: 'Annually'
+    },
+    {
+      name: 'Harassment Prevention',
+      description: 'Understanding workplace harassment, discrimination, and creating a respectful environment',
+      category: 'HR Compliance',
+      cadence: 'Annually'
+    },
+    {
+      name: 'Ergonomics and Safe Lifting',
+      description: 'Proper lifting techniques, workstation setup, and preventing musculoskeletal injuries',
+      category: 'Workplace Safety',
+      cadence: 'Annually'
+    },
+    {
+      name: 'Slips, Trips, and Falls Prevention',
+      description: 'Identifying and eliminating slip, trip, and fall hazards in the workplace',
+      category: 'Workplace Safety',
+      cadence: 'Annually'
+    },
+    {
+      name: 'Electrical Safety Awareness',
+      description: 'Recognizing electrical hazards and safe work practices around electrical equipment',
+      category: 'Workplace Safety',
+      cadence: 'Annually',
+      regulation: 'OSHA 1910.331-335'
+    }
+  ];
+}
+
 // Preview industry article counts per industry (admin support page)
 export const previewIndustryTemplates = onCall(
   {},
@@ -282,6 +1130,126 @@ export const previewIndustryTemplates = onCall(
     } catch (error: any) {
       console.error('Error previewing templates:', error);
       throw new HttpsError('internal', error.message);
+    }
+  }
+);
+
+// AI-powered tag suggestions based on job title
+export const suggestTagsForJobTitle = onCall(
+  { 
+    secrets: [xaiApiKey],
+    timeoutSeconds: 30,
+    memory: "256MiB"
+  },
+  async (request) => {
+    const { jobTitle, existingTags, industry, teamMembers } = request.data as any;
+
+    if (!jobTitle || !jobTitle.trim()) {
+      return { tags: [] };
+    }
+
+    try {
+      // Build context about existing tags
+      const existingTagsList = existingTags && existingTags.length > 0 
+        ? `\n\nExisting tags in use by this team: ${existingTags.join(', ')}`
+        : '';
+      
+      const industryContext = industry 
+        ? `\nThe company is in the ${industry} industry.`
+        : '';
+      
+      // Build context about other team members and their roles
+      let teamContext = '';
+      if (teamMembers && teamMembers.length > 0) {
+        const memberList = teamMembers
+          .filter((m: any) => m.jobTitle && m.jobTitle.trim())
+          .map((m: any) => {
+            const tags = m.tags && m.tags.length > 0 ? ` → [${m.tags.join(', ')}]` : '';
+            return `- ${m.jobTitle}${tags}`;
+          })
+          .join('\n');
+        if (memberList) {
+          teamContext = `\n\nOther team members and their current tags:\n${memberList}`;
+        }
+      }
+
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: [
+            {
+              role: 'system',
+              content: `You are helping categorize employees for a safety and compliance system. Based on a job title, suggest 1-3 appropriate tags that would help group this employee with others who need similar safety trainings and compliance surveys.
+
+Common tag categories include:
+- Work environment: "Warehouse", "Office", "Field", "Remote", "Shop", "Manufacturing"
+- Role type: "Driver", "Manager", "Technician", "Sales", "Production"
+- Special certifications: "Forklift Operator", "CDL Driver", "First Responder", "Welder"
+- Status: "New Hire" (for roles with "trainee", "intern", "new", etc.)
+
+Rules:
+1. Return 1-3 tags maximum - only the most relevant ones
+2. Use title case for tags (e.g., "Warehouse" not "warehouse")
+3. STRONGLY prefer existing tags when they fit - consistency is critical
+4. Look at other team members' job titles and tags to understand the team structure
+5. If similar roles have a tag, this role should probably have it too (e.g., if "Forklift Operator" has "Warehouse", then "Welder" probably works in the warehouse too)
+6. Be specific but not overly granular
+7. Return a JSON object with a "tags" array${existingTagsList}${teamContext}${industryContext}
+
+Example responses:
+- "Warehouse Manager" → {"tags": ["Warehouse", "Manager"]}
+- "CDL Truck Driver" → {"tags": ["Driver", "CDL Driver"]}
+- "Office Administrator" → {"tags": ["Office"]}
+- "Forklift Operator" → {"tags": ["Warehouse", "Forklift Operator"]}
+- "Sales Representative" → {"tags": ["Sales", "Field"]}
+- "IT Support Technician" → {"tags": ["Office", "Technician"]}
+- "Welder" (when team has Warehouse tags) → {"tags": ["Warehouse", "Welder"]}`
+            },
+            {
+              role: 'user',
+              content: `Suggest tags for this job title: "${jobTitle.trim()}"`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 100
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Grok API error:', await response.text());
+        return { tags: [] };
+      }
+
+      const grokResponse: any = await response.json();
+      const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+      // Parse the AI response
+      try {
+        const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.tags && Array.isArray(parsed.tags)) {
+            // Clean and validate tags
+            const cleanTags = parsed.tags
+              .filter((t: any) => typeof t === 'string' && t.trim())
+              .map((t: string) => t.trim())
+              .slice(0, 3);
+            return { tags: cleanTags };
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing AI tag response:', aiMessage);
+      }
+
+      return { tags: [] };
+    } catch (error: any) {
+      console.error('Error suggesting tags:', error);
+      return { tags: [] };
     }
   }
 );
@@ -1285,6 +2253,10 @@ Analyze their training coverage and provide recommendations to ensure full compl
       }
 
       // Process and validate recommendations
+      // Build lowercase lookup for case-insensitive tag matching
+      const allTagsLower = (allTags || []).map((t: string) => t.toLowerCase());
+      console.log(`[Training Coverage] Available tags: [${allTags?.join(', ') || 'none'}]`);
+      
       const processedRecommendations = (analysisResult.recommendations || []).map((rec: any) => {
         // Validate cadence
         let mappedCadence = rec.cadence;
@@ -1293,17 +2265,38 @@ Analyze their training coverage and provide recommendations to ensure full compl
           mappedCadence = 'Annually';
         }
 
-        // Filter assignedTags to only include tags that exist
-        const validTags = (rec.assignedTags || []).filter((tag: string) => 
-          allTags?.includes(tag)
-        );
+        // Filter assignedTags to only include tags that exist (case-insensitive matching)
+        const aiSuggestedTags = rec.assignedTags || [];
+        const matchedTags = aiSuggestedTags
+          .map((aiTag: string) => {
+            const lowerAiTag = aiTag.toLowerCase();
+            const matchIndex = allTagsLower.indexOf(lowerAiTag);
+            if (matchIndex !== -1) {
+              return allTags[matchIndex]; // Return the original case from team tags
+            }
+            return null;
+          })
+          .filter(Boolean) as string[];
+        
+        // Log tag matching for debugging
+        if (aiSuggestedTags.length > 0) {
+          if (matchedTags.length === 0) {
+            console.log(`[Training Coverage] "${rec.name}": AI suggested tags [${aiSuggestedTags.join(', ')}] but NONE matched available tags`);
+          } else if (matchedTags.length < aiSuggestedTags.length) {
+            console.log(`[Training Coverage] "${rec.name}": Partial match - AI suggested [${aiSuggestedTags.join(', ')}], matched [${matchedTags.join(', ')}]`);
+          } else {
+            console.log(`[Training Coverage] "${rec.name}": Matched tags [${matchedTags.join(', ')}]`);
+          }
+        } else {
+          console.log(`[Training Coverage] "${rec.name}": AI assigned to whole team (no tags)`);
+        }
 
         return {
           name: rec.name,
           description: rec.description,
           cadence: mappedCadence,
           priority: rec.priority || 'medium',
-          assignedTags: validTags,
+          assignedTags: matchedTags,
           oshaStandards: rec.oshaStandards || [],
           reason: rec.reason
         };
@@ -2138,9 +3131,6 @@ export const createdCustomTrainingArticle = onDocumentCreated(
   }
 );
 
-// Import QuickBooks sync function
-import { runScheduledQuickBooksSync } from './quickbooks';
-
 export const scheduledFunctionCrontab = onSchedule(
   { 
     schedule: '0 14 * * *',  // 8:00 AM Central Time (UTC-6) = 14:00 UTC
@@ -2151,7 +3141,6 @@ export const scheduledFunctionCrontab = onSchedule(
     await Promise.all([
       findSurveys(), 
       checkSelfInspectionReminders(), 
-      runScheduledQuickBooksSync(),
       autoStartDueTrainings()
     ]);
   }
@@ -2184,6 +3173,14 @@ async function autoStartDueTrainings() {
       // Skip disabled teams
       if (team.disabled) {
         continue;
+      }
+      
+      // Skip teams with expired free trial (no subscription and past 14-day trial period)
+      if (!team.stripeSubscriptionId && team.createdAt) {
+        const trialEndDate = moment(team.createdAt.toDate ? team.createdAt.toDate() : team.createdAt).add(14, 'days');
+        if (today.isAfter(trialEndDate)) {
+          continue;
+        }
       }
       
       // Get library items for this team
@@ -2515,6 +3512,13 @@ export const teamMemberAdded = onDocumentCreated(
     
     if (!data) return null;
     
+    // Skip sending welcome message if welcomeSent is explicitly false
+    // This happens during onboarding or CSV import when admin is still curating the list
+    if (data.welcomeSent === false) {
+      console.log(`Skipping welcome message for ${data.name} - welcomeSent is false (pending)`);
+      return null;
+    }
+    
     const teamMember = { ...data, id: event.params.teamMemberId };
     const teamDoc = await admin.firestore().doc(`team/${teamMember.teamId}`).get();
     const team = teamDoc.data();
@@ -2532,6 +3536,12 @@ export const teamMemberAdded = onDocumentCreated(
       // Use plain text for SMS
       messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
     }
+    
+    // Mark as sent and send the message
+    await admin.firestore().doc(`team-members/${event.params.teamMemberId}`).update({
+      welcomeSent: true,
+      welcomeSentAt: new Date()
+    });
     
     return await sendMessage(teamMember, team, messageBody);
   }
@@ -2554,6 +3564,141 @@ export const resendTeamMemberInvite = onCall(
     } else {
       // Use plain text for SMS
       messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+    }
+    
+    return await sendMessage(teamMember, team, messageBody);
+  }
+);
+
+/**
+ * Send welcome messages to all team members who haven't received one yet.
+ * Called when completing onboarding Step 3 or manually from the team page.
+ */
+export const sendPendingWelcomeMessages = onCall(
+  { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
+  async (request) => {
+    const { teamId } = request.data as any;
+    
+    if (!teamId) {
+      throw new HttpsError('invalid-argument', 'Team ID is required');
+    }
+    
+    const db = admin.firestore();
+    
+    // Get team info
+    const teamDoc = await db.doc(`team/${teamId}`).get();
+    const team = teamDoc.data();
+    
+    if (!team) {
+      throw new HttpsError('not-found', 'Team not found');
+    }
+    
+    // Get all team members who haven't received welcome messages
+    const pendingMembersSnapshot = await db.collection('team-members')
+      .where('teamId', '==', teamId)
+      .where('welcomeSent', '==', false)
+      .get();
+    
+    if (pendingMembersSnapshot.empty) {
+      return { success: true, sent: 0, message: 'No pending welcome messages' };
+    }
+    
+    let sent = 0;
+    let errors: string[] = [];
+    
+    for (const memberDoc of pendingMembersSnapshot.docs) {
+      const memberData = memberDoc.data() as any;
+      const teamMember = { ...memberData, id: memberDoc.id };
+      
+      // Skip if no contact info
+      if (!teamMember.phone && !teamMember.email) {
+        errors.push(`${teamMember.name}: No contact info`);
+        continue;
+      }
+      
+      try {
+        let messageBody: string;
+        if (teamMember.preferEmail) {
+          const emailHtml = getEmail("add-team-member");
+          messageBody = emailHtml
+            .split("{{recipientName}}")
+            .join(teamMember.name)
+            .split("{{userId}}")
+            .join(teamMember.id);
+        } else {
+          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+        }
+        
+        await sendMessage(teamMember, team, messageBody);
+        
+        // Mark as sent
+        await memberDoc.ref.update({
+          welcomeSent: true,
+          welcomeSentAt: new Date()
+        });
+        
+        sent++;
+      } catch (err: any) {
+        errors.push(`${teamMember.name}: ${err.message}`);
+      }
+    }
+    
+    console.log(`Sent ${sent} welcome messages for team ${teamId}`);
+    
+    return { 
+      success: true, 
+      sent, 
+      total: pendingMembersSnapshot.size,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  }
+);
+
+export const resendSurveyNotification = onCall(
+  { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
+  async (request) => {
+    const { teamMember, survey, team } = request.data as any;
+    
+    const surveyTitle = survey?.title || 'a survey';
+    const teamName = team?.name || 'your company';
+    
+    let messageBody: string;
+    if (teamMember.preferEmail) {
+      // HTML email for survey reminder
+      messageBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #1a5a96; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
+            .button { display: inline-block; background: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 24px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2>Survey Reminder</h2>
+            </div>
+            <div class="content">
+              <p>Hi ${teamMember.name},</p>
+              <p>This is a reminder from <strong>${teamName}</strong> that you have an outstanding survey waiting for your response:</p>
+              <p><strong>${surveyTitle}</strong></p>
+              <p>Please take a moment to complete this survey at your earliest convenience.</p>
+              <p style="text-align: center; margin: 24px 0;">
+                <a href="https://compliancechimp.com/user?member-id=${teamMember.id}" class="button">Complete Survey</a>
+              </p>
+              <p>Thank you,<br>The Compliancechimp Team</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+    } else {
+      // Plain text for SMS
+      messageBody = `Hi ${teamMember.name}. Reminder from ${teamName}: You have an outstanding survey "${surveyTitle}" waiting for your response. Please complete it here: https://compliancechimp.com/user?member-id=${teamMember.id}`;
     }
     
     return await sendMessage(teamMember, team, messageBody);
@@ -2950,16 +4095,13 @@ export const sitemap = onRequest(
     
     // Static pages with their priorities and change frequencies
     const staticPages = [
-      { loc: '/', changefreq: 'weekly', priority: '1.0' },
       { loc: '/home', changefreq: 'weekly', priority: '1.0' },
-      { loc: '/pricing', changefreq: 'monthly', priority: '0.9' },
       { loc: '/plans', changefreq: 'monthly', priority: '0.9' },
       { loc: '/how-it-works', changefreq: 'monthly', priority: '0.8' },
       { loc: '/common-questions', changefreq: 'monthly', priority: '0.7' },
       { loc: '/contact', changefreq: 'monthly', priority: '0.6' },
       { loc: '/blog', changefreq: 'daily', priority: '0.8' },
-      { loc: '/sign-up', changefreq: 'monthly', priority: '0.8' },
-      { loc: '/sign-in', changefreq: 'monthly', priority: '0.5' },
+      { loc: '/get-started', changefreq: 'monthly', priority: '0.8' },
       { loc: '/terms-of-service', changefreq: 'yearly', priority: '0.3' },
       { loc: '/privacy-policy', changefreq: 'yearly', priority: '0.3' },
       { loc: '/customer-agreement', changefreq: 'yearly', priority: '0.3' },
@@ -3179,7 +4321,7 @@ OSHA compliance might feel overwhelming, but it doesn't have to be. Start with t
 3. **Guard your equipment** and train workers on safe operation
 4. **Document everything** in a system you can actually maintain
 
-Ready to simplify compliance for your monument shop? [Get started with your first month free](/get-started) and see how Compliancechimp can help you protect your workers and your business.
+Ready to simplify compliance for your monument shop? [Start your 14-day free trial](/get-started) and see how Compliancechimp can help you protect your workers and your business.
 
 ---
 
@@ -3204,6 +4346,132 @@ Ready to simplify compliance for your monument shop? [Get started with your firs
     await db.collection('blog').add(initialBlogPost);
     
     return { success: true, message: 'Initial blog post seeded successfully' };
+  }
+);
+
+/**
+ * HTTP function to manually trigger blog generation multiple times.
+ * Useful for bulk generation of blog content.
+ * Usage: curl "https://us-central1-teamlog-2d74c.cloudfunctions.net/generateBlogPosts?count=10&key=chimp2024"
+ */
+export const generateBlogPosts = onRequest(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 540,
+    memory: "1GiB"
+  },
+  async (req, res) => {
+    // Simple API key check to prevent abuse
+    const apiKey = req.query.key;
+    if (apiKey !== 'chimp2024') {
+      res.status(403).json({ error: 'Invalid API key' });
+      return;
+    }
+    
+    const count = parseInt(req.query.count as string) || 1;
+    const maxCount = Math.min(count, 20); // Cap at 20 to prevent abuse
+    
+    console.log(`Starting bulk blog generation for ${maxCount} posts...`);
+    
+    const results: Array<{ success: boolean; message: string }> = [];
+    
+    for (let i = 0; i < maxCount; i++) {
+      try {
+        console.log(`Generating blog post ${i + 1} of ${maxCount}...`);
+        await generateDailyBlogPost();
+        results.push({ success: true, message: `Post ${i + 1} generated successfully` });
+        
+        // Small delay between generations to avoid rate limiting
+        if (i < maxCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        console.error(`Error generating post ${i + 1}:`, error);
+        results.push({ success: false, message: `Post ${i + 1} failed: ${error.message}` });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    res.json({ 
+      success: successCount > 0,
+      message: `Generated ${successCount} of ${maxCount} blog posts`,
+      results 
+    });
+  }
+);
+
+// Contact form submission handler
+export const sendContactMessage = onCall(
+  {
+    secrets: [sendgridApiKey]
+  },
+  async (request) => {
+    const { name, email, phone, company, message } = request.data as {
+      name: string;
+      email: string;
+      phone?: string;
+      company?: string;
+      message: string;
+    };
+
+    // Validate required fields
+    if (!name || !email || !message) {
+      throw new HttpsError('invalid-argument', 'Name, email, and message are required');
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new HttpsError('invalid-argument', 'Invalid email address');
+    }
+
+    const client = createSendgridClient();
+    const timestamp = new Date().toLocaleString('en-US', { 
+      timeZone: 'America/Denver',
+      dateStyle: 'full',
+      timeStyle: 'long'
+    });
+
+    const mailOptions = {
+      from: '"Compliancechimp Contact Form" <support@compliancechimp.com>',
+      to: 'support@compliancechimp.com',
+      replyTo: email,
+      subject: `Contact Form: ${name}${company ? ` from ${company}` : ''}`,
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <p><strong>Date:</strong> ${timestamp}</p>
+        <hr>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        ${phone ? `<p><strong>Phone:</strong> <a href="tel:${phone}">${phone}</a></p>` : ''}
+        ${company ? `<p><strong>Company:</strong> ${company}</p>` : ''}
+        <hr>
+        <h3>Message:</h3>
+        <p style="white-space: pre-wrap;">${message}</p>
+      `
+    };
+
+    try {
+      await client.sendMail(mailOptions);
+      console.log(`Contact form submission from ${email} sent successfully`);
+      
+      // Store the contact submission in Firestore for record-keeping
+      const db = admin.firestore();
+      await db.collection('contactSubmissions').add({
+        name,
+        email,
+        phone: phone || null,
+        company: company || null,
+        message,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'new'
+      });
+      
+      return { success: true, message: 'Contact message sent successfully' };
+    } catch (error: any) {
+      console.error('Error sending contact form email:', error);
+      throw new HttpsError('internal', 'Failed to send contact message');
+    }
   }
 );
 
@@ -3235,3 +4503,177 @@ enum EventAction {
   respond = "responded to",
   completed = "completed"
 }
+
+// Delete a team completely including all related data and authentication users
+export const deleteTeamCompletely = onCall(
+  {
+    timeoutSeconds: 300,
+    memory: "512MiB"
+  },
+  async (request) => {
+    const { teamId } = request.data as any;
+
+    if (!teamId) {
+      throw new HttpsError('invalid-argument', 'Team ID is required');
+    }
+
+    const db = admin.firestore();
+    const batch = db.batch();
+    const deletionResults = {
+      teamMembers: 0,
+      users: 0,
+      logs: 0,
+      files: 0,
+      surveys: 0,
+      selfInspections: 0,
+      topics: 0,
+      articles: 0,
+      events: 0,
+      library: 0,
+      authUsers: 0,
+      trainingContent: 0
+    };
+
+    try {
+      // Get the team document first
+      const teamDoc = await db.doc(`team/${teamId}`).get();
+      if (!teamDoc.exists) {
+        throw new HttpsError('not-found', 'Team not found');
+      }
+      const teamData = teamDoc.data();
+
+      // Helper function to delete all documents in a collection
+      async function deleteCollection(collectionRef: FirebaseFirestore.CollectionReference, batchLimit = 100): Promise<number> {
+        let deleted = 0;
+        let snapshot = await collectionRef.limit(batchLimit).get();
+        
+        while (!snapshot.empty) {
+          const localBatch = db.batch();
+          snapshot.docs.forEach(doc => {
+            localBatch.delete(doc.ref);
+            deleted++;
+          });
+          await localBatch.commit();
+          snapshot = await collectionRef.limit(batchLimit).get();
+        }
+        
+        return deleted;
+      }
+
+      // Helper function to delete a subcollection with nested subcollections
+      async function deleteSubcollectionWithNested(
+        parentPath: string, 
+        subcollectionName: string, 
+        nestedSubcollections: string[] = []
+      ): Promise<number> {
+        let deleted = 0;
+        const subcollectionRef = db.collection(`${parentPath}/${subcollectionName}`);
+        const snapshot = await subcollectionRef.get();
+        
+        for (const doc of snapshot.docs) {
+          // Delete nested subcollections first
+          for (const nestedName of nestedSubcollections) {
+            const nestedRef = db.collection(`${doc.ref.path}/${nestedName}`);
+            await deleteCollection(nestedRef);
+          }
+          await doc.ref.delete();
+          deleted++;
+        }
+        
+        return deleted;
+      }
+
+      // 1. Delete team members (from team-members collection where teamId matches)
+      const teamMembersSnapshot = await db.collection('team-members').where('teamId', '==', teamId).get();
+      for (const doc of teamMembersSnapshot.docs) {
+        await doc.ref.delete();
+        deletionResults.teamMembers++;
+      }
+
+      // 2. Delete users (managers) and their authentication accounts
+      const usersSnapshot = await db.collection('user').where('teamId', '==', teamId).get();
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        
+        // Try to delete from Firebase Authentication
+        if (userData.email) {
+          try {
+            const userRecord = await admin.auth().getUserByEmail(userData.email);
+            await admin.auth().deleteUser(userRecord.uid);
+            deletionResults.authUsers++;
+            console.log(`Deleted auth user: ${userData.email}`);
+          } catch (authError: any) {
+            // User might not exist in auth, log but continue
+            console.log(`Could not delete auth user ${userData.email}: ${authError.message}`);
+          }
+        }
+        
+        await userDoc.ref.delete();
+        deletionResults.users++;
+      }
+
+      // 3. Delete team owner's auth account if different from users
+      if (teamData?.ownerId) {
+        try {
+          await admin.auth().deleteUser(teamData.ownerId);
+          deletionResults.authUsers++;
+          console.log(`Deleted team owner auth: ${teamData.ownerId}`);
+        } catch (authError: any) {
+          console.log(`Could not delete team owner ${teamData.ownerId}: ${authError.message}`);
+        }
+      }
+
+      // 4. Delete library items for this team
+      const librarySnapshot = await db.collection('library').where('teamId', '==', teamId).get();
+      for (const doc of librarySnapshot.docs) {
+        await doc.ref.delete();
+        deletionResults.library++;
+      }
+
+      // 5. Delete team subcollections
+      const teamPath = `team/${teamId}`;
+
+      // Delete logs
+      deletionResults.logs = await deleteCollection(db.collection(`${teamPath}/log`));
+
+      // Delete files
+      deletionResults.files = await deleteCollection(db.collection(`${teamPath}/file`));
+
+      // Delete surveys
+      deletionResults.surveys = await deleteCollection(db.collection(`${teamPath}/survey`));
+
+      // Delete self-inspections (with nested inspections subcollection)
+      deletionResults.selfInspections = await deleteSubcollectionWithNested(
+        teamPath, 
+        'self-inspection', 
+        ['inspections']
+      );
+
+      // Delete topics
+      deletionResults.topics = await deleteCollection(db.collection(`${teamPath}/topic`));
+
+      // Delete articles
+      deletionResults.articles = await deleteCollection(db.collection(`${teamPath}/article`));
+
+      // Delete my-training-content
+      deletionResults.trainingContent = await deleteCollection(db.collection(`${teamPath}/my-training-content`));
+
+      // Delete events
+      deletionResults.events = await deleteCollection(db.collection(`${teamPath}/event`));
+
+      // 6. Finally, delete the team document itself
+      await db.doc(teamPath).delete();
+
+      console.log(`Team ${teamId} deleted completely:`, deletionResults);
+
+      return {
+        success: true,
+        message: 'Team deleted successfully',
+        deletionResults
+      };
+    } catch (error: any) {
+      console.error('Error deleting team:', error);
+      throw new HttpsError('internal', `Failed to delete team: ${error.message}`);
+    }
+  }
+);

@@ -96,8 +96,7 @@ export class AccountService {
         this.analytics.setUserProperties({
           team_name: team.name,
           industry: team.industry || 'unknown',
-          has_subscription: !!team.stripeSubscriptionId,
-          has_quickbooks: !!team.quickbooks?.realmId
+          has_subscription: !!team.stripeSubscriptionId
         });
         
         // Check trial expiration status
@@ -353,18 +352,6 @@ export class TeamMember {
   teamId: string;
   tags?: string[];
   preferEmail?: boolean;
-  quickbooksEmployeeId?: string; // Links to QuickBooks Employee ID
-  source?: string; // 'quickbooks' if synced from QB
-}
-
-export interface QuickBooksConnection {
-  realmId: string;           // QuickBooks company ID
-  accessToken: string;       // OAuth access token
-  refreshToken: string;      // OAuth refresh token
-  tokenExpiresAt: any;       // Token expiration time
-  connectedAt: any;          // When first connected
-  lastSyncAt?: any;          // Last successful sync
-  lastSyncCount?: number;    // Number of employees synced in last sync
 }
 
 export class Team {
@@ -390,7 +377,6 @@ export class Team {
   city?: string;
   state?: string;
   zip?: string;
-  quickbooks?: QuickBooksConnection; // QuickBooks integration data
   // Coverage analysis cache for inspections (populated by Cloud Function)
   coverageAnalysis?: any;
   coverageAnalysisStale?: boolean;

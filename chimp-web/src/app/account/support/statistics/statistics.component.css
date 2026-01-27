@@ -110,3 +110,17 @@ table {
   padding: 24px;
   color: var(--mat-sys-on-surface-variant);
 }
+
+/* Delete column styling */
+[mat-icon-button][color="warn"] {
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+[mat-icon-button][color="warn"]:hover:not(:disabled) {
+  opacity: 1;
+}
+
+[mat-icon-button]:disabled {
+  opacity: 0.4;
+}

@@ -1,6 +1,6 @@
-import { Component } from "@angular/core";
+import { Component, OnInit, Inject, PLATFORM_ID } from "@angular/core";
 import { Router, NavigationEnd, RouterModule } from "@angular/router";
-import { CommonModule } from "@angular/common";
+import { CommonModule, isPlatformBrowser, DOCUMENT } from "@angular/common";
 import { AppService } from "./app.service";
 import { Auth } from "@angular/fire/auth";
 import { onAuthStateChanged } from "firebase/auth";
@@ -28,7 +28,7 @@ import { AnalyticsService, FunnelStep } from "./shared/analytics.service";
     FooterComponent
   ]
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   open: boolean = false;
   body: HTMLElement;
   
@@ -42,7 +42,9 @@ export class AppComponent {
     public router: Router,
     public appService: AppService,
     public auth: Auth,
-    private analytics: AnalyticsService
+    private analytics: AnalyticsService,
+    @Inject(PLATFORM_ID) private platformId: Object,
+    @Inject(DOCUMENT) private document: Document
   ) {
     // Page view tracking is handled by AnalyticsService
     // Just handle scroll reset here
@@ -69,6 +71,69 @@ export class AppComponent {
       //they have been here before
       this.appService.isUser = true;
     }
+  }
+
+  ngOnInit(): void {
+    this.addGlobalStructuredData();
+  }
+
+  private addGlobalStructuredData(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    // Add Organization schema
+    const orgSchema = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Compliance Chimp",
+      "url": "https://compliancechimp.com",
+      "logo": "https://compliancechimp.com/assets/ccLogo.png",
+      "description": "OSHA safety compliance and training software for small businesses. Simplify workplace safety with automated training, self-inspections, and injury reporting.",
+      "sameAs": [
+        "https://twitter.com/compliancechimp"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "support@compliancechimp.com",
+        "contactType": "customer support"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "US"
+      }
+    };
+
+    const orgScript = this.document.createElement('script');
+    orgScript.type = 'application/ld+json';
+    orgScript.setAttribute('data-org-schema', 'true');
+    orgScript.textContent = JSON.stringify(orgSchema);
+    this.document.head.appendChild(orgScript);
+
+    // Add WebSite schema with SearchAction for sitelinks search box
+    const websiteSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Compliance Chimp",
+      "url": "https://compliancechimp.com",
+      "description": "OSHA compliance and safety training platform for small businesses",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Compliance Chimp"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://compliancechimp.com/blog?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    };
+
+    const websiteScript = this.document.createElement('script');
+    websiteScript.type = 'application/ld+json';
+    websiteScript.setAttribute('data-website-schema', 'true');
+    websiteScript.textContent = JSON.stringify(websiteSchema);
+    this.document.head.appendChild(websiteScript);
   }
 
   navRoute(link?) {

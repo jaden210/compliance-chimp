@@ -39,11 +39,14 @@
         </button>
       </mat-card-actions>
       <mat-card-footer>
-      @if (showResetPassword && email.value && email.valid) {
+        @if (showResetPassword && email.value && email.valid) {
+          <p>
+            Forgot your password? <a (click)="resetPassword(email.value)">Reset it here</a>
+          </p>
+        }
         <p>
-          Forgot your password? <a (click)="resetPassword(email.value)">Reset it here</a>
+          Don't have an account? <a routerLink="/get-started">Get Started</a>
         </p>
-      }
       </mat-card-footer>
     </mat-card>
   </div>

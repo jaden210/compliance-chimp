@@ -3,56 +3,81 @@
     <div class="step-header">
       <div class="step-indicator">Step 3 of 4</div>
       <h1>Build your team</h1>
-      <p class="step-subtitle">Add your team members to get personalized compliance recommendations.</p>
+      <p class="step-subtitle">Your team is the foundation of your entire compliance program.</p>
     </div>
 
     <!-- Info Banner -->
-    <div class="info-banner">
-      <mat-icon>info</mat-icon>
+    <div class="info-banner important">
+      <mat-icon>auto_awesome</mat-icon>
       <div class="info-text">
-        <strong>Enter your full team for accurate recommendations</strong>
-        <p>The more complete your team, the better we can tailor your compliance program.</p>
+        <strong>This is the most important step</strong>
+        <p>Based on your team's job titles, we'll automatically generate:</p>
+        <ul class="info-list">
+          <li><mat-icon>school</mat-icon> Role-specific safety trainings</li>
+          <li><mat-icon>checklist</mat-icon> Customized self-inspections</li>
+          <li><mat-icon>assignment</mat-icon> Targeted compliance surveys</li>
+        </ul>
+        <div class="info-emphasis">
+          <p>The Chimp will automatically assign tags based on job titles, grouping similar roles together for consistent training assignments.</p>
+          <button mat-stroked-button class="learn-more-btn" (click)="openTagsHelpDialog()">
+            <mat-icon>help_outline</mat-icon>
+            Learn more about tags
+          </button>
+        </div>
+        <p class="info-hint">The more accurate your job titles, the more relevant your content will be.</p>
       </div>
     </div>
 
-    <!-- QuickBooks Section -->
-    <div class="quickbooks-section">
-      <div class="qb-card" *ngIf="!isQuickBooksConnected">
-        <div class="qb-icon">
-          <img src="/assets/quickbooks-logo.png" alt="QuickBooks" onerror="this.style.display='none'" />
-          <mat-icon *ngIf="!isQuickBooksConnected">business</mat-icon>
+    <!-- CSV Import Section -->
+    <div class="csv-import-section">
+      <div class="csv-card">
+        <div class="csv-icon">
+          <mat-icon>upload_file</mat-icon>
         </div>
-        <div class="qb-content">
-          <h3>Import from QuickBooks</h3>
-          <p>Automatically sync your employee list from QuickBooks Online.</p>
+        <div class="csv-content">
+          <h3>Import from CSV</h3>
+          <p>Have a team list? Download our template and upload to add everyone at once.</p>
         </div>
-        <button 
-          mat-stroked-button 
-          color="primary"
-          (click)="connectQuickBooks()"
-          [disabled]="qbConnecting"
-        >
-          <mat-spinner *ngIf="qbConnecting" diameter="20"></mat-spinner>
-          <span *ngIf="!qbConnecting">Connect QuickBooks</span>
-        </button>
+        <div class="csv-actions">
+          <button 
+            mat-stroked-button 
+            color="primary"
+            (click)="downloadCsvTemplate()"
+          >
+            <mat-icon>download</mat-icon>
+            Template
+          </button>
+          <button 
+            mat-stroked-button 
+            color="primary"
+            (click)="triggerCsvUpload()"
+            [disabled]="csvUploading"
+          >
+            <mat-spinner *ngIf="csvUploading" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!csvUploading">upload</mat-icon>
+            <span *ngIf="!csvUploading">Upload</span>
+          </button>
+        </div>
       </div>
 
-      <div class="qb-card connected" *ngIf="isQuickBooksConnected">
-        <mat-icon class="connected-icon">check_circle</mat-icon>
-        <span class="connected-text">QuickBooks Connected</span>
-        <button 
-          mat-stroked-button 
-          (click)="syncQuickBooks()"
-          [disabled]="qbSyncing"
-        >
-          <mat-spinner *ngIf="qbSyncing" diameter="20"></mat-spinner>
-          <span *ngIf="!qbSyncing">Sync Now</span>
-        </button>
-      </div>
+      <!-- Hidden file input -->
+      <input 
+        type="file" 
+        #csvFileInput 
+        accept=".csv" 
+        style="display: none;" 
+        (change)="onCsvFileSelected($event)">
 
-      <div class="qb-error" *ngIf="qbError">
+      <!-- CSV Error/Success Messages -->
+      <div class="csv-message error" *ngIf="csvError">
         <mat-icon>error</mat-icon>
-        {{ qbError }}
+        <span>{{ csvError }}</span>
+        <button mat-icon-button (click)="clearCsvResult()"><mat-icon>close</mat-icon></button>
+      </div>
+      <div class="csv-message success" *ngIf="csvImportResult?.success">
+        <mat-icon>check_circle</mat-icon>
+        <span>Successfully imported {{ csvImportResult.added }} team member{{ csvImportResult.added === 1 ? '' : 's' }}!</span>
+        <button mat-icon-button (click)="clearCsvResult()"><mat-icon>close</mat-icon></button>
       </div>
     </div>
 
@@ -71,29 +96,71 @@
       </div>
 
       <!-- Existing Members -->
-      <div class="table-row" *ngFor="let member of teamMembers">
+      <div class="table-row" *ngFor="let member of teamMembers; trackBy: trackByMemberId" 
+           [class.has-issues]="!member.jobTitle?.trim() || (!member.phone?.trim() && !member.email?.trim())">
         <div class="col-name">
-          <span class="member-name-display">{{ member.name }}</span>
+          <input 
+            class="inline-input"
+            [ngModel]="member.name"
+            (ngModelChange)="updateMemberField(member, 'name', $event)"
+            (blur)="onMemberFieldBlur(member, 'name')"
+            placeholder="Name (required)"
+          />
         </div>
         <div class="col-job">
-          <span class="member-job-display">{{ member.jobTitle || '—' }}</span>
+          <input 
+            class="inline-input"
+            [ngModel]="member.jobTitle"
+            (ngModelChange)="updateMemberField(member, 'jobTitle', $event)"
+            (blur)="onMemberFieldBlur(member, 'jobTitle')"
+            placeholder="Job title (required)"
+          />
         </div>
         <div class="col-contact">
-          <span class="member-contact-display">{{ member.preferEmail ? member.email : member.phone }}</span>
-        </div>
-        <div class="col-tags">
-          <div class="member-tags-display" *ngIf="member.tags && member.tags.length > 0">
-            <span 
-              class="tag-chip" 
-              *ngFor="let tag of member.tags"
-              [style.backgroundColor]="getTagColor(tag).bg"
-              [style.color]="getTagColor(tag).text"
-              [style.borderColor]="getTagColor(tag).border">
-              <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
-              <span class="tag-name">{{ tag }}</span>
-            </span>
+          <div class="contact-fields">
+            <input 
+              class="inline-input"
+              [ngModel]="member.phone"
+              (ngModelChange)="updateMemberField(member, 'phone', $event)"
+              (blur)="onMemberFieldBlur(member, 'phone')"
+              placeholder="Phone"
+              type="tel"
+            />
+            <div class="contact-toggle">
+              <mat-slide-toggle 
+                [ngModel]="!member.preferEmail"
+                (ngModelChange)="toggleMemberPreference(member, !$event)"
+                [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'"
+              >
+                <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
+              </mat-slide-toggle>
+            </div>
+            <input 
+              *ngIf="member.preferEmail"
+              class="inline-input email-input"
+              [ngModel]="member.email"
+              (ngModelChange)="updateMemberField(member, 'email', $event)"
+              (blur)="onMemberFieldBlur(member, 'email')"
+              placeholder="Email"
+              type="email"
+            />
           </div>
-          <span class="no-tags" *ngIf="!member.tags || member.tags.length === 0">—</span>
+        </div>
+        <div class="col-tags" [class.tagging]="isMemberBeingTagged(member.id)">
+          <!-- Show spinner when this member is being tagged -->
+          <div class="tagging-indicator" *ngIf="isMemberBeingTagged(member.id)">
+            <mat-spinner diameter="16"></mat-spinner>
+            <span>Generating...</span>
+          </div>
+          <!-- Show tag input -->
+          <app-tag-input
+            *ngIf="!isMemberBeingTagged(member.id)"
+            [tags]="member.tags || []"
+            [allTags]="allTags"
+            (tagsChange)="saveMemberTags(member, $event)"
+            [compact]="true"
+            placeholder="Tags...">
+          </app-tag-input>
         </div>
         <div class="col-actions">
           <button 
@@ -115,8 +182,6 @@
             class="inline-input"
             [(ngModel)]="newMember.name"
             (keydown.enter)="addMember()"
-            (focus)="onInputFocus()"
-            (blur)="onInputBlur()"
             [placeholder]="teamMembers.length === 0 ? 'Enter name' : '+ Add another'"
           />
         </div>
@@ -125,10 +190,10 @@
             class="inline-input"
             [(ngModel)]="newMember.jobTitle"
             (keydown.enter)="addMember()"
-            (focus)="onInputFocus()"
-            (blur)="onInputBlur()"
+            (blur)="suggestTagsForNewMember()"
             placeholder="Job title"
           />
+          <mat-spinner *ngIf="isTagging" diameter="16" class="tagging-spinner"></mat-spinner>
         </div>
         <div class="col-contact">
           <div class="contact-fields">
@@ -137,8 +202,7 @@
               [class.input-error]="phoneError"
               [(ngModel)]="newMember.phone"
               (keydown.enter)="addMember()"
-              (focus)="onInputFocus()"
-              (blur)="validatePhone(); onInputBlur()"
+              (blur)="validatePhone()"
               (input)="phoneError = false"
               placeholder="Phone"
               type="tel"
@@ -159,15 +223,14 @@
               [class.input-error]="emailError"
               [(ngModel)]="newMember.email"
               (keydown.enter)="addMember()"
-              (focus)="onInputFocus()"
-              (blur)="validateEmail(); onInputBlur()"
+              (blur)="validateEmail()"
               (input)="emailError = false"
               placeholder="Email"
               type="email"
             />
           </div>
         </div>
-        <div class="col-tags" (focusin)="onInputFocus()" (focusout)="onInputBlur()">
+        <div class="col-tags">
           <app-tag-input
             [tags]="newMember.tags"
             [allTags]="allTags"
@@ -179,17 +242,42 @@
         </div>
         <div class="col-actions">
           <button 
-            mat-flat-button 
+            mat-icon-button 
             color="accent" 
             (click)="addMember()"
             [disabled]="!canAddMember()"
             class="add-btn"
+            matTooltip="Add member"
             tabindex="-1"
           >
             <mat-icon>add</mat-icon>
-            Add
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Warning for missing required info -->
+    <div class="validation-warning" *ngIf="teamMembers.length > 0 && membersWithIssues.length > 0">
+      <mat-icon>warning</mat-icon>
+      <div class="warning-text">
+        <strong>{{ membersWithIssues.length }} team member{{ membersWithIssues.length === 1 ? ' needs' : 's need' }} attention</strong>
+        <ul class="warning-list">
+          <li *ngIf="membersMissingJobTitle.length > 0">
+            {{ membersMissingJobTitle.length }} missing job title{{ membersMissingJobTitle.length === 1 ? '' : 's' }} — required to assign the right trainings
+          </li>
+          <li *ngIf="membersMissingContact.length > 0">
+            {{ membersMissingContact.length }} missing contact info — required to send surveys
+          </li>
+        </ul>
+        <p class="warning-hint">Click on a row to edit and add the missing information.</p>
+      </div>
+    </div>
+
+    <!-- Processing Overlay -->
+    <div class="processing-overlay" *ngIf="isProcessing">
+      <div class="processing-content">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>{{ processingMessage }}</p>
       </div>
     </div>
 
@@ -198,6 +286,7 @@
         mat-stroked-button
         class="back-btn"
         (click)="goBack()"
+        [disabled]="isProcessing"
       >
         <mat-icon>arrow_back</mat-icon>
         Back
@@ -206,11 +295,13 @@
         mat-flat-button
         color="accent"
         class="next-btn"
-        [disabled]="!canProceed()"
+        [disabled]="!canProceed() || isProcessing"
         (click)="next()"
+        [matTooltip]="hasUnsavedNewMember() ? 'Click the + button to add the new member first' : (!canProceed() && teamMembers.length > 0 ? 'All team members need a job title and contact info' : '')"
       >
-        Next
-        <mat-icon>arrow_forward</mat-icon>
+        <mat-spinner *ngIf="isProcessing" diameter="20"></mat-spinner>
+        <span *ngIf="!isProcessing">Next</span>
+        <mat-icon *ngIf="!isProcessing">arrow_forward</mat-icon>
       </button>
     </div>
   </div>

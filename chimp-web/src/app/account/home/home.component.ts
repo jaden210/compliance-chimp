@@ -60,16 +60,13 @@ export class HomeComponent implements OnDestroy {
   surveysGivenCount: number = 0;
   showTable: boolean = false;
 
-  // Onboarding states
+  // Content states
   hasTeamMembers: boolean = false;
   hasTrainingContent: boolean = false;
   hasSelfInspections: boolean = false;
   selfInspectionCount: number = 0;
   trainingContentCount: number = 0;
-  onboardingLoaded: boolean = false;
-  
-  // Dismissed onboarding cards (persisted in localStorage)
-  dismissedCards: Set<string> = new Set();
+  dataLoaded: boolean = false;
 
   constructor(
     public accountService: AccountService,
@@ -79,7 +76,6 @@ export class HomeComponent implements OnDestroy {
     private router: Router
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
-    this.loadDismissedCards();
     this.subscription = this.accountService.teamMembersObservable.subscribe(
       TeamMember => {
         if (TeamMember) {
@@ -133,7 +129,7 @@ export class HomeComponent implements OnDestroy {
         this.users.push({ ...tm, srt, nt, status });
       });
       this.showTable = true;
-      this.onboardingLoaded = true;
+      this.dataLoaded = true;
     });
   }
 
@@ -246,45 +242,6 @@ export class HomeComponent implements OnDestroy {
     this.homeService.getSurveyResponses().subscribe(responses => {
       this.surveyResponsesCount = responses?.length || 0;
     });
-  }
-
-  // Onboarding helper methods
-  get showOnboarding(): boolean {
-    return this.onboardingLoaded && (
-      this.showTeamOnboarding ||
-      this.showTrainingOnboarding ||
-      this.showInspectionsOnboarding
-    );
-  }
-
-  get showTeamOnboarding(): boolean {
-    return !this.hasTeamMembers && !this.dismissedCards.has('team');
-  }
-
-  get showTrainingOnboarding(): boolean {
-    return !this.hasTrainingContent && !this.dismissedCards.has('training');
-  }
-
-  get showInspectionsOnboarding(): boolean {
-    return !this.hasSelfInspections && !this.dismissedCards.has('inspections');
-  }
-
-  private loadDismissedCards(): void {
-    try {
-      const stored = localStorage.getItem('cc-onboarding-dismissed');
-      if (stored) {
-        this.dismissedCards = new Set(JSON.parse(stored));
-      }
-    } catch {
-      this.dismissedCards = new Set();
-    }
-  }
-
-  dismissOnboardingCard(cardId: string): void {
-    this.dismissedCards.add(cardId);
-    try {
-      localStorage.setItem('cc-onboarding-dismissed', JSON.stringify([...this.dismissedCards]));
-    } catch {}
   }
 
   ngOnDestroy() {

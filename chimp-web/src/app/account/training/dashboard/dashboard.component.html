@@ -3,9 +3,31 @@
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Training</div>
   <div class="flex"></div>
+  <button 
+    mat-icon-button 
+    (click)="welcomeService.toggle('training')"
+    [matTooltip]="welcomeService.isVisible('training') ? 'Hide guide' : 'Show guide'"
+    class="toolbar-help-btn"
+    [class.active]="welcomeService.isVisible('training')">
+    <mat-icon>{{ welcomeService.isVisible('training') ? 'help' : 'help_outline' }}</mat-icon>
+  </button>
 </mat-toolbar>
 
 <div class="window training-page">
+      <!-- Welcome Banner - shown when there's library content -->
+      @if (library$ | async; as welcomeLibrary) {
+        @if (welcomeLibrary.length > 0 && welcomeService.isVisible('training')) {
+          <app-welcome-banner
+            icon="school"
+            title="Welcome to Training"
+            subtitle="Here's how to manage your training program"
+            [features]="trainingWelcomeFeatures"
+            (closed)="welcomeService.hide('training')"
+            (featureClicked)="onWelcomeFeatureClick($event)">
+          </app-welcome-banner>
+        }
+      }
+
       <!-- Team Members Required Notice -->
       @if (accountService.teamMembersLoaded && !hasTeamMembers()) {
         <section class="setup-notice">
@@ -118,11 +140,7 @@
                   <div class="secondary-actions">
                     <button mat-stroked-button (click)="goToSmartBuilder()">
                       <mat-icon>construction</mat-icon>
-                      Smart Builder
-                    </button>
-                    <button mat-stroked-button (click)="goToLibrary()">
-                      <mat-icon>library_books</mat-icon>
-                      Browse Library
+                      Create Custom Article
                     </button>
                   </div>
                 </div>
@@ -426,14 +444,6 @@
             <button 
               mat-stroked-button 
               class="view-btn" 
-              [class.active]="(viewMode$ | async) === 'library'"
-              (click)="setViewMode('library')">
-              <mat-icon>library_books</mat-icon>
-              Library
-            </button>
-            <button 
-              mat-stroked-button 
-              class="view-btn" 
               [class.active]="(viewMode$ | async) === 'history'"
               (click)="setViewMode('history')">
               <mat-icon>history</mat-icon>
@@ -459,19 +469,34 @@
                 <div class="empty-body">
                   Build your training library by adding OSHA articles or creating custom content. Once added, you can track schedules and compliance here.
                 </div>
-                <button mat-flat-button color="accent" (click)="goToLibrary()">
-                  <mat-icon>library_books</mat-icon>
+                <button mat-flat-button color="accent" (click)="goToSmartBuilder()">
+                  <mat-icon>construction</mat-icon>
                   Build My Library
                 </button>
               </div>
             } @else if (allLibrary.length > 0) {
               <section class="schedule-section">
                 <div class="section-header">
-                  <div>
+                  <div class="section-header-left">
                     <div class="section-title">Training schedule</div>
-                    <div class="section-subtitle">Filter trainings by status to see what needs attention.</div>
+                    <div class="section-subtitle">Search and filter trainings to see what needs attention.</div>
                   </div>
-                  <div class="filter-bar">
+                  <div class="section-header-right">
+                    <div class="search-bar">
+                      <mat-icon>search</mat-icon>
+                      <input 
+                        type="text" 
+                        placeholder="Search trainings..." 
+                        [value]="scheduleSearchTerm$ | async"
+                        (input)="onScheduleSearch($any($event.target).value)">
+                    </div>
+                    <button mat-flat-button color="accent" (click)="goToSmartBuilder()">
+                      <mat-icon>construction</mat-icon>
+                      Smart Builder
+                    </button>
+                  </div>
+                </div>
+                <div class="filter-bar">
                     <button 
                       mat-stroked-button 
                       class="filter-chip" 
@@ -511,14 +536,17 @@
                       <mat-icon>check_circle</mat-icon>
                       Current
                     </button>
-                  </div>
                 </div>
 
                 @if (filteredLibrary$ | async; as trainings) {
                   @if (trainings.length === 0) {
                     <div class="no-results">
                       <mat-icon>search_off</mat-icon>
-                      <div>No trainings match this filter.</div>
+                      @if ((scheduleSearchTerm$ | async)) {
+                        <div>No trainings match your search.</div>
+                      } @else {
+                        <div>No trainings match this filter.</div>
+                      }
                     </div>
                   } @else {
                     <div class="trainings-table">
@@ -656,198 +684,6 @@
           }
         }
 
-        <!-- Library View -->
-        @if ((viewMode$ | async) === 'library') {
-          @if (!customArticle) {
-            <section class="library-section">
-              <div class="section-header">
-                <div>
-                  <div class="section-title">Browse content</div>
-                  <div class="section-subtitle">Manage your training library.</div>
-                </div>
-                <div class="filter-bar">
-                  <div class="search-bar">
-                    <mat-icon>search</mat-icon>
-                    <input 
-                      type="text" 
-                      placeholder="Search articles..." 
-                      [value]="librarySearchTerm$ | async"
-                      (input)="onLibrarySearch($any($event.target).value)">
-                  </div>
-                  <button mat-flat-button color="accent" (click)="goToSmartBuilder()">
-                    <mat-icon>construction</mat-icon>
-                    Smart Builder
-                  </button>
-                  <button mat-stroked-button color="primary" (click)="createCustomArticle()">
-                    <mat-icon>add</mat-icon>
-                    Create
-                  </button>
-                  @if (libraryFilteredContent$ | async; as headerContent) {
-                    @if (headerContent.length > 0 || selectionMode) {
-                      <button 
-                        mat-icon-button 
-                        class="select-mode-btn"
-                        [class.active]="selectionMode"
-                        matTooltip="{{ selectionMode ? 'Cancel selection' : 'Select multiple' }}"
-                        (click)="toggleSelectionMode()">
-                        <mat-icon>{{ selectionMode ? 'close' : 'checklist' }}</mat-icon>
-                      </button>
-                    }
-                  }
-                </div>
-              </div>
-
-              @if (libraryFilteredContent$ | async; as content) {
-                <!-- Selection Action Bar -->
-                @if (selectionMode && selectedItems.size > 0) {
-                  <div class="selection-action-bar">
-                    <div class="selection-info">
-                      <mat-icon>check_circle</mat-icon>
-                      <span>{{ selectedItems.size }} item{{ selectedItems.size > 1 ? 's' : '' }} selected</span>
-                    </div>
-                    <div class="selection-actions">
-                      <button 
-                        mat-flat-button 
-                        color="warn"
-                        [disabled]="processingBulkAction"
-                        (click)="bulkRemoveFromLibrary()">
-                        @if (processingBulkAction) {
-                          <ng-container>
-                            <mat-icon class="spinning">sync</mat-icon>
-                            Removing...
-                          </ng-container>
-                        } @else {
-                          <ng-container>
-                            <mat-icon>delete</mat-icon>
-                            Remove Selected ({{ getRemovableSelectedCount() }})
-                          </ng-container>
-                        }
-                      </button>
-                      <button mat-button (click)="clearSelection()">
-                        Clear Selection
-                      </button>
-                    </div>
-                  </div>
-                }
-
-                @if (content.length === 0) {
-                  <div class="empty-state">
-                    @if ((librarySearchTerm$ | async)) {
-                      <mat-icon>search_off</mat-icon>
-                      <div class="empty-title">No articles found</div>
-                      <div class="empty-body">Try adjusting your search terms.</div>
-                    } @else {
-                      <mat-icon>library_books</mat-icon>
-                      <div class="empty-title">Your library is empty</div>
-                      <div class="empty-body">Use the Smart Builder to create training content, or create an article from scratch.</div>
-                    }
-                  </div>
-                } @else {
-                  <div class="library-table">
-                    <!-- Table Header -->
-                    <div class="table-header library-header" [class.with-checkbox]="selectionMode">
-                      @if (selectionMode) {
-                        <div class="col-checkbox">
-                          <mat-checkbox 
-                            [checked]="isAllSelected(content)"
-                            [indeterminate]="isSomeSelected(content)"
-                            (change)="toggleSelectAll(content)">
-                          </mat-checkbox>
-                        </div>
-                      }
-                      <div class="col-thumb"></div>
-                      <div class="col-name sortable" (click)="toggleLibrarySort('name')" [class.active]="(librarySort$ | async)?.column === 'name'">
-                        Name
-                        @if ((librarySort$ | async)?.column === 'name') {
-                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                        }
-                      </div>
-                      <div class="col-industry sortable" (click)="toggleLibrarySort('industry')" [class.active]="(librarySort$ | async)?.column === 'industry'">
-                        Industry
-                        @if ((librarySort$ | async)?.column === 'industry') {
-                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                        }
-                      </div>
-                      <div class="col-topic sortable" (click)="toggleLibrarySort('topic')" [class.active]="(librarySort$ | async)?.column === 'topic'">
-                        Topic
-                        @if ((librarySort$ | async)?.column === 'topic') {
-                          <mat-icon class="sort-icon">{{ (librarySort$ | async)?.direction === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-                        }
-                      </div>
-                      <div class="col-actions">Actions</div>
-                    </div>
-
-                    <!-- Table Rows -->
-                    @for (article of content; track trackByArticleId($index, article)) {
-                      <div 
-                        class="table-row library-row" 
-                        [class.checked]="isItemSelected(article)"
-                        [class.with-checkbox]="selectionMode"
-                        (click)="selectionMode ? toggleItemSelection(article) : selectArticle(article)">
-                        
-                        @if (selectionMode) {
-                          <div class="col-checkbox" (click)="$event.stopPropagation()">
-                            <mat-checkbox 
-                              [checked]="isItemSelected(article)"
-                              (change)="toggleItemSelection(article)">
-                            </mat-checkbox>
-                          </div>
-                        }
-
-                        <div class="col-thumb">
-                          <img [src]="article.thumbnail || '/assets/chimpTop.png'" alt="" onerror="this.src='/assets/chimpTop.png'">
-                        </div>
-
-                        <div class="col-name">
-                          <span class="training-title">{{ article.name }}</span>
-                          @if (article.assignedTags?.length) {
-                            <div class="article-tags">
-                              @for (tag of article.assignedTags; track tag) {
-                                <span 
-                                  class="mini-tag"
-                                  [style.backgroundColor]="getTagColor(tag).bg"
-                                  [style.color]="getTagColor(tag).text"
-                                  [style.borderColor]="getTagColor(tag).border">
-                                  {{ tag }}
-                                </span>
-                              }
-                            </div>
-                          }
-                        </div>
-
-                        <div class="col-industry">
-                          <span>{{ article.industry || '—' }}</span>
-                        </div>
-
-                        <div class="col-topic">
-                          <span>{{ article.topic || '—' }}</span>
-                        </div>
-
-                        <div class="col-actions">
-                          <button 
-                            mat-icon-button 
-                            color="accent"
-                            matTooltip="Start training" 
-                            (click)="startTrainingFromLibrary(article); $event.stopPropagation()">
-                            <mat-icon>play_arrow</mat-icon>
-                          </button>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                }
-              } @else {
-                <div class="loading-state">
-                  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-                  <div class="loading-text">Loading articles...</div>
-                </div>
-              }
-            </section>
-          } @else {
-            <app-create-edit-article [articleId]="selectedArticle?.id" (closed)="closeCustomArticle()"></app-create-edit-article>
-          }
-        }
-
         <!-- History View -->
         @if ((viewMode$ | async) === 'history') {
           @if (trainingHistory.length === 0) {
@@ -857,9 +693,9 @@
               <div class="empty-body">
                 Once you run training sessions, they'll appear here so you can review attendance and track progress.
               </div>
-              <button mat-flat-button color="accent" (click)="goToLibrary()">
-                <mat-icon>play_circle</mat-icon>
-                Start a Training
+              <button mat-flat-button color="accent" (click)="setViewMode('schedule')">
+                <mat-icon>event_available</mat-icon>
+                View Schedule
               </button>
             </div>
           } @else {

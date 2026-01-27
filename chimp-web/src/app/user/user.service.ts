@@ -1,10 +1,10 @@
-import { Injectable, inject } from "@angular/core";
-import { BehaviorSubject, combineLatest, Observable, of } from "rxjs";
+import { Injectable, inject, OnDestroy } from "@angular/core";
+import { BehaviorSubject, combineLatest, Observable, of, Subscription } from "rxjs";
 import { Firestore, collection, collectionData, doc, docData, query, where, orderBy, limit, addDoc, updateDoc } from "@angular/fire/firestore";
-import { map, catchError, tap, mergeMap } from "rxjs/operators";
+import { map, catchError, tap, mergeMap, take } from "rxjs/operators";
 import { Auth } from "@angular/fire/auth";
 import { Router, ActivatedRoute } from "@angular/router";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, Unsubscribe } from "firebase/auth";
 import { Team, TeamMember } from "../account/account.service";
 import { Survey, SurveyResponse, User } from "../app.service";
 import { LibraryItem } from "../account/training/training.service";
@@ -13,7 +13,7 @@ import { TeamFile as File } from "../account/files/files.component";
 @Injectable({
   providedIn: "root"
 })
-export class UserService {
+export class UserService implements OnDestroy {
   private readonly db = inject(Firestore);
   private readonly auth = inject(Auth);
   private readonly router = inject(Router);
@@ -24,21 +24,46 @@ export class UserService {
   readonly teamMemberObservable = new BehaviorSubject<TeamMember | null>(null);
   readonly teamMembersObservable = new BehaviorSubject<TeamMember[] | null>(null);
   readonly teamManagersObservable = new BehaviorSubject<User[] | null>(null);
+  readonly surveysObservable = new BehaviorSubject<Survey[] | null>(null);
+  
+  // Track whether surveys have been loaded from network (not just cache)
+  readonly surveysLoaded = new BehaviorSubject<boolean>(false);
 
-  aTeam: Team = new Team();
+  aTeam: Team | null = null;
   teamMember: TeamMember;
   teamMembers: TeamMember[];
   teamManagers: User[];
-  surveys: Survey[];
   files: File[] = [];
+  
+  // Getter/setter for surveys that keeps the BehaviorSubject in sync
+  private _surveys: Survey[] | null = null;
+  get surveys(): Survey[] | null {
+    return this._surveys;
+  }
+  set surveys(value: Survey[] | null) {
+    this._surveys = value;
+    this.surveysObservable.next(value);
+  }
   isLoggedIn: boolean = false;
   loggedInUser: User;
 
   private topics: Topic[] = [];
   private activeRoute: string;
+  
+  // Subscription management
+  private userSubscription: Subscription | null = null;
+  private teamMembersSubscription: Subscription | null = null;
+  private authUnsubscribe: Unsubscribe | null = null;
 
   public getUser(userId: string): Observable<TeamMember> {
-    return docData(doc(this.db, `team-members/${userId}`), { idField: "id" }) as Observable<TeamMember>;
+    console.log('[UserService] getUser() called with userId:', userId);
+    return docData(doc(this.db, `team-members/${userId}`), { idField: "id" }).pipe(
+      tap(user => console.log('[UserService] getUser() result:', user)),
+      catchError(error => {
+        console.error('[UserService] getUser() error:', error);
+        throw error;
+      })
+    ) as Observable<TeamMember>;
   }
 
   public getSurvey(surveyId: string): Observable<Survey> {
@@ -65,7 +90,14 @@ export class UserService {
   }
 
   public getTeam(id: string): Observable<Team> {
-    return docData(doc(this.db, `team/${id}`), { idField: "id" }) as Observable<Team>;
+    console.log('[UserService] getTeam() called with id:', id);
+    return docData(doc(this.db, `team/${id}`), { idField: "id" }).pipe(
+      tap(team => console.log('[UserService] getTeam() result:', team)),
+      catchError(error => {
+        console.error('[UserService] getTeam() error:', error);
+        throw error;
+      })
+    ) as Observable<Team>;
   }
 
   public getLibraryItem(id: string): Observable<LibraryItem> {
@@ -73,8 +105,17 @@ export class UserService {
   }
 
   public getSurveyResponses(id: string): Observable<SurveyResponse[]> {
+    console.log('[UserService] getSurveyResponses() called with surveyId:', id);
     const responsesQuery = query(collection(this.db, "survey-response"), where("surveyId", "==", id));
-    return collectionData(responsesQuery, { idField: "id" }) as Observable<SurveyResponse[]>;
+    return collectionData(responsesQuery, { idField: "id" }).pipe(
+      tap(responses => {
+        console.log('[UserService] getSurveyResponses() result for survey', id, ':', responses);
+      }),
+      catchError(error => {
+        console.error('[UserService] getSurveyResponses() error for survey', id, ':', error);
+        throw error;
+      })
+    ) as Observable<SurveyResponse[]>;
   }
 
   public createResponse(response: SurveyResponse): Promise<any> {
@@ -83,6 +124,25 @@ export class UserService {
       Object.entries(response).filter(([_, value]) => value !== undefined)
     );
     return addDoc(collection(this.db, "survey-response"), cleanResponse);
+  }
+
+  ngOnDestroy(): void {
+    this.cleanup();
+  }
+
+  private cleanup(): void {
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
+      this.userSubscription = null;
+    }
+    if (this.teamMembersSubscription) {
+      this.teamMembersSubscription.unsubscribe();
+      this.teamMembersSubscription = null;
+    }
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+      this.authUnsubscribe = null;
+    }
   }
 
   /**
@@ -96,8 +156,12 @@ export class UserService {
       if (currentUser && currentUser.uid) {
         this.setLoggedInUser(currentUser.uid);
       } else {
+        // Clean up previous auth listener if any
+        if (this.authUnsubscribe) {
+          this.authUnsubscribe();
+        }
         // Set up listener for future auth state changes (non-blocking)
-        onAuthStateChanged(this.auth, (u) => {
+        this.authUnsubscribe = onAuthStateChanged(this.auth, (u) => {
           if (u && u.uid) {
             this.setLoggedInUser(u.uid);
           }
@@ -110,21 +174,49 @@ export class UserService {
   }
 
   private setLoggedInUser(uid: string): void {
+    // Clean up previous subscriptions before creating new ones
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
+    }
+    if (this.teamMembersSubscription) {
+      this.teamMembersSubscription.unsubscribe();
+    }
+    
     this.isLoggedIn = true;
     const userRef = doc(this.db, `user/${uid}`);
-    docData(userRef, { idField: "id" }).subscribe((user) => {
+    this.userSubscription = docData(userRef, { idField: "id" }).subscribe((user) => {
       this.loggedInUser = user as User;
     });
-    this.teamObservable.subscribe(t => {
+    
+    // Use take(1) to get current team value, then set up a single subscription for members
+    this.teamObservable.pipe(take(1)).subscribe(t => {
       if (t) {
-        const membersCollection = collection(this.db, "team-members");
-        const membersQuery = query(membersCollection, where("teamId", "==", t.id));
-        collectionData(membersQuery, { idField: "id" }).subscribe((tm: TeamMember[]) => {
-          if (tm) {
-            this.teamMembers = tm;
-            this.teamMembersObservable.next(tm);
-          }
-        });
+        this.subscribeToTeamMembers(t.id);
+      }
+    });
+    
+    // Also listen for team changes (but only once per change)
+    this.teamMembersSubscription = this.teamObservable.subscribe(t => {
+      if (t && (!this.teamMembers || this.teamMembers[0]?.teamId !== t.id)) {
+        this.subscribeToTeamMembers(t.id);
+      }
+    });
+  }
+
+  private currentTeamMembersSub: Subscription | null = null;
+  
+  private subscribeToTeamMembers(teamId: string): void {
+    // Clean up previous team members subscription
+    if (this.currentTeamMembersSub) {
+      this.currentTeamMembersSub.unsubscribe();
+    }
+    
+    const membersCollection = collection(this.db, "team-members");
+    const membersQuery = query(membersCollection, where("teamId", "==", teamId));
+    this.currentTeamMembersSub = collectionData(membersQuery, { idField: "id" }).subscribe((tm: TeamMember[]) => {
+      if (tm) {
+        this.teamMembers = tm;
+        this.teamMembersObservable.next(tm);
       }
     });
   }
@@ -225,12 +317,28 @@ export class UserService {
   }
 
   public getSurveys(teamId: string, userId: string): Observable<Survey[]> {
+    // Note: We only filter by trainees array-contains to avoid needing a composite index.
+    // The teamId filter is redundant since team members are already scoped to their team.
+    console.log('[UserService] getSurveys() called with teamId:', teamId, 'userId:', userId);
     const surveysQuery = query(
       collection(this.db, "survey"),
-      where("teamId", "==", teamId),
       where("trainees", "array-contains", userId)
     );
-    return collectionData(surveysQuery, { idField: "id" }) as Observable<Survey[]>;
+    return collectionData(surveysQuery, { idField: "id" }).pipe(
+      tap(surveys => {
+        console.log('[UserService] getSurveys() Firebase query returned:', surveys);
+        console.log('[UserService] getSurveys() Number of surveys:', surveys?.length || 0);
+        if (surveys) {
+          surveys.forEach((s: any) => {
+            console.log('[UserService] Survey:', s.id, s.title, '- trainees:', s.trainees);
+          });
+        }
+      }),
+      catchError(error => {
+        console.error('[UserService] getSurveys() Firebase query error:', error);
+        throw error;
+      })
+    ) as Observable<Survey[]>;
   }
 
   public cache(): void {

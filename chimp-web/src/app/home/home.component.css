@@ -12,6 +12,17 @@
   max-width: 1200px;
   margin: 0 auto;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.challenge-chimp-image {
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  width: 180px;
+  height: auto;
+  pointer-events: none;
 }
 
 .challenge-content {
@@ -448,6 +459,12 @@
     border-radius: 20px;
   }
   
+  .challenge-chimp-image {
+    width: 140px;
+    bottom: -8px;
+    right: -8px;
+  }
+  
   .challenge-content {
     flex-direction: column;
     text-align: center;
@@ -576,18 +593,25 @@
   .challenge-hero {
     padding: 16px;
     box-sizing: border-box;
+    overflow: hidden;
+    max-width: 100vw;
   }
   
   .challenge-card {
     padding: 20px 16px;
     border-radius: 16px;
-    width: 100%;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .challenge-chimp-image {
+    display: none;
   }
   
   .challenge-content {
     flex-direction: row;
-    gap: 16px;
+    gap: 14px;
     align-items: center;
     text-align: left;
   }
@@ -615,6 +639,7 @@
   .challenge-text {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
   }
   
   /* Show mobile headline, hide desktop headline */

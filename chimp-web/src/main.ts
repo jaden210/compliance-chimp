@@ -4,10 +4,10 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from 
 import { provideAnimations } from "@angular/platform-browser/animations";
 import { provideHttpClient } from "@angular/common/http";
 import { MatIconRegistry } from "@angular/material/icon";
-import { provideFirebaseApp, initializeApp } from "@angular/fire/app";
+import { provideFirebaseApp, initializeApp, getApp } from "@angular/fire/app";
 import { provideAuth, getAuth } from "@angular/fire/auth";
 import { provideStorage, getStorage } from "@angular/fire/storage";
-import { provideFirestore, getFirestore } from "@angular/fire/firestore";
+import { provideFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "@angular/fire/firestore";
 import { provideFunctions, getFunctions } from "@angular/fire/functions";
 import { environment } from "./environments/environment";
 import { AppComponent } from "./app/app.component";
@@ -30,7 +30,13 @@ bootstrapApplication(AppComponent, {
     provideFirebaseApp(() => initializeApp(environment.firebaseConfig)),
     provideAuth(() => getAuth()),
     provideStorage(() => getStorage()),
-    provideFirestore(() => getFirestore()),
+    provideFirestore(() => {
+      // Enable offline persistence for faster loads and offline support
+      // Data is cached locally so subsequent page loads are near-instant
+      return initializeFirestore(getApp(), {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    }),
     provideFunctions(() => getFunctions()),
     {
       provide: APP_INITIALIZER,

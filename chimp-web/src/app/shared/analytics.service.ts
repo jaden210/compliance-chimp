@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 declare var gtag: Function;
@@ -16,13 +17,13 @@ export enum FunnelStep {
   SIGNUP_EMAIL_EXISTING_USER = 'signup_email_existing_user',
   
   // Challenge Funnel (Get Started flow)
+  CHALLENGE_WELCOME_VIEW = 'challenge_welcome_view',
   CHALLENGE_START = 'challenge_start',
   CHALLENGE_STEP1_VIEW = 'challenge_step1_view',
   CHALLENGE_STEP1_COMPLETE = 'challenge_step1_complete',
   CHALLENGE_STEP2_VIEW = 'challenge_step2_view',
   CHALLENGE_ACCOUNT_CREATED = 'challenge_account_created',
   CHALLENGE_STEP3_VIEW = 'challenge_step3_view',
-  CHALLENGE_QUICKBOOKS_CONNECTED = 'challenge_quickbooks_connected',
   CHALLENGE_TEAM_MEMBER_ADDED = 'challenge_team_member_added',
   CHALLENGE_STEP3_COMPLETE = 'challenge_step3_complete',
   CHALLENGE_STEP4_VIEW = 'challenge_step4_view',
@@ -69,20 +70,28 @@ export interface EventParams {
 }
 
 @Injectable({ providedIn: 'root' })
-export class AnalyticsService {
+export class AnalyticsService implements OnDestroy {
   private userId: string | null = null;
   private teamId: string | null = null;
   private isInitialized = false;
+  private routerSubscription: Subscription | null = null;
 
   constructor(private router: Router) {
     this.init();
+  }
+
+  ngOnDestroy(): void {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+      this.routerSubscription = null;
+    }
   }
 
   private init(): void {
     if (this.isInitialized) return;
     
     // Track page views on route changes
-    this.router.events.pipe(
+    this.routerSubscription = this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       this.trackPageView(event.urlAfterRedirects);
@@ -204,6 +213,7 @@ export class AnalyticsService {
     const funnelOrder: FunnelStep[] = [
       FunnelStep.SIGNUP_PAGE_VIEW,
       FunnelStep.SIGNUP_EMAIL_ENTERED,
+      FunnelStep.CHALLENGE_WELCOME_VIEW,
       FunnelStep.CHALLENGE_START,
       FunnelStep.CHALLENGE_STEP1_VIEW,
       FunnelStep.CHALLENGE_STEP1_COMPLETE,

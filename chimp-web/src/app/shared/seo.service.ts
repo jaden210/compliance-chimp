@@ -1,7 +1,8 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, OnDestroy } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { Router, NavigationEnd } from '@angular/router';
 import { isPlatformBrowser, DOCUMENT } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 export interface SeoConfig {
@@ -16,10 +17,11 @@ export interface SeoConfig {
 @Injectable({
   providedIn: 'root'
 })
-export class SeoService {
+export class SeoService implements OnDestroy {
   private baseUrl = 'https://compliancechimp.com';
   private defaultImage = 'https://compliancechimp.com/assets/og-image.png';
   private siteName = 'Compliance Chimp';
+  private routerSubscription: Subscription | null = null;
 
   // SEO configurations for each route
   private routeSeoConfig: { [key: string]: SeoConfig } = {
@@ -29,9 +31,9 @@ export class SeoService {
       keywords: 'OSHA compliance, safety training, workplace safety, compliance software, small business safety'
     },
     '/plans': {
-      title: 'Plans & Features | Compliance Chimp',
-      description: 'Explore Compliance Chimp plans and features. Everything you need for OSHA compliance, safety training, and injury reporting.',
-      keywords: 'compliance plans, safety software features, OSHA compliance features'
+      title: 'Pricing - Simple, Flat-Rate Safety Compliance | Compliance Chimp',
+      description: '$99/month for complete OSHA compliance. Unlimited team members, safety training, injury reporting, and self-inspections. 14-day free trial, no credit card required.',
+      keywords: 'OSHA compliance pricing, safety software cost, compliance software pricing, safety training subscription, workplace safety platform'
     },
     '/how-it-works': {
       title: 'How It Works | Compliance Chimp',
@@ -90,8 +92,15 @@ export class SeoService {
     this.initRouteListener();
   }
 
+  ngOnDestroy(): void {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+      this.routerSubscription = null;
+    }
+  }
+
   private initRouteListener(): void {
-    this.router.events
+    this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
         const path = event.urlAfterRedirects.split('?')[0];

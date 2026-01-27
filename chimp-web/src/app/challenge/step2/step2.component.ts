@@ -40,6 +40,9 @@ export class Step2Component implements OnInit {
   errorMessage = '';
   hidePassword = true;
   hideConfirmPassword = true;
+  
+  // Check if account is already created
+  accountAlreadyCreated = false;
 
   constructor(
     public challengeService: ChallengeService,
@@ -49,17 +52,21 @@ export class Step2Component implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Check if account was already created (teamId exists)
+    if (this.challengeService.teamId) {
+      this.accountAlreadyCreated = true;
+    }
+    
     // Load any previously entered data
     this.name = this.challengeService.name;
     this.email = this.challengeService.email;
     
     // Track step 2 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP2_VIEW);
-    
-    // Resume timer if it was paused
-    if (this.challengeService.isTimerStarted) {
-      this.challengeService.resumeTimer();
-    }
+  }
+  
+  continueToNextStep(): void {
+    this.router.navigate(['/get-started/step3']);
   }
 
   isValid(): boolean {

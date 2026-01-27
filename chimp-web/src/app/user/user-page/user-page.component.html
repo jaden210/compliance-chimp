@@ -60,7 +60,7 @@
         }
 
         @if (IsLoggedIn) {
-          <div class="action-card training" routerLink="articles">
+          <div class="action-card training" routerLink="articles" queryParamsHandling="preserve">
             <div class="action-icon">
               <mat-icon>school</mat-icon>
             </div>
@@ -71,7 +71,7 @@
             <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>
 
-          <div class="action-card inspections" routerLink="self-inspections">
+          <div class="action-card inspections" routerLink="self-inspections" queryParamsHandling="preserve">
             <div class="action-icon">
               <mat-icon>checklist</mat-icon>
             </div>
@@ -97,7 +97,7 @@
       @if (Surveys?.length) {
         <div class="survey-cards">
           @for (survey of Surveys; track survey.id) {
-            <div class="survey-card" [routerLink]="'survey/' + survey.id">
+            <div class="survey-card" [routerLink]="'survey/' + survey.id" queryParamsHandling="preserve">
               <div class="survey-avatar">
                 <img [src]="survey?.author?.profileUrl || '/assets/achievements/survey.png'" 
                      onerror="this.src='/assets/achievements/survey.png'"
@@ -118,7 +118,17 @@
             </div>
           }
         </div>
+      } @else if (!surveysLoaded) {
+        <!-- Still loading surveys from server -->
+        <div class="empty-state loading-state">
+          <div class="empty-icon">
+            <mat-icon>sync</mat-icon>
+          </div>
+          <h3>Checking for surveys...</h3>
+          <p>Please wait while we load your latest surveys.</p>
+        </div>
       } @else {
+        <!-- Surveys loaded and confirmed empty -->
         <div class="empty-state">
           <div class="empty-icon">
             <mat-icon>check_circle</mat-icon>

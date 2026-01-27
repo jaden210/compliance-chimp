@@ -2,8 +2,16 @@
 <mat-toolbar>
   <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
-  <div class="toolbar-title">{{ accountService?.aTeam?.name }}</div>
+  <div class="toolbar-title">Team</div>
   <div class="flex"></div>
+  <button 
+    mat-icon-button 
+    (click)="welcomeService.toggle('team')"
+    [matTooltip]="welcomeService.isVisible('team') ? 'Hide guide' : 'Show guide'"
+    class="toolbar-help-btn"
+    [class.active]="welcomeService.isVisible('team')">
+    <mat-icon>{{ welcomeService.isVisible('team') ? 'help' : 'help_outline' }}</mat-icon>
+  </button>
 </mat-toolbar>
 
 <div class="page-content">
@@ -14,6 +22,17 @@
     </div>
 
     <ng-container *ngIf="showTable">
+      <!-- Welcome Banner -->
+      <app-welcome-banner
+        *ngIf="welcomeService.isVisible('team') && teamMembers?.length > 0"
+        icon="groups"
+        title="Welcome to Your Team"
+        subtitle="Here's what you can do to manage your team"
+        [features]="teamWelcomeFeatures"
+        (closed)="welcomeService.hide('team')"
+        (featureClicked)="onWelcomeFeatureClick($event)">
+      </app-welcome-banner>
+
       <!-- Splash Section - Empty State (Full) -->
       <section class="splash" *ngIf="teamMembers?.length === 0">
         <div class="splash-content">
@@ -39,37 +58,57 @@
         </div>
       </section>
 
-      <!-- QuickBooks Integration Option for Empty State -->
-      <div class="quickbooks-promo" *ngIf="teamMembers?.length === 0 && !isQuickBooksConnected">
+      <!-- CSV Import Option for Empty State -->
+      <div class="csv-import-promo" *ngIf="teamMembers?.length === 0">
         <div class="promo-content">
           <div class="promo-icon">
-            <mat-icon>sync</mat-icon>
+            <mat-icon>upload_file</mat-icon>
           </div>
           <div class="promo-text">
-            <div class="promo-title">Already use QuickBooks?</div>
+            <div class="promo-title">Import your team from a spreadsheet</div>
             <div class="promo-body">
-              Connect your QuickBooks account and we'll automatically sync your employees. 
-              One click now, automatic updates forever.
+              Download our CSV template, fill in your team info, and upload to get started quickly.
             </div>
           </div>
-          <button mat-flat-button color="primary" class="promo-btn" (click)="connectQuickBooks()" [disabled]="qbConnecting">
-            <mat-icon>{{ qbConnecting ? 'hourglass_empty' : 'link' }}</mat-icon>
-            {{ qbConnecting ? 'Connecting...' : 'Connect QuickBooks' }}
-          </button>
+          <div class="promo-actions">
+            <button mat-stroked-button color="primary" (click)="downloadCsvTemplate()">
+              <mat-icon>download</mat-icon>
+              Download Template
+            </button>
+            <button mat-flat-button color="primary" (click)="triggerCsvUpload()" [disabled]="csvUploading">
+              <mat-icon>{{ csvUploading ? 'hourglass_empty' : 'upload' }}</mat-icon>
+              {{ csvUploading ? 'Uploading...' : 'Upload CSV' }}
+            </button>
+          </div>
+        </div>
+        <!-- CSV Error/Success Messages -->
+        <div class="csv-message error" *ngIf="csvError">
+          <mat-icon>error</mat-icon>
+          <span>{{ csvError }}</span>
+          <button mat-icon-button (click)="clearCsvResult()"><mat-icon>close</mat-icon></button>
+        </div>
+        <div class="csv-message success" *ngIf="csvImportResult?.success">
+          <mat-icon>check_circle</mat-icon>
+          <span>Successfully imported {{ csvImportResult.added }} team member{{ csvImportResult.added === 1 ? '' : 's' }}!</span>
+          <button mat-icon-button (click)="clearCsvResult()"><mat-icon>close</mat-icon></button>
         </div>
       </div>
 
+      <!-- Hidden file input for CSV upload -->
+      <input 
+        type="file" 
+        #csvFileInput 
+        accept=".csv" 
+        style="display: none;" 
+        (change)="onCsvFileSelected($event)">
+
       <!-- Divider between options -->
-      <div class="options-divider" *ngIf="teamMembers?.length === 0 && !isQuickBooksConnected">
+      <div class="options-divider" *ngIf="teamMembers?.length === 0">
         <span>or add team members manually</span>
       </div>
 
       <!-- Quick Add Table for Empty State -->
       <div class="quick-add-section" *ngIf="teamMembers?.length === 0">
-        <div class="quick-add-header" *ngIf="isQuickBooksConnected">
-          <mat-icon>arrow_downward</mat-icon>
-          <span>Start adding your team below</span>
-        </div>
         <div class="members-table empty-state-table">
           <div class="table-header">
             <div class="col-name">Name</div>
@@ -157,7 +196,7 @@
         <section class="dashboard">
         <div class="dashboard-header">
           <div class="dashboard-title">
-            <h1>Team Overview</h1>
+            <h1>{{ accountService?.aTeam?.name }}</h1>
           </div>
           <div class="header-actions">
             <button mat-flat-button class="coverage-btn" (click)="openTeamCoverageDialog()">
@@ -196,21 +235,16 @@
             <mat-icon class="metric-action">settings</mat-icon>
           </div>
 
-          <!-- QuickBooks Integration -->
-          <div class="metric-card clickable quickbooks-card" (click)="openQuickBooksDialog()">
-            <div class="metric-icon" [class.connected]="isQuickBooksConnected" [class.not-connected]="!isQuickBooksConnected">
-              <mat-icon>{{ isQuickBooksConnected ? 'sync' : 'link' }}</mat-icon>
+          <!-- CSV Import -->
+          <div class="metric-card clickable csv-import-card" (click)="triggerCsvUpload()">
+            <div class="metric-icon csv">
+              <mat-icon>upload_file</mat-icon>
             </div>
             <div class="metric-content">
-              <div class="metric-label">QuickBooks</div>
-              <div class="metric-value" *ngIf="isQuickBooksConnected">
-                {{ lastSyncCount }} synced
-              </div>
-              <div class="metric-value not-connected-text" *ngIf="!isQuickBooksConnected">
-                Not connected
-              </div>
+              <div class="metric-label">CSV Import</div>
+              <div class="metric-value">Bulk add members</div>
             </div>
-            <mat-icon class="metric-action">{{ isQuickBooksConnected ? 'settings' : 'add_circle' }}</mat-icon>
+            <mat-icon class="metric-action">upload</mat-icon>
           </div>
         </div>
 
@@ -239,7 +273,7 @@
       </section>
 
       <!-- Team Members Table -->
-      <section class="members-section">
+      <section class="members-section" #membersSection>
         <div class="section-header">
           <mat-icon>people</mat-icon>
           <h2>Team Members</h2>

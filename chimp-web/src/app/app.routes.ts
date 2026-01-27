@@ -1,7 +1,6 @@
 import { Routes } from "@angular/router";
 import { HomeComponent } from "./home/home.component";
 import { ContactComponent } from "./contact/contact.component";
-import { SignUpPageComponent } from "./sign-up-page/sign-up-page.component";
 import { SignInComponent } from "./sign-in/sign-in.component";
 import { HowComponent } from "./how/how.component";
 import { TermsOfUseComponent } from "./terms-of-use/terms-of-use.component";
@@ -19,7 +18,8 @@ export const appRoutes: Routes = [
   { path: "how-it-works", component: HowComponent },
   { path: "common-questions", component: CommonQuestionsComponent },
   { path: "plans", component: PlansComponent },
-  { path: "sign-up", component: SignUpPageComponent },
+  { path: "pricing", redirectTo: "plans", pathMatch: "full" },
+  { path: "sign-up", redirectTo: "get-started", pathMatch: "full" },
   { path: "sign-in", component: SignInComponent },
   {
     path: "blog",

@@ -1,4 +1,4 @@
-import { Component, ViewChild, OnInit, AfterViewChecked, ElementRef, inject, DestroyRef, signal, computed } from "@angular/core";
+import { Component, ViewChild, OnInit, AfterViewChecked, OnDestroy, ElementRef, inject, DestroyRef, signal, computed } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule, Router, ActivatedRoute } from "@angular/router";
@@ -362,25 +362,34 @@ export class InjuryReport implements OnInit {
   `],
   imports: [CommonModule, MatDialogModule, MatButtonModule]
 })
-export class SignatureDialogComponent implements AfterViewChecked {
+export class SignatureDialogComponent implements AfterViewChecked, OnDestroy {
   @ViewChild("signatureCanvas") signatureCanvas?: ElementRef<HTMLCanvasElement>;
 
   private readonly dialogRef = inject(MatDialogRef<SignatureDialogComponent>);
   private signaturePad?: SignaturePad;
+  private handleEnd: (() => void) | null = null;
+  private canvas: HTMLCanvasElement | null = null;
   finished = false;
 
   ngAfterViewChecked() {
     if (this.signatureCanvas && !this.signaturePad) {
-      const canvas = this.signatureCanvas.nativeElement;
-      canvas.width = canvas.offsetWidth || 320;
-      canvas.height = 180;
-      this.signaturePad = new SignaturePad(canvas, { minWidth: 1, dotSize: 1 });
+      this.canvas = this.signatureCanvas.nativeElement;
+      this.canvas.width = this.canvas.offsetWidth || 320;
+      this.canvas.height = 180;
+      this.signaturePad = new SignaturePad(this.canvas, { minWidth: 1, dotSize: 1 });
       
-      const handleEnd = () => {
+      this.handleEnd = () => {
         this.finished = true;
       };
-      canvas.addEventListener("mouseup", handleEnd);
-      canvas.addEventListener("touchend", handleEnd);
+      this.canvas.addEventListener("mouseup", this.handleEnd);
+      this.canvas.addEventListener("touchend", this.handleEnd);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.canvas && this.handleEnd) {
+      this.canvas.removeEventListener("mouseup", this.handleEnd);
+      this.canvas.removeEventListener("touchend", this.handleEnd);
     }
   }
 

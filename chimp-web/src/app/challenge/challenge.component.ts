@@ -1,12 +1,10 @@
 import { Component, OnInit, OnDestroy, HostListener } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { RouterModule } from "@angular/router";
+import { Router, RouterModule, NavigationEnd } from "@angular/router";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
-import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { ChallengeService } from "./challenge.service";
-import { TimeoutDialogComponent } from "./timeout-dialog/timeout-dialog.component";
-import { Subscription } from "rxjs";
+import { Subscription, filter } from "rxjs";
 
 const TOTAL_SECONDS = 360; // 6 minutes
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 54; // 2πr where r=54
@@ -20,31 +18,39 @@ const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 54; // 2πr where r=54
     CommonModule,
     RouterModule,
     MatIconModule,
-    MatButtonModule,
-    MatDialogModule
+    MatButtonModule
   ]
 })
 export class ChallengeComponent implements OnInit, OnDestroy {
-  timerDisplay = "6:00";
+  timerDisplay = "0:00";
   isPaused = false;
   isComplete = false;
   timerColor = 'green';
-  progressPercent = 100;
-  private timeoutDialogShown = false;
+  progressPercent = 0;
+  isOnStep3 = false;
   
   private subscriptions: Subscription[] = [];
 
   constructor(
     public challengeService: ChallengeService,
-    private dialog: MatDialog
+    private router: Router
   ) {}
 
   ngOnInit(): void {
+    // Track current route to hide timer during team building (step3)
+    this.checkCurrentRoute(this.router.url);
+    this.subscriptions.push(
+      this.router.events.pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+      ).subscribe(event => {
+        this.checkCurrentRoute(event.urlAfterRedirects);
+      })
+    );
+    
     // Subscribe to timer updates
     this.subscriptions.push(
       this.challengeService.elapsedSeconds$.subscribe(() => {
         this.updateTimerDisplay();
-        this.checkTimeout();
       }),
       this.challengeService.isPaused$.subscribe(paused => {
         this.isPaused = paused;
@@ -55,6 +61,10 @@ export class ChallengeComponent implements OnInit, OnDestroy {
     );
     
     this.updateTimerDisplay();
+  }
+
+  private checkCurrentRoute(url: string): void {
+    this.isOnStep3 = url.includes('/step3');
   }
 
   ngOnDestroy(): void {
@@ -72,34 +82,24 @@ export class ChallengeComponent implements OnInit, OnDestroy {
   private updateTimerDisplay(): void {
     this.timerDisplay = this.challengeService.getTimerDisplay();
     
-    const remaining = this.challengeService.getRemainingSeconds();
-    this.progressPercent = (remaining / TOTAL_SECONDS) * 100;
+    const elapsed = this.challengeService.getElapsedSeconds();
+    this.progressPercent = (elapsed / TOTAL_SECONDS) * 100;
     
-    if (remaining > 180) {
-      this.timerColor = 'green';
-    } else if (remaining > 60) {
-      this.timerColor = 'yellow';
+    // Color based on elapsed time: green when plenty of time, yellow getting close, red running out
+    if (elapsed < 180) {
+      this.timerColor = 'green';  // Less than 3 minutes elapsed
+    } else if (elapsed < 300) {
+      this.timerColor = 'yellow'; // 3-5 minutes elapsed
     } else {
-      this.timerColor = 'red';
+      this.timerColor = 'red';    // More than 5 minutes elapsed
     }
   }
 
   getStrokeDashoffset(): number {
-    // Full circle = 0 offset, empty circle = full circumference offset
-    const remaining = this.challengeService.getRemainingSeconds();
-    const progress = remaining / TOTAL_SECONDS;
+    // Empty circle = full circumference offset, full circle = 0 offset
+    // Circle fills as time elapses
+    const elapsed = this.challengeService.getElapsedSeconds();
+    const progress = elapsed / TOTAL_SECONDS;
     return CIRCLE_CIRCUMFERENCE * (1 - progress);
-  }
-
-  private checkTimeout(): void {
-    // Show timeout dialog when timer hits zero (but not if already complete or dialog shown)
-    const remaining = this.challengeService.getRemainingSeconds();
-    if (remaining <= 0 && !this.isComplete && !this.timeoutDialogShown && !this.isPaused) {
-      this.timeoutDialogShown = true;
-      this.dialog.open(TimeoutDialogComponent, {
-        disableClose: true,
-        panelClass: 'timeout-dialog-panel'
-      });
-    }
   }
 }

@@ -17,6 +17,165 @@
 }
 
 // Result Animation
+.hero-layout {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.chimp-column {
+  flex-shrink: 0;
+  
+  .chimp-mascot {
+    width: 180px;
+    height: auto;
+    animation: bounce 1s ease-out;
+  }
+}
+
+.result-column {
+  flex: 1;
+  
+  .result-header {
+    text-align: left;
+    margin-bottom: 20px;
+    
+    h1 {
+      font-size: 28px;
+      margin: 0 0 8px 0;
+    }
+    
+    .result-subtitle {
+      margin: 0;
+    }
+  }
+  
+  .timer-result {
+    margin-bottom: 16px;
+  }
+  
+  .trial-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(255, 152, 0, 0.1);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--chimp-text-primary);
+    
+    mat-icon {
+      color: var(--chimp-accent, #ff9800);
+      flex-shrink: 0;
+    }
+    
+    strong {
+      color: var(--chimp-accent, #ff9800);
+    }
+  }
+}
+
+.ready-section {
+  background: var(--chimp-bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+    margin: 0 0 16px 0;
+    text-align: center;
+  }
+}
+
+.ready-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ready-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  
+  mat-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    color: var(--chimp-accent, #ff9800);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  .ready-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    
+    strong {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--chimp-text-primary);
+    }
+    
+    span {
+      font-size: 12px;
+      color: var(--chimp-text-secondary);
+    }
+  }
+}
+
+@keyframes bounce {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(10px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Mobile: stack vertically
+@media screen and (max-width: 600px) {
+  .hero-layout {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .chimp-column .chimp-mascot {
+    width: 140px;
+  }
+  
+  .result-column {
+    .result-header {
+      text-align: center;
+    }
+    
+    .trial-info {
+      justify-content: center;
+      text-align: center;
+    }
+  }
+  
+  .ready-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ready-item {
+    text-align: left;
+  }
+}
+
+// Legacy styles (can be removed if not used elsewhere)
 .result-animation {
   margin-bottom: 24px;
 }
@@ -90,8 +249,8 @@
   margin-bottom: 32px;
   
   &.winner {
-    background: rgba(76, 175, 80, 0.1);
-    border: 2px solid #4caf50;
+    background: rgba(255, 152, 0, 0.1);
+    border: 2px solid var(--chimp-accent, #ff9800);
   }
 }
 
@@ -109,7 +268,7 @@
   }
   
   .winner & {
-    background: #4caf50;
+    background: var(--chimp-accent, #ff9800);
   }
 }
 
@@ -147,7 +306,7 @@
   }
   
   .winner & {
-    color: #4caf50;
+    color: var(--chimp-accent, #ff9800);
   }
 }
 
@@ -207,11 +366,15 @@
   margin-bottom: 32px;
   
   h3 {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 600;
+    color: var(--chimp-text-primary);
+    margin: 0 0 8px 0;
+  }
+  
+  .ready-description {
+    font-size: 14px;
     color: var(--chimp-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
     margin: 0 0 16px 0;
   }
 }
@@ -233,7 +396,7 @@
     font-size: 18px;
     height: 18px;
     width: 18px;
-    color: #4caf50;
+    color: var(--chimp-accent, #ff9800);
   }
 }
 

@@ -44,7 +44,7 @@ export class BlogCtaComponent {
   buttonRoute = "/get-started";
 
   /** Pricing/offer text */
-  offerText = "$99/month • First month free • No credit card required";
+  offerText = "$99/month • 14-day free trial • No credit card required";
 
   /** Features list - displayed as checkmarks */
   features = [

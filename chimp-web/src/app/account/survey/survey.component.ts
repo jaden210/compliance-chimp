@@ -6,6 +6,7 @@ import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { AccountService, Team, TeamMember, User } from "../account.service";
 import { Observable, Subscription, combineLatest, of } from "rxjs";
 import { ActivatedRoute, Router, ParamMap } from "@angular/router";
@@ -13,6 +14,7 @@ import { Location } from "@angular/common";
 import { map, groupBy, flatMap, toArray, share, tap } from "rxjs/operators";
 import { CreateSurveyDialogComponent } from "../surveys/create-survey-dialog/create-survey-dialog.component";
 import { Survey, SurveyResponse } from "src/app/app.service";
+import { Functions, httpsCallable } from "@angular/fire/functions";
 import { jsPDF } from "jspdf";
 
 @Component({
@@ -26,7 +28,8 @@ import { jsPDF } from "jspdf";
     MatButtonModule,
     MatIconModule,
     MatDialogModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTooltipModule
   ],
   providers: [DatePipe]
 })
@@ -80,6 +83,23 @@ export class SurveyComponent implements OnInit, OnDestroy {
     return this.datePipe.transform(jsDate, 'MMM d, y · h:mm a') || '';
   }
 
+  public resendNotification(teamMember: any): void {
+    teamMember.sending = true;
+    const resendSurvey = httpsCallable(this.functions, "resendSurveyNotification");
+    resendSurvey({ 
+      teamMember: teamMember, 
+      survey: this.survey,
+      team: this.accountService.aTeam 
+    }).then(() => {
+      teamMember.sending = false;
+      this.snackbar.open(`Notification sent to ${teamMember.name}`, null, { duration: 3000 });
+    }).catch((error) => {
+      teamMember.sending = false;
+      console.error('Error sending notification:', error);
+      this.snackbar.open('Failed to send notification', null, { duration: 3000 });
+    });
+  }
+
   private colors = [
     "#FF6F00",
     "#B71C1C",
@@ -100,7 +120,8 @@ export class SurveyComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private dialog: MatDialog,
     private location: Location,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private functions: Functions
   ) {
     this.todaysDatePiped = this.datePipe.transform(
       new Date(),
@@ -450,6 +471,19 @@ export class SurveyComponent implements OnInit, OnDestroy {
       doc.setLineWidth(0.003);
       doc.line(margin, y, pageWidth - margin, y);
       y += 0.2;
+    }
+    
+    // Add chimp logo at the bottom
+    try {
+      const logoData = await getImage('/assets/chimp.png');
+      const logoWidth = 1.0;
+      const logoHeight = 1.4;
+      const logoX = (pageWidth - logoWidth) / 2;
+      const logoY = pageHeight - 0.8 - logoHeight;
+      checkPageBreak(logoHeight + 0.3);
+      doc.addImage(logoData, "PNG", logoX, y + 0.2, logoWidth, logoHeight);
+    } catch (e) {
+      console.error('Failed to load chimp logo:', e);
     }
     
     // Add page number to last page

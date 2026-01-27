@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { Router } from "@angular/router";
+import { trigger, transition, style, animate } from "@angular/animations";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
@@ -27,6 +28,14 @@ interface LogEntry {
   selector: "challenge-step4",
   templateUrl: "./step4.component.html",
   styleUrls: ["./step4.component.scss"],
+  animations: [
+    trigger('logEntryAnimation', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-20px) scale(0.95)' }),
+        animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
+      ])
+    ])
+  ],
   imports: [
     CommonModule,
     MatButtonModule,
@@ -35,6 +44,9 @@ interface LogEntry {
   ]
 })
 export class Step4Component implements OnInit, OnDestroy {
+  // Build state
+  buildStarted = false;
+  
   // Progress tracking
   inspectionProgress: ProgressInfo | null = null;
   trainingProgress: ProgressInfo | null = null;
@@ -60,8 +72,66 @@ export class Step4Component implements OnInit, OnDestroy {
     // Track step 4 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP4_VIEW);
     
-    // Pause timer during auto-build
-    this.challengeService.pauseTimer();
+    // Check if there's an existing build in progress (e.g., page refresh)
+    this.checkExistingBuildProgress();
+  }
+  
+  private async checkExistingBuildProgress(): Promise<void> {
+    if (!this.challengeService.teamId) return;
+    
+    // Check team document for existing build progress
+    const teamRef = doc(this.db, `team/${this.challengeService.teamId}`);
+    
+    // One-time read to check current state
+    const unsubscribe = onSnapshot(teamRef, (snapshot) => {
+      const data = snapshot.data();
+      if (data?.autoBuildProgress) {
+        const progress = data.autoBuildProgress;
+        
+        // If there's progress data, the build was started
+        if (progress.inspections || progress.trainings) {
+          this.buildStarted = true;
+          
+          // Resume timer if not complete
+          const inspComplete = progress.inspections?.complete;
+          const trainComplete = progress.trainings?.complete;
+          
+          if (!inspComplete || !trainComplete) {
+            // Build is still in progress, resume listening
+            this.listenForProgress();
+            
+            // Resume timer if it was started
+            if (this.challengeService.isTimerStarted) {
+              this.challengeService.resumeTimer();
+            }
+          } else {
+            // Build is complete, just update the state
+            this.inspectionComplete = true;
+            this.trainingComplete = true;
+            this.inspectionProgress = {
+              currentAction: 'Complete',
+              inspectionsCreated: progress.inspections?.created || 0
+            };
+            this.trainingProgress = {
+              currentAction: 'Complete',
+              trainingsCreated: progress.trainings?.created || 0
+            };
+          }
+        }
+      }
+      
+      // Unsubscribe after initial check - listenForProgress will handle ongoing updates
+      unsubscribe();
+    });
+  }
+  
+  startBuild(): void {
+    if (this.buildStarted) return;
+    
+    this.buildStarted = true;
+    
+    // Start timer when build begins - the Chimp is now on the clock
+    this.challengeService.startTimer();
     
     // Start the auto-build process
     this.startAutoBuild();
@@ -77,7 +147,7 @@ export class Step4Component implements OnInit, OnDestroy {
     }
   }
 
-  private async startAutoBuild(): Promise<void> {
+  private startAutoBuild(): void {
     if (!this.challengeService.teamId) {
       console.error('No team ID available');
       return;
@@ -87,17 +157,16 @@ export class Step4Component implements OnInit, OnDestroy {
     this.addLogEntry('info', 'inspection', 'Starting inspection builder...');
     this.addLogEntry('info', 'training', 'Starting training builder...');
 
-    // Listen for progress updates
+    // Listen for progress updates via Firestore
     this.listenForProgress();
 
-    // Trigger the auto-build cloud function
-    try {
-      const autoBuild = httpsCallable(this.functions, 'challenge-autoBuildCompliance');
-      await autoBuild({ teamId: this.challengeService.teamId });
-    } catch (err) {
-      console.error('Error starting auto-build:', err);
-      this.addLogEntry('info', 'inspection', 'Error starting build process');
-    }
+    // Trigger the auto-build cloud function (don't await - progress tracked via Firestore)
+    const autoBuild = httpsCallable(this.functions, 'autoBuildCompliance');
+    autoBuild({ teamId: this.challengeService.teamId }).catch(err => {
+      // Only log client-side errors - the function may still be running
+      // and progress is tracked via Firestore snapshots
+      console.warn('Auto-build call returned error (function may still be running):', err);
+    });
   }
 
   private listenForProgress(): void {
@@ -114,36 +183,54 @@ export class Step4Component implements OnInit, OnDestroy {
         // Update inspection progress
         if (progress.inspections) {
           const prev = this.inspectionProgress;
+          
           this.inspectionProgress = {
             currentAction: progress.inspections.currentAction || 'Processing...',
             inspectionsCreated: progress.inspections.created || 0
           };
           
+          // Log action changes with appropriate type based on action text
           if (progress.inspections.currentAction && prev?.currentAction !== progress.inspections.currentAction) {
-            this.addLogEntry('working', 'inspection', progress.inspections.currentAction);
+            const action = progress.inspections.currentAction;
+            const logType = this.getLogTypeForAction(action);
+            this.addLogEntry(logType, 'inspection', action);
           }
           
           if (progress.inspections.complete && !this.inspectionComplete) {
             this.inspectionComplete = true;
-            this.addLogEntry('success', 'inspection', `Created ${progress.inspections.created || 0} inspections`);
+            this.addLogEntry('success', 'inspection', `Completed ${progress.inspections.created || 0} inspections`);
+            
+            // Stop timer when build is complete
+            if (this.trainingComplete) {
+              this.challengeService.stopTimer();
+            }
           }
         }
         
         // Update training progress
         if (progress.trainings) {
           const prev = this.trainingProgress;
+          
           this.trainingProgress = {
             currentAction: progress.trainings.currentAction || 'Processing...',
             trainingsCreated: progress.trainings.created || 0
           };
           
+          // Log action changes with appropriate type based on action text
           if (progress.trainings.currentAction && prev?.currentAction !== progress.trainings.currentAction) {
-            this.addLogEntry('working', 'training', progress.trainings.currentAction);
+            const action = progress.trainings.currentAction;
+            const logType = this.getLogTypeForAction(action);
+            this.addLogEntry(logType, 'training', action);
           }
           
           if (progress.trainings.complete && !this.trainingComplete) {
             this.trainingComplete = true;
-            this.addLogEntry('success', 'training', `Created ${progress.trainings.created || 0} trainings`);
+            this.addLogEntry('success', 'training', `Completed ${progress.trainings.created || 0} trainings`);
+            
+            // Stop timer when build is complete
+            if (this.inspectionComplete) {
+              this.challengeService.stopTimer();
+            }
             
             // Track auto-build completion
             this.analytics.trackEvent('challenge_auto_build_complete', {
@@ -155,6 +242,18 @@ export class Step4Component implements OnInit, OnDestroy {
         }
       }
     });
+  }
+  
+  // Determine log entry type based on action text
+  private getLogTypeForAction(action: string): 'info' | 'success' | 'working' {
+    if (action.startsWith('Created:')) {
+      return 'success';
+    } else if (action.startsWith('Generating:') || action.startsWith('Creating ') || action.includes('...')) {
+      return 'working';
+    } else if (action.startsWith('Analyzing') || action.startsWith('Identifying')) {
+      return 'info';
+    }
+    return 'working';
   }
 
   private addLogEntry(type: 'info' | 'success' | 'working', source: 'inspection' | 'training', message: string): void {
@@ -175,14 +274,32 @@ export class Step4Component implements OnInit, OnDestroy {
   }
 
   getOverallProgress(): number {
-    let progress = 0;
-    if (this.inspectionComplete) progress += 50;
-    else if (this.inspectionProgress) progress += 25;
+    // Inspections are fast (Firestore writes only) - 20% of progress
+    // Trainings involve AI generation and are slower - 80% of progress
+    const expectedInspections = 10;
+    const expectedTrainings = 12;
     
-    if (this.trainingComplete) progress += 50;
-    else if (this.trainingProgress) progress += 25;
+    let inspectionProgress = 0;
+    if (this.inspectionComplete) {
+      inspectionProgress = 20;
+    } else if (this.inspectionProgress) {
+      // Progress based on items created
+      const created = this.inspectionProgress.inspectionsCreated || 0;
+      // 2% for starting, up to 18% for items created (before complete flag)
+      inspectionProgress = 2 + Math.min(18, (created / expectedInspections) * 18);
+    }
     
-    return progress;
+    let trainingProgress = 0;
+    if (this.trainingComplete) {
+      trainingProgress = 80;
+    } else if (this.trainingProgress) {
+      // Progress based on items created - each training is ~6.5% of progress
+      const created = this.trainingProgress.trainingsCreated || 0;
+      // 2% for starting, up to 78% for items created (before complete flag)
+      trainingProgress = 2 + Math.min(78, (created / expectedTrainings) * 78);
+    }
+    
+    return Math.round(inspectionProgress + trainingProgress);
   }
 
   getLogIcon(type: string): string {
@@ -197,9 +314,6 @@ export class Step4Component implements OnInit, OnDestroy {
   next(): void {
     if (!this.isComplete) return;
     
-    // Resume timer
-    this.challengeService.resumeTimer();
-    
     // Track step 4 completion
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP4_COMPLETE, {
       inspections_created: this.inspectionProgress?.inspectionsCreated || 0,
@@ -210,7 +324,6 @@ export class Step4Component implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.challengeService.resumeTimer();
     this.router.navigate(['/get-started/step3']);
   }
 }

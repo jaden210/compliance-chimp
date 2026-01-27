@@ -2,7 +2,8 @@
   <button mat-icon-button (click)="goBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span class="toolbar-title">{{ isEditing ? 'Edit' : 'New' }} Self-Inspection</span>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp">
+  <div class="toolbar-title">{{ isEditing ? 'Edit' : 'New' }} Self-Inspection</div>
   <div class="flex"></div>
   
   <!-- Save Status Indicator (edit mode only) -->
@@ -27,6 +28,7 @@
   </button>
 </mat-toolbar>
 
+<div class="window">
 <div class="page-content" *ngIf="selfInspection">
   <!-- Template Applied Banner -->
   <div class="template-banner" *ngIf="appliedTemplate">
@@ -187,8 +189,9 @@
               (click)="addCategory()" 
               [disabled]="!newCategoryName?.trim()" 
               matTooltip="Add category">
-        <mat-icon>add</mat-icon>
-      </button>
-    </div>
+      <mat-icon>add</mat-icon>
+    </button>
   </div>
+</div>
+</div>
 </div>

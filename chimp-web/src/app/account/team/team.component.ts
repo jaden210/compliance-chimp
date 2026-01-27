@@ -27,6 +27,8 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MapDialogComponent } from "../map-dialog/map-dialog.component";
 import { TagInputComponent } from "./tag-input/tag-input.component";
 import { getTagColor } from "../../shared/tag-colors";
+import { WelcomeService } from "../welcome.service";
+import { WelcomeBannerComponent, WelcomeFeature } from "../welcome-banner/welcome-banner.component";
 import { Observable, Subscription, forkJoin, combineLatest } from "rxjs";
 import { TeamService } from "./team.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -34,6 +36,7 @@ import { TrainingService, MyContent } from "../training/training.service";
 import { Router } from "@angular/router";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Firestore, addDoc, collection, collectionData, deleteDoc, doc, updateDoc } from "@angular/fire/firestore";
+import { ParsedCsvMember, CsvImportResult } from "./team.service";
 import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage";
 import { map } from "rxjs/operators";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
@@ -64,7 +67,8 @@ declare var gtag: Function;
     MatExpansionModule,
     MatDividerModule,
     MatTooltipModule,
-    TagInputComponent
+    TagInputComponent,
+    WelcomeBannerComponent
   ]
 })
 export class TeamComponent implements OnDestroy {
@@ -75,6 +79,7 @@ export class TeamComponent implements OnDestroy {
   @ViewChild(MatTable) table: MatTable<any>;
   @ViewChild('emptyStateNameInput') emptyStateNameInput: ElementRef<HTMLInputElement>;
   @ViewChild('mainTableNameInput') mainTableNameInput: ElementRef<HTMLInputElement>;
+  @ViewChild('membersSection') membersSection: ElementRef<HTMLElement>;
   displayedColumns: string[] = [
     "name",
     "compliance",
@@ -103,11 +108,11 @@ export class TeamComponent implements OnDestroy {
   // Search
   searchQuery: string = '';
   
-  // QuickBooks integration
-  qbConnecting: boolean = false;
-  qbSyncing: boolean = false;
-  qbError: string = null;
-  qbSyncResult: { added: number; skipped: number } = null;
+  // CSV import
+  csvUploading: boolean = false;
+  csvError: string = null;
+  csvImportResult: CsvImportResult = null;
+  @ViewChild('csvFileInput') csvFileInput: ElementRef<HTMLInputElement>;
   
   // Get all unique tags from team members for autocomplete
   get allTags(): string[] {
@@ -193,12 +198,47 @@ export class TeamComponent implements OnDestroy {
     return this.memberValidationErrors[member.id]?.email || false;
   }
 
+  // Welcome banner features
+  teamWelcomeFeatures: WelcomeFeature[] = [
+    {
+      icon: 'local_offer',
+      title: 'Tags',
+      description: 'Organize team members by role (Warehouse, Office, Driver) to auto-assign relevant training to the right people.',
+      action: 'scrollToMembers'
+    },
+    {
+      icon: 'sms',
+      title: 'Contact Preferences',
+      description: 'Toggle between SMS and email for each member. SMS is faster and gets higher engagement.',
+      action: 'scrollToMembers'
+    },
+    {
+      icon: 'admin_panel_settings',
+      title: 'Manager Access',
+      description: 'Add managers who can run trainings, view progress, and help manage your compliance program.',
+      action: 'managerAccess'
+    },
+    {
+      icon: 'folder',
+      title: 'Team Files',
+      description: 'Upload safety manuals, certificates, and documents for team-wide access from their user pages.',
+      action: 'teamFiles'
+    },
+    {
+      icon: 'person',
+      title: 'User Pages',
+      description: 'Each team member has their own compliance dashboard showing training status, inspections, and more.',
+      action: 'scrollToMembers'
+    }
+  ];
+
   constructor(
     public accountService: AccountService,
     public dialog: MatDialog,
     private teamService: TeamService,
     private router: Router,
-    private functions: Functions
+    private functions: Functions,
+    public welcomeService: WelcomeService
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
     this.accountService.showLD = true;
@@ -226,6 +266,27 @@ export class TeamComponent implements OnDestroy {
     this.router.navigate([`/user`], {
       queryParams: { "member-id": userId }
     });
+  }
+
+  // Handle welcome banner feature clicks
+  onWelcomeFeatureClick(action: string): void {
+    switch (action) {
+      case 'managerAccess':
+        this.manageManagers();
+        break;
+      case 'teamFiles':
+        this.router.navigate(['/account/files']);
+        break;
+      case 'scrollToMembers':
+        this.scrollToMembersSection();
+        break;
+    }
+  }
+
+  scrollToMembersSection(): void {
+    if (this.membersSection?.nativeElement) {
+      this.membersSection.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   scrollToAddMember(): void {
@@ -401,89 +462,72 @@ export class TeamComponent implements OnDestroy {
     }
   }
 
-  // ============ QuickBooks Integration Methods ============
+  // ============ CSV Import Methods ============
 
   /**
-   * Check if QuickBooks is connected
+   * Download the CSV template
    */
-  get isQuickBooksConnected(): boolean {
-    return !!this.accountService.aTeam?.quickbooks?.realmId;
+  downloadCsvTemplate(): void {
+    this.teamService.downloadCsvTemplate();
   }
 
   /**
-   * Get the last sync date for display
+   * Trigger file input click
    */
-  get lastQuickBooksSync(): Date | null {
-    const lastSync = this.accountService.aTeam?.quickbooks?.lastSyncAt;
-    if (!lastSync) return null;
-    return lastSync.toDate ? lastSync.toDate() : new Date(lastSync);
+  triggerCsvUpload(): void {
+    this.csvFileInput?.nativeElement?.click();
   }
 
   /**
-   * Get the count from last sync
+   * Handle CSV file selection
    */
-  get lastSyncCount(): number {
-    return this.accountService.aTeam?.quickbooks?.lastSyncCount || 0;
-  }
-
-  /**
-   * Initiate QuickBooks OAuth connection
-   */
-  async connectQuickBooks(): Promise<void> {
-    this.qbConnecting = true;
-    this.qbError = null;
+  async onCsvFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    
+    if (!file) return;
+    
+    // Reset state
+    this.csvUploading = true;
+    this.csvError = null;
+    this.csvImportResult = null;
     
     try {
-      const authUrl = await this.teamService.initiateQuickBooksConnect();
-      // Redirect to QuickBooks authorization
-      window.location.href = authUrl;
-    } catch (err: any) {
-      this.qbError = err.message || "Failed to initiate QuickBooks connection";
-      this.qbConnecting = false;
-    }
-  }
-
-  /**
-   * Trigger a manual sync of QuickBooks employees
-   */
-  async syncQuickBooks(): Promise<void> {
-    this.qbSyncing = true;
-    this.qbError = null;
-    this.qbSyncResult = null;
-    
-    try {
-      const result = await this.teamService.triggerQuickBooksSync();
-      this.qbSyncResult = { added: result.added, skipped: result.skipped };
+      // Parse the CSV file
+      const parsedMembers = await this.teamService.parseCsvFile(file);
       
-      if (result.errors?.length > 0) {
-        console.warn("QuickBooks sync had errors:", result.errors);
+      // Check for parsing errors
+      const errors = parsedMembers.flatMap(m => m.errors);
+      if (errors.length > 0 && parsedMembers.every(m => m.errors.length > 0)) {
+        this.csvError = errors[0];
+        this.csvUploading = false;
+        return;
+      }
+      
+      // Import valid members
+      const result = await this.teamService.importCsvMembers(parsedMembers);
+      this.csvImportResult = result;
+      
+      if (!result.success) {
+        this.csvError = result.errors[0] || "Failed to import members";
       }
     } catch (err: any) {
-      this.qbError = err.message || "Failed to sync with QuickBooks";
+      this.csvError = err.message || "Failed to process CSV file";
     } finally {
-      this.qbSyncing = false;
+      this.csvUploading = false;
+      // Reset file input
+      input.value = '';
     }
   }
 
   /**
-   * Disconnect QuickBooks from the team
+   * Clear CSV import result/error
    */
-  async disconnectQuickBooks(): Promise<void> {
-    if (!confirm("Are you sure you want to disconnect QuickBooks? This will not remove any team members already synced.")) {
-      return;
-    }
-    
-    try {
-      await this.teamService.disconnectQuickBooks();
-      this.qbSyncResult = null;
-    } catch (err: any) {
-      this.qbError = err.message || "Failed to disconnect QuickBooks";
-    }
+  clearCsvResult(): void {
+    this.csvImportResult = null;
+    this.csvError = null;
   }
 
-  /**
-   * Open the QuickBooks integration dialog
-   */
   openTagsHelpDialog(): void {
     this.dialog.open(TagsHelpDialog, {
       width: "520px"
@@ -496,145 +540,9 @@ export class TeamComponent implements OnDestroy {
     });
   }
 
-  openQuickBooksDialog(): void {
-    this.dialog.open(QuickBooksDialog, {
-      width: "500px",
-      data: {
-        isConnected: this.isQuickBooksConnected,
-        lastSync: this.lastQuickBooksSync,
-        lastSyncCount: this.lastSyncCount
-      }
-    }).afterClosed().subscribe((action: string) => {
-      if (action === "connect") {
-        this.connectQuickBooks();
-      } else if (action === "sync") {
-        this.syncQuickBooks();
-      } else if (action === "disconnect") {
-        this.disconnectQuickBooks();
-      }
-    });
-  }
-
   ngOnDestroy() {
     this.subscription.unsubscribe();
   }
-}
-
-@Component({
-  standalone: true,
-  selector: "quickbooks-dialog",
-  template: `
-    <h2 mat-dialog-title>
-      <img src="/assets/quickbooks-logo.svg" alt="QuickBooks" style="height: 24px; vertical-align: middle; margin-right: 8px;" onerror="this.style.display='none'">
-      QuickBooks Integration
-    </h2>
-    <mat-dialog-content>
-      <div *ngIf="!data.isConnected" class="qb-not-connected">
-        <p>Connect your QuickBooks Online account to automatically sync your employees as team members.</p>
-        <div class="qb-benefits">
-          <div class="benefit"><mat-icon>sync</mat-icon> Daily automatic sync</div>
-          <div class="benefit"><mat-icon>person_add</mat-icon> Import name, email, phone, and job title</div>
-          <div class="benefit"><mat-icon>security</mat-icon> Secure OAuth connection</div>
-        </div>
-      </div>
-      
-      <div *ngIf="data.isConnected" class="qb-connected">
-        <div class="status-badge connected">
-          <mat-icon>check_circle</mat-icon>
-          Connected to QuickBooks
-        </div>
-        
-        <div class="sync-info" *ngIf="data.lastSync">
-          <p><strong>Last sync:</strong> {{ data.lastSync | date:'medium' }}</p>
-          <p><strong>Employees added:</strong> {{ data.lastSyncCount }}</p>
-        </div>
-        <p *ngIf="!data.lastSync" class="no-sync-yet">No sync has been performed yet.</p>
-        
-        <p class="sync-note">Employees are automatically synced daily. Use the button below to sync now.</p>
-      </div>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button *ngIf="!data.isConnected" mat-flat-button color="primary" [mat-dialog-close]="'connect'">
-        <mat-icon>link</mat-icon>
-        Connect QuickBooks
-      </button>
-      <button *ngIf="data.isConnected" mat-stroked-button color="warn" [mat-dialog-close]="'disconnect'">
-        Disconnect
-      </button>
-      <button *ngIf="data.isConnected" mat-flat-button color="primary" [mat-dialog-close]="'sync'">
-        <mat-icon>sync</mat-icon>
-        Sync Now
-      </button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .qb-benefits {
-      margin: 16px 0;
-    }
-    .qb-benefits .benefit {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 8px 0;
-      color: #666;
-    }
-    .qb-benefits .benefit mat-icon {
-      color: #2ca01c;
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
-    }
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: 500;
-      margin-bottom: 16px;
-    }
-    .status-badge.connected {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    .status-badge mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-    }
-    .sync-info {
-      background: #f5f5f5;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin: 12px 0;
-    }
-    .sync-info p {
-      margin: 4px 0;
-    }
-    .sync-note {
-      font-size: 13px;
-      color: #666;
-      margin-top: 12px;
-    }
-    .no-sync-yet {
-      color: #666;
-      font-style: italic;
-    }
-  `],
-  imports: [
-    CommonModule,
-    DatePipe,
-    MatDialogModule,
-    MatButtonModule,
-    MatIconModule
-  ]
-})
-export class QuickBooksDialog {
-  constructor(
-    public dialogRef: MatDialogRef<QuickBooksDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: any
-  ) {}
 }
 
 @Component({

@@ -186,29 +186,14 @@ export class ChallengeService {
     return Math.max(0, CHALLENGE_DURATION_SECONDS - elapsed);
   }
 
-  // Add bonus time (in seconds) - only if remaining time is below threshold
-  addBonusTime(seconds: number, thresholdMinutes: number = 4): boolean {
-    const remainingSeconds = this.getRemainingSeconds();
-    const thresholdSeconds = thresholdMinutes * 60;
-    
-    // Only add bonus time if remaining time is below threshold
-    if (remainingSeconds < thresholdSeconds) {
-      // Adding to totalPausedTime effectively subtracts from elapsed time
-      this.state.totalPausedTime += seconds * 1000;
-      this.saveState();
-      return true;
-    }
-    return false;
-  }
-
   didBeatTimer(): boolean {
     return this.getElapsedSeconds() < CHALLENGE_DURATION_SECONDS;
   }
 
   getTimerDisplay(): string {
-    const remaining = this.getRemainingSeconds();
-    const minutes = Math.floor(remaining / 60);
-    const seconds = remaining % 60;
+    const elapsed = this.getElapsedSeconds();
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 

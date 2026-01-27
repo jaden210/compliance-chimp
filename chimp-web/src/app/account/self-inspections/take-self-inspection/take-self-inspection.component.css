@@ -1,28 +1,19 @@
 /* Toolbar */
-.toolbar-label {
-  margin-left: 8px;
-  padding-right: 12px;
-  border-right: 1px solid var(--chimp-border-light);
-  color: var(--chimp-text-secondary);
-}
-
 .toolbar-title {
   margin-left: 12px;
   font-weight: 500;
-  color: var(--chimp-text-primary);
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-left: none;
-  padding-left: 0;
 }
 
 .toolbar-date {
   font-size: 13px;
-  color: var(--chimp-text-hint);
+  color: rgba(255, 255, 255, 0.8);
   white-space: nowrap;
   padding-right: 12px;
-  border-right: 1px solid var(--chimp-border-light);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .toolbar-actions {
@@ -41,14 +32,14 @@
 .progress-text {
   font-size: 13px;
   font-weight: 600;
-  color: var(--chimp-text-secondary);
+  color: white;
   white-space: nowrap;
 }
 
 .progress-bar-mini {
   width: 80px;
   height: 6px;
-  background: var(--chimp-border-light);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
   overflow: hidden;
   display: flex;
@@ -64,20 +55,33 @@
 }
 
 .progress-fill.non-compliant {
-  background: var(--chimp-warning, #ff9800);
+  background: var(--chimp-warning-bright, #ff9800);
 }
 
 .save-btn {
   margin-right: 8px;
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
-.save-btn mat-icon,
+.save-btn:hover {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.save-btn mat-icon {
+  color: white;
+}
+
 .delete-btn {
-  margin-left: 8px;
-  color: var(--chimp-text-hint);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.delete-btn:hover {
+  color: white;
 }
 
 .delete-btn:hover {
@@ -242,7 +246,7 @@
 }
 
 .status-non-compliant {
-  color: var(--chimp-warning, #ff9800);
+  color: var(--chimp-warning-bright, #ff9800);
 }
 
 .question-name {
@@ -348,25 +352,25 @@
 }
 
 .no-btn:hover {
-  border-color: var(--chimp-warning, #ff9800);
-  color: var(--chimp-warning, #ff9800);
+  border-color: var(--chimp-warning-bright, #ff9800);
+  color: var(--chimp-warning-bright, #ff9800);
 }
 
 .no-btn.selected {
-  background: var(--chimp-warning, #ff9800);
-  border-color: var(--chimp-warning, #ff9800);
+  background: var(--chimp-warning-bright, #ff9800);
+  border-color: var(--chimp-warning-bright, #ff9800);
   color: white;
 }
 
 /* When expected answer is No: swap colors */
 .yes-btn.expects-no:hover {
-  border-color: var(--chimp-warning, #ff9800);
-  color: var(--chimp-warning, #ff9800);
+  border-color: var(--chimp-warning-bright, #ff9800);
+  color: var(--chimp-warning-bright, #ff9800);
 }
 
 .yes-btn.expects-no.selected {
-  background: var(--chimp-warning, #ff9800);
-  border-color: var(--chimp-warning, #ff9800);
+  background: var(--chimp-warning-bright, #ff9800);
+  border-color: var(--chimp-warning-bright, #ff9800);
   color: white;
 }
 

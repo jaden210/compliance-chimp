@@ -2,6 +2,7 @@
   <button mat-icon-button (click)="goBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png">
   <span class="toolbar-title">
     @switch (mode) {
       @case ('edit') { Edit Training }
@@ -80,6 +81,14 @@
 
     <div class="action-row" *ngIf="!isGenerating">
       <button
+        mat-button
+        (click)="switchToScratch()"
+        class="scratch-btn"
+      >
+        <mat-icon>edit_note</mat-icon>
+        Write My Own
+      </button>
+      <button
         mat-flat-button
         color="accent"
         (click)="generateArticle()"
@@ -87,7 +96,7 @@
         class="generate-btn"
       >
         <mat-icon>construction</mat-icon>
-        Generate Training Article
+        Draft Training Article
       </button>
     </div>
   </section>
@@ -128,7 +137,7 @@
                 [disabled]="isCreating || !title?.trim() || !generatedContent?.trim()">
           <mat-icon *ngIf="!isCreating">check</mat-icon>
           <mat-spinner *ngIf="isCreating" diameter="18"></mat-spinner>
-          {{ isCreating ? 'Saving...' : (mode === 'edit' ? 'Save Changes' : 'Create Training') }}
+          {{ isCreating ? 'Saving...' : (mode === 'edit' ? 'Save Changes' : 'Add to Library') }}
         </button>
       </div>
     </div>

@@ -55,7 +55,20 @@
 .step-actions {
   margin-top: 32px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-btn {
+  color: var(--chimp-text-secondary);
+  
+  mat-icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
 }
 
 .next-btn {
@@ -85,6 +98,6 @@
   }
   
   .next-btn {
-    width: 100%;
+    flex: 1;
   }
 }

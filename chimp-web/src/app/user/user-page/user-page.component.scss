@@ -429,6 +429,27 @@ $radius-xl: 24px;
     margin: 0 auto;
     line-height: 1.5;
   }
+
+  // Loading state variant
+  &.loading-state {
+    .empty-icon {
+      background: linear-gradient(135deg, color.adjust($primary, $lightness: 35%), color.adjust($primary, $lightness: 40%));
+
+      mat-icon {
+        color: $primary;
+        animation: spin 1.5s linear infinite;
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 // Footer

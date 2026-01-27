@@ -28,11 +28,11 @@
   
   &.complete {
     .timer-progress {
-      stroke: #4caf50;
+      stroke: var(--chimp-accent, #ff9800);
     }
     
     .timer-bg {
-      stroke: rgba(76, 175, 80, 0.2);
+      stroke: rgba(255, 152, 0, 0.2);
     }
   }
 }
@@ -89,7 +89,7 @@
   }
   
   &.complete {
-    color: #4caf50;
+    color: var(--chimp-accent, #ff9800);
     font-weight: 600;
   }
 }

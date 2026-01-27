@@ -255,6 +255,18 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
       y += sectionGap;
     }
 
+    // Add chimp logo at the bottom
+    try {
+      const logoData = await getImage('/assets/chimp.png');
+      const logoWidth = 1.0;
+      const logoHeight = 1.4;
+      const logoX = (8.5 - logoWidth) / 2;
+      checkPageBreak(logoHeight + 0.3);
+      pdfDoc.addImage(logoData, "PNG", logoX, y + 0.2, logoWidth, logoHeight);
+    } catch (e) {
+      console.error('Failed to load chimp logo:', e);
+    }
+
     // Save the PDF
     const filename = (this.report.type || 'incident-report').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     pdfDoc.save(`${filename}.pdf`);
@@ -263,4 +275,15 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.subscription?.unsubscribe();
   }
+}
+
+async function getImage(imageUrl: string): Promise<string> {
+  const res = await fetch(imageUrl);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read image'));
+    reader.readAsDataURL(blob);
+  });
 }

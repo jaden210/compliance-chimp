@@ -58,6 +58,51 @@
   }
 }
 
+// Account already created view
+.account-created-section {
+  margin-bottom: 24px;
+}
+
+.success-banner {
+  display: flex;
+  gap: 16px;
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 12px;
+  padding: 24px;
+  
+  > mat-icon {
+    color: #4caf50;
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+  
+  .success-content {
+    flex: 1;
+    
+    strong {
+      font-size: 18px;
+      color: var(--chimp-text-primary);
+      display: block;
+      margin-bottom: 8px;
+    }
+    
+    p {
+      font-size: 14px;
+      color: var(--chimp-text-secondary);
+      margin: 0;
+      
+      strong {
+        font-size: 14px;
+        display: inline;
+        margin: 0;
+      }
+    }
+  }
+}
+
 .form-section {
   display: flex;
   flex-direction: column;

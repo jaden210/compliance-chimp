@@ -156,7 +156,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
   }
 
   close() {
-    this.router.navigate(['/user']);
+    this.router.navigate(['/user'], { queryParamsHandling: 'preserve' });
   }
 }
 
@@ -168,26 +168,34 @@ export class SurveyComponent implements OnInit, OnDestroy {
   styleUrls: ["./survey.component.scss"],
   imports: [CommonModule, MatDialogModule, MatButtonModule]
 })
-export class SignatureDialog implements AfterViewChecked {
+export class SignatureDialog implements AfterViewChecked, OnDestroy {
   @ViewChild("signatureCanvas") signatureCanvas?: ElementRef<HTMLCanvasElement>;
 
   private readonly dialogRef = inject(MatDialogRef<SignatureDialog>);
 
   private signaturePad?: SignaturePad;
+  private canvas: HTMLCanvasElement | null = null;
   finished: boolean = false;
-  signatureOptions = { minWidth: 1, dotSize: 1 };
 
   ngAfterViewChecked() {
     if (this.signatureCanvas && !this.signaturePad) {
-      const canvas = this.signatureCanvas.nativeElement;
-      canvas.width = canvas.offsetWidth || 320;
-      canvas.height = 160;
-      this.signaturePad = new SignaturePad(canvas, this.signatureOptions);
-      const handleEnd = () => {
+      this.canvas = this.signatureCanvas.nativeElement;
+      this.canvas.width = this.canvas.offsetWidth || 320;
+      this.canvas.height = 160;
+      this.signaturePad = new SignaturePad(this.canvas, {
+        minWidth: 1,
+        dotSize: 1
+      });
+      // Use SignaturePad's built-in addEventListener for reliable stroke detection
+      this.signaturePad.addEventListener('endStroke', () => {
         this.finished = true;
-      };
-      canvas.addEventListener("mouseup", handleEnd);
-      canvas.addEventListener("touchend", handleEnd);
+      });
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.signaturePad) {
+      this.signaturePad.off();
     }
   }
 

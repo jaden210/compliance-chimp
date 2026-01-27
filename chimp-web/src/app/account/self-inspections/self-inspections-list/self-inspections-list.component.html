@@ -3,9 +3,30 @@
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Self-Inspections</div>
   <div class="flex"></div>
+  <button 
+    mat-icon-button 
+    (click)="welcomeService.toggle('inspections')"
+    [matTooltip]="welcomeService.isVisible('inspections') ? 'Hide guide' : 'Show guide'"
+    class="toolbar-help-btn"
+    [class.active]="welcomeService.isVisible('inspections')">
+    <mat-icon>{{ welcomeService.isVisible('inspections') ? 'help' : 'help_outline' }}</mat-icon>
+  </button>
 </mat-toolbar>
 
 <div class="window self-inspections-page">
+      <!-- Welcome Banner - shown when there's inspection content -->
+      <ng-container *ngIf="selfInspections$ | async as welcomeInspections">
+        <app-welcome-banner
+          *ngIf="welcomeInspections.length > 0 && welcomeService.isVisible('inspections')"
+          icon="checklist"
+          title="Welcome to Self-Inspections"
+          subtitle="Here's how to manage your inspection program"
+          [features]="inspectionsWelcomeFeatures"
+          (closed)="welcomeService.hide('inspections')"
+          (featureClicked)="onWelcomeFeatureClick($event)">
+        </app-welcome-banner>
+      </ng-container>
+
       <!-- Team Members Required Notice -->
       <section class="setup-notice" *ngIf="accountService.teamMembersLoaded && !hasTeamMembers()">
         <div class="setup-card">
@@ -436,7 +457,7 @@
           </div>
         </div>
 
-        <section class="inspections-section" *ngIf="allInspections.length > 0">
+        <section class="inspections-section" #inspectionsSection *ngIf="allInspections.length > 0">
           <div class="section-header">
             <div>
               <div class="section-title">All inspections</div>

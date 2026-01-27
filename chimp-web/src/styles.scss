@@ -286,3 +286,48 @@ agm-map {
     right: 12px !important;
   }
 }
+
+/* Toolbar Help Button - for welcome guide toggle */
+.toolbar-help-btn {
+  color: var(--chimp-on-surface-variant) !important;
+  transition: all 150ms ease;
+}
+
+.toolbar-help-btn:hover {
+  color: var(--chimp-primary) !important;
+}
+
+.toolbar-help-btn.active {
+  color: var(--chimp-primary) !important;
+}
+
+.toolbar-help-btn mat-icon {
+  font-size: 24px;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+  }
+
+  .window {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .fab,
+  .helper,
+  .helper-box {
+    display: none !important;
+  }
+
+  mat-toolbar {
+    box-shadow: none !important;
+  }
+
+  /* Ensure content flows naturally */
+  * {
+    overflow: visible !important;
+  }
+}
