@@ -1,0 +1,103 @@
+<div class="chimp-chat-panel" 
+  cdkDrag 
+  cdkDragBoundary="body"
+  [cdkDragFreeDragPosition]="dragPosition"
+  (cdkDragEnded)="onDragEnded($event)">
+  <!-- Header -->
+  <div class="chat-header" cdkDragHandle>
+    <div class="header-left">
+      <img src="/assets/chimpFace.png" alt="ChimpChat" class="chimp-avatar" />
+      <span class="header-title">ChimpChat</span>
+    </div>
+    <button mat-icon-button class="close-btn" (click)="closePanel()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Messages Area -->
+  <div class="messages-container" #messagesContainer>
+    <!-- Welcome State -->
+    <div class="welcome-state" *ngIf="showWelcome">
+      <div class="welcome-content">
+        <h2>What can I do for you?</h2>
+        <p>I can help you navigate your OSHA compliance program, find trainings, and more.</p>
+        
+        <div class="suggested-prompts">
+          <button 
+            *ngFor="let prompt of suggestedPrompts" 
+            class="prompt-button"
+            (click)="selectPrompt(prompt)">
+            <mat-icon>{{prompt.icon}}</mat-icon>
+            <span>{{prompt.text}}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <ng-container *ngIf="!showWelcome">
+      <div 
+        *ngFor="let message of messages" 
+        class="message-wrapper"
+        [class.user-message]="message.role === 'user'"
+        [class.assistant-message]="message.role === 'assistant'">
+        
+        <!-- Assistant avatar -->
+        <div class="avatar" *ngIf="message.role === 'assistant'">
+          <img src="/assets/chimpFace.png" alt="Chimp" />
+        </div>
+        
+        <!-- Message bubble -->
+        <div class="message-bubble">
+          <p [innerHTML]="message.content"></p>
+          
+          <!-- Action buttons -->
+          <div class="action-buttons" *ngIf="message.actions && message.actions.length > 0">
+            <button 
+              *ngFor="let action of message.actions"
+              class="action-button"
+              (click)="executeAction(action)">
+              <mat-icon *ngIf="action.type === 'navigate'">arrow_forward</mat-icon>
+              <mat-icon *ngIf="action.type === 'smartBuilder'">auto_awesome</mat-icon>
+              <mat-icon *ngIf="action.type === 'search'">search</mat-icon>
+              <span>{{action.label}}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Loading indicator -->
+    <div class="message-wrapper assistant-message" *ngIf="isLoading">
+      <div class="avatar">
+        <img src="/assets/chimpFace.png" alt="Chimp" />
+      </div>
+      <div class="message-bubble loading">
+        <div class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea 
+        #messageInput
+        [(ngModel)]="inputMessage"
+        (keydown)="onKeyDown($event)"
+        placeholder="Ask the chimp anything..."
+        rows="1"></textarea>
+      <button 
+        mat-icon-button 
+        class="send-btn" 
+        [disabled]="!inputMessage.trim() || isLoading"
+        (click)="sendMessage()">
+        <mat-icon>send</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

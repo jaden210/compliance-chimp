@@ -8,6 +8,8 @@ import { Subscription, filter } from "rxjs";
 
 const TOTAL_SECONDS = 360; // 6 minutes
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 54; // 2πr where r=54
+// Rounded rect perimeter: 2*(w+h) - 8*r + 2*π*r where w=164, h=192, r=14
+const RECT_PERIMETER = 2 * (164 + 192) - 8 * 14 + 2 * Math.PI * 14; // ≈ 688
 
 @Component({
   standalone: true,
@@ -25,6 +27,7 @@ export class ChallengeComponent implements OnInit, OnDestroy {
   timerDisplay = "0:00";
   isPaused = false;
   isComplete = false;
+  isOvertime = false;
   timerColor = 'green';
   progressPercent = 0;
   isOnStep3 = false;
@@ -85,6 +88,9 @@ export class ChallengeComponent implements OnInit, OnDestroy {
     const elapsed = this.challengeService.getElapsedSeconds();
     this.progressPercent = (elapsed / TOTAL_SECONDS) * 100;
     
+    // Check if overtime (exceeded 6 minutes)
+    this.isOvertime = elapsed >= TOTAL_SECONDS;
+    
     // Color based on elapsed time: green when plenty of time, yellow getting close, red running out
     if (elapsed < 180) {
       this.timerColor = 'green';  // Less than 3 minutes elapsed
@@ -101,5 +107,13 @@ export class ChallengeComponent implements OnInit, OnDestroy {
     const elapsed = this.challengeService.getElapsedSeconds();
     const progress = elapsed / TOTAL_SECONDS;
     return CIRCLE_CIRCUMFERENCE * (1 - progress);
+  }
+
+  getRectStrokeDashoffset(): number {
+    // Empty rect = full perimeter offset, full rect = 0 offset
+    // Rect fills as time elapses
+    const elapsed = this.challengeService.getElapsedSeconds();
+    const progress = elapsed / TOTAL_SECONDS;
+    return RECT_PERIMETER * (1 - progress);
   }
 }

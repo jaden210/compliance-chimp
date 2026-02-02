@@ -46,14 +46,14 @@
           <mat-icon class="action-arrow">chevron_right</mat-icon>
         </div>
 
-        @if (Files?.length > 0) {
+        @if (hasFilesOrResources) {
           <div class="action-card files" routerLink="files">
             <div class="action-icon">
               <mat-icon>folder_open</mat-icon>
             </div>
             <div class="action-details">
               <span class="action-title">Team Files</span>
-              <span class="action-subtitle">{{ Files.length }} file{{ Files.length !== 1 ? 's' : '' }} available</span>
+              <span class="action-subtitle">{{ totalFilesCount }} file{{ totalFilesCount !== 1 ? 's' : '' }} available</span>
             </div>
             <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>

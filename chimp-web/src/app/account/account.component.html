@@ -12,6 +12,12 @@
           <span>{{item.label}}</span>
         </div>
       </ng-container>
+      
+      <!-- ChimpChat Button (Mobile) -->
+      <div class="mobile-nav-item chimp-chat-mobile" (click)="sidenav.close(); toggleChimpChat()">
+        <img src="/assets/chimpFace.png" alt="ChimpChat" class="chimp-chat-icon" />
+        <span>ChimpChat</span>
+      </div>
     </div>
   </mat-sidenav>
   <mat-sidenav-content>
@@ -57,6 +63,11 @@
             <span class="nav-label">{{item.label}}</span>
           </div>
         </ng-container>
+        
+        <!-- ChimpChat Button -->
+        <div class="chimp-chat-button" [class.active]="showChimpChat" (click)="toggleChimpChat()">
+          <img src="/assets/chimpFace.png" alt="ChimpChat" />
+        </div>
       </div>
       <div id="body">
         <router-outlet></router-outlet>
@@ -100,4 +111,11 @@
     member since {{ accountService.aTeam.createdAt | date: "shortDate" }}
   </div>
 </div>
+
+<!-- ChimpChat Panel -->
+<chimp-chat 
+  *ngIf="showChimpChat" 
+  (close)="showChimpChat = false">
+</chimp-chat>
+
 <loading-chimp></loading-chimp>

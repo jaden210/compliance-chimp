@@ -1,13 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 
 @Component({
-  standalone: true,
   selector: 'app-customer-agreement',
+  standalone: true,
   templateUrl: './customer-agreement.component.html',
-  styleUrls: ['./customer-agreement.component.css']
+  styleUrl: './customer-agreement.component.css'
 })
-export class CustomerAgreementComponent implements OnInit {
-  constructor() { }
-
-  ngOnInit() { }
+export class CustomerAgreementComponent {
+  scrollTo(sectionId: string): void {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }

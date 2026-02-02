@@ -6,18 +6,19 @@
   position: relative;
 }
 
-// Circular Countdown Timer
-.circular-timer {
+// Timer Card (Rounded Rectangle)
+.timer-card {
   position: fixed;
   top: 80px;
   right: 24px;
-  width: 120px;
-  height: 120px;
+  width: 172px;
+  height: 200px;
   z-index: 100;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.2));
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
   
   &.paused {
-    .timer-progress {
+    .timer-border-progress {
       stroke: #9e9e9e;
     }
     
@@ -27,48 +28,74 @@
   }
   
   &.complete {
-    .timer-progress {
+    .timer-border-progress {
       stroke: var(--chimp-accent, #ff9800);
     }
+  }
+  
+  &.overtime {
+    .timer-border-progress {
+      stroke: #e53935;
+    }
     
-    .timer-bg {
-      stroke: rgba(255, 152, 0, 0.2);
+    .timer-value {
+      color: #e53935;
     }
   }
 }
 
-.timer-svg {
+.timer-border-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  transform: scaleX(-1); // Flip so it unwinds clockwise
 }
 
-.timer-bg {
-  stroke: rgba(0, 0, 0, 0.1);
+.timer-border-bg {
   fill: var(--chimp-bg-primary);
+  stroke: rgba(0, 0, 0, 0.1);
+  stroke-width: 6;
 }
 
-.timer-progress {
-  stroke: var(--chimp-accent);
+.timer-border-progress {
+  fill: none;
+  stroke: var(--chimp-accent, #ff9800);
+  stroke-width: 6;
   stroke-linecap: round;
-  stroke-dasharray: 339.292; // 2 * PI * 54
+  stroke-dasharray: 688; // Approximate perimeter
   transition: stroke-dashoffset 0.1s linear;
 }
 
-.timer-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.timer-card-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 10px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.timer-chimp {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.timer-content {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
   justify-content: center;
-  text-align: center;
+  gap: 4px;
+  padding: 8px 0 0 0;
 }
 
 .timer-value {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   font-family: 'Monaco', 'Consolas', monospace;
   color: var(--chimp-text-primary);
@@ -76,12 +103,9 @@
 }
 
 .timer-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--chimp-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 2px;
   
   &.paused {
     color: var(--chimp-accent);
@@ -101,38 +125,17 @@
   flex-direction: column;
 }
 
-// Responsive - Mobile
+// Responsive - Mobile: Timer card above content (centered, same proportions)
 @media screen and (max-width: 600px) {
-  .circular-timer {
-    top: 70px;
-    right: 12px;
-    width: 90px;
-    height: 90px;
+  .challenge-container {
+    background: var(--chimp-bg-primary);
   }
   
-  .timer-value {
-    font-size: 20px;
-  }
-  
-  .timer-label {
-    font-size: 8px;
-  }
-}
-
-// Responsive - Extra Small Mobile
-@media screen and (max-width: 374px) {
-  .circular-timer {
-    top: 60px;
-    right: 8px;
-    width: 70px;
-    height: 70px;
-  }
-  
-  .timer-value {
-    font-size: 16px;
-  }
-  
-  .timer-label {
-    font-size: 7px;
+  .timer-card {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 16px auto 0 auto;
+    // Keep same dimensions as desktop so SVG calculations work correctly
   }
 }

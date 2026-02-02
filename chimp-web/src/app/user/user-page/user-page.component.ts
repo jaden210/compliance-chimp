@@ -13,6 +13,8 @@ import { MatListModule } from "@angular/material/list";
 import { SurveyComponent } from "../survey/survey.component";
 import { InjuryReport } from "../injury-report/injury-report.component";
 import { PwaInstallService } from "../pwa-install.service";
+import { ResourceFile } from "src/app/account/support/resource-library.service";
+import { Subscription } from "rxjs";
 
 @Component({
   standalone: true,
@@ -43,13 +45,19 @@ export class UserPageComponent implements OnInit {
   // Reactive surveys that update when the service data changes
   filteredSurveys: Survey[] = [];
   surveysLoaded = false;
+  
+  // Resource library
+  resourceFiles: ResourceFile[] = [];
+  private resourceSubscription: Subscription;
 
   ngOnInit() {
     this.userService.teamObservable
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(team => {
-        if (team) {
-          // Team loaded
+        if (team && team.showResourceLibrary !== false) {
+          this.loadResourceFiles();
+        } else {
+          this.resourceFiles = [];
         }
       });
 
@@ -150,6 +158,24 @@ export class UserPageComponent implements OnInit {
 
   get Files(): any {
     return this.userService.files;
+  }
+
+  get hasFilesOrResources(): boolean {
+    return (this.userService.files?.length > 0) || (this.resourceFiles?.length > 0);
+  }
+
+  get totalFilesCount(): number {
+    return (this.userService.files?.length || 0) + (this.resourceFiles?.length || 0);
+  }
+
+  private loadResourceFiles(): void {
+    if (this.resourceSubscription) {
+      this.resourceSubscription.unsubscribe();
+    }
+    this.resourceSubscription = this.userService.getResourceFiles().subscribe(files => {
+      this.resourceFiles = files;
+      this.cdr.detectChanges();
+    });
   }
 
   get Surveys(): Survey[] {

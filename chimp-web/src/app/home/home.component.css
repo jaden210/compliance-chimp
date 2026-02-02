@@ -18,9 +18,9 @@
 
 .challenge-chimp-image {
   position: absolute;
-  bottom: -10px;
-  right: -10px;
-  width: 180px;
+  bottom: 0;
+  right: 0;
+  width: 240px;
   height: auto;
   pointer-events: none;
 }
@@ -606,7 +606,13 @@
   }
   
   .challenge-chimp-image {
-    display: none;
+    display: block;
+    width: auto;
+    height: 120px;
+    flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: -20px;
+    margin-left: -20px;
   }
   
   .challenge-content {
@@ -617,23 +623,7 @@
   }
   
   .challenge-timer-visual {
-    flex-shrink: 0;
-  }
-  
-  .timer-circle {
-    width: 64px;
-    height: 64px;
-    border-width: 2px;
-    box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
-  }
-  
-  .timer-number {
-    font-size: 26px;
-  }
-  
-  .timer-label {
-    font-size: 9px;
-    letter-spacing: 1px;
+    display: none;
   }
   
   .challenge-text {
@@ -833,17 +823,10 @@
     gap: 12px;
   }
   
-  .timer-circle {
-    width: 54px;
-    height: 54px;
-  }
-  
-  .timer-number {
-    font-size: 22px;
-  }
-  
-  .timer-label {
-    font-size: 8px;
+  .challenge-chimp-image {
+    height: 100px;
+    margin-bottom: -16px;
+    margin-left: -14px;
   }
   
   .challenge-headline {

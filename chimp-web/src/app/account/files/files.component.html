@@ -3,9 +3,20 @@
   <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
   <div class="toolbar-title">Team Files</div>
   <div class="flex"></div>
+  <button mat-button color="primary" (click)="upload()" [disabled]="accountService.isReadOnly" *ngIf="showContent">
+    <mat-icon>cloud_upload</mat-icon>
+    Upload any file
+  </button>
 </mat-toolbar>
 <div class="window">
-  <mat-progress-bar mode="indeterminate" *ngIf="loading" class="loading-bar"></mat-progress-bar>
+  <!-- Upload overlay -->
+  <div class="upload-overlay" *ngIf="loading">
+    <div class="upload-card">
+      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+      <div class="upload-text">Uploading file...</div>
+    </div>
+  </div>
+
   <div *ngIf="!showContent" class="loading-container">
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   </div>
@@ -21,14 +32,6 @@
     </div>
 
     <div class="files-container" *ngIf="files?.length > 0">
-      <div class="files-header">
-        <h2>Files</h2>
-        <button mat-flat-button color="primary" (click)="upload()" [disabled]="accountService.isReadOnly">
-          <mat-icon>cloud_upload</mat-icon>
-          Upload File
-        </button>
-      </div>
-      
       <div class="files-content">
         <div class="file-list">
           <div 
@@ -36,42 +39,137 @@
             *ngFor="let file of files" 
             [class.active]="aFile?.id == file.id" 
             (click)="selectFile(file)">
-            <mat-icon class="file-icon">{{ getFileIcon(file) }}</mat-icon>
+            <div class="file-thumb">
+              <img *ngIf="isImageFile(file)" [src]="file.fileUrl" [alt]="file.name" loading="lazy">
+              <video *ngIf="isVideoFile(file)" [src]="file.fileUrl" preload="metadata"></video>
+              <div class="thumb-play" *ngIf="isVideoFile(file)">
+                <mat-icon>play_arrow</mat-icon>
+              </div>
+              <div *ngIf="isPdfFile(file)" class="thumb-pdf">
+                <mat-icon>picture_as_pdf</mat-icon>
+              </div>
+              <div *ngIf="!isImageFile(file) && !isVideoFile(file) && !isPdfFile(file)" class="thumb-icon">
+                <mat-icon>{{ getFileIcon(file) }}</mat-icon>
+              </div>
+            </div>
             <div class="file-info">
               <div class="file-name">{{ file.name }}</div>
-              <div class="file-date">{{ file.createdAt | date: 'medium' }}</div>
+              <div class="file-meta">
+                <span class="file-date">{{ file.createdAt | date: 'mediumDate' }}</span>
+                <mat-icon class="public-badge" *ngIf="file.isPublic" matTooltip="Visible to team">public</mat-icon>
+              </div>
             </div>
-            <mat-icon class="public-icon" *ngIf="file.isPublic">public</mat-icon>
           </div>
         </div>
         
         <div class="file-preview" *ngIf="aFile?.id">
-          <div class="preview-image" *ngIf="isImageFile(aFile)">
-            <img [src]="aFile.fileUrl" alt="File preview" />
-          </div>
-          <div class="preview-placeholder" *ngIf="!isImageFile(aFile)">
-            <mat-icon>{{ getFileIcon(aFile) }}</mat-icon>
-            <span class="file-type-label">{{ getFileTypeLabel(aFile) }}</span>
-          </div>
-          <div class="preview-details">
-            <mat-form-field appearance="outline">
-              <mat-label>File name</mat-label>
-              <input matInput type="text" [(ngModel)]="aFile.name" (blur)="save()">
-              <mat-hint>{{ aFile.createdAt | date: 'medium' }}</mat-hint>
-            </mat-form-field>
-            <mat-slide-toggle [(ngModel)]="aFile.isPublic" (change)="save()">
-              Allow team access
-            </mat-slide-toggle>
-            <div class="preview-actions">
-              <button mat-stroked-button color="primary" (click)="download()">
-                <mat-icon>download</mat-icon>
-                Download
+          <!-- Header with everything -->
+          <div class="preview-header">
+            <div class="preview-title">
+              <mat-icon class="title-icon">{{ getFileIcon(aFile) }}</mat-icon>
+              <div class="title-content">
+                <input class="title-input" type="text" [(ngModel)]="aFile.name" (blur)="save()">
+                <span class="title-date">{{ aFile.createdAt | date: 'mediumDate' }}</span>
+              </div>
+            </div>
+            <div class="preview-header-actions">
+              <mat-slide-toggle [(ngModel)]="aFile.isPublic" (change)="save()">
+                Team access
+              </mat-slide-toggle>
+              <button mat-icon-button (click)="openFile(aFile)" matTooltip="Open in new tab">
+                <mat-icon>open_in_new</mat-icon>
               </button>
-              <button mat-stroked-button color="warn" (click)="delete()">
+              <button mat-icon-button (click)="download()" matTooltip="Download">
+                <mat-icon>download</mat-icon>
+              </button>
+              <button mat-icon-button color="warn" (click)="delete()" matTooltip="Delete">
                 <mat-icon>delete</mat-icon>
-                Delete
               </button>
             </div>
+          </div>
+
+          <!-- Media Preview -->
+          <div class="preview-media">
+            <img *ngIf="isImageFile(aFile)" [src]="aFile.fileUrl" [alt]="aFile.name" />
+            <video *ngIf="isVideoFile(aFile)" [src]="aFile.fileUrl" controls></video>
+            <div class="preview-placeholder" *ngIf="isPdfFile(aFile)">
+              <div class="placeholder-icon pdf">
+                <mat-icon>picture_as_pdf</mat-icon>
+              </div>
+              <button mat-flat-button color="primary" (click)="openFile(aFile)">
+                <mat-icon>open_in_new</mat-icon>
+                View PDF
+              </button>
+            </div>
+            <div class="preview-csv" *ngIf="isCsvFile(aFile)">
+              <div class="csv-loading" *ngIf="csvLoading">
+                <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+              </div>
+              <div class="csv-table-wrapper" *ngIf="!csvLoading && csvData.length > 0">
+                <table class="csv-table">
+                  <thead>
+                    <tr>
+                      <th *ngFor="let cell of csvData[0]">{{ cell }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of csvData.slice(1)">
+                      <td *ngFor="let cell of row">{{ cell }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="csv-empty" *ngIf="!csvLoading && csvData.length === 0">
+                <mat-icon>table_chart</mat-icon>
+                <span>Could not load CSV preview</span>
+              </div>
+            </div>
+            <div class="preview-placeholder" *ngIf="!isImageFile(aFile) && !isVideoFile(aFile) && !isPdfFile(aFile) && !isCsvFile(aFile)">
+              <div class="placeholder-icon">
+                <mat-icon>{{ getFileIcon(aFile) }}</mat-icon>
+              </div>
+              <button mat-flat-button color="primary" (click)="openFile(aFile)">
+                <mat-icon>open_in_new</mat-icon>
+                Open File
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resource Library Section -->
+    <div class="resource-library-section" *ngIf="resourceFiles?.length > 0">
+      <div class="resource-header">
+        <div class="resource-title">
+          <mat-icon>library_books</mat-icon>
+          <h3>Resource Library</h3>
+        </div>
+        <mat-slide-toggle 
+          [(ngModel)]="showResourceLibrary" 
+          (change)="toggleResourceLibrary()">
+          Show to team members
+        </mat-slide-toggle>
+      </div>
+      <p class="resource-description">
+        Federal workplace posters and compliance documents.
+      </p>
+      <div class="resource-grid">
+        <div class="resource-card" *ngFor="let file of resourceFiles">
+          <div class="resource-card-header">
+            <mat-icon class="resource-card-icon">picture_as_pdf</mat-icon>
+            <div class="resource-card-actions">
+              <button mat-icon-button (click)="downloadResourceFile(file)" matTooltip="Download">
+                <mat-icon>download</mat-icon>
+              </button>
+              <a *ngIf="file.sourceUrl" mat-icon-button [href]="file.sourceUrl" target="_blank" matTooltip="View source">
+                <mat-icon>open_in_new</mat-icon>
+              </a>
+            </div>
+          </div>
+          <div class="resource-card-content">
+            <div class="resource-card-name">{{ file.name }}</div>
+            <div class="resource-card-desc" *ngIf="file.description">{{ file.description }}</div>
           </div>
         </div>
       </div>
@@ -82,6 +180,7 @@
     type="file" 
     id="upFile" 
     style="display: none;" 
-    accept=".png,.jpg,.jpeg,.mp4,.csv,.pdf,.xls,.xlsx,.doc,.docx" 
-    (change)="uploadFile($event)">
+    accept=".png,.jpg,.jpeg,.mp4,.csv,.pdf,.xls,.xlsx,.doc,.docx"
+    multiple
+    (change)="uploadFiles($event)">
 </div>

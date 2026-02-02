@@ -28,32 +28,32 @@ export class CommonQuestionsComponent implements OnInit, OnDestroy {
       answer: "Your first 14 days are completely free with no credit card required. You'll have full access to all features during your trial to see how we can help simplify your compliance journey. After your trial ends, you'll be billed $99/month."
     },
     {
-      question: "What is PCI DSS compliance?",
-      answer: "PCI DSS (Payment Card Industry Data Security Standard) is a set of security standards designed to ensure that all companies that accept, process, store or transmit credit card information maintain a secure environment. Compliance Chimp helps you understand and meet these requirements without the headache."
+      question: "What is OSHA compliance?",
+      answer: "OSHA (Occupational Safety and Health Administration) sets and enforces workplace safety standards for most private-sector employers. Compliance Chimp helps you meet OSHA requirements through safety training, self-inspections, incident documentation, and recordkeeping—all in one platform."
     },
     {
-      question: "How does Compliance Chimp help with PCI compliance?",
-      answer: "We guide you through self-assessment questionnaires, help you create and maintain required policies, collect and store evidence of compliance, track team training, and send reminders so nothing falls through the cracks. Everything is stored in one place for easy access during audits."
+      question: "How does Compliance Chimp help with OSHA compliance?",
+      answer: "We provide OSHA-aligned safety training, guided self-inspection checklists, incident reporting, and permanent documentation. Trainings go out automatically, inspections get scheduled with reminders, and everything is stored for when OSHA asks for records."
     },
     {
-      question: "What SAQ (Self-Assessment Questionnaire) do I need?",
-      answer: "The SAQ you need depends on how you process card payments. We'll help you determine which questionnaire applies to your business and guide you through completing it step by step."
+      question: "What OSHA standards apply to my industry?",
+      answer: "OSHA standards vary by industry. General industry follows 29 CFR 1910; construction follows 29 CFR 1926. When you sign up, tell us your industry and we'll build a compliance program tailored to the OSHA requirements that apply to your business."
     },
     {
       question: "How many users can join?",
       answer: "There's no limit to team size."
     },
     {
-      question: "Do you help with policy documentation?",
-      answer: "Yes. PCI compliance requires specific security policies. We provide templates and guidance to help you create, maintain, and distribute policies to your team, with tracking to show who has reviewed them."
+      question: "Do you help with safety policy documentation?",
+      answer: "Yes. We provide OSHA-aligned safety training articles and self-inspection checklists. You can assign trainings to your team and track completion. All training records, inspection reports, and incident documentation are stored permanently for OSHA audits."
     },
     {
       question: "How is team training handled?",
-      answer: "You can assign security awareness training to your team members and track completion. When it's time for annual training refreshers, we'll remind you. All training records are stored for audit purposes."
+      answer: "You assign OSHA safety trainings to your team members. Trainings go out automatically via text and email. We track completion and send reminders until everyone finishes. All training records are stored for audit purposes."
     },
     {
-      question: "How does evidence collection work?",
-      answer: "PCI audits require documentation. Compliance Chimp helps you collect and organize evidence of your security controls, policy acknowledgments, training completions, and other compliance activities throughout the year."
+      question: "How does documentation work for OSHA audits?",
+      answer: "Every training completion, self-inspection, and incident report is documented with timestamps. When OSHA asks for records, you can pull up your complete compliance history in seconds. Everything is stored in one place."
     },
     {
       question: "What languages is Compliance Chimp offered in?",

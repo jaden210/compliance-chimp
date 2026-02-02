@@ -1,0 +1,133 @@
+<div class="resource-library-container">
+  @if (loading) {
+    <mat-progress-bar mode="indeterminate" class="loading-bar"></mat-progress-bar>
+  }
+  
+  @if (!showContent) {
+    <div class="loading-container">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </div>
+  }
+
+  @if (showContent) {
+    @if (files?.length === 0) {
+      <div class="empty-state">
+        <mat-icon>library_books</mat-icon>
+        <div class="empty-title">Resource Library is empty</div>
+        <div class="empty-body">
+          Upload federal workplace posters and compliance documents that teams can optionally display to their members.
+          Common documents include OSHA posters, FLSA notices, FMLA information, and EEOC guidelines.
+        </div>
+        <button mat-flat-button color="accent" (click)="upload()">
+          <mat-icon>cloud_upload</mat-icon>
+          Upload First Resource
+        </button>
+      </div>
+    }
+
+    @if (files?.length) {
+      <div class="files-layout">
+        <div class="files-header">
+          <h2>Resource Library</h2>
+          <div class="header-subtitle">{{ files.length }} resource{{ files.length !== 1 ? 's' : '' }} available to teams</div>
+          <button mat-flat-button color="primary" (click)="upload()">
+            <mat-icon>cloud_upload</mat-icon>
+            Upload Resource
+          </button>
+        </div>
+
+        <div class="files-content">
+          <div class="file-list">
+            @for (file of files; track file.id; let i = $index) {
+              <div 
+                class="file-item" 
+                [class.active]="selectedFile?.id === file.id" 
+                (click)="selectFile(file)">
+                <div class="file-order">{{ i + 1 }}</div>
+                <mat-icon class="file-icon">{{ getFileIcon(file) }}</mat-icon>
+                <div class="file-info">
+                  <div class="file-name">{{ file.name }}</div>
+                  <div class="file-meta">
+                    <span class="file-type">{{ getFileTypeLabel(file) }}</span>
+                    @if (file.createdAt) {
+                      <span class="file-date">Added {{ file.createdAt | date: 'mediumDate' }}</span>
+                    }
+                  </div>
+                </div>
+                @if (file.sourceUrl) {
+                  <mat-icon class="source-icon" matTooltip="Has source link">link</mat-icon>
+                }
+              </div>
+            }
+          </div>
+
+          @if (selectedFile) {
+            <div class="file-preview">
+              @if (isImageFile(selectedFile)) {
+                <div class="preview-image">
+                  <img [src]="selectedFile.fileUrl" alt="File preview" />
+                </div>
+              } @else {
+                <div class="preview-placeholder">
+                  <mat-icon>{{ getFileIcon(selectedFile) }}</mat-icon>
+                  <span class="file-type-label">{{ getFileTypeLabel(selectedFile) }}</span>
+                </div>
+              }
+
+              <div class="preview-details">
+                <mat-form-field appearance="outline">
+                  <mat-label>Display Name</mat-label>
+                  <input matInput type="text" [(ngModel)]="selectedFile.name" (blur)="save()">
+                  <mat-hint>The name shown to team members</mat-hint>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Description (optional)</mat-label>
+                  <textarea matInput [(ngModel)]="selectedFile.description" (blur)="save()" rows="2"></textarea>
+                  <mat-hint>Brief description of what this document covers</mat-hint>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Source URL (optional)</mat-label>
+                  <input matInput type="url" [(ngModel)]="selectedFile.sourceUrl" (blur)="save()" placeholder="https://www.osha.gov/...">
+                  <mat-hint>Link to the official source (e.g., OSHA, DOL website)</mat-hint>
+                </mat-form-field>
+
+                <div class="preview-actions">
+                  <button mat-stroked-button color="primary" (click)="download()">
+                    <mat-icon>download</mat-icon>
+                    Download
+                  </button>
+                  @if (selectedFile.sourceUrl) {
+                    <button mat-stroked-button (click)="openSource()">
+                      <mat-icon>open_in_new</mat-icon>
+                      View Source
+                    </button>
+                  }
+                  <button mat-stroked-button color="warn" (click)="delete()">
+                    <mat-icon>delete</mat-icon>
+                    Delete
+                  </button>
+                </div>
+
+                @if (saving) {
+                  <div class="saving-indicator">
+                    <mat-spinner diameter="16"></mat-spinner>
+                    <span>Saving...</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <input 
+    type="file" 
+    id="resourceUpFile" 
+    style="display: none;" 
+    accept=".png,.jpg,.jpeg,.pdf" 
+    (change)="uploadFile($event)">
+</div>

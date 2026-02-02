@@ -16,8 +16,8 @@ import { MatInputModule } from "@angular/material/input";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AppService } from "../app.service";
 import { Subscription, filter } from "rxjs";
-import { HelpDialogComponent } from "../help-dialog/help-dialog.component";
 import { LoadingChimpComponent } from "./loading-chimp/loading-chimp.component";
+import { ChimpChatComponent } from "./chimp-chat/chimp-chat.component";
 import { addDoc, collection, doc, docData, Firestore } from "@angular/fire/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -48,7 +48,8 @@ interface NavClickData {
     MatFormFieldModule,
     MatInputModule,
     MatTooltipModule,
-    LoadingChimpComponent
+    LoadingChimpComponent,
+    ChimpChatComponent
   ],
   providers: [DatePipe],
   animations: [
@@ -74,6 +75,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   @ViewChild("sidenav") public sidenav: MatSidenav;
   bShowAccountInfo: boolean = false; // template var
   helperContrast: boolean = false; // template var
+  showChimpChat: boolean = false; // ChimpChat panel visibility
   private authUnsubscribe?: () => void;
   private routerSubscription?: Subscription;
 
@@ -87,7 +89,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     { key: 'files', label: 'Files', icon: 'folder', route: 'files' },
     { key: 'events', label: 'Events', icon: 'event_note', route: 'event' },
     { key: 'account', label: 'Account', icon: 'person', route: 'account' },
-    { key: 'support', label: 'Support', icon: 'golf_course', route: 'support', devOnly: true }
+    { key: 'support', label: 'Admin', icon: 'hot_tub', route: 'support', devOnly: true }
   ];
 
   // Click tracking
@@ -250,12 +252,12 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     return avgClicks >= 15 && itemClicks < avgClicks * 0.4;
   }
 
-  public openHelp(): void {
-    this.dialog.open(HelpDialogComponent);
-  }
-
   closeHelper() {
     this.accountService.showHelper = false;
+  }
+
+  toggleChimpChat(): void {
+    this.showChimpChat = !this.showChimpChat;
   }
 
   submitFeedback() {

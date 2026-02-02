@@ -32,13 +32,13 @@ export class BlogCtaComponent {
   // Update these values to change the CTA messaging across all blog posts
 
   /** Main headline for the CTA section */
-  headline = "Ready to simplify compliance?";
+  headline = "Ready to simplify OSHA compliance?";
 
   /** Subheadline with value proposition */
   subheadline = "Get your business on track to full OSHA compliance in under 6 minutes.";
 
   /** Primary CTA button text */
-  buttonText = "Start the 6-Minute Challenge";
+  buttonText = "Get My Team on Track";
 
   /** Route for the primary CTA button */
   buttonRoute = "/get-started";
@@ -48,7 +48,7 @@ export class BlogCtaComponent {
 
   /** Features list - displayed as checkmarks */
   features = [
-    "Fully compliant in 6 minutes or less",
+    "The chimp sets you up in 6 minutes or less",
     "Trainings go out automatically on autopilot",
     "Guided self-inspections tailored to your industry",
     "Permanent compliance records stored forever",

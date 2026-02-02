@@ -27,6 +27,7 @@ interface TeamStats {
 }
 
 @Component({
+  standalone: true,
   selector: 'statistics',
   templateUrl: './statistics.component.html',
   styleUrl: './statistics.component.css',

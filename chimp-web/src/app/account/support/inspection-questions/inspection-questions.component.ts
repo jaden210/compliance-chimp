@@ -1,23 +1,24 @@
 import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { SupportService } from '../support.service';
 import { addDoc, collection, deleteDoc, doc, updateDoc } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 
 @Component({
+  standalone: true,
   selector: 'inspection-questions',
   templateUrl: './inspection-questions.component.html',
   styleUrl: './inspection-questions.component.css',
   imports: [
     FormsModule,
-    MatToolbarModule,
     MatFormFieldModule,
     MatInputModule,
-    MatButtonModule
+    MatButtonModule,
+    MatIconModule
   ]
 })
 export class InspectionQuestionsComponent implements OnInit, OnDestroy {

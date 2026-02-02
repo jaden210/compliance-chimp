@@ -10,9 +10,12 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage";
 import { collection, collectionData, doc, updateDoc, addDoc, deleteDoc } from "@angular/fire/firestore";
+import { ResourceLibraryService, ResourceFile } from "../support/resource-library.service";
 
 export class TeamFile {
   id?: string;
@@ -38,21 +41,36 @@ export class TeamFile {
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
-    MatSlideToggleModule
+    MatProgressSpinnerModule,
+    MatSlideToggleModule,
+    MatTooltipModule
   ],
   providers: [DatePipe]
 })
 export class FilesComponent implements OnInit, OnDestroy {
   private subscription: Subscription;
+  private resourceSubscription: Subscription;
   files: TeamFile[] = [];
   aFile: TeamFile = new TeamFile();
   loading: boolean = false;
   showContent: boolean = false;
+  
+  // Track pending selection after upload
+  private pendingSelectId: string | null = null;
+  
+  // Resource Library
+  resourceFiles: ResourceFile[] = [];
+  showResourceLibrary: boolean = true;
+
+  // CSV Preview
+  csvData: string[][] = [];
+  csvLoading: boolean = false;
 
   constructor(
     public accountService: AccountService,
     private storage: Storage,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private resourceLibraryService: ResourceLibraryService
   ) {
     this.accountService.helper = this.accountService.helperProfiles.files;
   }
@@ -61,7 +79,14 @@ export class FilesComponent implements OnInit, OnDestroy {
     this.subscription = this.accountService.aTeamObservable.subscribe(team => {
       if (team?.id) {
         this.loadFiles();
+        // Initialize showResourceLibrary from team settings (default to true)
+        this.showResourceLibrary = team.showResourceLibrary !== false;
       }
+    });
+    
+    // Load resource library files
+    this.resourceSubscription = this.resourceLibraryService.getResourceFiles().subscribe(files => {
+      this.resourceFiles = files;
     });
   }
 
@@ -77,9 +102,28 @@ export class FilesComponent implements OnInit, OnDestroy {
       )
       .subscribe(files => {
         this.files = files as TeamFile[];
-        if (files.length) {
-          this.aFile = files[0];
+        
+        // Check for pending selection (after upload)
+        if (this.pendingSelectId) {
+          const pendingFile = files.find(f => f.id === this.pendingSelectId);
+          if (pendingFile) {
+            this.selectFile(pendingFile);
+            this.pendingSelectId = null;
+          }
+        } else if (files.length && !this.aFile?.id) {
+          // Only auto-select first file if no file is currently selected
+          // Use setTimeout to defer CSV loading until after initial render
+          setTimeout(() => this.selectFile(files[0]), 0);
+        } else if (this.aFile?.id) {
+          // Keep current selection in sync with updated data
+          const currentFile = files.find(f => f.id === this.aFile.id);
+          if (currentFile) {
+            this.aFile = currentFile;
+          } else if (files.length) {
+            this.aFile = files[0];
+          }
         }
+        
         this.showContent = true;
       });
   }
@@ -88,38 +132,53 @@ export class FilesComponent implements OnInit, OnDestroy {
     document.getElementById("upFile").click();
   }
 
-  uploadFile(event: Event): void {
-    this.loading = true;
+  async uploadFiles(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    const uFile = input.files?.[0];
-    if (!uFile) {
-      this.loading = false;
+    const fileList = input.files;
+    if (!fileList || fileList.length === 0) {
       return;
     }
-    const filePath = `${this.accountService.aTeam.id}/files/${new Date()}`;
-    const storageRef = ref(this.storage, filePath);
-    uploadBytes(storageRef, uFile)
-      .then(() => getDownloadURL(storageRef))
-      .then((url) => {
-        let file = new TeamFile();
+
+    this.loading = true;
+    const files = Array.from(fileList);
+    let lastUploadedId: string | null = null;
+
+    try {
+      for (const uFile of files) {
+        const filePath = `${this.accountService.aTeam.id}/files/${Date.now()}_${uFile.name}`;
+        const storageRef = ref(this.storage, filePath);
+        
+        await uploadBytes(storageRef, uFile);
+        const url = await getDownloadURL(storageRef);
+
+        const file = new TeamFile();
         file.createdAt = new Date();
         file.uploadedBy = this.accountService.user.id;
         file.fileUrl = url;
         file.name = uFile.name;
         file.type = uFile.type;
+
         const cleanedFile = Object.fromEntries(
           Object.entries(file).filter(([_, v]) => v !== undefined)
         );
-        return addDoc(collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`), cleanedFile)
-          .then(snapshot => {
-            this.loading = false;
-            file.id = snapshot.id;
-            this.aFile = file;
-          });
-      })
-      .catch(() => {
-        this.loading = false;
-      });
+
+        const snapshot = await addDoc(
+          collection(this.accountService.db, `team/${this.accountService.aTeam.id}/file`),
+          cleanedFile
+        );
+        lastUploadedId = snapshot.id;
+      }
+
+      // Select the last uploaded file
+      if (lastUploadedId) {
+        this.pendingSelectId = lastUploadedId;
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+    } finally {
+      this.loading = false;
+      input.value = "";
+    }
   }
 
   save(): void {
@@ -130,6 +189,9 @@ export class FilesComponent implements OnInit, OnDestroy {
   }
 
   delete(): void {
+    if (!confirm(`Are you sure you want to delete "${this.aFile.name}"?`)) {
+      return;
+    }
     const index = this.files.indexOf(this.aFile);
     deleteDoc(doc(this.accountService.db, `team/${this.accountService.aTeam.id}/file/${this.aFile.id}`))
       .then(() => {
@@ -158,14 +220,80 @@ export class FilesComponent implements OnInit, OnDestroy {
 
   selectFile(file: TeamFile): void {
     this.aFile = file;
+    this.csvData = [];
+    
+    if (this.isCsvFile(file)) {
+      this.loadCsvPreview(file);
+    }
   }
 
-  isImageFile(file: TeamFile): boolean {
+  private async loadCsvPreview(file: TeamFile): Promise<void> {
+    this.csvLoading = true;
+    try {
+      const response = await fetch(file.fileUrl);
+      const text = await response.text();
+      this.csvData = this.parseCsv(text);
+    } catch (error) {
+      console.error('Error loading CSV:', error);
+      this.csvData = [];
+    }
+    this.csvLoading = false;
+  }
+
+  private parseCsv(text: string): string[][] {
+    const lines = text.split('\n').filter(line => line.trim());
+    return lines.slice(0, 100).map(line => {
+      // Simple CSV parsing (handles basic cases)
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (const char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    });
+  }
+
+  isImageFile(file: TeamFile | ResourceFile): boolean {
     if (!file?.type) return false;
     return file.type.startsWith('image/');
   }
 
-  getFileIcon(file: TeamFile): string {
+  isVideoFile(file: TeamFile | ResourceFile): boolean {
+    if (!file?.type && !file?.name) return false;
+    const type = file.type?.toLowerCase() || '';
+    const name = file.name?.toLowerCase() || '';
+    return type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.webm');
+  }
+
+  isPdfFile(file: TeamFile | ResourceFile): boolean {
+    if (!file?.type && !file?.name) return false;
+    const type = file.type?.toLowerCase() || '';
+    const name = file.name?.toLowerCase() || '';
+    return type === 'application/pdf' || name.endsWith('.pdf');
+  }
+
+  isCsvFile(file: TeamFile | ResourceFile): boolean {
+    if (!file?.type && !file?.name) return false;
+    const type = file.type?.toLowerCase() || '';
+    const name = file.name?.toLowerCase() || '';
+    return type === 'text/csv' || name.endsWith('.csv');
+  }
+
+  openFile(file: TeamFile): void {
+    window.open(file.fileUrl, '_blank');
+  }
+
+  getFileIcon(file: TeamFile | ResourceFile): string {
     if (!file?.type && !file?.name) return 'insert_drive_file';
     
     const type = file.type?.toLowerCase() || '';
@@ -202,7 +330,7 @@ export class FilesComponent implements OnInit, OnDestroy {
     return 'insert_drive_file';
   }
 
-  getFileTypeLabel(file: TeamFile): string {
+  getFileTypeLabel(file: TeamFile | ResourceFile): string {
     if (!file?.type && !file?.name) return 'File';
     
     const type = file.type?.toLowerCase() || '';
@@ -225,5 +353,31 @@ export class FilesComponent implements OnInit, OnDestroy {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
+    if (this.resourceSubscription) {
+      this.resourceSubscription.unsubscribe();
+    }
+  }
+
+  toggleResourceLibrary(): void {
+    this.accountService.toggleResourceLibrary(this.showResourceLibrary);
+  }
+
+  downloadResourceFile(file: ResourceFile): void {
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = "blob";
+    xhr.onload = () => {
+      const blob = new Blob([xhr.response], { type: file.type });
+      const a = document.createElement("a");
+      a.style.display = "none";
+      document.body.appendChild(a);
+      const url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    };
+    xhr.open("GET", file.fileUrl);
+    xhr.send();
   }
 }

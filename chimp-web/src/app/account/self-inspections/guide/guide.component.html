@@ -2,14 +2,22 @@
   <button mat-icon-button (click)="goBack()">
     <mat-icon>arrow_back</mat-icon>
   </button>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp">
   <span class="toolbar-title">Smart Self-Inspection Builder</span>
   <div class="flex"></div>
   <button mat-button (click)="goToTemplates()" *ngIf="!expandedInspection()">
     <mat-icon>add</mat-icon>
     Create from Scratch
   </button>
+  <button mat-icon-button 
+          *ngIf="expandedInspection()" 
+          (click)="deleteExpandedInspection()" 
+          matTooltip="Delete this inspection">
+    <mat-icon>delete</mat-icon>
+  </button>
 </mat-toolbar>
 
+<div class="window">
 <div class="guide-page">
   <!-- Hero Section - Two Column Layout -->
   <section class="guide-hero" *ngIf="!loading() && !recommendations()?.success">
@@ -56,8 +64,7 @@
             <h2>What do you need to inspect?</h2>
           </div>
           
-          <mat-form-field appearance="outline" class="prompt-field-hero" floatLabel="always">
-            <mat-label></mat-label>
+          <mat-form-field appearance="fill" class="prompt-field-hero">
             <textarea matInput 
                    [(ngModel)]="customPrompt" 
                    placeholder="e.g., forklift safety, chemical storage, fall protection..."
@@ -141,34 +148,26 @@
       <p>{{ recommendations()?.summary }}</p>
     </div>
 
-    <!-- Industry Context & Prompt Bar -->
-    <div class="results-header">
-      <div class="context-bar">
-        <div class="context-item">
-          <mat-icon>business</mat-icon>
-          <span>{{ accountService.aTeam?.industry }}</span>
-        </div>
-        <div class="context-item" *ngIf="accountService.teamMembers?.length">
-          <mat-icon>group</mat-icon>
-          <span>{{ accountService.teamMembers?.length }} team members</span>
-        </div>
-      </div>
+    <!-- Custom Prompt Input -->
+    <div class="prompt-bar" *ngIf="!expandedInspection()">
+      <mat-form-field appearance="outline" class="prompt-field">
+        <mat-label>Generate something different</mat-label>
+        <input matInput 
+               [(ngModel)]="customPrompt" 
+               placeholder="e.g., forklift safety, chemical storage..."
+               (keyup.enter)="generateWithPrompt()">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+      <button mat-flat-button color="primary" class="generate-btn" (click)="generateWithPrompt()" [disabled]="loading()">
+        <mat-icon>auto_awesome</mat-icon>
+        Generate
+      </button>
+    </div>
 
-      <!-- Custom Prompt Input -->
-      <div class="prompt-bar">
-        <mat-form-field appearance="outline" class="prompt-field">
-          <mat-label>Generate something different</mat-label>
-          <input matInput 
-                 [(ngModel)]="customPrompt" 
-                 placeholder="e.g., forklift safety, chemical storage..."
-                 (keyup.enter)="generateWithPrompt()">
-          <mat-icon matPrefix>search</mat-icon>
-        </mat-form-field>
-        <button mat-flat-button color="primary" class="generate-btn" (click)="generateWithPrompt()" [disabled]="loading()">
-          <mat-icon>auto_awesome</mat-icon>
-          Generate
-        </button>
-      </div>
+    <!-- Instructions Chip -->
+    <div class="instructions-chip" *ngIf="!expandedInspection()">
+      <mat-icon>info</mat-icon>
+      <span>These are recommended inspections based on your industry. Click <strong>Create Self-Inspection</strong> to save one to your library and customize it. Want something different? Enter a new description above and click <strong>Generate</strong> to start fresh.</span>
     </div>
 
     <!-- Recommendations Grid -->
@@ -384,4 +383,5 @@
       </div>
     </div>
   </section>
+</div>
 </div>

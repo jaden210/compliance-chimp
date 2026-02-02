@@ -263,9 +263,8 @@ export class TeamComponent implements OnDestroy {
   }
 
   public routeToUserPage(userId: string) {
-    this.router.navigate([`/user`], {
-      queryParams: { "member-id": userId }
-    });
+    const url = `/user?member-id=${userId}`;
+    window.open(url, '_blank');
   }
 
   // Handle welcome banner feature clicks

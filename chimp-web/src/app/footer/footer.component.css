@@ -41,7 +41,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 24px;
+  margin-top: 16px;
   font-size: 13px;
 }
 
@@ -57,7 +57,6 @@
 .footer-chimp {
   height: 120px;
   width: auto;
-  margin-top: -10px;
 }
 
 .footer-links {

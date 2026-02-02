@@ -342,6 +342,8 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
 
   private addStatusInfo(inspection: SelfInspection): SelfInspectionWithStatus {
     const result: SelfInspectionWithStatus = { ...inspection };
+    // Clear any nextDueDate that may have come from Firestore as a Timestamp
+    result.nextDueDate = undefined;
     
     if (!inspection.lastCompletedAt || !inspection.inspectionExpiration || inspection.inspectionExpiration === 'Manual') {
       result.status = inspection.lastCompletedAt ? 'ok' : 'neverRun';

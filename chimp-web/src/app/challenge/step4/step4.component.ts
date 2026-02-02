@@ -14,6 +14,7 @@ interface ProgressInfo {
   currentAction: string;
   inspectionsCreated?: number;
   trainingsCreated?: number;
+  total?: number;
 }
 
 interface LogEntry {
@@ -21,6 +22,14 @@ interface LogEntry {
   source: 'inspection' | 'training';
   message: string;
   timestamp: Date;
+}
+
+interface QueuedLogEntry {
+  type: 'info' | 'success' | 'working';
+  source: 'inspection' | 'training';
+  message: string;
+  timestamp: string;
+  order?: number;
 }
 
 @Component({
@@ -56,9 +65,13 @@ export class Step4Component implements OnInit, OnDestroy {
   // Activity log
   activityLog: LogEntry[] = [];
   
+  // Track processed log queue entries to avoid duplicates
+  private processedLogMessages = new Set<string>();
+  private logQueueBuffer: QueuedLogEntry[] = [];
+  private isProcessingLogQueue = false;
+  
   // Firestore unsubscribe functions
-  private unsubscribeInspection: (() => void) | null = null;
-  private unsubscribeTraining: (() => void) | null = null;
+  private unsubscribeProgress: (() => void) | null = null;
 
   constructor(
     private challengeService: ChallengeService,
@@ -138,12 +151,9 @@ export class Step4Component implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Clean up Firestore listeners
-    if (this.unsubscribeInspection) {
-      this.unsubscribeInspection();
-    }
-    if (this.unsubscribeTraining) {
-      this.unsubscribeTraining();
+    // Clean up Firestore listener
+    if (this.unsubscribeProgress) {
+      this.unsubscribeProgress();
     }
   }
 
@@ -175,26 +185,22 @@ export class Step4Component implements OnInit, OnDestroy {
     // Listen to team document for build progress
     const teamRef = doc(this.db, `team/${this.challengeService.teamId}`);
     
-    this.unsubscribeInspection = onSnapshot(teamRef, (snapshot) => {
+    this.unsubscribeProgress = onSnapshot(teamRef, (snapshot) => {
       const data = snapshot.data();
       if (data?.autoBuildProgress) {
         const progress = data.autoBuildProgress;
         
+        // Process log queue entries - these come in from parallel async operations
+        if (progress.logQueue && Array.isArray(progress.logQueue)) {
+          this.processLogQueue(progress.logQueue);
+        }
+        
         // Update inspection progress
         if (progress.inspections) {
-          const prev = this.inspectionProgress;
-          
           this.inspectionProgress = {
             currentAction: progress.inspections.currentAction || 'Processing...',
             inspectionsCreated: progress.inspections.created || 0
           };
-          
-          // Log action changes with appropriate type based on action text
-          if (progress.inspections.currentAction && prev?.currentAction !== progress.inspections.currentAction) {
-            const action = progress.inspections.currentAction;
-            const logType = this.getLogTypeForAction(action);
-            this.addLogEntry(logType, 'inspection', action);
-          }
           
           if (progress.inspections.complete && !this.inspectionComplete) {
             this.inspectionComplete = true;
@@ -209,23 +215,15 @@ export class Step4Component implements OnInit, OnDestroy {
         
         // Update training progress
         if (progress.trainings) {
-          const prev = this.trainingProgress;
-          
           this.trainingProgress = {
             currentAction: progress.trainings.currentAction || 'Processing...',
-            trainingsCreated: progress.trainings.created || 0
+            trainingsCreated: progress.trainings.created || 0,
+            total: progress.trainings.total
           };
-          
-          // Log action changes with appropriate type based on action text
-          if (progress.trainings.currentAction && prev?.currentAction !== progress.trainings.currentAction) {
-            const action = progress.trainings.currentAction;
-            const logType = this.getLogTypeForAction(action);
-            this.addLogEntry(logType, 'training', action);
-          }
           
           if (progress.trainings.complete && !this.trainingComplete) {
             this.trainingComplete = true;
-            this.addLogEntry('success', 'training', `Completed ${progress.trainings.created || 0} trainings`);
+            this.addLogEntry('success', 'training', `Completed ${progress.trainings.created || 0} training articles`);
             
             // Stop timer when build is complete
             if (this.inspectionComplete) {
@@ -242,6 +240,62 @@ export class Step4Component implements OnInit, OnDestroy {
         }
       }
     });
+  }
+  
+  // Process log queue entries with staggered timing for smooth UX
+  private processLogQueue(queue: QueuedLogEntry[]): void {
+    // Find new entries we haven't processed yet
+    const newEntries = queue.filter(entry => {
+      const key = `${entry.source}-${entry.message}-${entry.timestamp}`;
+      return !this.processedLogMessages.has(key);
+    });
+    
+    if (newEntries.length === 0) return;
+    
+    // Sort by order/timestamp to maintain sequence
+    newEntries.sort((a, b) => {
+      const orderA = a.order || new Date(a.timestamp).getTime();
+      const orderB = b.order || new Date(b.timestamp).getTime();
+      return orderA - orderB;
+    });
+    
+    // Add new entries to buffer
+    this.logQueueBuffer.push(...newEntries);
+    
+    // Mark as processed
+    newEntries.forEach(entry => {
+      const key = `${entry.source}-${entry.message}-${entry.timestamp}`;
+      this.processedLogMessages.add(key);
+    });
+    
+    // Start processing buffer if not already running
+    if (!this.isProcessingLogQueue) {
+      this.drainLogBuffer();
+    }
+  }
+  
+  // Drain the log buffer with staggered timing for natural feel
+  private drainLogBuffer(): void {
+    if (this.logQueueBuffer.length === 0) {
+      this.isProcessingLogQueue = false;
+      return;
+    }
+    
+    this.isProcessingLogQueue = true;
+    
+    // Take next entry from buffer
+    const entry = this.logQueueBuffer.shift()!;
+    
+    // Add to activity log
+    this.activityLog.push({
+      type: entry.type,
+      source: entry.source,
+      message: entry.message,
+      timestamp: new Date(entry.timestamp)
+    });
+    
+    // Stagger next entry with 500ms delay for readable pacing
+    setTimeout(() => this.drainLogBuffer(), 500);
   }
   
   // Determine log entry type based on action text
@@ -277,7 +331,8 @@ export class Step4Component implements OnInit, OnDestroy {
     // Inspections are fast (Firestore writes only) - 20% of progress
     // Trainings involve AI generation and are slower - 80% of progress
     const expectedInspections = 10;
-    const expectedTrainings = 12;
+    // Use actual total from backend if available, otherwise use expected
+    const expectedTrainings = this.trainingProgress?.total || 12;
     
     let inspectionProgress = 0;
     if (this.inspectionComplete) {
@@ -293,7 +348,7 @@ export class Step4Component implements OnInit, OnDestroy {
     if (this.trainingComplete) {
       trainingProgress = 80;
     } else if (this.trainingProgress) {
-      // Progress based on items created - each training is ~6.5% of progress
+      // Progress based on items created
       const created = this.trainingProgress.trainingsCreated || 0;
       // 2% for starting, up to 78% for items created (before complete flag)
       trainingProgress = 2 + Math.min(78, (created / expectedTrainings) * 78);

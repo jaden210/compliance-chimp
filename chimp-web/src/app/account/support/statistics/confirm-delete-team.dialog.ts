@@ -11,6 +11,7 @@ export interface ConfirmDeleteTeamData {
 }
 
 @Component({
+  standalone: true,
   selector: 'confirm-delete-team-dialog',
   template: `
     <h2 mat-dialog-title>Delete Team</h2>

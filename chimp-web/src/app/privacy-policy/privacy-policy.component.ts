@@ -1,13 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 
 @Component({
-  standalone: true,
   selector: 'app-privacy-policy',
+  standalone: true,
   templateUrl: './privacy-policy.component.html',
-  styleUrls: ['./privacy-policy.component.css']
+  styleUrl: './privacy-policy.component.css'
 })
-export class PrivacyPolicyComponent implements OnInit {
-  constructor() { }
-
-  ngOnInit() { }
+export class PrivacyPolicyComponent {
+  scrollTo(sectionId: string): void {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }

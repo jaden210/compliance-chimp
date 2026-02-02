@@ -19,7 +19,7 @@ import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Subject } from "rxjs";
 import { debounceTime, takeUntil } from "rxjs/operators";
 import { AccountService } from "../../account.service";
-import { SelfInspectionsService, Categories, SelfInspectionTemplate, SelfInspection, ExperationTimeFrame, Question } from "../self-inspections.service";
+import { SelfInspectionsService, Categories, SelfInspectionTemplate, SelfInspection, ExperationTimeFrame, Question, DeleteInspectionDialog } from "../self-inspections.service";
 
 // Map category subjects to unique icons
 const CATEGORY_ICONS: { [key: string]: string } = {
@@ -483,6 +483,40 @@ export class GuideComponent implements OnInit, OnDestroy {
     this.newCategoryName = '';
     this.newQuestionTexts = {};
     this.saveStatus.set('idle');
+  }
+
+  // Delete the currently expanded inspection
+  deleteExpandedInspection(): void {
+    const inspection = this.expandedInspection();
+    const index = this.expandedIndex();
+    if (!inspection || index === null) return;
+    
+    // Show confirmation dialog
+    const dialogRef = this.dialog.open(DeleteInspectionDialog);
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        // Pass empty array since newly created inspections won't have any completed inspections yet
+        this.selfInspectionsService.deleteSelfInspection(inspection, [])
+          .then(() => {
+            // Remove from created inspections map
+            const updated = new Map(this.createdInspections());
+            updated.delete(index);
+            this.createdInspections.set(updated);
+            
+            // Collapse the editor
+            this.collapseEditor();
+            
+            // If this was a single recommendation from pending template, go back
+            const recs = this.recommendations();
+            if (recs?.recommendations?.length === 1) {
+              this.router.navigate(['/account/self-inspections']);
+            }
+          })
+          .catch(error => {
+            console.error('Failed to delete inspection:', error);
+          });
+      }
+    });
   }
 
   // Collapse and navigate to the self-inspections list

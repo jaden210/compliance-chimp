@@ -17,8 +17,7 @@
   </span>
   
   <!-- Create button (create mode only) -->
-  <button mat-flat-button 
-          color="primary" 
+  <button mat-button 
           *ngIf="!isEditing"
           (click)="createInspection()" 
           [disabled]="isCreating || !selfInspection?.title?.trim() || !selfInspection?.baseQuestions?.length">

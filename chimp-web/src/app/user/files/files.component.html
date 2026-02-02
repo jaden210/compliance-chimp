@@ -4,18 +4,66 @@
       <button mat-icon-button (click)="close()"><mat-icon>arrow_back</mat-icon></button>
       Team Files
     </div>
-    <div class="files">
-      @for (file of Files; track file.id || file.name) {
-        <div class="file">
-          @if (file.type === 'image/png') {
-            <img [src]="file.fileUrl">
+    
+    @if (Files?.length > 0) {
+      <div class="team-files-section">
+        <div class="file-list">
+          @for (file of Files; track file.id || file.name) {
+            <div class="file-card" (click)="openFile(file)">
+              @if (isImageFile(file)) {
+                <div class="file-preview image-preview">
+                  <img [src]="file.fileUrl" [alt]="file.name" loading="lazy">
+                </div>
+              } @else if (isVideoFile(file)) {
+                <div class="file-preview video-preview">
+                  <video [src]="file.fileUrl" preload="metadata"></video>
+                  <div class="play-icon">
+                    <mat-icon>play_arrow</mat-icon>
+                  </div>
+                </div>
+              } @else if (isPdfFile(file)) {
+                <div class="file-preview pdf-preview">
+                  <mat-icon>picture_as_pdf</mat-icon>
+                  <span class="file-badge">PDF</span>
+                </div>
+              } @else {
+                <div class="file-preview other-preview">
+                  <mat-icon>{{ getFileIcon(file) }}</mat-icon>
+                </div>
+              }
+              <div class="file-info">
+                <div class="file-name">{{ file.name }}</div>
+              </div>
+            </div>
           }
-          <div class="name">{{ file.name }}</div>
-          <div style="flex:1"></div>
-          <button mat-raised-button style="flex-shrink:0" color="primary" (click)="download(file)">download</button>
         </div>
-      }
-    </div>
+      </div>
+    }
+
+    <!-- Resource Library Section -->
+    @if (showResourceLibrary && resourceFiles.length > 0) {
+      <div class="resource-section">
+        <div class="resource-header">
+          <mat-icon>library_books</mat-icon>
+          <span>Resource Library</span>
+        </div>
+        <div class="resource-list">
+          @for (file of resourceFiles; track file.id || file.name) {
+            <a class="resource-item" [href]="file.sourceUrl || file.fileUrl" target="_blank">
+              <div class="resource-icon">
+                <mat-icon>picture_as_pdf</mat-icon>
+              </div>
+              <div class="resource-info">
+                <div class="resource-name">{{ file.name }}</div>
+                @if (file.description) {
+                  <div class="resource-description">{{ file.description }}</div>
+                }
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    }
   </div>
 } @else {
   <div class="center">

@@ -34,10 +34,10 @@
       <div class="sidenav-challenge" (click)="navRoute('get-started')">
         <div class="challenge-pill-text">
           <span class="challenge-pill-headline">Get compliant in 6 minutes</span>
-          <span class="challenge-pill-sub">Beat the clock, get 2 months free</span>
+          <span class="challenge-pill-sub">14 days free · No credit card required</span>
         </div>
         <button mat-flat-button class="challenge-pill-btn">
-          Accept
+          Start
           <mat-icon>arrow_forward</mat-icon>
         </button>
       </div>
@@ -58,6 +58,15 @@
         >
           <mat-icon class="sidenav-link-icon">help_outline</mat-icon>
           <span>Common Questions</span>
+        </a>
+
+        <a
+          class="sidenav-link"
+          (click)="navRoute('contact')"
+          routerLinkActive="sidenav-link-active"
+        >
+          <mat-icon class="sidenav-link-icon">mail_outline</mat-icon>
+          <span>Contact</span>
         </a>
 
         <a

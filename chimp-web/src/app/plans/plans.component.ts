@@ -18,7 +18,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   private pricingFaqs = [
     {
       question: "What's included in the $99/month?",
-      answer: "Everything! Unlimited team members, all features, no hidden fees. The same tools whether you have 5 employees or 500."
+      answer: "Everything! Unlimited team members, all features, no hidden fees. The same tools whether you have 5 employees or 50."
     },
     {
       question: "Can I cancel anytime?",

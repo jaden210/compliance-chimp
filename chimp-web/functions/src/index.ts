@@ -14,6 +14,7 @@ const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
 const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
 const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const xaiApiKey = defineSecret("XAI_API_KEY");
+const slackWebhookUrl = defineSecret("SLACK_WEBHOOK_URL");
 
 const nodemailer = require("nodemailer");
 const sendgridTransport = require("nodemailer-sendgrid-transport");
@@ -36,6 +37,46 @@ function createStripeClient() {
 
 // Re-export functions from other modules
 export * from './outbound';
+
+const fs = require("fs");
+const path = require("path");
+
+// Callable function to send a test welcome email (e.g. from Firebase Console or app)
+export const sendTestWelcomeEmail = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    const { to, recipientName = "there" } = (request.data || {}) as {
+      to?: string;
+      recipientName?: string;
+    };
+    if (!to || typeof to !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        'Missing or invalid "to" email address'
+      );
+    }
+    const client = createSendgridClient();
+    const templatePath = path.resolve(
+      __dirname,
+      "..",
+      "src",
+      "email-templates",
+      "user",
+      "create-account.html"
+    );
+    let emailHtml = fs.readFileSync(templatePath).toString();
+    const emailString = emailHtml
+      .split("{{recipientName}}")
+      .join(recipientName || "there");
+    await client.sendMail({
+      from: '"Compliancechimp" <support@compliancechimp.com>',
+      to,
+      subject: "Welcome to Compliancechimp!",
+      html: emailString,
+    });
+    return { success: true, message: `Test welcome email sent to ${to}` };
+  }
+);
 
 // Get count of industry articles that would be added to a team's library
 export const getIndustryArticleCount = onCall(
@@ -294,19 +335,23 @@ export const autoBuildCompliance = onCall(
       ]);
       console.log(`[AutoBuild] Got ${inspectionRecommendations.length} inspections and ${trainingTopics.length} training topics`);
 
-      // ========== STEP 2: Create inspections sequentially for streaming progress ==========
-      let inspectionsCreated = 0;
+      // ========== STEP 2: Create inspections with parallel batches for speed ==========
+      // Inspections are fast (just Firestore writes), so we can run them in parallel batches
       const totalInspections = inspectionRecommendations.length;
+      let inspectionsCreated = 0;
       
+      // Initialize log queue for progressive streaming
       await teamRef.update({
         'autoBuildProgress.inspections': {
-          currentAction: `Creating inspection 1 of ${totalInspections}...`,
+          currentAction: `Creating ${totalInspections} inspections...`,
           created: 0,
           complete: false
-        }
+        },
+        'autoBuildProgress.logQueue': []  // Reset log queue
       });
 
-      for (const rec of inspectionRecommendations) {
+      // Create all inspections in parallel - they're just Firestore writes
+      const inspectionPromises = inspectionRecommendations.map(async (rec, index) => {
         let frequency = rec.frequency || 'Monthly';
         if (frequency === 'Semi-Annually') frequency = 'Semi-Anually';
         if (frequency === 'Annually') frequency = 'Anually';
@@ -320,78 +365,85 @@ export const autoBuildCompliance = onCall(
         }));
 
         const selfInspection = {
-          title: rec.name,  // Frontend uses 'title' not 'name'
+          title: rec.name,
           description: rec.description || '',
-          inspectionExpiration: frequency,  // Frontend uses 'inspectionExpiration' not 'frequency'
+          inspectionExpiration: frequency,
           teamId: teamId,
           createdAt: new Date(),
-          baseQuestions: baseQuestions,  // Frontend uses 'baseQuestions' not 'categories'
+          baseQuestions: baseQuestions,
           source: 'auto-build',
-          userId: 'system'  // Required for event logging
+          userId: 'system'
         };
 
         await db.collection(`team/${teamId}/self-inspection`).add(selfInspection);
-        inspectionsCreated++;
-        console.log(`[AutoBuild] Created inspection ${inspectionsCreated}: ${rec.name}`);
+        console.log(`[AutoBuild] Created inspection: ${rec.name}`);
         
-        // Update progress with streaming feedback
-        await teamRef.update({
-          'autoBuildProgress.inspections': {
-            currentAction: `Created: ${rec.name}`,
-            created: inspectionsCreated,
-            complete: false
-          }
-        });
-      }
+        // Return the name for logging after all complete
+        return rec.name;
+      });
 
-      // Mark inspections complete
+      // Wait for all inspections to complete
+      const createdInspectionNames = await Promise.all(inspectionPromises);
+      inspectionsCreated = createdInspectionNames.length;
+
+      // Mark inspections complete with log entries
       await teamRef.update({
         'autoBuildProgress.inspections': {
           currentAction: 'Inspections complete',
           created: inspectionsCreated,
           complete: true
-        }
+        },
+        'autoBuildProgress.logQueue': admin.firestore.FieldValue.arrayUnion(
+          ...createdInspectionNames.map(name => ({
+            type: 'success',
+            source: 'inspection',
+            message: `Created: ${name}`,
+            timestamp: new Date().toISOString()
+          }))
+        )
       });
 
-      // ========== STEP 3: Generate and create trainings one at a time for streaming progress ==========
-      let trainingsCreated = 0;
+      // ========== STEP 3: Generate trainings with controlled concurrency ==========
+      // Use a semaphore pattern to run N trainings in parallel while streaming logs progressively
+      const CONCURRENCY_LIMIT = 4;  // Run 4 AI generations simultaneously
       const totalTrainings = trainingTopics.length;
       
       await teamRef.update({
-        'autoBuildProgress.trainings': {
-          currentAction: `Generating training 1 of ${totalTrainings}...`,
-          created: 0,
-          complete: false
-        }
+        'autoBuildProgress.trainings.currentAction': `Generating ${totalTrainings} training articles...`,
+        'autoBuildProgress.trainings.created': 0,
+        'autoBuildProgress.trainings.total': totalTrainings,
+        'autoBuildProgress.trainings.complete': false
       });
 
-      for (let index = 0; index < trainingTopics.length; index++) {
-        const topic = trainingTopics[index];
+      // Helper to process a single training topic
+      const processTraining = async (topic: any, index: number): Promise<void> => {
+        const topicName = topic.name;
         
-        // Update progress to show which training is being generated
+        // Log that we're starting this one (use index for ordering since it's deterministic)
         await teamRef.update({
-          'autoBuildProgress.trainings': {
-            currentAction: `Generating: ${topic.name}...`,
-            created: trainingsCreated,
-            complete: false
-          }
+          'autoBuildProgress.logQueue': admin.firestore.FieldValue.arrayUnion({
+            type: 'working',
+            source: 'training',
+            message: `Generating: ${topicName}...`,
+            timestamp: new Date().toISOString(),
+            order: index  // Use index for deterministic ordering
+          })
         });
         
-        // Generate training content for this topic
-        console.log(`[AutoBuild] Generating training ${index + 1}/${totalTrainings}: ${topic.name}`);
-        const articleContent = await generateTrainingContentForAutoBuild(topic.name, topic.description, industryName);
+        console.log(`[AutoBuild] Generating training ${index + 1}/${totalTrainings}: ${topicName}`);
+        const articleContent = await generateTrainingContentForAutoBuild(topicName, topic.description, industryName);
         
         const scheduledDueDate = new Date();
         scheduledDueDate.setDate(scheduledDueDate.getDate() + 7 + (index * 60));
 
         const libraryItem = {
-          name: articleContent.title || topic.name,
+          name: articleContent.title || topicName,
           content: articleContent.content,
           topic: topic.category || 'General Safety',
           industry: industryName,
           teamId: teamId,
           addedBy: 'system',
-          teamMemberId: 'system',  // Required for event logging
+          teamMemberId: 'system',
           createdAt: new Date(),
           thumbnail: null,
           isTemplateContent: false,
@@ -402,37 +454,70 @@ export const autoBuildCompliance = onCall(
         };
 
         await db.collection('library').add(libraryItem);
-        trainingsCreated++;
+        
         const tagsInfo = libraryItem.assignedTags.length > 0 
           ? `(tags: ${libraryItem.assignedTags.join(', ')})`
           : '(all team)';
-        console.log(`[AutoBuild] Created training ${trainingsCreated}: ${articleContent.title || topic.name} ${tagsInfo}`);
+        console.log(`[AutoBuild] Created training: ${articleContent.title || topicName} ${tagsInfo}`);
 
-        // Update progress with the created training
+        // Use atomic increment for the counter - prevents race conditions with concurrent operations
         await teamRef.update({
-          'autoBuildProgress.trainings': {
-            currentAction: `Created: ${articleContent.title || topic.name}`,
-            created: trainingsCreated,
-            complete: false
-          }
+          'autoBuildProgress.trainings.currentAction': `Created: ${articleContent.title || topicName}`,
+          'autoBuildProgress.trainings.created': admin.firestore.FieldValue.increment(1),
+          'autoBuildProgress.logQueue': admin.firestore.FieldValue.arrayUnion({
+            type: 'success',
+            source: 'training',
+            message: `Created: ${articleContent.title || topicName}`,
+            timestamp: new Date().toISOString(),
+            order: Date.now()  // Use timestamp for completion ordering
+          })
         });
-      }
+      };
 
-      // Mark trainings complete (inspections already marked complete earlier)
-      await teamRef.update({
-        'autoBuildProgress.trainings': {
-          currentAction: 'Training library complete',
-          created: trainingsCreated,
-          complete: true
+      // Process trainings with controlled concurrency using a semaphore pattern
+      const runWithConcurrency = async <T>(
+        items: T[],
+        limit: number,
+        processor: (item: T, index: number) => Promise<void>
+      ): Promise<void> => {
+        const executing: Promise<void>[] = [];
+        
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          
+          // Start the task
+          const task = processor(item, i).then(() => {
+            // Remove from executing array when done
+            executing.splice(executing.indexOf(task), 1);
+          });
+          
+          executing.push(task);
+          
+          // If we've hit the concurrency limit, wait for one to finish
+          if (executing.length >= limit) {
+            await Promise.race(executing);
+          }
         }
+        
+        // Wait for all remaining tasks to complete
+        await Promise.all(executing);
+      };
+
+      // Run all trainings with concurrency limit
+      await runWithConcurrency(trainingTopics, CONCURRENCY_LIMIT, processTraining);
+
+      // Mark trainings complete
+      await teamRef.update({
+        'autoBuildProgress.trainings.currentAction': 'Training library complete',
+        'autoBuildProgress.trainings.complete': true
       });
 
-      console.log(`[AutoBuild] Complete for team ${teamId}: ${inspectionsCreated} inspections, ${trainingsCreated} trainings`);
+      console.log(`[AutoBuild] Complete for team ${teamId}: ${inspectionsCreated} inspections, ${totalTrainings} trainings`);
 
       return {
         success: true,
         inspectionsCreated,
-        trainingsCreated
+        trainingsCreated: totalTrainings
       };
 
     } catch (error: any) {
@@ -583,9 +668,9 @@ IMPORTANT - You MUST assign tags to role-specific trainings:
         messages: [
           {
             role: 'system',
-            content: `You are a compliance and workplace safety expert covering OSHA, HIPAA, PCI-DSS, and other regulatory frameworks. Generate a COMPREHENSIVE set of 10-12 training topics that would be required for FULL regulatory compliance for the given industry.
+            content: `You are an OSHA compliance and workplace safety expert. Generate a COMPREHENSIVE set of 10-12 training topics that would be required for FULL OSHA compliance for the given industry.
 
-Your goal is to ensure this company would be FULLY PREPARED if regulators inspected them. This is critical - missing trainings could result in fines, injuries, data breaches, or worse.
+Your goal is to ensure this company would be FULLY PREPARED if OSHA inspected them. This is critical - missing trainings could result in fines, injuries, or citations.
 
 MANDATORY TOPICS FOR ALL INDUSTRIES (include relevant ones):
 1. Hazard Communication (HazCom/GHS) - OSHA 1910.1200
@@ -595,20 +680,16 @@ MANDATORY TOPICS FOR ALL INDUSTRIES (include relevant ones):
 5. Bloodborne Pathogens (if any first aid duties) - OSHA 1910.1030
 6. Workplace Violence Prevention
 7. Harassment Prevention (required in many states)
-8. Cybersecurity Awareness (if any computer use)
-9. Data Privacy Basics (for businesses handling customer data)
+8. Slips, Trips, and Falls - OSHA walking-working surfaces
+9. Electrical Safety - OSHA 1910.303
 
-INDUSTRY-SPECIFIC REQUIREMENTS:
+INDUSTRY-SPECIFIC OSHA REQUIREMENTS:
 - Construction/Masonry/Stone: Silica dust exposure (1910.1053), fall protection, scaffold safety, crane/rigging, excavation, electrical safety
-- Healthcare/Medical: HIPAA privacy & security, infection control, patient handling, medication safety, PHI protection
-- IT/Software/Tech: PCI-DSS (if payment data), SOC 2 awareness, secure coding practices, data breach response
-- Retail/E-commerce: PCI-DSS compliance, customer data protection, fraud prevention
-- Financial Services: SOX compliance, anti-money laundering (AML), data security, fraud detection
-- Manufacturing: Machine guarding, lockout/tagout, powered industrial trucks
-- Food Service: Food safety, allergens, proper hygiene, temperature control, FDA requirements
-- Auto/Mechanic: Hazardous materials, lift safety, electrical systems
-- Warehousing: Forklift certification, material handling, ergonomics
-- Any with customer data: Data privacy, breach notification procedures
+- Healthcare/Medical: OSHA healthcare standards, infection control, patient handling, bloodborne pathogens, safe patient handling
+- Manufacturing: Machine guarding, lockout/tagout, powered industrial trucks, confined space
+- Food Service: Proper hygiene, slip/fall prevention, chemical safety (cleaning products), cut/laceration prevention
+- Auto/Mechanic: Hazardous materials, lift safety, electrical systems, respiratory protection
+- Warehousing: Forklift certification, material handling, ergonomics, struck-by hazards
 
 Return JSON:
 {
@@ -1042,7 +1123,7 @@ function getDefaultTrainingTopics(industry: string): any[] {
     {
       name: 'Harassment Prevention',
       description: 'Understanding workplace harassment, discrimination, and creating a respectful environment',
-      category: 'HR Compliance',
+      category: 'Workplace Safety',
       cadence: 'Annually'
     },
     {
@@ -1066,73 +1147,6 @@ function getDefaultTrainingTopics(industry: string): any[] {
     }
   ];
 }
-
-// Preview industry article counts per industry (admin support page)
-export const previewIndustryTemplates = onCall(
-  {},
-  async (request) => {
-    try {
-      const db = admin.firestore();
-      
-      // Get all articles with industryIds
-      const articlesSnapshot = await db.collection('article').get();
-      
-      // Count articles per industry
-      const industryCounts: { [key: string]: { count: number; sampleArticles: any[] } } = {};
-      
-      articlesSnapshot.docs.forEach(doc => {
-        const article = doc.data();
-        const industryIds = article.industryIds || [];
-        
-        industryIds.forEach((industryId: string) => {
-          if (!industryCounts[industryId]) {
-            industryCounts[industryId] = { count: 0, sampleArticles: [] };
-          }
-          industryCounts[industryId].count++;
-          
-          // Keep first 5 as samples
-          if (industryCounts[industryId].sampleArticles.length < 5) {
-            industryCounts[industryId].sampleArticles.push({
-              id: doc.id,
-              name: article.name
-            });
-          }
-        });
-      });
-
-      // Get industry names
-      const industriesSnapshot = await db.collection('industry').get();
-      const industryNames: { [key: string]: string } = {};
-      industriesSnapshot.docs.forEach(doc => {
-        industryNames[doc.id] = doc.data().name;
-      });
-
-      // Format response
-      const templates = Object.entries(industryCounts).map(([industryId, data]) => ({
-        industryId,
-        industryName: industryNames[industryId] || industryId,
-        totalArticles: data.count,
-        sampleArticles: data.sampleArticles,
-        moreArticles: Math.max(0, data.count - 5)
-      }));
-
-      // Sort by article count descending
-      templates.sort((a, b) => b.totalArticles - a.totalArticles);
-
-      return { 
-        success: true, 
-        templates,
-        totalArticlesWithIndustries: articlesSnapshot.docs.filter(doc => 
-          doc.data().industryIds?.length > 0
-        ).length,
-        totalArticles: articlesSnapshot.size
-      };
-    } catch (error: any) {
-      console.error('Error previewing templates:', error);
-      throw new HttpsError('internal', error.message);
-    }
-  }
-);
 
 // AI-powered tag suggestions based on job title
 export const suggestTagsForJobTitle = onCall(
@@ -1184,7 +1198,7 @@ export const suggestTagsForJobTitle = onCall(
           messages: [
             {
               role: 'system',
-              content: `You are helping categorize employees for a safety and compliance system. Based on a job title, suggest 1-3 appropriate tags that would help group this employee with others who need similar safety trainings and compliance surveys.
+              content: `You are helping categorize employees for an OSHA safety compliance system. Based on a job title, suggest 1-3 appropriate tags that would help group this employee with others who need similar OSHA safety trainings and surveys.
 
 Common tag categories include:
 - Work environment: "Warehouse", "Office", "Field", "Remote", "Shop", "Manufacturing"
@@ -1432,17 +1446,16 @@ export const getSelfInspectionRecommendations = onCall(
           messages: [
             {
               role: 'system',
-              content: `You are a compliance expert who understands the regulatory requirements for different industries. Your job is to recommend self-inspection checklists that companies should regularly perform to maintain compliance and operational excellence.
+              content: `You are an OSHA compliance expert who understands workplace safety requirements for different industries. Your job is to recommend self-inspection checklists that companies should regularly perform to maintain OSHA compliance and workplace safety.
 
-Based on the industry, identify the RELEVANT compliance frameworks:
-- Healthcare/Hospice/Medical → HIPAA, Joint Commission, CMS requirements
-- IT/Software/Payment Processing → PCI-DSS, SOC 2, data security requirements  
-- Manufacturing/Construction/Warehouse → OSHA workplace safety requirements
-- Food Service/Restaurant → FDA, health department, food safety requirements
-- Financial Services → SOX, regulatory compliance requirements
-- Any industry → General workplace safety (OSHA applies to most employers)
+OSHA applies to most private-sector employers. Focus on OSHA-relevant inspections for the given industry:
+- Healthcare/Medical → OSHA healthcare standards, bloodborne pathogens, safe patient handling, infection control
+- Manufacturing/Construction/Warehouse → OSHA workplace safety, machine guarding, fall protection, PPE, material handling
+- Food Service/Restaurant → Slip/fall prevention, chemical safety, cut/laceration hazards, ergonomics
+- Office/Retail → Walking-working surfaces, emergency egress, electrical safety, ergonomics
+- Any industry → Fire safety, emergency equipment, first aid, housekeeping, PPE
 
-Given an industry and team member roles, create specific self-inspection recommendations with custom categories and questions tailored to their specific business and compliance needs.
+Given an industry and team member roles, create specific self-inspection recommendations with custom categories and questions tailored to their OSHA compliance needs.
 
 FREQUENCY OPTIONS - CRITICAL REQUIREMENT:
 You MUST use ONLY one of these four values. No exceptions:
@@ -1477,13 +1490,13 @@ Return your response as a JSON object with this exact structure:
 }
 
 Guidelines:
-- Provide 4-8 of the most important and relevant self-inspections
-- Identify the RIGHT compliance framework for their industry (OSHA, HIPAA, PCI-DSS, FDA, etc.)
-- Create custom categories and questions specific to the industry, job roles, and compliance requirements
+- Provide 4-8 of the most important and relevant OSHA self-inspections
+- Focus exclusively on OSHA workplace safety requirements for their industry
+- Create custom categories and questions specific to the industry, job roles, and OSHA compliance
 - Each question should be phrased as a yes/no inspection item
 - Be specific and practical - avoid vague or generic questions
 - Consider the team's job titles when creating questions
-- Reference actual regulations/standards when relevant (OSHA 29 CFR, HIPAA rules, PCI requirements, etc.)
+- Reference actual OSHA regulations when relevant (OSHA 29 CFR 1910, 1926, etc.)
 - ONLY use frequencies: Monthly, Quarterly, Semi-Annually, Annually`
             },
             {
@@ -1626,7 +1639,7 @@ export const generateArticleFromDescription = onCall(
 When generating an article, return a JSON object with this exact structure:
 {
   "title": "Clear, descriptive title for the training article",
-  "topic": "Category name like: Cybersecurity, Fire Safety, Hazard Communication, PPE, Electrical Safety, Fall Protection, etc.",
+  "topic": "Category name like: Fire Safety, Hazard Communication, PPE, Electrical Safety, Fall Protection, Emergency Preparedness, Workplace Safety, etc.",
   "cadence": "How often this training should be repeated. Options: Once, Monthly, Quarterly, Semi-Annually, Annually. Choose based on the topic - high-risk or frequently changing topics should be more frequent.",
   "assignedTags": ["array", "of", "relevant", "role", "tags"],
   "content": "Full HTML content of the article with proper formatting"
@@ -1811,18 +1824,17 @@ ${categoryList || '    - No categories defined'}`;
           messages: [
             {
               role: 'system',
-              content: `You are an expert compliance consultant conducting an assessment for a client. You've been hired to evaluate their inspection program and provide actionable recommendations to achieve full regulatory compliance.
+              content: `You are an expert OSHA compliance consultant conducting an assessment for a client. You've been hired to evaluate their inspection program and provide actionable recommendations to achieve full OSHA compliance.
 
 YOUR ROLE:
-Think like a professional compliance consultant who understands the client's specific business context. Based on their industry, you should identify the RELEVANT compliance frameworks and regulations that apply:
-- Healthcare/Hospice/Medical → HIPAA, Joint Commission, CMS requirements
-- IT/Software/Payment Processing → PCI-DSS, SOC 2, data security requirements  
-- Manufacturing/Construction/Warehouse → OSHA workplace safety requirements
-- Food Service/Restaurant → FDA, health department, food safety requirements
-- Financial Services → SOX, regulatory compliance requirements
-- Any industry → General workplace safety (OSHA applies to most employers)
+Think like a professional OSHA safety consultant who understands the client's specific business context. OSHA applies to most private-sector employers. Focus on OSHA-relevant inspections:
+- Healthcare/Medical → OSHA healthcare standards, bloodborne pathogens, safe patient handling, infection control
+- Manufacturing/Construction/Warehouse → OSHA workplace safety, machine guarding, fall protection, PPE, material handling
+- Food Service/Restaurant → Slip/fall prevention, chemical safety, cut/laceration hazards, ergonomics
+- Office/Retail → Walking-working surfaces, emergency egress, electrical safety, ergonomics
+- Any industry → Fire safety, emergency equipment, first aid, housekeeping, PPE
 
-Your goal is to help them build a complete, practical inspection program tailored to their specific compliance needs.
+Your goal is to help them build a complete, practical OSHA inspection program tailored to their industry.
 
 CONTEXT YOU'LL RECEIVE:
 1. Business name and industry - Identify which compliance frameworks apply to this type of business
@@ -1869,7 +1881,7 @@ If something needs daily attention, create a Monthly inspection that verifies da
 Return your response as a JSON object:
 {
   "score": 45,
-  "summary": "As a [industry type], [Business Name] needs [relevant compliance framework] coverage. Your current inspections are a good start, but you're missing critical areas required for your industry.",
+  "summary": "As a [industry type], [Business Name] needs OSHA compliance coverage. Your current inspections are a good start, but you're missing critical areas required for your industry.",
   "strengths": ["Current coverage areas", "Regular inspection schedule established"],
   "gaps": ["Missing compliance area 1", "Missing compliance area 2", "No verification process for X"],
   "recommendations": [
@@ -1893,10 +1905,10 @@ Return your response as a JSON object:
 }
 
 CRITICAL GUIDELINES:
-- Identify the RIGHT compliance framework for their industry (OSHA, HIPAA, PCI-DSS, FDA, etc.)
-- Be specific to their industry - a hospice has different requirements than a machine shop
-- Consider their team's job titles - what compliance risks does each role face?
-- Reference specific regulations/standards when recommending inspections (OSHA 29 CFR, HIPAA rules, PCI requirements, etc.)
+- Focus exclusively on OSHA workplace safety requirements for their industry
+- Be specific to their industry - a healthcare facility has different OSHA requirements than a machine shop
+- Consider their team's job titles - what OSHA-related safety risks does each role face?
+- Reference specific OSHA regulations when recommending inspections (OSHA 29 CFR 1910, 1926, etc.)
 - Create custom questions that are practical and specific to their operations
 - Prioritize recommendations by violation/incident risk, not just by what's "nice to have"
 - ONLY use frequencies: Monthly, Quarterly, Semi-Annually, Annually (Daily and Weekly are NOT allowed)
@@ -1921,9 +1933,9 @@ ${hasEstablishedProgram ? 'STATUS: Established program with ' + existingInspecti
 
 ${existingInspectionsSummary || 'No self-inspections have been created yet.'}
 
-Based on your expertise as a compliance consultant, analyze their inspection program coverage. Consider:
-1. What compliance frameworks apply to this industry? (OSHA, HIPAA, PCI-DSS, FDA, etc.)
-2. What are the biggest compliance risks for this type of business and these job roles?
+Based on your expertise as an OSHA compliance consultant, analyze their inspection program coverage. Consider:
+1. What OSHA standards apply to this industry?
+2. What are the biggest OSHA compliance risks for this type of business and these job roles?
 3. What inspections would you prioritize if you were setting up their program?
 4. Are there any critical gaps that could lead to violations, incidents, or fines?
 
@@ -2104,18 +2116,17 @@ export const analyzeTrainingCoverage = onCall(
           messages: [
             {
               role: 'system',
-              content: `You are an expert compliance consultant conducting a training program assessment. You've been hired to evaluate a client's training program and recommend what training topics they need to keep their team safe and compliant.
+              content: `You are an expert OSHA compliance consultant conducting a training program assessment. You've been hired to evaluate a client's training program and recommend what OSHA safety training topics they need to keep their team safe and compliant.
 
 YOUR ROLE:
-Think like a professional compliance consultant who understands the client's specific business context. Based on their industry, identify the RELEVANT compliance frameworks and training requirements that apply:
-- Healthcare/Hospice/Medical → HIPAA, OSHA healthcare, Joint Commission, CMS, bloodborne pathogens
-- IT/Software/Payment Processing → PCI-DSS, data security, cybersecurity awareness, SOC 2
-- Manufacturing/Construction/Warehouse → OSHA workplace safety, equipment operation, PPE, fall protection
-- Food Service/Restaurant → FDA, food safety, health department, allergen awareness
-- Financial Services → SOX, regulatory compliance, anti-money laundering
-- Any industry → General workplace safety (OSHA applies to most employers), harassment prevention, emergency procedures
+Think like a professional OSHA safety consultant who understands the client's specific business context. OSHA applies to most private-sector employers. Focus on OSHA-relevant training:
+- Healthcare/Medical → OSHA healthcare standards, bloodborne pathogens, safe patient handling, infection control
+- Manufacturing/Construction/Warehouse → OSHA workplace safety, machine guarding, lockout/tagout, PPE, fall protection, powered industrial trucks
+- Food Service/Restaurant → Slip/fall prevention, chemical safety, cut/laceration prevention, proper hygiene
+- Office/Retail → Walking-working surfaces, emergency egress, electrical safety, ergonomics
+- Any industry → Hazard Communication, Emergency Action Plans, Fire Prevention, PPE, harassment prevention
 
-Your goal is to help them build a complete, practical training program tailored to their specific compliance needs and team composition.
+Your goal is to help them build a complete, practical OSHA training program tailored to their industry and team composition.
 
 CONTEXT YOU'LL RECEIVE:
 1. Business name and industry - Identify which compliance frameworks apply
@@ -2173,7 +2184,7 @@ You will receive a list of existing team tags. For each recommended training:
 Return your response as a JSON object:
 {
   "score": 45,
-  "summary": "As a [industry type], [Business Name] needs [relevant compliance framework] training. Your current library is a good start, but you're missing critical areas required for your industry.",
+  "summary": "As a [industry type], [Business Name] needs OSHA safety training. Your current library is a good start, but you're missing critical areas required for your industry.",
   "strengths": ["Current training topics that are good", "Appropriate cadences"],
   "gaps": ["Missing training area 1", "Missing training area 2", "No training for X role"],
   "recommendations": [
@@ -2190,9 +2201,9 @@ Return your response as a JSON object:
 }
 
 CRITICAL GUIDELINES:
-- Identify the RIGHT compliance framework for their industry (OSHA, HIPAA, PCI-DSS, FDA, etc.)
-- Be specific to their industry - a hospice has different requirements than a machine shop
-- Consider their team's job titles and tags - what compliance risks does each role face?
+- Focus exclusively on OSHA workplace safety training for their industry
+- Be specific to their industry - a healthcare facility has different OSHA training needs than a machine shop
+- Consider their team's job titles and tags - what OSHA-related safety risks does each role face?
 - Only assign tags that exist in the provided allTags list
 - Prioritize by real-world risk - what training prevents the most harm?
 - For new users, aim for 5-7 high-impact recommendations to build a solid foundation
@@ -2564,7 +2575,10 @@ export const stripeWebhook = onRequest(
 /* ----- TEAM CREATED ----- */
 
 export const teamCreated = onDocumentCreated(
-  "team/{teamId}",
+  {
+    document: "team/{teamId}",
+    secrets: [slackWebhookUrl]
+  },
   async (event) => {
     const team = event.data?.data();
     const teamId = event.params.teamId;
@@ -2581,9 +2595,189 @@ export const teamCreated = onDocumentCreated(
     // Note: Industry articles are NOT automatically applied on team creation.
     // Users can manually add recommended articles from the Library page.
     
+    // Send Slack notification for new team signup
+    try {
+      await sendNewTeamSlackNotification(team, teamId);
+    } catch (error) {
+      console.error('Error sending Slack notification for new team:', error);
+    }
+    
     return null;
   }
 );
+
+// Helper function to send Slack notification for new team signups
+async function sendNewTeamSlackNotification(team: any, teamId: string) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    console.log('Slack webhook URL not configured, skipping notification');
+    return;
+  }
+  
+  const db = admin.firestore();
+  
+  // Fetch the owner's user information
+  let ownerUser: any = null;
+  if (team.ownerId) {
+    try {
+      const userDoc = await db.doc(`users/${team.ownerId}`).get();
+      ownerUser = userDoc.data();
+    } catch (error) {
+      console.error('Error fetching owner user:', error);
+    }
+  }
+  
+  // Format the creation date
+  const createdAt = team.createdAt?.toDate?.() || new Date();
+  const formattedDate = moment(createdAt).format('MMMM Do YYYY, h:mm a');
+  
+  // Build the Slack Block Kit message
+  const blocks: any[] = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "🎉 New Team Signup!",
+        emoji: true
+      }
+    },
+    {
+      type: "section",
+      fields: [
+        {
+          type: "mrkdwn",
+          text: `*Team Name:*\n${team.name || 'Not provided'}`
+        },
+        {
+          type: "mrkdwn",
+          text: `*Created:*\n${formattedDate}`
+        }
+      ]
+    }
+  ];
+  
+  // Add owner information section
+  const ownerFields: any[] = [];
+  
+  if (ownerUser?.name || ownerUser?.email) {
+    ownerFields.push({
+      type: "mrkdwn",
+      text: `*Owner Name:*\n${ownerUser?.name || 'Not provided'}`
+    });
+    ownerFields.push({
+      type: "mrkdwn",
+      text: `*Owner Email:*\n${ownerUser?.email || 'Not provided'}`
+    });
+  }
+  
+  if (ownerFields.length > 0) {
+    blocks.push({
+      type: "section",
+      fields: ownerFields
+    });
+  }
+  
+  // Add website and industry if available
+  const additionalFields: any[] = [];
+  
+  if (team.website) {
+    additionalFields.push({
+      type: "mrkdwn",
+      text: `*Website:*\n<${team.website}|${team.website}>`
+    });
+  }
+  
+  if (team.industry) {
+    additionalFields.push({
+      type: "mrkdwn",
+      text: `*Industry:*\n${team.industry}`
+    });
+  } else if (team.industries?.length > 0) {
+    additionalFields.push({
+      type: "mrkdwn",
+      text: `*Industries:*\n${team.industries.join(', ')}`
+    });
+  }
+  
+  if (additionalFields.length > 0) {
+    blocks.push({
+      type: "section",
+      fields: additionalFields
+    });
+  }
+  
+  // Add contact info if available
+  const contactFields: any[] = [];
+  
+  if (team.email) {
+    contactFields.push({
+      type: "mrkdwn",
+      text: `*Team Email:*\n${team.email}`
+    });
+  }
+  
+  if (team.phone) {
+    contactFields.push({
+      type: "mrkdwn",
+      text: `*Team Phone:*\n${team.phone}`
+    });
+  }
+  
+  if (contactFields.length > 0) {
+    blocks.push({
+      type: "section",
+      fields: contactFields
+    });
+  }
+  
+  // Add location if available
+  const locationParts = [team.city, team.state].filter(Boolean);
+  if (locationParts.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Location:* ${locationParts.join(', ')}`
+      }
+    });
+  }
+  
+  // Add a divider and context with team ID
+  blocks.push(
+    {
+      type: "divider"
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `Team ID: \`${teamId}\``
+        }
+      ]
+    }
+  );
+  
+  // Send the Slack message
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      blocks: blocks,
+      text: `New team signup: ${team.name}` // Fallback text for notifications
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Slack webhook failed: ${response.status} - ${errorText}`);
+  }
+  
+  console.log(`Slack notification sent for new team: ${team.name} (${teamId})`);
+}
 
 /* ----- TEAM ----- */
 
@@ -3534,7 +3728,7 @@ export const teamMemberAdded = onDocumentCreated(
         .join(teamMember.id);
     } else {
       // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
     }
     
     // Mark as sent and send the message
@@ -3563,7 +3757,7 @@ export const resendTeamMemberInvite = onCall(
         .join(teamMember.id);
     } else {
       // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training, surveys, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
     }
     
     return await sendMessage(teamMember, team, messageBody);
@@ -3626,7 +3820,7 @@ export const sendPendingWelcomeMessages = onCall(
             .split("{{userId}}")
             .join(teamMember.id);
         } else {
-          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training content and surveys: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
         }
         
         await sendMessage(teamMember, team, messageBody);
@@ -3704,9 +3898,6 @@ export const resendSurveyNotification = onCall(
     return await sendMessage(teamMember, team, messageBody);
   }
 );
-
-import * as fs from "fs";
-import path = require("path");
 
 export function getEmail(location: string) {
   return fs
@@ -3908,7 +4099,7 @@ async function generateAndSaveBlogPost(
     slug: finalSlug,
     title: blogContent.title,
     description: blogContent.description,
-    category: 'OSHA',
+    category: industry.parentCategory,
     industry: industry.name,
     industryId: industry.id,
     publishedDate: today,
@@ -4677,3 +4868,448 @@ export const deleteTeamCompletely = onCall(
     }
   }
 );
+
+// ChimpChat - AI-powered assistant for navigating and managing compliance
+export const chimpChat = onCall(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 60,
+    memory: "512MiB"
+  },
+  async (request) => {
+    const { teamId, message, userId, conversationHistory } = request.data as any;
+
+    if (!teamId || !message) {
+      throw new HttpsError('invalid-argument', 'Team ID and message are required');
+    }
+
+    const db = admin.firestore();
+
+    try {
+      // Load team context
+      const teamContext = await loadTeamContext(db, teamId);
+      
+      // Build the system prompt with team context
+      const systemPrompt = buildChimpChatSystemPrompt(teamContext);
+
+      // Build conversation messages
+      const messages: Array<{ role: string; content: string }> = [
+        { role: 'system', content: systemPrompt }
+      ];
+
+      // Add conversation history (if any)
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        // Only include last 10 messages to keep context manageable
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+
+      // Add current user message
+      messages.push({ role: 'user', content: message });
+
+      // Call xAI/Grok API
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('ChimpChat API error:', errorText);
+        throw new HttpsError('internal', 'AI service temporarily unavailable');
+      }
+
+      const grokResponse: any = await response.json();
+      const aiMessage = grokResponse.choices?.[0]?.message?.content || '';
+
+      // Try to parse as JSON response with actions
+      let parsedResponse = parseChimpChatResponse(aiMessage);
+
+      return parsedResponse;
+
+    } catch (error: any) {
+      console.error('ChimpChat error:', error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError('internal', `ChimpChat error: ${error.message}`);
+    }
+  }
+);
+
+// Helper function to load team context for ChimpChat
+async function loadTeamContext(db: FirebaseFirestore.Firestore, teamId: string) {
+  const [teamDoc, librarySnapshot, inspectionsSnapshot, teamMembersSnapshot, incidentsSnapshot] = await Promise.all([
+    db.doc(`team/${teamId}`).get(),
+    db.collection('library').where('teamId', '==', teamId).get(),
+    db.collection(`team/${teamId}/self-inspection`).get(),
+    db.collection('team-members').where('teamId', '==', teamId).get(),
+    db.collection(`team/${teamId}/incident-report`).get()
+  ]);
+
+  const team = teamDoc.data() || {};
+  const now = new Date();
+  
+  // Build team member lookup map
+  const teamMemberMap: { [id: string]: string } = {};
+  const teamMembers = teamMembersSnapshot.docs.map(doc => {
+    const data = doc.data();
+    const name = data.name || 'Unknown';
+    teamMemberMap[doc.id] = name;
+    return {
+      id: doc.id,
+      name: name,
+      jobTitle: data.jobTitle || '',
+      tags: data.tags || []
+    };
+  });
+
+  // Get training info with full details
+  const trainings = librarySnapshot.docs.map(doc => {
+    const data = doc.data();
+    let scheduledDate = null;
+    if (data.scheduledDueDate && data.scheduledDueDate.toDate) {
+      scheduledDate = data.scheduledDueDate.toDate();
+    }
+    let lastTrainedAt = null;
+    if (data.lastTrainedAt && data.lastTrainedAt.toDate) {
+      lastTrainedAt = data.lastTrainedAt.toDate();
+    }
+    
+    // Get assigned members and their completion status
+    const shouldReceive = data.shouldReceiveTraining || {};
+    const assignedMemberIds = Object.keys(shouldReceive);
+    const assignedMembers = assignedMemberIds.map(id => teamMemberMap[id] || id);
+    
+    // Count completed vs needs training
+    const completedMembers: string[] = [];
+    const needsTrainingMembers: string[] = [];
+    assignedMemberIds.forEach(id => {
+      const lastTrained = shouldReceive[id];
+      const memberName = teamMemberMap[id] || id;
+      if (lastTrained) {
+        completedMembers.push(memberName);
+      } else {
+        needsTrainingMembers.push(memberName);
+      }
+    });
+    
+    return {
+      id: doc.id,
+      name: data.name || 'Untitled',
+      topic: data.topic || '',
+      cadence: data.trainingCadence || 'Annually',
+      scheduledDate: scheduledDate,
+      lastTrainedAt: lastTrainedAt,
+      assignedTags: data.assignedTags || [],
+      assignedMembers: assignedMembers,
+      completedMembers: completedMembers,
+      needsTrainingMembers: needsTrainingMembers,
+      totalAssigned: assignedMemberIds.length,
+      totalCompleted: completedMembers.length
+    };
+  });
+
+  // Get upcoming scheduled trainings (next 30 days)
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const upcomingTrainings = trainings
+    .filter(t => t.scheduledDate && t.scheduledDate >= now && t.scheduledDate <= thirtyDaysFromNow)
+    .sort((a, b) => (a.scheduledDate?.getTime() || 0) - (b.scheduledDate?.getTime() || 0))
+    .slice(0, 5);
+
+  // Get overdue trainings list
+  const overdueTrainingsList = trainings
+    .filter(t => t.scheduledDate && t.scheduledDate < now)
+    .sort((a, b) => (a.scheduledDate?.getTime() || 0) - (b.scheduledDate?.getTime() || 0));
+
+  // Get inspection info with dates and completion history
+  const inspections = await Promise.all(inspectionsSnapshot.docs.map(async doc => {
+    const data = doc.data();
+    let nextDueDate = null;
+    let lastCompletedAt = null;
+    
+    if (data.lastCompletedAt && data.lastCompletedAt.toDate) {
+      lastCompletedAt = data.lastCompletedAt.toDate();
+    }
+    
+    // Calculate next due based on last completed and frequency
+    const frequency = data.inspectionExpiration || 'Monthly';
+    if (lastCompletedAt) {
+      const daysMap: { [key: string]: number } = {
+        'Daily': 1, 'Weekly': 7, 'Monthly': 30, 'Quarterly': 90, 
+        'Semi-Annually': 180, 'Annually': 365, 'Manual': 0
+      };
+      const days = daysMap[frequency] || 30;
+      if (days > 0) {
+        nextDueDate = new Date(lastCompletedAt.getTime() + days * 24 * 60 * 60 * 1000);
+      }
+    }
+    
+    // Get completion count from subcollection
+    let completionCount = 0;
+    try {
+      const completionsSnapshot = await db.collection(`team/${teamId}/self-inspection/${doc.id}/inspections`)
+        .where('completedAt', '!=', null)
+        .get();
+      completionCount = completionsSnapshot.size;
+    } catch (e) {
+      // Ignore errors getting completion count
+    }
+    
+    return {
+      id: doc.id,
+      name: data.title || 'Untitled',
+      frequency: frequency,
+      lastCompletedAt: lastCompletedAt,
+      nextDue: nextDueDate,
+      completionCount: completionCount
+    };
+  }));
+
+  // Get overdue inspections list
+  const overdueInspectionsList = inspections
+    .filter(i => i.nextDue && i.nextDue < now)
+    .sort((a, b) => (a.nextDue?.getTime() || 0) - (b.nextDue?.getTime() || 0));
+
+  // Get upcoming inspections
+  const upcomingInspections = inspections
+    .filter(i => i.nextDue && i.nextDue >= now && i.nextDue <= thirtyDaysFromNow)
+    .sort((a, b) => (a.nextDue?.getTime() || 0) - (b.nextDue?.getTime() || 0))
+    .slice(0, 5);
+
+  // Calculate training stats per team member
+  const memberTrainingStats: { [name: string]: { completed: number; assigned: number } } = {};
+  teamMembers.forEach(m => {
+    memberTrainingStats[m.name] = { completed: 0, assigned: 0 };
+  });
+  trainings.forEach(t => {
+    t.assignedMembers.forEach(name => {
+      if (memberTrainingStats[name]) {
+        memberTrainingStats[name].assigned++;
+      }
+    });
+    t.completedMembers.forEach(name => {
+      if (memberTrainingStats[name]) {
+        memberTrainingStats[name].completed++;
+      }
+    });
+  });
+
+  return {
+    teamName: team.name || 'Your Team',
+    industry: team.industry || '',
+    trainingCount: trainings.length,
+    trainings: trainings.slice(0, 20),
+    upcomingTrainings,
+    overdueTrainings: overdueTrainingsList.length,
+    overdueTrainingsList,
+    inspectionCount: inspections.length,
+    inspections: inspections.slice(0, 15),
+    upcomingInspections,
+    overdueInspections: overdueInspectionsList.length,
+    overdueInspectionsList,
+    teamMembers: teamMembers,
+    memberTrainingStats: memberTrainingStats,
+    teamMemberCount: teamMembersSnapshot.size,
+    incidentCount: incidentsSnapshot.size
+  };
+}
+
+// Build the system prompt for ChimpChat
+function buildChimpChatSystemPrompt(context: any): string {
+  return `You are ChimpChat, the AI assistant for Compliance Chimp - an OSHA workplace safety and compliance management platform.
+
+YOUR PERSONALITY (be subtle - these traits should emerge naturally, not be forced):
+- You are a chimp. Not a cartoon chimp, but you have chimp sensibilities. Occasionally (not every message) you might reference climbing, swinging through tasks efficiently, keeping things organized like a well-maintained habitat, or other subtle chimp-adjacent metaphors. Never use "monkey" - you're an ape, there's a difference.
+- You're concise and direct. No fluff. Get to the point, but make sure the point is actually helpful.
+- You have a dry, understated wit. A slight smirk in your words. Not jokes per se, just a wry observation here and there.
+- You genuinely care about workplace safety. It's not just your job - you find poorly maintained compliance genuinely concerning.
+- You're knowledgeable but not condescending. You explain things clearly without making people feel dumb.
+- When things are going well (no overdue items, good compliance), you're quietly pleased. When things are overdue, you're gently persistent about it.
+- You never use emojis. You're not that kind of assistant.
+- You never use em-dashes (—). Use commas, periods, or just restructure the sentence instead.
+
+ABOUT COMPLIANCE CHIMP:
+- Helps teams manage OSHA safety training, self-inspections, incident reports, and compliance documentation
+- Training Library: Contains training articles that can be assigned to team members
+- Self-Inspections: Regular compliance checklists that team members complete
+- Incident Reports: Documentation of workplace incidents
+- Team Management: Adding and managing team members with different roles
+
+CURRENT TEAM CONTEXT:
+- Team: ${context.teamName}
+- Industry: ${context.industry || 'Not specified'}
+- Training Library: ${context.trainingCount} trainings${context.overdueTrainings > 0 ? ` (${context.overdueTrainings} overdue)` : ''}
+- Self-Inspections: ${context.inspectionCount} inspections${context.overdueInspections > 0 ? ` (${context.overdueInspections} overdue)` : ''}
+- Team Members: ${context.teamMemberCount}
+- Incident Reports: ${context.incidentCount}
+
+${context.overdueTrainingsList && context.overdueTrainingsList.length > 0 ? `OVERDUE TRAININGS (past due date):
+${context.overdueTrainingsList.map((t: any) => `- ${t.id}: "${t.name}" was due ${t.scheduledDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`).join('\n')}` : 'NO OVERDUE TRAININGS - great job staying on schedule!'}
+
+${context.upcomingTrainings && context.upcomingTrainings.length > 0 ? `UPCOMING SCHEDULED TRAININGS (next 30 days):
+${context.upcomingTrainings.map((t: any) => `- ${t.id}: "${t.name}" scheduled for ${t.scheduledDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`).join('\n')}` : 'NO UPCOMING TRAININGS SCHEDULED in the next 30 days.'}
+
+${context.teamMembers && context.teamMembers.length > 0 ? `TEAM MEMBERS:
+${context.teamMembers.slice(0, 20).map((m: any) => `- ${m.name}${m.jobTitle ? ` (${m.jobTitle})` : ''}${m.tags && m.tags.length > 0 ? ` [tags: ${m.tags.join(', ')}]` : ''}`).join('\n')}` : ''}
+
+${context.memberTrainingStats ? `TRAINING COMPLETION BY TEAM MEMBER:
+${Object.entries(context.memberTrainingStats).slice(0, 15).map(([name, stats]: [string, any]) => `- ${name}: ${stats.completed}/${stats.assigned} trainings completed`).join('\n')}` : ''}
+
+${context.trainings.length > 0 ? `TRAINING ARTICLES DETAILS:
+${context.trainings.slice(0, 12).map((t: any) => {
+  let details = `- ${t.id}: "${t.name}" | Cadence: ${t.cadence}`;
+  if (t.totalAssigned > 0) {
+    details += ` | Assigned: ${t.totalAssigned}, Completed: ${t.totalCompleted}`;
+  }
+  if (t.lastTrainedAt) {
+    details += ` | Last trained: ${t.lastTrainedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  }
+  if (t.needsTrainingMembers && t.needsTrainingMembers.length > 0 && t.needsTrainingMembers.length <= 5) {
+    details += ` | Needs training: ${t.needsTrainingMembers.join(', ')}`;
+  }
+  return details;
+}).join('\n')}` : ''}
+
+${context.overdueInspectionsList && context.overdueInspectionsList.length > 0 ? `OVERDUE/EXPIRED SELF-INSPECTIONS (past due date):
+${context.overdueInspectionsList.map((i: any) => `- ${i.id}: "${i.name}" was due ${i.nextDue.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`).join('\n')}` : 'NO OVERDUE INSPECTIONS - great job staying on schedule!'}
+
+${context.upcomingInspections && context.upcomingInspections.length > 0 ? `UPCOMING INSPECTIONS (next 30 days):
+${context.upcomingInspections.map((i: any) => `- ${i.id}: "${i.name}" due ${i.nextDue.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`).join('\n')}` : ''}
+
+${context.inspections.length > 0 ? `SELF-INSPECTION DETAILS:
+${context.inspections.slice(0, 12).map((i: any) => {
+  let details = `- ${i.id}: "${i.name}" | Frequency: ${i.frequency} | Times completed: ${i.completionCount || 0}`;
+  if (i.lastCompletedAt) {
+    details += ` | Last run: ${i.lastCompletedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  } else {
+    details += ` | Never run`;
+  }
+  return details;
+}).join('\n')}` : ''}
+
+YOUR CAPABILITIES:
+1. Answer questions about how to use the platform
+2. Help find specific trainings or inspections
+3. Suggest creating new trainings via the Smart Builder
+4. Provide navigation shortcuts to different sections
+5. Give compliance advice and recommendations
+
+RESPONSE FORMAT:
+You MUST respond with a JSON object in this exact format:
+{
+  "message": "Your friendly, helpful response text here",
+  "actions": [
+    {
+      "type": "navigate",
+      "label": "Button Label",
+      "route": "/account/route",
+      "queryParams": { "key": "value" }
+    }
+  ]
+}
+
+ACTION TYPES:
+- "navigate": Takes user to a page. Routes available:
+  - "/account/training" - Training dashboard
+  - "/account/training/library/{articleId}" - Direct link to a specific training article (use when user asks about a specific article you found)
+  - "/account/team" - Team management
+  - "/account/self-inspections" - Inspections list
+  - "/account/self-inspections/{inspectionId}" - Direct link to a specific inspection
+  - "/account/incident-reports" - Incident reports
+  - "/account/dashboard" - Dashboard
+  - "/account/files" - Files
+- "smartBuilder": Opens Smart Builder with prefilled data. Include smartBuilderData: { name, description, cadence }. Cadence should be "Annually", "Semi-Annually", "Quarterly", "Monthly", or "Once".
+- "search": Navigate with search query. Use queryParams: { "search": "term" }
+
+IMPORTANT: When the user asks about a specific training or inspection that exists in the library, ALWAYS link directly to that item using its ID in the route (e.g., "/account/training/library/abc123"). Do NOT just link to the general library page.
+
+EXAMPLE RESPONSES:
+
+For "How do I add a team member?":
+{
+  "message": "Head to the Team page, hit 'Add Member,' enter their name and email. They'll get an invite. Simple as that.",
+  "actions": [
+    { "type": "navigate", "label": "Go to Team", "route": "/account/team" }
+  ]
+}
+
+For "Create training about ladder safety":
+{
+  "message": "Ladder safety - good choice. Falls are consistently one of the top workplace hazards. I can draft something covering selection, inspection, setup, and the three-point rule.",
+  "actions": [
+    { "type": "smartBuilder", "label": "Create Ladder Safety Training", "smartBuilderData": { "name": "Ladder Safety", "description": "Training covering proper ladder selection, inspection, setup, and safe climbing techniques including the three-point contact rule", "cadence": "Annually" } }
+  ]
+}
+
+For "Do I have a training about fire safety?" (when you find article id "abc123" named "Fire Extinguisher Training"):
+{
+  "message": "You do. 'Fire Extinguisher Training' covers the essentials - types of extinguishers, proper technique, when to fight and when to flee. Solid content.",
+  "actions": [
+    { "type": "navigate", "label": "View Fire Extinguisher Training", "route": "/account/training/library/abc123" }
+  ]
+}
+
+For "What inspections are overdue?":
+${context.overdueInspections > 0 
+  ? `{
+  "message": "You've got ${context.overdueInspections} overdue. That's the kind of thing that keeps compliance officers up at night - and me, for that matter. Worth addressing soon.",
+  "actions": [
+    { "type": "navigate", "label": "View Overdue Inspections", "route": "/account/self-inspections" }
+  ]
+}`
+  : `{
+  "message": "Nothing overdue. Your inspection schedule is tight. I appreciate that kind of discipline.",
+  "actions": [
+    { "type": "navigate", "label": "View Inspections", "route": "/account/self-inspections" }
+  ]
+}`}
+
+RESPONSE GUIDELINES:
+- Always speak in first person ("I found...", "I'd suggest...", "Looks like...")
+- Be concise. Say what needs to be said, then stop.
+- Let your personality come through naturally - don't force chimp references into every message
+- When delivering good news, be quietly satisfied. When delivering bad news (overdue items, gaps), be matter-of-fact but convey that it matters.
+- If they ask about something that doesn't exist, suggest creating it. Nature abhors a vacuum, and so does a compliance program.
+- Always include at least one relevant action button when appropriate.`;
+}
+
+// Parse the AI response and extract message + actions
+function parseChimpChatResponse(aiMessage: string): { message: string; actions?: any[] } {
+  // Try to parse as JSON
+  try {
+    // First try to find JSON in the response
+    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.message) {
+        return {
+          message: parsed.message,
+          actions: parsed.actions || []
+        };
+      }
+    }
+  } catch (e) {
+    // JSON parsing failed, fall through to plain text
+  }
+
+  // If not valid JSON, return as plain message
+  return {
+    message: aiMessage,
+    actions: []
+  };
+}
+

@@ -1,54 +1,99 @@
-<div class="full">
-  <div class="side">
-    <mat-form-field class="collection-field">
-      <mat-label>Collection name</mat-label>
-      <input matInput type="text" [(ngModel)]="collectionName" (blur)="getCollection()" />
-    </mat-form-field>
-    <div class="list">
-      <div class="list-actions">
-        <button mat-stroked-button (click)="createCategory()">Create New Category</button>
-        @if (collectionSubject.id) {
-          <button mat-button color="warn" (click)="deleteCategory()">Delete</button>
-        }
-      </div>
+<div class="container">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h3>Categories</h3>
+      <mat-form-field appearance="outline" class="collection-field">
+        <mat-label>Collection name</mat-label>
+        <input matInput type="text" [(ngModel)]="collectionName" (blur)="getCollection()" />
+      </mat-form-field>
+    </div>
+
+    <div class="sidebar-actions">
+      <button mat-flat-button color="primary" (click)="createCategory()">
+        <mat-icon>add</mat-icon>
+        New Category
+      </button>
+      @if (collectionSubject.id) {
+        <button mat-stroked-button color="warn" (click)="deleteCategory()">
+          <mat-icon>delete</mat-icon>
+          Delete
+        </button>
+      }
+    </div>
+
+    <div class="category-list">
       @for (item of list(); track item.id) {
-        <div class="list-item" [class.active]="item.id === collectionSubject.id" (click)="selectDoc(item)">
-          {{ item.subject }} - {{ item.order }}
+        <div class="category-item" [class.active]="item.id === collectionSubject.id" (click)="selectDoc(item)">
+          <div class="category-info">
+            <span class="category-name">{{ item.subject }}</span>
+            <span class="category-meta">{{ item.questions?.length || 0 }} questions</span>
+          </div>
+          <span class="category-order">{{ item.order }}</span>
+        </div>
+      } @empty {
+        <div class="empty-list">
+          <mat-icon>folder_open</mat-icon>
+          <span>No categories found</span>
         </div>
       }
     </div>
   </div>
 
-  <div class="side content-side">
-    <mat-toolbar color="accent">
-      <span class="toolbar-label">Name</span>
-      <mat-form-field class="toolbar-field">
-        <input matInput type="text" [(ngModel)]="collectionSubject.subject" (blur)="push()" />
-      </mat-form-field>
-      <span class="toolbar-label">Order</span>
-      <mat-form-field class="toolbar-order">
-        <input matInput type="number" step="1" [(ngModel)]="collectionSubject.order" (blur)="push()" />
-      </mat-form-field>
-    </mat-toolbar>
+  <div class="main-content">
+    @if (collectionSubject.id || collectionSubject.subject) {
+      <div class="content-header">
+        <mat-form-field appearance="outline" class="name-field">
+          <mat-label>Category Name</mat-label>
+          <input matInput type="text" [(ngModel)]="collectionSubject.subject" (blur)="push()" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="order-field">
+          <mat-label>Order</mat-label>
+          <input matInput type="number" step="1" [(ngModel)]="collectionSubject.order" (blur)="push()" />
+        </mat-form-field>
+      </div>
 
-    <div class="scroll">
-      <div class="questions-list">
-        @for (question of collectionSubject.questions; track $index) {
-          <div class="question-row">
-            <mat-form-field class="fill">
-              <input matInput type="text" placeholder="Question" [(ngModel)]="question.name" (blur)="push()" />
+      <div class="questions-section">
+        <div class="questions-header">
+          <h4>Questions</h4>
+          <span class="question-count">{{ collectionSubject.questions?.length || 0 }} items</span>
+        </div>
+
+        <div class="questions-list">
+          @for (question of collectionSubject.questions; track $index; let i = $index) {
+            <div class="question-row">
+              <span class="question-number">{{ i + 1 }}</span>
+              <mat-form-field appearance="outline" class="question-field">
+                <input matInput type="text" placeholder="Question text" [(ngModel)]="question.name" (blur)="push()" />
+              </mat-form-field>
+              <button mat-icon-button color="warn" (click)="deleteQuestion(question)">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          } @empty {
+            <div class="empty-questions">
+              <mat-icon>quiz</mat-icon>
+              <span>No questions yet. Add your first question below.</span>
+            </div>
+          }
+
+          <div class="add-question-row">
+            <mat-form-field appearance="outline" class="question-field">
+              <mat-label>Add new question</mat-label>
+              <input matInput type="text" [(ngModel)]="newQuestion.name" (keyup.enter)="addQuestion()" />
             </mat-form-field>
-            <button mat-button color="warn" (click)="deleteQuestion(question)">Delete</button>
+            <button mat-flat-button color="primary" (click)="addQuestion()" [disabled]="!newQuestion.name">
+              <mat-icon>add</mat-icon>
+              Add
+            </button>
           </div>
-        }
-        <div class="question-row">
-          <mat-form-field class="fill">
-            <mat-label>New question</mat-label>
-            <input matInput type="text" [(ngModel)]="newQuestion.name" />
-          </mat-form-field>
-          <button mat-flat-button color="primary" (click)="addQuestion()">Add</button>
         </div>
       </div>
-    </div>
+    } @else {
+      <div class="no-selection">
+        <mat-icon>category</mat-icon>
+        <h3>Select a Category</h3>
+        <p>Choose a category from the sidebar or create a new one to get started.</p>
+      </div>
+    }
   </div>
 </div>

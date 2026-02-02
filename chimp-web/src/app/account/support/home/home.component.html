@@ -1,75 +1,13 @@
 <mat-tab-group>
+  <mat-tab label="Resource Library">
+    <resource-library />
+  </mat-tab>
+
   <mat-tab label="Self-Inspection Template">
     <inspection-questions />
   </mat-tab>
 
-  <mat-tab label="Help Articles">
-    @if (supportService.makeArticle()) {
-      <app-article />
-    } @else {
-      <app-help />
-    }
-  </mat-tab>
-
   <mat-tab label="Statistics">
     <statistics />
-  </mat-tab>
-
-  <mat-tab label="Industry Templates">
-    <div class="templates-container">
-      <h2>Industry Article Mapping</h2>
-      <p>
-        View which OSHA articles are tagged with each industry. Articles are tagged via the 
-        <code>industryIds</code> field which is set by running the migration script locally.
-      </p>
-      <p class="hint">
-        To update article-industry mappings, run: <code>node scripts/migrate-article-industries.js</code>
-      </p>
-      
-      <div class="templates-actions">
-        <button mat-flat-button color="primary" (click)="previewTemplates()" [disabled]="loadingPreview()">
-          @if (loadingPreview()) {
-            <mat-spinner diameter="20" />
-          } @else {
-            <mat-icon>visibility</mat-icon>
-          }
-          View Article Counts by Industry
-        </button>
-      </div>
-
-      @if (previewResult(); as result) {
-        <div class="preview-results">
-          @if (result.error) {
-            <p class="error">Error: {{ result.error }}</p>
-          } @else {
-            <div class="summary">
-              <strong>{{ result.totalArticlesWithIndustries }}</strong> of {{ result.totalArticles }} articles have industry tags
-            </div>
-            
-            @if (result.templates?.length) {
-              <h3>Articles per Industry</h3>
-              @for (template of result.templates; track template.industryId) {
-                <div class="template-item">
-                  <strong>{{ template.industryName }}</strong>
-                  <span class="article-count"> - {{ template.totalArticles }} articles</span>
-                  @if (template.sampleArticles?.length) {
-                    <ul class="sample-articles">
-                      @for (article of template.sampleArticles; track article.id) {
-                        <li>{{ article.name }}</li>
-                      }
-                      @if (template.moreArticles > 0) {
-                        <li class="more">...and {{ template.moreArticles }} more</li>
-                      }
-                    </ul>
-                  }
-                </div>
-              }
-            } @else {
-              <p class="warning">No articles have industry tags yet. Run the migration script to tag articles.</p>
-            }
-          }
-        </div>
-      }
-    </div>
   </mat-tab>
 </mat-tab-group>

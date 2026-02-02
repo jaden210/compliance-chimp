@@ -9,6 +9,7 @@ import { Team, TeamMember } from "../account/account.service";
 import { Survey, SurveyResponse, User } from "../app.service";
 import { LibraryItem } from "../account/training/training.service";
 import { TeamFile as File } from "../account/files/files.component";
+import { ResourceFile } from "../account/support/resource-library.service";
 
 @Injectable({
   providedIn: "root"
@@ -34,6 +35,7 @@ export class UserService implements OnDestroy {
   teamMembers: TeamMember[];
   teamManagers: User[];
   files: File[] = [];
+  resourceFiles: ResourceFile[] = [];
   
   // Getter/setter for surveys that keeps the BehaviorSubject in sync
   private _surveys: Survey[] | null = null;
@@ -82,6 +84,22 @@ export class UserService implements OnDestroy {
       ? query(filesRef)
       : query(filesRef, where("isPublic", "==", true));
     return collectionData(filesQuery, { idField: "id" }) as Observable<File[]>;
+  }
+
+  public getResourceFiles(): Observable<ResourceFile[]> {
+    const resourceQuery = query(
+      collection(this.db, "resource-library"),
+      orderBy("order", "asc")
+    );
+    return collectionData(resourceQuery, { idField: "id" }).pipe(
+      map((files: any[]) =>
+        files.map((file) => ({
+          ...file,
+          createdAt: file.createdAt?.toDate ? file.createdAt.toDate() : file.createdAt,
+          updatedAt: file.updatedAt?.toDate ? file.updatedAt.toDate() : file.updatedAt
+        }))
+      )
+    ) as Observable<ResourceFile[]>;
   }
 
   public getTeamManagers(teamId: string): Observable<User[]> {

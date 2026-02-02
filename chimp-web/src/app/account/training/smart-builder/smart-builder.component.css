@@ -15,9 +15,12 @@ mat-toolbar {
 }
 
 .toolbar-title {
-  font-size: 18px;
-  font-weight: 500;
-  margin-left: 8px;
+  font-family: "co-headline";
+  font-size: 16px;
+  color: var(--chimp-on-primary);
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+  padding-left: 6px;
+  line-height: 1.2;
 }
 
 .flex {

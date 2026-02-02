@@ -36,6 +36,11 @@ export class Step1Component implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Load any previously entered data
+    this.businessName = this.challengeService.businessName;
+    this.businessWebsite = this.challengeService.businessWebsite;
+    this.industry = this.challengeService.industry;
+    
     // Track step 1 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP1_VIEW);
   }

@@ -240,6 +240,11 @@ export class AccountService {
     return setDoc(doc(this.db, `user/${user.id}`), cleanedUser);
   }
 
+  public toggleResourceLibrary(show: boolean): Promise<void> {
+    if (!this.aTeam?.id) return Promise.resolve();
+    const teamRef = doc(this.db, `team/${this.aTeam.id}`);
+    return updateDoc(teamRef, { showResourceLibrary: show });
+  }
 
   logout(): void {
     signOut(this.auth).then(() => {
@@ -388,6 +393,8 @@ export class Team {
   trainingCoverageAnalysisUpdatedAt?: any;
   // Auto-start trainings setting - defaults to true for new teams
   autoStartTrainings?: boolean;
+  // Resource Library visibility - defaults to true (opt-out model)
+  showResourceLibrary?: boolean;
 }
 
 export class Log {
