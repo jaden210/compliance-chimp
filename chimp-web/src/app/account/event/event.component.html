@@ -93,10 +93,17 @@
       <div id="bbody" class="timeline-content">
         @for (day of days; track trackByDayId($index, day); let i = $index) {
           <!-- Month divider -->
-          @if (i === 0 || day.day === '01') {
+          @if (i === 0 || (days[i - 1] && days[i - 1].date.format('YYYY-MM') !== day.date.format('YYYY-MM'))) {
             <div class="month-divider">
               <span class="month-label">{{ day.month }} {{ day.date.format('YYYY') }}</span>
             </div>
+            <!-- Placeholder for months with no events yet -->
+            @if (!hasEventsInMonth(day.date)) {
+              <div class="empty-month-placeholder">
+                <mat-icon>event_upcoming</mat-icon>
+                <span>New events will appear here</span>
+              </div>
+            }
           }
 
           <!-- Day with events -->
@@ -114,7 +121,7 @@
                     </div>
                     <div class="event-content">
                       <div class="event-header">
-                        <span class="event-user">{{ $any(event)?.user?.name || 'Unknown' }}</span>
+                        <span class="event-user">{{ $any(event)?.user?.name || 'the Chimp' }}</span>
                         <span class="event-action">{{ event?.action }}</span>
                         <span class="event-type-label">{{ event?.type }}</span>
                       </div>

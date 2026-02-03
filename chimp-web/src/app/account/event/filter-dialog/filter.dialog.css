@@ -1,75 +1,44 @@
-/* Dialog Title */
-.dialog-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.dialog-header mat-icon {
-  color: var(--chimp-primary);
-  font-size: 28px;
-  width: 28px;
-  height: 28px;
-}
-
-.dialog-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--chimp-text-primary);
-}
+/* Filter Dialog */
 
 /* Content Layout */
-mat-dialog-content {
+.filter-columns {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  padding-top: 8px !important;
 }
 
-/* Filter Columns */
 .filter-column {
-  flex: 1 1 200px;
-  min-width: 180px;
+  flex: 1 1 250px;
+  min-width: 220px;
 }
 
 .filter-label {
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--chimp-text-secondary);
-  margin-bottom: 12px;
+  letter-spacing: 0.08em;
+  color: var(--chimp-on-surface-variant);
+  margin-bottom: 8px;
   font-weight: 600;
 }
 
-/* Selection List Styling */
+/* Selection List */
 mat-selection-list {
-  outline: none;
   max-height: 280px;
   overflow-y: auto;
-  border-radius: 12px;
-  border: 1px solid var(--chimp-border-light);
-  padding: 4px !important;
+  border: 1px solid var(--chimp-outline-variant);
+  border-radius: 8px;
 }
 
-mat-list-option {
-  border-radius: 8px !important;
-  margin: 2px 0;
-}
-
-mat-list-option img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-/* Type badges */
+/* Type Option */
 .type-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
+}
+
+.type-option span {
+  white-space: nowrap;
 }
 
 .type-icon {
@@ -79,6 +48,7 @@ mat-list-option img {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .type-icon mat-icon {
@@ -88,15 +58,15 @@ mat-list-option img {
   color: white;
 }
 
-.type-log { background: linear-gradient(135deg, #ff9800, #f57c00); }
-.type-training { background: linear-gradient(135deg, #3f51b5, #303f9f); }
-.type-survey { background: linear-gradient(135deg, #4caf50, #388e3c); }
-.type-member { background: linear-gradient(135deg, #03a9f4, #0288d1); }
-.type-timeclock { background: linear-gradient(135deg, #607d8b, #455a64); }
-.type-incident { background: linear-gradient(135deg, #e91e63, #c2185b); }
-.type-inspection { background: linear-gradient(135deg, #ffc107, #ffa000); }
+.type-log { background: linear-gradient(135deg, var(--chimp-tertiary-bright), var(--chimp-tertiary)); }
+.type-training { background: linear-gradient(135deg, var(--chimp-primary-light), var(--chimp-primary)); }
+.type-survey { background: linear-gradient(135deg, var(--chimp-success-bright), var(--chimp-success)); }
+.type-member { background: linear-gradient(135deg, var(--chimp-info-bright), var(--chimp-info)); }
+.type-timeclock { background: linear-gradient(135deg, var(--chimp-gray-500), var(--chimp-gray-600)); }
+.type-incident { background: linear-gradient(135deg, var(--chimp-error-bright), var(--chimp-error)); }
+.type-inspection { background: linear-gradient(135deg, var(--chimp-amber), var(--chimp-amber-dark)); }
 
-/* User option styling */
+/* User Option */
 .user-option {
   display: flex;
   align-items: center;
@@ -108,37 +78,15 @@ mat-list-option img {
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--chimp-border-light);
+  flex-shrink: 0;
 }
 
-.user-name {
-  font-size: 14px;
-  color: var(--chimp-text-primary);
-}
-
-/* Actions */
-mat-dialog-actions {
-  padding: 16px 0 0 !important;
-  gap: 8px;
-}
-
-/* Empty state for no users/types */
+/* Empty State */
 .empty-filter {
   padding: 16px;
   text-align: center;
-  color: var(--chimp-text-hint);
+  color: var(--chimp-outline);
   font-size: 14px;
-  border: 1px dashed var(--chimp-border-light);
-  border-radius: 12px;
-}
-
-/* Responsive */
-@media screen and (max-width: 500px) {
-  mat-dialog-content {
-    flex-direction: column;
-  }
-  
-  .filter-column {
-    min-width: 100%;
-  }
+  border: 1px dashed var(--chimp-outline-variant);
+  border-radius: 8px;
 }

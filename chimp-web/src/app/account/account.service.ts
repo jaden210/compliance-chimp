@@ -344,6 +344,7 @@ export class User {
   isManager: boolean = true;
   isDev?: boolean;
   preferEmail?: boolean;
+  tourCompleted?: boolean;
 }
 
 export class TeamMember {

@@ -124,6 +124,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectionMode = false;
   processingBulkAction = false;
   private libraryItemsCache: LibraryItem[] = [];
+  private pendingOpenFirst = false;
   
   // Training cadence options
   cadenceOptions = [
@@ -236,6 +237,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     });
     
+    // Check for tour-related query parameters
+    // Subscribe without take(1) so it reacts even if component is already loaded
+    this.route.queryParams.subscribe(params => {
+      if (params['openFirst'] === 'true') {
+        // If library is already loaded, navigate immediately
+        if (this.libraryItemsCache && this.libraryItemsCache.length > 0) {
+          this.router.navigate(['/account/training/library', this.libraryItemsCache[0].id], { replaceUrl: true });
+        } else {
+          // Set flag for when library loads
+          this.pendingOpenFirst = true;
+        }
+      }
+      if (params['showAutoSend'] === 'true') {
+        // Open the auto-send dialog and clear the query param
+        setTimeout(() => this.openAutoStartDialog(), 100);
+        this.router.navigate([], { 
+          relativeTo: this.route, 
+          queryParams: { showAutoSend: null }, 
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
+    });
+    
     // Subscribe to team changes to pick up cached coverage analysis
     // This ensures we react when the Cloud Function stores new analysis
     this.accountService.aTeamObservable.pipe(
@@ -276,9 +301,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
-    // Cache library items
+    // Cache library items and handle openFirst if pending
     this.libraryContent$.subscribe(items => {
       this.libraryItemsCache = items;
+      if (this.pendingOpenFirst && items && items.length > 0) {
+        this.pendingOpenFirst = false;
+        this.router.navigate(['/account/training/library', items[0].id], { replaceUrl: true });
+      }
     });
 
     // Filtered content based on search and sort

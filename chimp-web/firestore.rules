@@ -86,5 +86,12 @@ service cloud.firestore {
     match /blog-response/{blogId} {
       allow read, write;
     }
+    match /chimpChatFeedback/{feedbackId} {
+      // Only allow read for dev/admin users (isDev flag on user document)
+      // Write is handled by Cloud Functions only (no client write)
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/user/$(request.auth.uid)).data.isDev == true;
+      allow write: if false;
+    }
     }
 }

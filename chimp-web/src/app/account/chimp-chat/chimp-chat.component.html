@@ -31,6 +31,11 @@
             <span>{{prompt.text}}</span>
           </button>
         </div>
+        
+        <div class="tour-hint">
+          <mat-icon>lightbulb</mat-icon>
+          <span>Tip: Type "Take the tour" to get a guided walkthrough of Compliance Chimp.</span>
+        </div>
       </div>
     </div>
 
@@ -54,12 +59,15 @@
           <!-- Action buttons -->
           <div class="action-buttons" *ngIf="message.actions && message.actions.length > 0">
             <button 
-              *ngFor="let action of message.actions"
+              *ngFor="let action of message.actions; let i = index"
               class="action-button"
+              [class.tour-next-button]="action.type === 'tourNext'"
+              [class.secondary-action]="action.type === 'navigate' && action.queryParams"
               (click)="executeAction(action)">
-              <mat-icon *ngIf="action.type === 'navigate'">arrow_forward</mat-icon>
-              <mat-icon *ngIf="action.type === 'smartBuilder'">auto_awesome</mat-icon>
-              <mat-icon *ngIf="action.type === 'search'">search</mat-icon>
+              <mat-icon *ngIf="action.icon">{{action.icon}}</mat-icon>
+              <mat-icon *ngIf="!action.icon && action.type === 'navigate'">arrow_forward</mat-icon>
+              <mat-icon *ngIf="!action.icon && action.type === 'smartBuilder'">auto_awesome</mat-icon>
+              <mat-icon *ngIf="!action.icon && action.type === 'search'">search</mat-icon>
               <span>{{action.label}}</span>
             </button>
           </div>

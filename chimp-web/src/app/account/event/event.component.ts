@@ -201,6 +201,7 @@ export class EventComponent implements OnDestroy {
         filterUsers: this.filterUsers,
         filterTypes: this.filterTypes
       },
+      width: '700px',
       disableClose: true
     })
     .afterClosed()
@@ -221,21 +222,25 @@ export class EventComponent implements OnDestroy {
         ...this.filterTypes
       ];
       
-      const results: CalendarDay[] = JSON.parse(JSON.stringify(this.calendarDays));
-      this.days = results.filter(day => {
-        day.events = day.events.filter((event: Event) => {
-          let eventFiltersFound = 0;
-          for (const f of filter) {
-            if (event.documentId?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
-            if (event.description?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
-            if (event.action?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
-            if (event.type?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
-            if (event['user']?.name?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
-          }
-          return eventFiltersFound >= filter.length;
-        });
-        return day.events.length > 0;
-      });
+      // Create new CalendarDay objects with filtered events, preserving moment objects
+      this.days = this.calendarDays
+        .map(day => ({
+          ...day,
+          events: day.events.filter((event: Event) => {
+            let eventFiltersFound = 0;
+            for (const f of filter) {
+              if (event.documentId?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+              if (event.description?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+              if (event.action?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+              if (event.type?.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+              // Check user name, or match "the Chimp" for events without a user
+              const userName = event['user']?.name || 'the Chimp';
+              if (userName.toLowerCase().includes(f.toLowerCase())) eventFiltersFound++;
+            }
+            return eventFiltersFound >= filter.length;
+          })
+        }))
+        .filter(day => day.events.length > 0);
     } else {
       this.days = this.calendarDays;
     }
@@ -278,6 +283,11 @@ export class EventComponent implements OnDestroy {
 
   trackByEventId(index: number, event: Event): string {
     return event.documentId || index.toString();
+  }
+
+  hasEventsInMonth(date: moment.Moment): boolean {
+    const monthKey = date.format('YYYY-MM');
+    return this.days.some(d => d.date.format('YYYY-MM') === monthKey && d.events.length > 0);
   }
 
   ngOnDestroy() {

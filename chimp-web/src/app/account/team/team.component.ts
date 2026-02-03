@@ -33,7 +33,7 @@ import { Observable, Subscription, forkJoin, combineLatest } from "rxjs";
 import { TeamService } from "./team.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
 import { TrainingService, MyContent } from "../training/training.service";
-import { Router } from "@angular/router";
+import { Router, ActivatedRoute } from "@angular/router";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Firestore, addDoc, collection, collectionData, deleteDoc, doc, updateDoc } from "@angular/fire/firestore";
 import { ParsedCsvMember, CsvImportResult } from "./team.service";
@@ -237,11 +237,23 @@ export class TeamComponent implements OnDestroy {
     public dialog: MatDialog,
     private teamService: TeamService,
     private router: Router,
+    private route: ActivatedRoute,
     private functions: Functions,
     public welcomeService: WelcomeService
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
     this.accountService.showLD = true;
+    
+    // Check for showTagsHelp query param (from tour)
+    this.route.queryParams.subscribe(params => {
+      if (params['showTagsHelp'] === 'true') {
+        // Small delay to ensure component is ready
+        setTimeout(() => this.openTagsHelpDialog(), 100);
+        // Clear the query param
+        this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      }
+    });
+    
     this.subscription = this.accountService.teamMembersObservable.subscribe(teamMembers => {
         if (teamMembers) {
           teamMembers.forEach(tm => {

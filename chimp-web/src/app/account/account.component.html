@@ -115,7 +115,9 @@
 <!-- ChimpChat Panel -->
 <chimp-chat 
   *ngIf="showChimpChat" 
-  (close)="showChimpChat = false">
+  [initialMessage]="pendingChatMessage"
+  (close)="showChimpChat = false; pendingChatMessage = null"
+  (messageConsumed)="pendingChatMessage = null">
 </chimp-chat>
 
 <loading-chimp></loading-chimp>

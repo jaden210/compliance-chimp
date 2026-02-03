@@ -74,6 +74,31 @@ td.mat-cell {
   text-transform: capitalize;
 }
 
+.chip.feature_request {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.chip.bug_report {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.chip.complaint {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.chip.praise {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.chip.question {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .chip.positive {
   background: #ecfdf3;
   color: #037a4a;

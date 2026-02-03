@@ -1,5 +1,3 @@
-declare var Stripe: any;
-
 declare var System: any;
 // declare var module: { id: string };
 declare var require: NodeRequire;

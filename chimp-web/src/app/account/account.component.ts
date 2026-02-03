@@ -76,8 +76,10 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   bShowAccountInfo: boolean = false; // template var
   helperContrast: boolean = false; // template var
   showChimpChat: boolean = false; // ChimpChat panel visibility
+  pendingChatMessage: string | null = null; // Message to auto-submit when chat opens
   private authUnsubscribe?: () => void;
   private routerSubscription?: Subscription;
+  private startTourListener?: () => void;
 
   // Nav items configuration
   navItems: NavItem[] = [
@@ -136,6 +138,10 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
         this.incrementNavClick(navItem.key);
       }
     });
+
+    // Listen for startTour events from child components
+    this.startTourListener = () => this.openChimpChatWithMessage('Take the tour');
+    document.addEventListener('startTour', this.startTourListener);
   }
 
   ngOnDestroy() {
@@ -144,6 +150,9 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     }
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
+    }
+    if (this.startTourListener) {
+      document.removeEventListener('startTour', this.startTourListener);
     }
   }
 
@@ -258,6 +267,16 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
 
   toggleChimpChat(): void {
     this.showChimpChat = !this.showChimpChat;
+    // Clear pending message if closing
+    if (!this.showChimpChat) {
+      this.pendingChatMessage = null;
+    }
+  }
+
+  // Open ChimpChat with a pre-filled message that will be auto-submitted
+  openChimpChatWithMessage(message: string): void {
+    this.pendingChatMessage = message;
+    this.showChimpChat = true;
   }
 
   submitFeedback() {

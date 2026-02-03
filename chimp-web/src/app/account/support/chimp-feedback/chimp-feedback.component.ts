@@ -1,10 +1,11 @@
-import { Component, OnInit, AfterViewInit, inject, signal, viewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, signal, viewChild, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Firestore, collection, collectionData, query, orderBy, limit } from '@angular/fire/firestore';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
 interface ChimpChatFeedback {
@@ -37,6 +38,7 @@ interface ChimpChatFeedback {
 })
 export class ChimpFeedbackComponent implements OnInit, AfterViewInit {
   private readonly db = inject(Firestore);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly sort = viewChild(MatSort);
 
   readonly loading = signal(true);
@@ -63,6 +65,7 @@ export class ChimpFeedbackComponent implements OnInit, AfterViewInit {
     );
 
     collectionData(feedbackQuery, { idField: 'id' }).pipe(
+      takeUntilDestroyed(this.destroyRef),
       map((rows: any[]) => rows.map(row => ({
         ...row,
         createdAt: row.createdAt?.toDate ? row.createdAt.toDate() : row.createdAt

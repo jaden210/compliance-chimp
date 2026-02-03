@@ -1,4 +1,6 @@
-import { Injectable, signal } from "@angular/core";
+import { Injectable, signal, inject } from "@angular/core";
+import { Firestore, doc, updateDoc } from "@angular/fire/firestore";
+import { AccountService } from "./account.service";
 
 export interface WelcomeState {
   teamVisible: boolean;
@@ -22,6 +24,8 @@ const DEFAULT_STATE: WelcomeState = {
 })
 export class WelcomeService {
   private state = signal<WelcomeState>(this.loadState());
+  private db = inject(Firestore);
+  private accountService = inject(AccountService);
 
   // Check if a section's banner should be visible
   isVisible(section: WelcomeSection): boolean {
@@ -111,6 +115,43 @@ export class WelcomeService {
   reset(): void {
     this.state.set(DEFAULT_STATE);
     this.saveState(DEFAULT_STATE);
+  }
+
+  // Check if tour banner should be shown (based on user's Firestore data)
+  shouldShowTourBanner(): boolean {
+    const user = this.accountService.user;
+    // Show banner if user exists and hasn't completed the tour
+    return user?.id && !user.tourCompleted;
+  }
+
+  // Check if tour has been completed
+  isTourCompleted(): boolean {
+    return this.accountService.user?.tourCompleted === true;
+  }
+
+  // Mark tour as completed (saves to Firestore on user doc)
+  completeTour(): void {
+    const user = this.accountService.user;
+    if (user?.id) {
+      user.tourCompleted = true;
+      const userRef = doc(this.db, `user/${user.id}`);
+      updateDoc(userRef, { tourCompleted: true });
+    }
+  }
+
+  // Dismiss tour banner (also marks as completed so it doesn't show again)
+  dismissTour(): void {
+    this.completeTour();
+  }
+
+  // Reset tour state (allows taking the tour again - for testing)
+  resetTour(): void {
+    const user = this.accountService.user;
+    if (user?.id) {
+      user.tourCompleted = false;
+      const userRef = doc(this.db, `user/${user.id}`);
+      updateDoc(userRef, { tourCompleted: false });
+    }
   }
 
   private loadState(): WelcomeState {

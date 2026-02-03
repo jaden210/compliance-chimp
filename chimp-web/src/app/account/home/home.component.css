@@ -22,16 +22,15 @@
 .subscription-banner {
   background: linear-gradient(135deg, #e65100 0%, #ff6d00 50%, #ff9100 100%);
   padding: 16px 24px;
-  margin: 16px 24px 0;
   border-radius: 50px;
 }
 
 .banner-content {
   display: flex;
+  flex: 1;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 .banner-icon {
@@ -109,12 +108,15 @@
   color: #c62828 !important;
 }
 
+.subscription-banner .banner-text {
+  flex: 1;
+}
+
 /* Mobile Subscription Banner - Compact layout */
 .subscription-banner-mobile {
   display: none;
   background: linear-gradient(135deg, #e65100 0%, #ff6d00 50%, #ff9100 100%);
   padding: 12px 16px;
-  margin: 12px 16px 0;
   border-radius: 16px;
   align-items: center;
   gap: 16px;
@@ -182,6 +184,151 @@
 
 .mobile-banner-days.expired {
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* Welcome Tour Banner - Desktop */
+.welcome-tour-banner {
+  background: linear-gradient(135deg, #e65100 0%, #ff6d00 50%, #ff9100 100%);
+  padding: 16px 24px;
+  border-radius: 50px;
+  position: relative;
+}
+
+
+.welcome-tour-banner .banner-chimp {
+  height: 48px;
+  width: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.welcome-tour-banner .banner-text {
+  flex: 1;
+}
+
+.welcome-tour-banner .banner-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--chimp-on-primary);
+  margin-bottom: 4px;
+}
+
+.welcome-tour-banner .banner-description {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+}
+
+.welcome-tour-banner .tour-button {
+  background: var(--chimp-surface-container-lowest) !important;
+  color: var(--chimp-accent-text) !important;
+  font-weight: 600;
+  padding: 0 20px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  box-shadow: var(--chimp-elevation-2);
+  transition: all 150ms ease;
+  border-radius: 20px !important;
+}
+
+.welcome-tour-banner .tour-button mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.welcome-tour-banner .tour-button:hover {
+  background: var(--chimp-primary-container-low) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--chimp-elevation-3);
+}
+
+.welcome-tour-banner .dismiss-button {
+  color: rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.welcome-tour-banner .dismiss-button:hover {
+  color: var(--chimp-on-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Welcome Tour Banner - Mobile */
+.welcome-tour-banner-mobile {
+  display: none;
+  background: linear-gradient(135deg, #e65100 0%, #ff6d00 50%, #ff9100 100%);
+  padding: 12px 16px;
+  border-radius: 16px;
+}
+
+.mobile-tour-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.mobile-tour-chimp {
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mobile-tour-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-tour-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--chimp-on-primary);
+}
+
+.mobile-tour-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mobile-tour-button {
+  background: var(--chimp-surface-container-lowest) !important;
+  color: var(--chimp-accent-text) !important;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 14px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 18px !important;
+  box-shadow: var(--chimp-elevation-2);
+  flex-shrink: 0;
+}
+
+.mobile-tour-button mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.mobile-dismiss-button {
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.mobile-dismiss-button mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
 }
 
 /* Dashboard Section */
@@ -643,8 +790,12 @@
     padding: 16px;
   }
 
-  /* Show mobile banner */
+  /* Show mobile banners */
   .subscription-banner-mobile {
+    display: flex;
+  }
+
+  .welcome-tour-banner-mobile {
     display: flex;
   }
 

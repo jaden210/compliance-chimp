@@ -5,8 +5,15 @@ import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from "@angular/materia
 import { MatButtonModule } from "@angular/material/button";
 import { MatListModule } from "@angular/material/list";
 import { MatIconModule } from "@angular/material/icon";
-import { BehaviorSubject } from "rxjs";
+import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 import { AccountService, User } from "src/app/account/account.service";
+
+interface FilterUser {
+  id: string;
+  name: string;
+  isChimp?: boolean;
+}
 
 @Component({
   standalone: true,
@@ -22,7 +29,7 @@ import { AccountService, User } from "src/app/account/account.service";
   ]
 })
 export class EventsFilterDialog implements OnInit {
-  users: BehaviorSubject<User[]>;
+  users: Observable<FilterUser[]>;
 
   constructor(
     private accountService: AccountService,
@@ -31,7 +38,21 @@ export class EventsFilterDialog implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.users = this.accountService.teamManagersObservable;
+    // Add "the Chimp" as the first option, then all team managers and members
+    this.users = this.accountService.teamManagersObservable.pipe(
+      map(managers => {
+        const chimpUser: FilterUser = {
+          id: 'chimp',
+          name: 'the Chimp',
+          isChimp: true
+        };
+        const teamUsers: FilterUser[] = [
+          ...managers.map(u => ({ id: u.id, name: u.name })),
+          ...this.accountService.teamMembers.map(u => ({ id: u.id, name: u.name }))
+        ];
+        return [chimpUser, ...teamUsers];
+      })
+    );
   }
 
   getTypeIcon(type: string): string {
@@ -43,7 +64,8 @@ export class EventsFilterDialog implements OnInit {
       case 'self inspection': return 'checklist';
       case 'survey': return 'poll';
       case 'survey response': return 'how_to_vote';
-      case 'training': return 'school';
+      case 'training':
+      case 'custom training': return 'school';
       default: return 'event';
     }
   }
@@ -51,7 +73,8 @@ export class EventsFilterDialog implements OnInit {
   getTypeClass(type: string): string {
     switch (type.toLowerCase()) {
       case 'log': return 'type-log';
-      case 'training': return 'type-training';
+      case 'training':
+      case 'custom training': return 'type-training';
       case 'survey': 
       case 'survey response': return 'type-survey';
       case 'member': return 'type-member';

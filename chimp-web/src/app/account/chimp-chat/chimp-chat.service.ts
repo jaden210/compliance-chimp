@@ -12,11 +12,15 @@ export interface ChimpChatMessage {
 }
 
 export interface ChimpChatAction {
-  type: 'navigate' | 'smartBuilder' | 'search';
+  type: 'navigate' | 'smartBuilder' | 'search' | 'tourNext';
   label: string;
   route?: string;
   queryParams?: Record<string, string>;
   smartBuilderData?: SmartBuilderData;
+  icon?: string; // Material icon name for the button
+  tourStepId?: string; // For tourNext: which step this button belongs to
+  tourStepRoute?: string; // For tourNext: route to navigate to
+  tourStepQueryParams?: Record<string, string>; // For tourNext: query params for navigation
 }
 
 export interface SmartBuilderData {

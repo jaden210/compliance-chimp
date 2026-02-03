@@ -6,53 +6,90 @@
 </mat-toolbar>
 
 <div class="page-content">
-  <!-- Trial / Subscription Banner - Desktop -->
-  <div class="subscription-banner desktop-only" 
-       *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId"
-       [class.trial-expired]="accountService.isTrialExpired">
-    <div class="banner-content">
-      <div class="banner-icon">
+  <div class="content-wrapper">
+    <!-- Welcome Tour Banner - Desktop -->
+    <div class="welcome-tour-banner desktop-only" 
+         *ngIf="accountService.aTeam?.id && welcomeService.shouldShowTourBanner()">
+      <div class="banner-content">
+        <img class="banner-chimp" src="/assets/chimpTop.png" alt="Chimp" />
+        <div class="banner-text">
+          <div class="banner-title">Welcome to Compliance Chimp!</div>
+          <div class="banner-description">Let me show you around. I'll walk you through the key features.</div>
+        </div>
+        <button mat-flat-button class="banner-button tour-button" (click)="startTour()">
+          Take the Tour
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <button mat-icon-button class="dismiss-button" (click)="dismissTour()" aria-label="Dismiss tour banner">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Welcome Tour Banner - Mobile -->
+    <div class="welcome-tour-banner-mobile mobile-only" 
+         *ngIf="accountService.aTeam?.id && welcomeService.shouldShowTourBanner()">
+      <div class="mobile-tour-content">
+        <img class="mobile-tour-chimp" src="/assets/chimpTop.png" alt="Chimp" />
+        <div class="mobile-tour-text">
+          <div class="mobile-tour-title">Welcome!</div>
+          <div class="mobile-tour-desc">Let me show you around</div>
+        </div>
+        <button mat-flat-button class="mobile-tour-button" (click)="startTour()">
+          Take Tour
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <button mat-icon-button class="mobile-dismiss-button" (click)="dismissTour()" aria-label="Dismiss">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Trial / Subscription Banner - Desktop (hidden when tour banner is showing) -->
+    <div class="subscription-banner desktop-only" 
+         *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
+         [class.trial-expired]="accountService.isTrialExpired">
+      <div class="banner-content">
+        <div class="banner-icon">
+          <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
+        </div>
+        <div class="banner-text">
+          <ng-container *ngIf="accountService.isTrialExpired">
+            <div class="banner-title">Your free trial has ended</div>
+            <div class="banner-description">Subscribe now to continue creating content and managing your compliance program. You're currently in read-only mode.</div>
+          </ng-container>
+          <ng-container *ngIf="!accountService.isTrialExpired">
+            <div class="banner-title">{{ accountService.trialDaysRemaining }} days left in your free trial</div>
+            <div class="banner-description">You have full access to all features. Subscribe anytime to keep your compliance on track after your trial ends.</div>
+          </ng-container>
+        </div>
+        <button mat-flat-button class="banner-button" (click)="startCheckout()">
+          Subscribe Now — $99/mo
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Trial / Subscription Banner - Mobile (compact layout, hidden when tour banner is showing) -->
+    <div class="subscription-banner-mobile mobile-only" 
+         *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
+         [class.trial-expired]="accountService.isTrialExpired">
+      <div class="mobile-banner-icon">
         <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
       </div>
-      <div class="banner-text">
-        <ng-container *ngIf="accountService.isTrialExpired">
-          <div class="banner-title">Your free trial has ended</div>
-          <div class="banner-description">Subscribe now to continue creating content and managing your compliance program. You're currently in read-only mode.</div>
-        </ng-container>
-        <ng-container *ngIf="!accountService.isTrialExpired">
-          <div class="banner-title">{{ accountService.trialDaysRemaining }} days left in your free trial</div>
-          <div class="banner-description">You have full access to all features. Subscribe anytime to keep your compliance on track after your trial ends.</div>
-        </ng-container>
-      </div>
-      <button mat-flat-button class="banner-button" (click)="startCheckout()">
-        Subscribe Now — $99/mo
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
-    </div>
-  </div>
-
-  <!-- Trial / Subscription Banner - Mobile (compact layout) -->
-  <div class="subscription-banner-mobile mobile-only" 
-       *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId"
-       [class.trial-expired]="accountService.isTrialExpired">
-    <div class="mobile-banner-icon">
-      <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>
-    </div>
-    <div class="mobile-banner-action">
-      <button mat-flat-button class="mobile-banner-button" (click)="startCheckout()">
-        Subscribe — $99/mo
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
-      <div class="mobile-banner-days" *ngIf="!accountService.isTrialExpired">
-        {{ accountService.trialDaysRemaining }} days left
-      </div>
-      <div class="mobile-banner-days expired" *ngIf="accountService.isTrialExpired">
-        Trial ended
+      <div class="mobile-banner-action">
+        <button mat-flat-button class="mobile-banner-button" (click)="startCheckout()">
+          Subscribe — $99/mo
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <div class="mobile-banner-days" *ngIf="!accountService.isTrialExpired">
+          {{ accountService.trialDaysRemaining }} days left
+        </div>
+        <div class="mobile-banner-days expired" *ngIf="accountService.isTrialExpired">
+          Trial ended
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="content-wrapper">
     <!-- Welcome Section -->
     <section class="dashboard-section">
       <div class="dashboard-header">

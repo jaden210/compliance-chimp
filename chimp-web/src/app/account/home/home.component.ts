@@ -21,6 +21,7 @@ import { HomeService } from "./home.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
 import { TrainingService, MyContent } from "../training/training.service";
 import { Router } from "@angular/router";
+import { WelcomeService } from "../welcome.service";
 declare var gtag: Function;
 
 @Component({
@@ -73,7 +74,8 @@ export class HomeComponent implements OnDestroy {
     public dialog: MatDialog,
     private homeService: HomeService,
     private trainingService: TrainingService,
-    private router: Router
+    private router: Router,
+    public welcomeService: WelcomeService
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
     this.subscription = this.accountService.teamMembersObservable.subscribe(
@@ -242,6 +244,19 @@ export class HomeComponent implements OnDestroy {
     this.homeService.getSurveyResponses().subscribe(responses => {
       this.surveyResponsesCount = responses?.length || 0;
     });
+  }
+
+  // Tour methods
+  startTour(): void {
+    // This will be handled by the parent AccountComponent
+    // We emit an event or use a shared service to trigger the chat
+    // For now, we'll use a custom event that AccountComponent listens to
+    const event = new CustomEvent('startTour', { bubbles: true });
+    document.dispatchEvent(event);
+  }
+
+  dismissTour(): void {
+    this.welcomeService.dismissTour();
   }
 
   ngOnDestroy() {

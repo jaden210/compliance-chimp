@@ -1,11 +1,13 @@
-import { Component, Output, EventEmitter, ViewChild, ElementRef, AfterViewChecked, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, Output, EventEmitter, ViewChild, ElementRef, AfterViewChecked, OnDestroy, OnInit, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CdkDrag, CdkDragHandle, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { ChimpChatService, ChimpChatMessage, ChimpChatAction } from './chimp-chat.service';
+import { TourService } from '../tour.service';
 import { Subscription } from 'rxjs';
 
 interface SuggestedPrompt {
@@ -19,7 +21,7 @@ interface Position {
 }
 
 const POSITION_STORAGE_KEY = 'chimp_chat_position';
-const PANEL_WIDTH = 400;
+const PANEL_WIDTH = 440;
 const PANEL_HEIGHT = 520;
 
 @Component({
@@ -39,8 +41,12 @@ const PANEL_HEIGHT = 520;
 })
 export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private chimpChatService = inject(ChimpChatService);
+  private tourService = inject(TourService);
+  private router = inject(Router);
   
+  @Input() initialMessage: string | null = null;
   @Output() close = new EventEmitter<void>();
+  @Output() messageConsumed = new EventEmitter<void>();
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   @ViewChild('messageInput') private messageInput!: ElementRef;
 
@@ -50,6 +56,7 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   dragPosition: Position = { x: 0, y: 0 };
   private shouldScrollToBottom = false;
   private subscription?: Subscription;
+  private hasProcessedInitialMessage = false;
 
   suggestedPrompts: SuggestedPrompt[] = [
     { text: 'How do I add a team member?', icon: 'group_add' },
@@ -60,6 +67,51 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   ngOnInit(): void {
     this.loadPosition();
+    
+    // Auto-submit initial message if provided
+    if (this.initialMessage && !this.hasProcessedInitialMessage) {
+      this.hasProcessedInitialMessage = true;
+      // Small delay to ensure component is fully initialized
+      setTimeout(() => {
+        this.processInitialMessage(this.initialMessage!);
+      }, 100);
+    }
+  }
+
+  private processInitialMessage(message: string): void {
+    // Check if this is a tour trigger
+    if (this.tourService.isTourTrigger(message)) {
+      this.startTour();
+    } else {
+      // Regular message - submit it
+      this.inputMessage = message;
+      this.sendMessage();
+    }
+    this.messageConsumed.emit();
+  }
+
+  private startTour(): void {
+    const step = this.tourService.startTour();
+    if (step) {
+      // Add user message
+      const userMessage: ChimpChatMessage = {
+        role: 'user',
+        content: 'Take the tour',
+        timestamp: new Date()
+      };
+      this.messages.push(userMessage);
+      
+      // Build and add the tour response
+      const response = this.tourService.buildTourResponse(step);
+      const assistantMessage: ChimpChatMessage = {
+        role: 'assistant',
+        content: response.message,
+        actions: response.actions,
+        timestamp: new Date()
+      };
+      this.messages.push(assistantMessage);
+      this.shouldScrollToBottom = true;
+    }
   }
 
   ngAfterViewChecked(): void {
@@ -125,6 +177,28 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const message = this.inputMessage.trim();
     if (!message || this.isLoading) return;
 
+    // Check if this is a tour trigger
+    if (this.tourService.isTourTrigger(message)) {
+      this.inputMessage = '';
+      this.startTour();
+      return;
+    }
+
+    // Check if this is a tour continue command
+    if (this.tourService.isTourContinue(message)) {
+      this.inputMessage = '';
+      // Create an action for the current step to advance the tour
+      const currentStep = this.tourService.getCurrentStep();
+      if (currentStep) {
+        this.handleTourNext({ 
+          type: 'tourNext', 
+          label: 'next',
+          tourStepId: currentStep.id 
+        });
+      }
+      return;
+    }
+
     // Add user message
     const userMessage: ChimpChatMessage = {
       role: 'user',
@@ -165,7 +239,51 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   executeAction(action: ChimpChatAction): void {
+    // Handle tour next action specially
+    if (action.type === 'tourNext') {
+      this.handleTourNext(action);
+      return;
+    }
     this.chimpChatService.executeAction(action);
+  }
+
+  private handleTourNext(action: ChimpChatAction): void {
+    const currentStep = this.tourService.getCurrentStep();
+    
+    // Check if this button is from the current step
+    const isCurrentStep = currentStep && action.tourStepId === currentStep.id;
+    
+    if (isCurrentStep) {
+      // Advance to the next step
+      const nextStep = this.tourService.nextStep();
+      if (nextStep) {
+        // Navigate to the next step's location
+        if (nextStep.navigationAction.route) {
+          this.chimpChatService.executeAction(nextStep.navigationAction);
+        }
+        
+        // Build and add the next step response
+        const response = this.tourService.buildTourResponse(nextStep);
+        const assistantMessage: ChimpChatMessage = {
+          role: 'assistant',
+          content: response.message,
+          actions: response.actions,
+          timestamp: new Date()
+        };
+        this.messages.push(assistantMessage);
+        this.shouldScrollToBottom = true;
+      } else {
+        // Tour is complete - the service already marked it as completed
+        this.shouldScrollToBottom = true;
+      }
+    } else {
+      // Old button clicked - just navigate without advancing the tour
+      if (action.tourStepRoute) {
+        this.router.navigate([action.tourStepRoute], {
+          queryParams: action.tourStepQueryParams
+        });
+      }
+    }
   }
 
   onKeyDown(event: KeyboardEvent): void {

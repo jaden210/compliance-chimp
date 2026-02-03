@@ -214,6 +214,29 @@
   border: 1px solid var(--chimp-outline-variant);
 }
 
+/* Empty Month Placeholder */
+.empty-month-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  margin: 8px 0 16px;
+  background: var(--chimp-surface-container);
+  border: 1px dashed var(--chimp-outline-variant);
+  border-radius: 12px;
+  color: var(--chimp-outline);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.empty-month-placeholder mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: var(--chimp-outline);
+}
+
 /* Day Row */
 .day-row {
   display: flex;
