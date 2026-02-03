@@ -536,6 +536,7 @@
 
   .subscribe-btn {
     background: linear-gradient(135deg, var(--chimp-primary), var(--chimp-primary-dark, #1565c0));
+    color: white;
     
     mat-spinner {
       display: inline-block;

@@ -63,6 +63,8 @@ export const newManagerEmail = onDocumentCreated(
   async (event) => {
     const client = createSendgridClient();
     const user = event.data?.data() || {};
+    const userId = event.params.userId; // Get document ID from path params
+    
     if (user.isManager) {
       const mailOptions: any = {
         from: '"Compliancechimp" <support@compliancechimp.com>',
@@ -72,22 +74,24 @@ export const newManagerEmail = onDocumentCreated(
       const name = user.name;
       let emailHtml = fs.readFileSync(
         path.resolve(`src/email-templates/user/add-manager.html`)
-        ).toString();
-        
-        let emailString = emailHtml.split("{{recipientName}}").join(name).split("{{userId}}").join(user.id);
-        mailOptions.html = emailString;
-        
-        return client
+      ).toString();
+
+      let emailString = emailHtml
+        .split("{{recipientName}}").join(name)
+        .split("{{userId}}").join(userId);
+      mailOptions.html = emailString;
+
+      return client
         .sendMail(mailOptions)
         .then(() =>
-        console.log(`New manager creation email sent to: ${user.email}`)
+          console.log(`New manager creation email sent to: ${user.email}`)
         )
         .catch((error: any) => {
           console.error(
             `An error occurred sending a new manager email to ${
               user.email
             }. Error: ${JSON.stringify(error)}`
-            );
+          );
         });
     }
     return null;
