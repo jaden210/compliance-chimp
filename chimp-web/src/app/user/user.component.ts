@@ -51,14 +51,31 @@ export class UserComponent implements AfterViewInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(params => {
         const memberId = params.get("member-id");
+        const userId = params.get("user-id");
         
-        if (memberId) {
+        if (userId) {
+          // user-id param indicates a manager/owner viewing their page
+          localStorage.setItem("ccuid", JSON.stringify(userId));
+          localStorage.removeItem("ccmid"); // Clear member ID if switching to manager view
+          this.dataInitialized = false;
+          this.userService.isViewingAsManager = true;
+          this.userService.isViewingAsMember = false;
+        } else if (memberId) {
           // New member-id in URL - always save and fetch fresh data
           localStorage.setItem("ccmid", JSON.stringify(memberId));
+          localStorage.removeItem("ccuid"); // Clear user ID if switching to member view
           this.dataInitialized = false; // Reset to force fresh fetch with new member
+          // Mark that we're viewing as a team member (admin viewing another user's page)
+          // This suppresses admin-only UI features so the experience matches what the team member sees
+          this.userService.isViewingAsMember = true;
+          this.userService.isViewingAsManager = false;
+        } else {
+          // No ID in URL - check localStorage for existing session
+          this.userService.isViewingAsMember = false;
+          this.userService.isViewingAsManager = false;
         }
         
-        // Only initialize data once per session, unless we got a new member-id
+        // Only initialize data once per session, unless we got a new ID
         // This prevents re-fetching when navigating to child routes (survey, etc.)
         if (!this.dataInitialized) {
           this.dataInitialized = true;
@@ -69,8 +86,18 @@ export class UserComponent implements AfterViewInit {
 
   private getData() {
     const memberId = JSON.parse(localStorage.getItem("ccmid") || 'null');
+    const userId = JSON.parse(localStorage.getItem("ccuid") || 'null');
     console.log('[UserComponent] getData() called');
     console.log('[UserComponent] memberId from localStorage:', memberId);
+    console.log('[UserComponent] userId from localStorage:', userId);
+    
+    // Check if we're viewing as a manager (user-id takes precedence)
+    if (userId) {
+      console.log('[UserComponent] Loading manager data for userId:', userId);
+      this.userService.surveysLoaded.next(false);
+      this.fetchManagerData(userId);
+      return;
+    }
     
     if (!memberId) {
       console.log('[UserComponent] No memberId found, redirecting to no-user');
@@ -148,6 +175,85 @@ export class UserComponent implements AfterViewInit {
           // Only redirect if we don't have cached data
           console.log('[UserComponent] No team member found, redirecting to no-user');
           this.router.navigate(['user/no-user']);
+        }
+      });
+  }
+
+  /**
+   * Fetch manager data from the 'user' collection.
+   * Managers/owners use user-id instead of member-id.
+   */
+  private fetchManagerData(userId: string): void {
+    this.userService.getManager(userId)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          console.error('[UserComponent] Error fetching manager:', error);
+          return of(null);
+        })
+      )
+      .subscribe((manager: any) => {
+        console.log('[UserComponent] getManager() result:', manager);
+        if (manager) {
+          // Store the manager and create a pseudo team member for display purposes
+          this.userService.currentManager = manager;
+          
+          // Create a TeamMember-like object from the manager for UI compatibility
+          const pseudoMember: any = {
+            id: manager.id,
+            name: manager.name,
+            email: manager.email,
+            phone: manager.phone,
+            jobTitle: manager.jobTitle,
+            teamId: manager.teamId,
+            isManager: true
+          };
+          
+          this.userService.teamMember = pseudoMember;
+          this.userService.teamMemberObservable.next(pseudoMember);
+          console.log('[UserComponent] Manager set as pseudo team member, teamId:', manager.teamId);
+          
+          // Load team and other data
+          this.loadTeamDataForManager(manager, userId);
+        } else {
+          console.log('[UserComponent] No manager found, redirecting to no-user');
+          this.router.navigate(['user/no-user']);
+        }
+      });
+  }
+
+  /**
+   * Load team data for a manager (similar to loadTeamData but without surveys)
+   */
+  private loadTeamDataForManager(manager: any, userId: string): void {
+    this.userService.getTeam(manager.teamId)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(e => { console.error('[UserComponent] Error fetching team:', e); return of(null); })
+      )
+      .subscribe(team => {
+        console.log('[UserComponent] getTeam() result for manager:', team);
+        if (team && team.id) {
+          this.userService.aTeam = team;
+          this.userService.teamObservable.next(team);
+          console.log('[UserComponent] Team set for manager:', team.id, team.name);
+          
+          // Check auth state (non-blocking)
+          this.userService.checkAuthState();
+          
+          // Managers don't have surveys assigned to them (they're not in the trainees list)
+          // So we just mark surveys as loaded with an empty array
+          this.userService.surveys = [];
+          this.userService.surveysLoaded.next(true);
+          
+          // Load files (in parallel)
+          this.loadFiles(manager.teamId);
+          
+          // Load team managers in background
+          this.loadTeamManagers(manager.teamId);
+        } else {
+          console.error('[UserComponent] Team not found for manager');
+          this.router.navigate(['user/no-team']);
         }
       });
   }

@@ -954,10 +954,12 @@ export class EditUserDialog {
 export class ManagersDialog {
   public newManager: User = null;
   public phoneError: boolean = false;
+  public sendingAccessLink: boolean = false;
 
   constructor(
     public dialogRef: MatDialogRef<EditUserDialog>,
     public accountService: AccountService,
+    private functions: Functions,
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
 
@@ -1008,6 +1010,44 @@ export class ManagersDialog {
     }
   }
 
+  /**
+   * Open the user page for the logged-in manager.
+   * Uses user-id parameter since managers are in the 'user' collection.
+   */
+  public viewYourUserPage(): void {
+    const userId = this.accountService.user?.id;
+    if (userId) {
+      const url = `/user?user-id=${userId}`;
+      window.open(url, '_blank');
+    }
+  }
+
+  /**
+   * Send an access link via email to the logged-in manager.
+   * Uses a dedicated cloud function for manager access links.
+   */
+  public sendAccessLink(): void {
+    const user = this.accountService.user;
+    if (!user?.email) {
+      alert('No email address found for your account.');
+      return;
+    }
+    
+    this.sendingAccessLink = true;
+    const sendInvite = httpsCallable(this.functions, 'sendManagerAccessLink');
+    sendInvite({ 
+      user: {
+        id: user.id,
+        name: user.name || 'Manager',
+        email: user.email
+      },
+      team: this.accountService.aTeam 
+    }).then(() => {
+      this.sendingAccessLink = false;
+    }).catch(() => {
+      this.sendingAccessLink = false;
+    });
+  }
 
   close(): void {
     this.dialogRef.close();

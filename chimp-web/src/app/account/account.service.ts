@@ -345,6 +345,9 @@ export class User {
   isDev?: boolean;
   preferEmail?: boolean;
   tourCompleted?: boolean;
+  // Self-inspection reminder preferences
+  selfInspectionRemindersEnabled?: boolean; // Defaults to true if undefined
+  selfInspectionReminderMethod?: 'email' | 'sms'; // Defaults to 'email' if undefined
 }
 
 export class TeamMember {

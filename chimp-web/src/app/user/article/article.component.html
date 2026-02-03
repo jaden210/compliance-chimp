@@ -1,16 +1,78 @@
-<div id="window">
-  <mat-toolbar class="toolbar">
-    <button mat-icon-button (click)="goBack()">
+<div class="article-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button mat-icon-button class="back-btn" (click)="goBack()">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <div style="flex:1"></div>
-    @if (!training) {
-      <button mat-raised-button color="primary" (click)="startTraining()">
-        START TRAINING
-      </button>
-    }
-  </mat-toolbar>
+    <div class="header-content">
+      <h1 class="page-title">{{ article?.name }}</h1>
+      @if (article?.topic) {
+        <p class="page-meta">{{ article.topic }}</p>
+      }
+    </div>
+  </header>
 
-  <h3>{{ article?.name }}</h3>
-  <div id="article" #dataContainer></div>
+  <main class="content">
+    <!-- Success Message -->
+    @if (justStartedTraining) {
+      <div class="success-card">
+        <mat-icon>check_circle</mat-icon>
+        <span>Training session started!</span>
+      </div>
+    }
+
+    <!-- Latest Training Session -->
+    @if (latestSession) {
+      <div class="session-card">
+        <div class="session-header">
+          <mat-icon>history</mat-icon>
+          <span class="session-label">Latest Session</span>
+        </div>
+        <div class="session-stats">
+          <div class="stat">
+            <span class="stat-value">{{ latestSession.trainees?.length || 0 }}</span>
+            <span class="stat-label">Recipients</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" [class.complete]="responseRate === 100">{{ responseRate }}%</span>
+            <span class="stat-label">Response Rate</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">{{ latestSession.createdAt?.toDate ? (latestSession.createdAt.toDate() | date:'MMM d') : 'Today' }}</span>
+            <span class="stat-label">Date</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Start Training CTA -->
+    @if (!training) {
+      <div class="cta-card" [class.loading]="isStartingTraining" (click)="!isStartingTraining && startTraining()">
+        @if (isStartingTraining) {
+          <mat-spinner diameter="24"></mat-spinner>
+          <div class="cta-content">
+            <span class="cta-title">Starting...</span>
+          </div>
+        } @else {
+          <div class="cta-icon">
+            <mat-icon>play_circle</mat-icon>
+          </div>
+          <div class="cta-content">
+            <span class="cta-title">{{ latestSession ? 'Start Another Session' : 'Start Training Session' }}</span>
+            <span class="cta-subtitle">Record attendance and completion</span>
+          </div>
+          <mat-icon class="cta-arrow">arrow_forward</mat-icon>
+        }
+      </div>
+    }
+
+    <!-- Article Content -->
+    <div class="article-body" #dataContainer></div>
+
+    <!-- Footer -->
+    <footer class="page-footer">
+      <span>Powered by</span>
+      <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+    </footer>
+  </main>
 </div>

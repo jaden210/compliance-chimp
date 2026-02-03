@@ -1,21 +1,69 @@
-<div id="window">
-  <mat-toolbar>
-    <button mat-icon-button (click)="goBack()"><mat-icon>arrow_back</mat-icon></button>
-    <div class="toolbar-title">Training Library</div>
-  </mat-toolbar>
-  <mat-list>
-    @for (article of library; track article.id) {
-      <mat-list-item class="item" (click)="routeTo(article)">
-        <img matListItemAvatar [src]="article.thumbnail" alt="./assets/chimpTop.png">
-        <span matListItemTitle>{{ article.name }}</span>
-        <span matListItemLine>
-          <span>{{ article.industry }}</span>
-          <span> -- {{ article.topic }}</span>
-        </span>
-        @if (article.latestSurvey) {
-          <span matListItemLine class="lt">Last Trained: {{ article.latestSurvey?.createdAt?.toDate() | date }}</span>
+<div class="articles-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button mat-icon-button class="back-btn" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-content">
+      <h1 class="page-title">Training Library</h1>
+      <p class="page-meta">{{ library?.length || 0 }} training{{ library?.length !== 1 ? 's' : '' }} available</p>
+    </div>
+  </header>
+
+  <main class="content">
+    @if (library?.length > 0) {
+      <div class="article-list">
+        @for (article of library; track article.id) {
+          <div class="article-card" [class.overdue]="article.status === 'overdue'" (click)="routeTo(article)">
+            <div class="article-info">
+              <span class="article-title">{{ article.name }}</span>
+              <div class="article-dates">
+                @if (article.status === 'overdue') {
+                  <span class="status-badge overdue">
+                    <mat-icon>warning</mat-icon>
+                    Overdue
+                  </span>
+                } @else if (article.status === 'dueSoon') {
+                  <span class="status-badge due-soon">
+                    <mat-icon>schedule</mat-icon>
+                    Due {{ article.nextDueDate | date:'MMM d' }}
+                  </span>
+                } @else if (article.status === 'neverTrained') {
+                  <span class="status-badge never-trained">
+                    <mat-icon>school</mat-icon>
+                    Not started
+                  </span>
+                } @else if (article.nextDueDate) {
+                  <span class="status-badge current">
+                    <mat-icon>check_circle</mat-icon>
+                    Due {{ article.nextDueDate | date:'MMM d' }}
+                  </span>
+                }
+                @if (article.latestSurvey) {
+                  <span class="last-trained">
+                    Last: {{ article.latestSurvey?.createdAt?.toDate() | date:'MMM d' }}
+                  </span>
+                }
+              </div>
+            </div>
+            <mat-icon class="article-arrow">chevron_right</mat-icon>
+          </div>
         }
-      </mat-list-item>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <mat-icon>school</mat-icon>
+        </div>
+        <h3>No training available</h3>
+        <p>Your team hasn't set up any training content yet.</p>
+      </div>
     }
-  </mat-list>
+
+    <!-- Footer -->
+    <footer class="page-footer">
+      <span>Powered by</span>
+      <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+    </footer>
+  </main>
 </div>

@@ -3,13 +3,11 @@
   <header class="hero">
     <div class="hero-bg"></div>
     <div class="hero-content">
-      <div class="team-branding">
-        @if (Team?.logoUrl) {
+      @if (Team?.logoUrl) {
+        <div class="team-branding">
           <img class="team-logo" [src]="Team.logoUrl" [alt]="Team.name">
-        } @else {
-          <div class="team-initial">{{ Team?.name?.charAt(0) || '?' }}</div>
-        }
-      </div>
+        </div>
+      }
       <h1 class="greeting">Hey, {{ TeamMember?.name?.split(' ')[0] || 'there' }}! 👋</h1>
       <p class="team-name">{{ Team?.name }}</p>
     </div>
@@ -98,11 +96,6 @@
         <div class="survey-cards">
           @for (survey of Surveys; track survey.id) {
             <div class="survey-card" [routerLink]="'survey/' + survey.id" queryParamsHandling="preserve">
-              <div class="survey-avatar">
-                <img [src]="survey?.author?.profileUrl || '/assets/achievements/survey.png'" 
-                     onerror="this.src='/assets/achievements/survey.png'"
-                     [alt]="survey?.author?.name">
-              </div>
               <div class="survey-info">
                 <span class="survey-title">{{ survey?.title }}</span>
                 <span class="survey-meta">

@@ -431,7 +431,12 @@ export class CreateEditSelfInspectionComponent implements OnInit, OnDestroy {
 
   goBack(): void {
     this.subscription?.unsubscribe();
-    this.router.navigate(['/account/self-inspections']);
+    if (this.isEditing && this.selfInspection?.id) {
+      // Navigate back to the specific inspection page
+      this.router.navigate(['/account/self-inspections', this.selfInspection.id]);
+    } else {
+      this.router.navigate(['/account/self-inspections']);
+    }
   }
 }
 

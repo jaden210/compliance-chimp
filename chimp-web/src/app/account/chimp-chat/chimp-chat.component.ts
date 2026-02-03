@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CdkDrag, CdkDragHandle, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { ChimpChatService, ChimpChatMessage, ChimpChatAction } from './chimp-chat.service';
 import { TourService } from '../tour.service';
@@ -13,6 +14,7 @@ import { Subscription } from 'rxjs';
 interface SuggestedPrompt {
   text: string;
   icon: string;
+  variant?: 'tour';
 }
 
 interface Position {
@@ -20,7 +22,10 @@ interface Position {
   y: number;
 }
 
+export type ChimpChatMode = 'dialog' | 'sidenav';
+
 const POSITION_STORAGE_KEY = 'chimp_chat_position';
+const MODE_STORAGE_KEY = 'chimp_chat_mode';
 const PANEL_WIDTH = 440;
 const PANEL_HEIGHT = 520;
 
@@ -33,6 +38,7 @@ const PANEL_HEIGHT = 520;
     MatIconModule,
     MatButtonModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     CdkDrag,
     CdkDragHandle
   ],
@@ -45,14 +51,20 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private router = inject(Router);
   
   @Input() initialMessage: string | null = null;
+  @Input() mode: ChimpChatMode = 'dialog';
   @Output() close = new EventEmitter<void>();
+  @Output() modeChange = new EventEmitter<ChimpChatMode>();
   @Output() messageConsumed = new EventEmitter<void>();
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   @ViewChild('messageInput') private messageInput!: ElementRef;
 
-  messages: ChimpChatMessage[] = [];
   inputMessage: string = '';
   isLoading: boolean = false;
+  
+  // Use service's messages array for persistence across mode switches
+  get messages(): ChimpChatMessage[] {
+    return this.chimpChatService.messages;
+  }
   dragPosition: Position = { x: 0, y: 0 };
   private shouldScrollToBottom = false;
   private subscription?: Subscription;
@@ -62,7 +74,8 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     { text: 'How do I add a team member?', icon: 'group_add' },
     { text: 'Do I have any trainings about PPE?', icon: 'search' },
     { text: 'Create a new training about hazard communication', icon: 'add_circle' },
-    { text: 'What inspections are overdue?', icon: 'assignment_late' }
+    { text: 'What inspections are overdue?', icon: 'assignment_late' },
+    { text: 'Show me the ropes again', icon: 'explore', variant: 'tour' }
   ];
 
   ngOnInit(): void {
@@ -99,7 +112,7 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         content: 'Take the tour',
         timestamp: new Date()
       };
-      this.messages.push(userMessage);
+      this.chimpChatService.addMessage(userMessage);
       
       // Build and add the tour response
       const response = this.tourService.buildTourResponse(step);
@@ -109,7 +122,7 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         actions: response.actions,
         timestamp: new Date()
       };
-      this.messages.push(assistantMessage);
+      this.chimpChatService.addMessage(assistantMessage);
       this.shouldScrollToBottom = true;
     }
   }
@@ -173,6 +186,11 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.close.emit();
   }
 
+  toggleMode(): void {
+    const newMode: ChimpChatMode = this.mode === 'dialog' ? 'sidenav' : 'dialog';
+    this.modeChange.emit(newMode);
+  }
+
   sendMessage(): void {
     const message = this.inputMessage.trim();
     if (!message || this.isLoading) return;
@@ -199,34 +217,20 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       return;
     }
 
-    // Add user message
-    const userMessage: ChimpChatMessage = {
-      role: 'user',
-      content: message,
-      timestamp: new Date()
-    };
-    this.messages.push(userMessage);
     this.inputMessage = '';
     this.shouldScrollToBottom = true;
 
     // Show loading state
     this.isLoading = true;
 
-    // Call the service
+    // Call the service - it handles adding both user and assistant messages
     this.subscription = this.chimpChatService.sendMessage(message).subscribe({
-      next: (response) => {
-        this.messages.push(response);
+      next: () => {
         this.isLoading = false;
         this.shouldScrollToBottom = true;
       },
       error: (error) => {
         console.error('ChimpChat error:', error);
-        const errorMessage: ChimpChatMessage = {
-          role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
-          timestamp: new Date()
-        };
-        this.messages.push(errorMessage);
         this.isLoading = false;
         this.shouldScrollToBottom = true;
       }
@@ -270,7 +274,7 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           actions: response.actions,
           timestamp: new Date()
         };
-        this.messages.push(assistantMessage);
+        this.chimpChatService.addMessage(assistantMessage);
         this.shouldScrollToBottom = true;
       } else {
         // Tour is complete - the service already marked it as completed

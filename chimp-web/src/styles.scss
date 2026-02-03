@@ -331,3 +331,12 @@ agm-map {
     overflow: visible !important;
   }
 }
+
+/* ChimpChat sidenav - remove border radius */
+.chat-sidenav.mat-drawer {
+  border-radius: 0 !important;
+}
+
+.chat-sidenav .mat-drawer-inner-container {
+  border-radius: 0 !important;
+}

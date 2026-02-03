@@ -1,18 +1,26 @@
 import { Component, OnInit, inject, ViewChild, ElementRef, DestroyRef } from "@angular/core";
-import { CommonModule, Location } from "@angular/common";
+import { CommonModule, Location, DatePipe } from "@angular/common";
 import { Router, ActivatedRoute, ParamMap, RouterModule } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { Firestore, collection, query, where, orderBy, limit, collectionData } from "@angular/fire/firestore";
 import { AttendanceComponent } from "./attendance.component";
 import { HistoryComponent } from "./history.component";
 import { Article, MyContent, Topic, UserService } from "../user.service";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatBottomSheet, MatBottomSheetModule } from "@angular/material/bottom-sheet";
-import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { Survey } from "src/app/app.service";
 import { LibraryItem } from "src/app/account/training/training.service";
 import { BlasterService } from "src/app/blaster/blaster.service";
+
+interface TrainingSession {
+  id: string;
+  createdAt: any;
+  trainees: string[];
+  responseCount?: number;
+}
 
 @Component({
   standalone: true,
@@ -22,11 +30,12 @@ import { BlasterService } from "src/app/blaster/blaster.service";
   imports: [
     CommonModule,
     RouterModule,
+    DatePipe,
     MatDialogModule,
     MatBottomSheetModule,
-    MatToolbarModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    MatProgressSpinnerModule
   ]
 })
 export class ArticleComponent implements OnInit {
@@ -35,6 +44,7 @@ export class ArticleComponent implements OnInit {
   private readonly location = inject(Location);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly db = inject(Firestore);
   private readonly userService = inject(UserService);
   private readonly dialog = inject(MatDialog);
   private readonly bottomSheet = inject(MatBottomSheet);
@@ -47,6 +57,11 @@ export class ArticleComponent implements OnInit {
   article: LibraryItem;
   error: string;
   training: boolean;
+  
+  // Training history
+  latestSession: TrainingSession | null = null;
+  isStartingTraining = false;
+  justStartedTraining = false;
 
   ngOnInit() {
     this.userService.teamObservable
@@ -63,6 +78,7 @@ export class ArticleComponent implements OnInit {
                 .subscribe(article => {
                   this.article = article;
                   this.loadData(article.content);
+                  this.loadLatestSession();
                 });
             });
         }
@@ -73,18 +89,75 @@ export class ArticleComponent implements OnInit {
     this.dataContainer.nativeElement.innerHTML = html;
   }
 
+  private loadLatestSession(): void {
+    if (!this.articleId || !this.teamId) return;
+    
+    const surveysQuery = query(
+      collection(this.db, "survey"),
+      where("libraryId", "==", this.articleId),
+      where("teamId", "==", this.teamId),
+      orderBy("createdAt", "desc"),
+      limit(1)
+    );
+    
+    collectionData(surveysQuery, { idField: "id" })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((surveys: any[]) => {
+        if (surveys?.length > 0) {
+          const survey = surveys[0];
+          this.latestSession = {
+            id: survey.id,
+            createdAt: survey.createdAt,
+            trainees: survey.trainees || []
+          };
+          // Load response count
+          this.loadResponseCount(survey.id);
+        }
+      });
+  }
+
+  private loadResponseCount(surveyId: string): void {
+    const responsesQuery = query(
+      collection(this.db, "survey-response"),
+      where("surveyId", "==", surveyId)
+    );
+    
+    collectionData(responsesQuery)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((responses: any[]) => {
+        if (this.latestSession) {
+          this.latestSession.responseCount = responses?.length || 0;
+        }
+      });
+  }
+
+  get responseRate(): number {
+    if (!this.latestSession || !this.latestSession.trainees?.length) return 0;
+    return Math.round((this.latestSession.responseCount || 0) / this.latestSession.trainees.length * 100);
+  }
+
   public startTraining() {
     this.bottomSheet.open(AttendanceComponent, {
       data: this.article
     }).afterDismissed().subscribe(data => {
       if (data?.startTraining && data?.trainees?.length > 0) {
+        this.isStartingTraining = true;
         this.blasterService.createSurvey(
           this.article,
           data.trainees,
           this.userService.loggedInUser.id,
           this.userService.aTeam.id
         ).then(() => {
-          this.goBack();
+          this.isStartingTraining = false;
+          this.justStartedTraining = true;
+          // Reload the latest session to show the new one
+          this.loadLatestSession();
+          // Clear the "just started" state after a few seconds
+          setTimeout(() => {
+            this.justStartedTraining = false;
+          }, 5000);
+        }).catch(() => {
+          this.isStartingTraining = false;
         });
       }
     });

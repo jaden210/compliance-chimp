@@ -24,9 +24,7 @@
     <!-- Article Content -->
     <main class="survey-content">
       @if (article?.content) {
-        <div class="article-card">
-          <div class="article-body" [innerHTML]="article.content"></div>
-        </div>
+        <div class="article-body" [innerHTML]="article.content"></div>
       } @else {
         <div class="no-content">
           <mat-icon>description</mat-icon>

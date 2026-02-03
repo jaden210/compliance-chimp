@@ -86,6 +86,10 @@ service cloud.firestore {
     match /blog-response/{blogId} {
       allow read, write;
     }
+    match /resource-library/{resourceId} {
+      allow read;
+      allow write: if request.auth.uid != null;
+    }
     match /chimpChatFeedback/{feedbackId} {
       // Only allow read for dev/admin users (isDev flag on user document)
       // Write is handled by Cloud Functions only (no client write)

@@ -481,6 +481,27 @@ a:hover {
   margin-right: 8px;
 }
 
+/* ChimpChat Sidenav */
+.chat-sidenav {
+  width: 400px;
+  max-width: 100vw;
+  background: var(--chimp-surface);
+  border-left: 1px solid var(--chimp-outline-variant);
+  border-radius: 0 !important;
+}
+
+/* Override Material's inner drawer styling */
+.chat-sidenav .mat-drawer-inner-container {
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.chat-sidenav chimp-chat {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
 /* ChimpChat Button */
 .chimp-chat-button {
   width: 56px;

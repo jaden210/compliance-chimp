@@ -1,6 +1,8 @@
 <div class="chimp-chat-panel" 
-  cdkDrag 
+  [class.sidenav-mode]="mode === 'sidenav'"
+  cdkDrag
   cdkDragBoundary="body"
+  [cdkDragDisabled]="mode === 'sidenav'"
   [cdkDragFreeDragPosition]="dragPosition"
   (cdkDragEnded)="onDragEnded($event)">
   <!-- Header -->
@@ -9,9 +11,14 @@
       <img src="/assets/chimpFace.png" alt="ChimpChat" class="chimp-avatar" />
       <span class="header-title">ChimpChat</span>
     </div>
-    <button mat-icon-button class="close-btn" (click)="closePanel()">
-      <mat-icon>close</mat-icon>
-    </button>
+    <div class="header-actions">
+      <button mat-icon-button class="mode-toggle-btn" (click)="toggleMode()" [matTooltip]="mode === 'dialog' ? 'Dock to side' : 'Pop out'">
+        <mat-icon>{{ mode === 'dialog' ? 'dock_to_right' : 'picture_in_picture_alt' }}</mat-icon>
+      </button>
+      <button mat-icon-button class="close-btn" (click)="closePanel()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Messages Area -->
@@ -26,15 +33,11 @@
           <button 
             *ngFor="let prompt of suggestedPrompts" 
             class="prompt-button"
+            [class.tour-button]="prompt.variant === 'tour'"
             (click)="selectPrompt(prompt)">
             <mat-icon>{{prompt.icon}}</mat-icon>
             <span>{{prompt.text}}</span>
           </button>
-        </div>
-        
-        <div class="tour-hint">
-          <mat-icon>lightbulb</mat-icon>
-          <span>Tip: Type "Take the tour" to get a guided walkthrough of Compliance Chimp.</span>
         </div>
       </div>
     </div>

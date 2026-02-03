@@ -1,47 +1,109 @@
-<mat-toolbar>
-  <button mat-icon-button (click)="leave()">
-    <mat-icon style="color:#757575">arrow_back</mat-icon>
-  </button>
-  <div class="toolbar-title">Self-Inspection | {{ selfInspection?.title }}</div>
-  <div class="flex"></div>
-</mat-toolbar>
-<div class="panel">
-  @if (inProgressInspections?.length > 0) {
-    <div class="inspections">
-      <div class="info-title">In Progress</div>
-      @for (inspection of inProgressInspections; track inspection.id) {
-        <div class="row" [matTooltip]="inspection.completedPercent + '% completed'" matTooltipShowDelay="600">
-          <h2>{{ inspection?.createdAt | date: 'longDate' }}</h2>
-          <div class="fill" [ngStyle]="{'width': (inspection.completedPercent) + '%'}"></div>
-          <div class="flex"></div>
-          <button mat-button color="primary" (click)="resumeSelfInspection(inspection)">CONTINUE INSPECTION</button>
-        </div>
-      }
-    </div>
-  }
-  @if (completedInspections?.length > 0) {
-    <div class="inspections">
-      <div class="info-title">Completed Inspections</div>
-      @for (inspection of completedInspections; track inspection.id) {
-        <div class="row">
-          <h2>{{ inspection?.createdAt | date: 'longDate' }}</h2>
-          <div class="flex"></div>
-          <p style="margin-right:8px">{{ inspection.completedPercent }}% complete</p>
-          <button mat-icon-button color="primary" (click)="export(inspection)"><mat-icon>file_download</mat-icon></button>
-        </div>
-      }
-    </div>
-  }
-  @if (selfInspectionInspections?.length === 0) {
-    <div class="help-card">
-      <div class="helper-name" id="helper-name-color">It's about to get safe in here</div>
-      <div class="helper-description" id="helper-description-color">
-        Looks like this is a brand new Inspection! Let's go ahead and Start it by clicking on the button below. You can do as much or as little as you want, we'll keep the progress as you go.
-        <button mat-raised-button color="accent" style="color: white;" (click)="startSelfInspection()">START A NEW INSPECTION</button>
+@if (loading) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+} @else {
+  <div class="inspection-history-page">
+    <!-- Header -->
+    <header class="page-header">
+      <button mat-icon-button class="back-btn" (click)="leave()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="header-content">
+        <h1 class="page-title">{{ selfInspection?.title }}</h1>
+        <p class="page-meta">{{ selfInspectionInspections?.length || 0 }} inspection{{ selfInspectionInspections?.length !== 1 ? 's' : '' }} recorded</p>
       </div>
-    </div>
-  }
-  @if (selfInspectionInspections?.length !== 0 && !loading) {
-    <button mat-fab class="fab" color="accent" (click)="startSelfInspection()"><mat-icon>add</mat-icon></button>
-  }
-</div>
+    </header>
+
+    <main class="content">
+      <!-- In Progress Section -->
+      @if (inProgressInspections?.length > 0) {
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">In Progress</h2>
+            <span class="section-count">{{ inProgressInspections.length }}</span>
+          </div>
+          <div class="inspection-list">
+            @for (inspection of inProgressInspections; track inspection.id) {
+              <div class="inspection-card in-progress" (click)="resumeSelfInspection(inspection)">
+                <div class="card-icon in-progress-icon">
+                  <mat-icon>schedule</mat-icon>
+                </div>
+                <div class="inspection-info">
+                  <span class="inspection-date">{{ inspection?.createdAt | date: 'MMMM d, y' }}</span>
+                  <div class="progress-row">
+                    <div class="progress-bar">
+                      <div class="progress-fill" [style.width.%]="inspection.completedPercent || 0"></div>
+                    </div>
+                    <span class="progress-text">{{ inspection.completedPercent || 0 }}%</span>
+                  </div>
+                </div>
+                <button mat-flat-button color="primary" class="continue-btn">
+                  Continue
+                </button>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Completed Section -->
+      @if (completedInspections?.length > 0) {
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Completed</h2>
+            <span class="section-count completed">{{ completedInspections.length }}</span>
+          </div>
+          <div class="inspection-list">
+            @for (inspection of completedInspections; track inspection.id) {
+              <div class="inspection-card completed">
+                <div class="card-icon completed-icon">
+                  <mat-icon>check_circle</mat-icon>
+                </div>
+                <div class="inspection-info">
+                  <span class="inspection-date">{{ inspection?.createdAt | date: 'MMMM d, y' }}</span>
+                  <span class="inspection-status" [class.high-compliance]="inspection.compliantPercent >= 80" [class.low-compliance]="inspection.compliantPercent < 80">
+                    {{ inspection.compliantPercent || 0 }}% compliant
+                  </span>
+                </div>
+                <button mat-icon-button class="download-btn" matTooltip="Download PDF" (click)="export(inspection)">
+                  <mat-icon>download</mat-icon>
+                </button>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Empty State -->
+      @if (selfInspectionInspections?.length === 0) {
+        <div class="empty-state">
+          <div class="empty-icon">
+            <mat-icon>fact_check</mat-icon>
+          </div>
+          <h3>Ready to get started?</h3>
+          <p>This inspection hasn't been run yet. Start your first inspection to begin tracking compliance.</p>
+          <button mat-flat-button color="accent" class="start-btn" (click)="startSelfInspection()">
+            <mat-icon>play_arrow</mat-icon>
+            Start Inspection
+          </button>
+        </div>
+      }
+
+      <!-- Start New FAB (when there are existing inspections) -->
+      @if (selfInspectionInspections?.length > 0) {
+        <div class="fab-container">
+          <button mat-fab color="accent" class="fab" (click)="startSelfInspection()" matTooltip="Start new inspection">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+      }
+
+      <!-- Footer -->
+      <footer class="page-footer">
+        <span>Powered by</span>
+        <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+      </footer>
+    </main>
+  </div>
+}

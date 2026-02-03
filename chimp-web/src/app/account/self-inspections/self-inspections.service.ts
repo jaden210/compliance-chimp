@@ -1,12 +1,17 @@
-import { Injectable, Component, inject } from "@angular/core";
+import { Injectable, Component, inject, Inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { Observable, from, Subject, BehaviorSubject } from "rxjs";
 import { collection, collectionData, doc, docData, Firestore, orderBy, query, setDoc, addDoc, updateDoc, deleteDoc } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { map, take, takeUntil } from "rxjs/operators";
 import { AccountService } from "../account.service";
-import { MatDialogRef, MatDialogModule } from "@angular/material/dialog";
+import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MatButtonModule } from "@angular/material/button";
+import { MatDatepickerModule } from "@angular/material/datepicker";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
+import { FormsModule } from "@angular/forms";
+import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, NativeDateAdapter, MAT_NATIVE_DATE_FORMATS } from "@angular/material/core";
 
 // Coverage analysis interfaces
 export interface CoverageAnalysis {
@@ -682,6 +687,7 @@ export class SelfInspection {
   inspectionExpiration?: string = ExperationTimeFrame.Manual;
   lastCompletedAt?: any;
   lastReminderSent?: any;
+  nextDueDate?: any; // Optional manual override for next due date
 }
 
 export class Inspection {
@@ -740,5 +746,57 @@ export class DeleteInspectionDialog {
 
   close(shouldDelete) {
     this.dialogRef.close(shouldDelete);
+  }
+}
+
+@Component({
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatDatepickerModule,
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
+    MatNativeDateModule
+  ],
+  providers: [
+    { provide: DateAdapter, useClass: NativeDateAdapter },
+    { provide: MAT_DATE_FORMATS, useValue: MAT_NATIVE_DATE_FORMATS },
+    { provide: MAT_DATE_LOCALE, useValue: 'en-US' }
+  ],
+  template: `
+    <h2 mat-dialog-title>Adjust Next Due Date</h2>
+    <mat-dialog-content>
+      <mat-form-field appearance="outline" style="width: 100%; margin-top: 8px;">
+        <mat-label>Next Due Date</mat-label>
+        <input matInput [matDatepicker]="picker" [(ngModel)]="selectedDate" [min]="minDate">
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+      </mat-form-field>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="dialogRef.close()">Cancel</button>
+      <button mat-flat-button color="primary" [disabled]="!selectedDate" (click)="save()">Save</button>
+    </mat-dialog-actions>
+  `
+})
+export class EditDueDateDialog {
+  selectedDate: Date | null;
+  minDate: Date;
+
+  constructor(
+    public dialogRef: MatDialogRef<EditDueDateDialog>,
+    @Inject(MAT_DIALOG_DATA) public data: { currentDate: Date | null }
+  ) {
+    this.selectedDate = data.currentDate;
+    this.minDate = new Date();
+    // Set to start of today
+    this.minDate.setHours(0, 0, 0, 0);
+  }
+
+  save() {
+    this.dialogRef.close(this.selectedDate);
   }
 }

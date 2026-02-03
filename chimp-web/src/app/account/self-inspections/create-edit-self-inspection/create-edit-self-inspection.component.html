@@ -58,19 +58,22 @@
                autofocus>
       </mat-form-field>
       
-      <button class="frequency-dropdown" [matMenuTriggerFor]="frequencyMenu">
-        <mat-icon>schedule</mat-icon>
-        {{ selfInspection.inspectionExpiration || 'Manual' }}
-        <mat-icon>arrow_drop_down</mat-icon>
-      </button>
-      <mat-menu #frequencyMenu="matMenu">
-        <button mat-menu-item 
-                *ngFor="let freq of frequencyOptions" 
-                (click)="onFrequencyChange(freq)"
-                [class.selected]="selfInspection.inspectionExpiration === freq">
-          {{ freq }}
+      <div class="frequency-container">
+        <button class="frequency-dropdown" [matMenuTriggerFor]="frequencyMenu">
+          <mat-icon>schedule</mat-icon>
+          {{ selfInspection.inspectionExpiration || 'Manual' }}
+          <mat-icon>arrow_drop_down</mat-icon>
         </button>
-      </mat-menu>
+        <mat-menu #frequencyMenu="matMenu">
+          <button mat-menu-item 
+                  *ngFor="let freq of frequencyOptions" 
+                  (click)="onFrequencyChange(freq)"
+                  [class.selected]="selfInspection.inspectionExpiration === freq">
+            {{ freq }}
+          </button>
+        </mat-menu>
+        <span class="frequency-hint" *ngIf="isEditing">You can edit the next due date from the inspection dashboard.</span>
+      </div>
     </div>
   </div>
 

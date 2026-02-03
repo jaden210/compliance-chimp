@@ -1,7 +1,7 @@
 import { Component } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { RouterModule } from "@angular/router";
-import { SelfInspectionsService, Inspection, DeleteInspectionDialog, SelfInspection } from "../self-inspections.service";
+import { SelfInspectionsService, Inspection, DeleteInspectionDialog, SelfInspection, EditDueDateDialog } from "../self-inspections.service";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
@@ -87,6 +87,25 @@ export class SelfInspectionComponent {
 
     const lastCompleted = this.selfInspection.lastCompletedAt;
     const frequency = this.selfInspection.inspectionExpiration;
+    const manualNextDueDate = this.selfInspection.nextDueDate;
+
+    // Check if there's a manually set next due date
+    if (manualNextDueDate) {
+      this.nextDueDate = manualNextDueDate?.toDate ? manualNextDueDate.toDate() : new Date(manualNextDueDate);
+      
+      const now = new Date();
+      const diffTime = this.nextDueDate.getTime() - now.getTime();
+      this.daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (this.daysUntilDue < 0) {
+        this.status = 'overdue';
+      } else if (this.daysUntilDue <= 14) {
+        this.status = 'dueSoon';
+      } else {
+        this.status = 'ok';
+      }
+      return;
+    }
 
     if (!lastCompleted) {
       this.status = 'neverRun';
@@ -207,6 +226,26 @@ export class SelfInspectionComponent {
             duration: 3000
           });
           console.log(error);
+        });
+      }
+    });
+  }
+
+  openEditDueDateDialog() {
+    const dialogRef = this.dialog.open(EditDueDateDialog, {
+      width: '320px',
+      data: { currentDate: this.nextDueDate }
+    });
+
+    dialogRef.afterClosed().subscribe((newDate: Date | undefined) => {
+      if (newDate) {
+        this.selfInspection.nextDueDate = newDate;
+        this.selfInspectionsService.updateSelfInspection(this.selfInspection).then(() => {
+          this.calculateDashboardMetrics();
+          this.snackbar.open('Next due date updated', null, { duration: 2000 });
+        }).catch(error => {
+          console.error('Error updating next due date:', error);
+          this.snackbar.open('Error updating due date', null, { duration: 3000 });
         });
       }
     });

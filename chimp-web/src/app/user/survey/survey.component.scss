@@ -56,20 +56,14 @@ $radius-lg: 16px;
 // Content Area
 .survey-content {
   flex: 1;
-  padding: 16px;
+  padding: 0;
   padding-bottom: 280px;
   overflow: auto;
-}
-
-.article-card {
   background: #fff;
-  border-radius: $radius-lg;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
 }
 
 .article-body {
-  padding: 24px 20px;
+  padding: 20px 16px;
   font-size: 15px;
   line-height: 1.7;
   color: $gray-800;

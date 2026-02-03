@@ -135,8 +135,7 @@
                 color="primary" 
                 (click)="saveTraining()" 
                 [disabled]="isCreating || !title?.trim() || !generatedContent?.trim()">
-          <mat-icon *ngIf="!isCreating">check</mat-icon>
-          <mat-spinner *ngIf="isCreating" diameter="18"></mat-spinner>
+          <mat-icon>check</mat-icon>
           {{ isCreating ? 'Saving...' : (mode === 'edit' ? 'Save Changes' : 'Add to Library') }}
         </button>
       </div>

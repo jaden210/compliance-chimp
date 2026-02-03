@@ -37,6 +37,24 @@ export class UserService implements OnDestroy {
   files: File[] = [];
   resourceFiles: ResourceFile[] = [];
   
+  /**
+   * Indicates when an admin/manager is viewing another team member's page.
+   * When true, admin-only UI features should be hidden and the experience
+   * should be as if the team member themselves is viewing the page.
+   */
+  isViewingAsMember: boolean = false;
+  
+  /**
+   * Indicates when viewing as a manager (using user-id param instead of member-id).
+   * Managers are in the 'user' collection, not 'team-members'.
+   */
+  isViewingAsManager: boolean = false;
+  
+  /**
+   * The current manager being viewed (when isViewingAsManager is true).
+   */
+  currentManager: User | null = null;
+  
   // Getter/setter for surveys that keeps the BehaviorSubject in sync
   private _surveys: Survey[] | null = null;
   get surveys(): Survey[] | null {
@@ -68,6 +86,20 @@ export class UserService implements OnDestroy {
     ) as Observable<TeamMember>;
   }
 
+  /**
+   * Get a manager/owner from the 'user' collection by their ID.
+   */
+  public getManager(managerId: string): Observable<User> {
+    console.log('[UserService] getManager() called with managerId:', managerId);
+    return docData(doc(this.db, `user/${managerId}`), { idField: "id" }).pipe(
+      tap(user => console.log('[UserService] getManager() result:', user)),
+      catchError(error => {
+        console.error('[UserService] getManager() error:', error);
+        throw error;
+      })
+    ) as Observable<User>;
+  }
+
   public getSurvey(surveyId: string): Observable<Survey> {
     return docData(doc(this.db, `survey/${surveyId}`), { idField: "id" }) as Observable<Survey>;
   }
@@ -80,7 +112,9 @@ export class UserService implements OnDestroy {
 
   public getFiles(teamId: string): Observable<File[]> {
     const filesRef = collection(this.db, `team/${teamId}/file`);
-    const filesQuery = this.isLoggedIn
+    // When viewing as team member, only show public files (same as when not logged in)
+    const showAllFiles = this.isLoggedIn && !this.isViewingAsMember;
+    const filesQuery = showAllFiles
       ? query(filesRef)
       : query(filesRef, where("isPublic", "==", true));
     return collectionData(filesQuery, { idField: "id" }) as Observable<File[]>;

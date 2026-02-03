@@ -115,6 +115,37 @@
   border-radius: 12px;
   border: 1px solid var(--chimp-border-light);
   transition: all 150ms ease;
+  position: relative;
+}
+
+.metric-edit-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  color: var(--chimp-text-hint);
+}
+
+.metric-edit-btn .mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+
+.metric-card:hover .metric-edit-btn {
+  opacity: 1;
+}
+
+.metric-edit-btn:hover {
+  color: var(--chimp-primary);
 }
 
 .metric-card.warning {

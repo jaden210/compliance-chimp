@@ -1,72 +1,104 @@
 @if (Team.id) {
-  <div id="skinny">
-    <div class="title">
-      <button mat-icon-button (click)="close()"><mat-icon>arrow_back</mat-icon></button>
-      Team Files
-    </div>
-    
-    @if (Files?.length > 0) {
-      <div class="team-files-section">
-        <div class="file-list">
-          @for (file of Files; track file.id || file.name) {
-            <div class="file-card" (click)="openFile(file)">
-              @if (isImageFile(file)) {
-                <div class="file-preview image-preview">
-                  <img [src]="file.fileUrl" [alt]="file.name" loading="lazy">
-                </div>
-              } @else if (isVideoFile(file)) {
-                <div class="file-preview video-preview">
-                  <video [src]="file.fileUrl" preload="metadata"></video>
-                  <div class="play-icon">
-                    <mat-icon>play_arrow</mat-icon>
-                  </div>
-                </div>
-              } @else if (isPdfFile(file)) {
-                <div class="file-preview pdf-preview">
-                  <mat-icon>picture_as_pdf</mat-icon>
-                  <span class="file-badge">PDF</span>
-                </div>
-              } @else {
-                <div class="file-preview other-preview">
-                  <mat-icon>{{ getFileIcon(file) }}</mat-icon>
-                </div>
-              }
-              <div class="file-info">
-                <div class="file-name">{{ file.name }}</div>
-              </div>
-            </div>
-          }
-        </div>
+  <div class="files-page">
+    <!-- Header -->
+    <header class="page-header">
+      <button mat-icon-button class="back-btn" (click)="close()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="header-content">
+        <h1 class="page-title">Team Files</h1>
+        <p class="page-meta">{{ Team.name }}</p>
       </div>
-    }
+    </header>
 
-    <!-- Resource Library Section -->
-    @if (showResourceLibrary && resourceFiles.length > 0) {
-      <div class="resource-section">
-        <div class="resource-header">
-          <mat-icon>library_books</mat-icon>
-          <span>Resource Library</span>
-        </div>
-        <div class="resource-list">
-          @for (file of resourceFiles; track file.id || file.name) {
-            <a class="resource-item" [href]="file.sourceUrl || file.fileUrl" target="_blank">
-              <div class="resource-icon">
-                <mat-icon>picture_as_pdf</mat-icon>
-              </div>
-              <div class="resource-info">
-                <div class="resource-name">{{ file.name }}</div>
-                @if (file.description) {
-                  <div class="resource-description">{{ file.description }}</div>
+    <main class="content">
+      @if (Files?.length > 0) {
+        <section class="files-section">
+          <div class="section-header">
+            <h2 class="section-title">Files</h2>
+            <span class="file-count">{{ Files.length }}</span>
+          </div>
+          <div class="file-list">
+            @for (file of Files; track file.id || file.name) {
+              <div class="file-card" (click)="openFile(file)">
+                @if (isImageFile(file)) {
+                  <div class="file-preview image-preview">
+                    <img [src]="file.fileUrl" [alt]="file.name" loading="lazy">
+                  </div>
+                } @else if (isVideoFile(file)) {
+                  <div class="file-preview video-preview">
+                    <video [src]="file.fileUrl" preload="metadata"></video>
+                    <div class="play-overlay">
+                      <mat-icon>play_arrow</mat-icon>
+                    </div>
+                  </div>
+                } @else if (isPdfFile(file)) {
+                  <div class="file-preview pdf-preview">
+                    <mat-icon>picture_as_pdf</mat-icon>
+                  </div>
+                } @else {
+                  <div class="file-preview other-preview">
+                    <mat-icon>{{ getFileIcon(file) }}</mat-icon>
+                  </div>
                 }
+                <div class="file-info">
+                  <span class="file-name">{{ file.name }}</span>
+                </div>
+                <mat-icon class="file-arrow">chevron_right</mat-icon>
               </div>
-            </a>
-          }
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Resource Library Section -->
+      @if (showResourceLibrary && resourceFiles.length > 0) {
+        <section class="resource-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <mat-icon>library_books</mat-icon>
+            </div>
+            <h2 class="section-title">Resource Library</h2>
+          </div>
+          <div class="resource-list">
+            @for (file of resourceFiles; track file.id || file.name) {
+              <a class="resource-card" [href]="file.sourceUrl || file.fileUrl" target="_blank">
+                <div class="resource-icon">
+                  <mat-icon>picture_as_pdf</mat-icon>
+                </div>
+                <div class="resource-info">
+                  <span class="resource-name">{{ file.name }}</span>
+                  @if (file.description) {
+                    <span class="resource-description">{{ file.description }}</span>
+                  }
+                </div>
+                <mat-icon class="resource-arrow">open_in_new</mat-icon>
+              </a>
+            }
+          </div>
+        </section>
+      }
+
+      @if (Files?.length === 0 && (!showResourceLibrary || resourceFiles.length === 0)) {
+        <div class="empty-state">
+          <div class="empty-icon">
+            <mat-icon>folder_off</mat-icon>
+          </div>
+          <h3>No files available</h3>
+          <p>Your team hasn't uploaded any files yet.</p>
         </div>
-      </div>
-    }
+      }
+
+      <!-- Footer -->
+      <footer class="page-footer">
+        <span>Powered by</span>
+        <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+      </footer>
+    </main>
   </div>
 } @else {
-  <div class="center">
-    <img src="./assets/chimp.png">
+  <div class="loading-screen">
+    <img src="/assets/chimp.png" alt="Loading">
+    <span class="loading-text">Loading...</span>
   </div>
 }

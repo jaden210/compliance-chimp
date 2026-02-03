@@ -10,10 +10,16 @@ import { AuthGuard } from "./auth.gaurd";
 import { JoinTeamComponent } from "./join-team/join-team.component";
 import { CommonQuestionsComponent } from "./common-questions/common-questions.component";
 import { PlansComponent } from "./plans/plans.component";
+import { InspectionRedirectComponent } from "./go/inspection-redirect.component";
 
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
   { path: "home", component: HomeComponent },
+  // Gateway route for self-inspection links - detects device + auth and redirects
+  {
+    path: "go/inspection/:selfInspectionId/:inspectionId",
+    component: InspectionRedirectComponent
+  },
   {
     path: "lp",
     loadChildren: () => import('./lp/lp.routes').then(m => m.lpRoutes)

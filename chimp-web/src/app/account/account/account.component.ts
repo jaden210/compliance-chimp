@@ -19,6 +19,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatRadioModule } from '@angular/material/radio';
 import { Subscription } from 'rxjs';
 import { collection, doc, updateDoc, addDoc } from '@angular/fire/firestore';
 import { environment } from 'src/environments/environment';
@@ -45,7 +46,8 @@ import { environment } from 'src/environments/environment';
     MatCardModule,
     MatDividerModule,
     MatChipsModule,
-    MatSlideToggleModule
+    MatSlideToggleModule,
+    MatRadioModule
   ]
 })
 export class ProfileComponent implements OnInit, OnDestroy {
@@ -139,6 +141,38 @@ export class ProfileComponent implements OnInit, OnDestroy {
   public set autoStartTrainings(value: boolean) {
     this.accountService.aTeam.autoStartTrainings = value;
     this.saveTeam();
+  }
+
+  // Self-inspection reminders - defaults to true if undefined
+  public get selfInspectionRemindersEnabled(): boolean {
+    return this.accountService.user?.selfInspectionRemindersEnabled !== false;
+  }
+
+  public set selfInspectionRemindersEnabled(value: boolean) {
+    if (this.accountService.user) {
+      this.accountService.user.selfInspectionRemindersEnabled = value;
+      this.saveUser();
+    }
+  }
+
+  // Self-inspection reminder method - defaults to 'email' if undefined
+  public get selfInspectionReminderMethod(): 'email' | 'sms' {
+    return this.accountService.user?.selfInspectionReminderMethod || 'email';
+  }
+
+  public set selfInspectionReminderMethod(value: 'email' | 'sms') {
+    if (this.accountService.user) {
+      this.accountService.user.selfInspectionReminderMethod = value;
+      this.saveUser();
+    }
+  }
+
+  saveUser() {
+    if (!this.accountService.user?.id) return;
+    const cleanedUser = Object.fromEntries(
+      Object.entries(this.accountService.user).filter(([_, v]) => v !== undefined)
+    );
+    updateDoc(doc(this.accountService.db, `user/${this.accountService.user.id}`), cleanedUser);
   }
 
   public get billingStatus(): string {

@@ -59,7 +59,7 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
 
   selfInspections$: Observable<SelfInspectionWithStatus[]>;
   filteredInspections$: Observable<SelfInspectionWithStatus[]>;
-  activeFilter$ = new BehaviorSubject<FilterType>('all');
+  activeFilter$ = new BehaviorSubject<FilterType>('dueSoon');
   sort$ = new BehaviorSubject<SortState>({ column: null, direction: 'asc' });
   
   // Coverage analysis state
@@ -342,7 +342,29 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
 
   private addStatusInfo(inspection: SelfInspection): SelfInspectionWithStatus {
     const result: SelfInspectionWithStatus = { ...inspection };
-    // Clear any nextDueDate that may have come from Firestore as a Timestamp
+    
+    // Check for manually set nextDueDate first
+    const manualNextDueDate = (inspection as any).nextDueDate;
+    if (manualNextDueDate) {
+      const nextDue = manualNextDueDate?.toDate ? manualNextDueDate.toDate() : new Date(manualNextDueDate);
+      result.nextDueDate = nextDue;
+      
+      const now = new Date();
+      const diffTime = nextDue.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      result.daysUntilDue = diffDays;
+
+      if (diffDays < 0) {
+        result.status = 'overdue';
+      } else if (diffDays <= 14) {
+        result.status = 'dueSoon';
+      } else {
+        result.status = 'ok';
+      }
+      return result;
+    }
+    
+    // Clear nextDueDate if not manually set
     result.nextDueDate = undefined;
     
     if (!inspection.lastCompletedAt || !inspection.inspectionExpiration || inspection.inspectionExpiration === 'Manual') {

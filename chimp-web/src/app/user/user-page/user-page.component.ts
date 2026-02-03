@@ -144,8 +144,12 @@ export class UserPageComponent implements OnInit {
     }
   }
 
+  /**
+   * Returns true only if user is logged in AND not viewing as another team member.
+   * When an admin views a team member's page, this returns false to hide admin-only features.
+   */
   public get IsLoggedIn(): boolean {
-    return this.userService.isLoggedIn;
+    return this.userService.isLoggedIn && !this.userService.isViewingAsMember;
   }
 
   get TeamMember(): TeamMember {

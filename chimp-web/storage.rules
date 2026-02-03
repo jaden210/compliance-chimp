@@ -6,5 +6,13 @@ service firebase.storage {
     match /topicImages/{image} {
       allow read;
     }
+    // Allow unauthenticated uploads for injury reports (team member submissions)
+    match /team/{teamId}/injury-report/{fileName} {
+      allow read, write: if true;
+    }
+    // Allow unauthenticated signature uploads for injury reports
+    match /signatures/{userId}/{fileName} {
+      allow read, write: if true;
+    }
   }
 }

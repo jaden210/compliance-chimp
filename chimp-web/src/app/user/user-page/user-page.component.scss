@@ -321,22 +321,6 @@ $radius-xl: 24px;
     transform: translateY(-2px);
   }
 
-  .survey-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    overflow: hidden;
-    margin-right: 14px;
-    flex-shrink: 0;
-    background: $gray-100;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
   .survey-info {
     flex: 1;
     min-width: 0;
@@ -349,9 +333,7 @@ $radius-xl: 24px;
     font-size: 15px;
     font-weight: 600;
     color: $gray-800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.4;
   }
 
   .survey-meta {

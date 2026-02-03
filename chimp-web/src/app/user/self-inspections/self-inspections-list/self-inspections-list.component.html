@@ -1,62 +1,85 @@
-<mat-toolbar>
-  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png">
-  <button mat-icon-button class="toolbar-expand-mobile" (click)="close()"><mat-icon>arrow_back</mat-icon></button>
-  <div class="toolbar-title">Self-Inspections</div>
-</mat-toolbar>
-<div class="window self-inspections-page">
-  <section class="splash">
-    <div class="splash-content">
-      <div class="splash-kicker">Self-Inspections</div>
-      <div class="splash-title">Stay ready for every compliance moment.</div>
-      <div class="splash-body">
-        Self-inspections guide you through each checklist and record completion details. Open one to review past runs or begin a new inspection.
+<div class="inspections-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button mat-icon-button class="back-btn" (click)="close()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-content">
+      <h1 class="page-title">Self-Inspections</h1>
+      <p class="page-meta">{{ selfInspections?.length || 0 }} inspection{{ selfInspections?.length !== 1 ? 's' : '' }} available</p>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- Intro Card -->
+    <div class="intro-card">
+      <div class="intro-icon">
+        <mat-icon>fact_check</mat-icon>
+      </div>
+      <div class="intro-content">
+        <h2>Stay Compliance Ready</h2>
+        <p>Self-inspections guide you through each checklist and record completion details. Open one to review past runs or begin a new inspection.</p>
       </div>
     </div>
-  </section>
 
-  @if (selfInspections?.length === 0) {
-    <div class="empty-state">
-      <div class="empty-title">No inspections yet</div>
-      <div class="empty-body">
-        A manager can create an inspection on desktop, then it will appear here for your team.
-      </div>
-    </div>
-  }
-
-  @if (selfInspections?.length > 0) {
-    <section class="inspections-section">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Available inspections</div>
-          <div class="section-subtitle">Alphabetical order with the latest completion date.</div>
+    @if (selfInspections?.length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <mat-icon>checklist</mat-icon>
         </div>
+        <h3>No inspections yet</h3>
+        <p>A manager can create an inspection on desktop, then it will appear here for your team.</p>
       </div>
-      <div class="inspections-grid">
-        @for (inspection of selfInspections; track inspection.id) {
-          <div class="inspection-card">
-            <div class="inspection-title">{{ inspection.title }}</div>
-            @if (inspection.lastCompletedAt) {
-              <div class="inspection-meta">
-                <span class="meta-label">Last completed</span>
-                <span class="meta-value">{{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'longDate') : (inspection.lastCompletedAt | date: 'longDate') }}</span>
+    }
+
+    @if (selfInspections?.length > 0) {
+      <section class="inspections-section">
+        <div class="section-header">
+          <h2 class="section-title">Available Inspections</h2>
+        </div>
+        <div class="inspection-list">
+          @for (inspection of selfInspections; track inspection.id) {
+            <div class="inspection-card" [class.overdue]="inspection.isOverdue">
+              <div class="inspection-info" (click)="selectSelfInspection(inspection)">
+                <span class="inspection-title">{{ inspection.title }}</span>
+                <div class="inspection-dates">
+                  @if (inspection.nextDueDate) {
+                    <span class="next-due" [class.overdue]="inspection.isOverdue">
+                      <mat-icon>schedule</mat-icon>
+                      @if (inspection.isOverdue) {
+                        Overdue
+                      } @else {
+                        Due {{ inspection.nextDueDate | date: 'MMM d' }}
+                      }
+                    </span>
+                  }
+                  <span class="last-completed">
+                    @if (inspection.lastCompletedAt) {
+                      Last: {{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'MMM d') : (inspection.lastCompletedAt | date: 'MMM d') }}
+                    } @else {
+                      Never completed
+                    }
+                  </span>
+                </div>
               </div>
-            } @else {
-              <div class="inspection-meta">
-                <span class="meta-label">Last completed</span>
-                <span class="meta-value muted">Not yet completed</span>
+              <div class="inspection-actions">
+                <button mat-icon-button class="history-btn" matTooltip="View history" (click)="selectSelfInspection(inspection)">
+                  <mat-icon>history</mat-icon>
+                </button>
+                <button mat-icon-button class="start-btn" [class.urgent]="inspection.isOverdue" matTooltip="Start inspection" (click)="startInspection(inspection)">
+                  <mat-icon>play_arrow</mat-icon>
+                </button>
               </div>
-            }
-            <div class="inspection-actions">
-              <button mat-stroked-button color="primary" (click)="selectSelfInspection(inspection)">
-                View history
-              </button>
-              <button mat-icon-button color="accent" class="start-action" matTooltip="Start a new inspection run" (click)="startInspection(inspection)">
-                <mat-icon>play_arrow</mat-icon>
-              </button>
             </div>
-          </div>
-        }
-      </div>
-    </section>
-  }
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Footer -->
+    <footer class="page-footer">
+      <span>Powered by</span>
+      <img src="/assets/ccLogoDark.png" alt="Compliancechimp" class="footer-logo">
+    </footer>
+  </main>
 </div>

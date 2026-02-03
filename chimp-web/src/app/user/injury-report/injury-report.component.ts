@@ -15,7 +15,7 @@ import { MatNativeDateModule } from "@angular/material/core";
 import { MatRadioModule } from "@angular/material/radio";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
-import { MatDialog, MatDialogModule, MatDialogRef } from "@angular/material/dialog";
+import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { TextFieldModule } from "@angular/cdk/text-field";
 import SignaturePad from "signature_pad";
 import { UserService } from "../user.service";
@@ -54,7 +54,7 @@ import supervisorQuestions from "./supervisor-questions.json";
     TextFieldModule
   ]
 })
-export class InjuryReport implements OnInit {
+export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
   private readonly injuryReportService = inject(InjuryReportService);
   private readonly userService = inject(UserService);
   private readonly storage = inject(Storage);
@@ -64,11 +64,18 @@ export class InjuryReport implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
+  // Signature pad elements
+  @ViewChild('signatureCanvas') signatureCanvas?: ElementRef<HTMLCanvasElement>;
+  private signaturePad?: SignaturePad;
+  private signatureHandleEnd: (() => void) | null = null;
+  readonly signatureComplete = signal(false);
+
   // Reactive signals
   readonly loading = signal(false);
   readonly uploading = signal(false);
   readonly submitting = signal(false);
   readonly index = signal(0);
+  readonly answerTrigger = signal(0); // Trigger to force canGoNext recomputation
 
   title: string;
   questions: Question[] = [];
@@ -82,14 +89,94 @@ export class InjuryReport implements OnInit {
   });
 
   readonly canGoNext = computed(() => {
+    // Read the trigger to subscribe to answer changes
+    this.answerTrigger();
+    
     const q = this.question();
     if (!q) return false;
     if (q.getStarted) return true;
     if (q.submit) return true;
     if (q.skip) return true;
     if (q.type === Type.photos) return true;
+    // For signature type: need either existing value or a completed signature
+    if (q.type === Type.signature) {
+      return q.value || this.signatureComplete();
+    }
     return q.value !== undefined && q.value !== null && q.value !== '';
   });
+
+  selectOption(question: Question, value: any): void {
+    question.value = value;
+    this.onValueChange();
+  }
+
+  private readonly STORAGE_KEY = 'injury-report-progress';
+
+  onValueChange(): void {
+    // Trigger recomputation of canGoNext
+    this.answerTrigger.update(v => v + 1);
+    // Save progress to localStorage
+    this.saveProgress();
+  }
+
+  private saveProgress(): void {
+    try {
+      const progress = {
+        reportType: this.reportType,
+        index: this.index(),
+        questions: this.questions.map(q => ({
+          description: q.description,
+          value: q.value
+        }))
+      };
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(progress));
+    } catch (e) {
+      console.warn('Could not save progress to localStorage:', e);
+    }
+  }
+
+  private loadProgress(): boolean {
+    try {
+      const saved = localStorage.getItem(this.STORAGE_KEY);
+      if (!saved) return false;
+
+      const progress = JSON.parse(saved);
+      
+      // Only restore if same report type
+      if (progress.reportType !== this.reportType) {
+        this.clearProgress();
+        return false;
+      }
+
+      // Restore values to questions
+      if (progress.questions?.length) {
+        progress.questions.forEach((savedQ: { description: string; value: any }) => {
+          const q = this.questions.find(q => q.description === savedQ.description);
+          if (q && savedQ.value !== undefined) {
+            q.value = savedQ.value;
+          }
+        });
+      }
+
+      // Restore index
+      if (typeof progress.index === 'number' && progress.index > 0) {
+        this.index.set(progress.index);
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('Could not load progress from localStorage:', e);
+      return false;
+    }
+  }
+
+  private clearProgress(): void {
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } catch (e) {
+      console.warn('Could not clear localStorage:', e);
+    }
+  }
 
   ngOnInit() {
     this.loading.set(true);
@@ -123,17 +210,105 @@ export class InjuryReport implements OnInit {
       }
     });
 
-    // Pre-fill user info if team member is already available
-    const member = this.userService.teamMember;
-    if (member) {
-      const nameQ = this.questions.find(q => q.description === "What is your name?");
-      if (nameQ && !nameQ.value) nameQ.value = member.name;
-      
-      const titleQ = this.questions.find(q => q.description === "What is your job title?");
-      if (titleQ && !titleQ.value) titleQ.value = member.jobTitle;
+    // Try to load saved progress first
+    const hasProgress = this.loadProgress();
+
+    // Only pre-fill user info if no saved progress
+    if (!hasProgress) {
+      const member = this.userService.teamMember;
+      if (member) {
+        const nameQ = this.questions.find(q => q.description === "What is your name?");
+        if (nameQ && !nameQ.value) nameQ.value = member.name;
+        
+        const titleQ = this.questions.find(q => q.description === "What is your job title?");
+        if (titleQ && !titleQ.value) titleQ.value = member.jobTitle;
+      }
     }
 
     this.loading.set(false);
+  }
+
+  private signaturePadInitPending = false;
+
+  ngAfterViewChecked(): void {
+    // Initialize signature pad when canvas becomes available
+    const q = this.question();
+    if (q?.type === Type.signature && !q.value && this.signatureCanvas && !this.signaturePad && !this.signaturePadInitPending) {
+      this.signaturePadInitPending = true;
+      // Use requestAnimationFrame to ensure canvas has rendered
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.initializeSignaturePad();
+        });
+      });
+    }
+  }
+
+  private initializeSignaturePad(): void {
+    if (!this.signatureCanvas || this.signaturePad) {
+      this.signaturePadInitPending = false;
+      return;
+    }
+    
+    const canvas = this.signatureCanvas.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Ensure we have valid dimensions
+    if (rect.width === 0 || rect.height === 0) {
+      // Try again on next frame
+      requestAnimationFrame(() => this.initializeSignaturePad());
+      return;
+    }
+    
+    // Set canvas dimensions to match displayed size for proper drawing
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    this.signaturePad = new SignaturePad(canvas, { 
+      minWidth: 1, 
+      maxWidth: 2.5,
+      penColor: '#000'
+    });
+    
+    this.signatureHandleEnd = () => {
+      this.signatureComplete.set(true);
+    };
+    canvas.addEventListener('mouseup', this.signatureHandleEnd);
+    canvas.addEventListener('touchend', this.signatureHandleEnd);
+    
+    this.signaturePadInitPending = false;
+  }
+
+  ngOnDestroy(): void {
+    this.cleanupSignaturePad();
+  }
+
+  private cleanupSignaturePad(): void {
+    if (this.signatureCanvas && this.signatureHandleEnd) {
+      const canvas = this.signatureCanvas.nativeElement;
+      canvas.removeEventListener('mouseup', this.signatureHandleEnd);
+      canvas.removeEventListener('touchend', this.signatureHandleEnd);
+    }
+    this.signaturePad = undefined;
+    this.signatureHandleEnd = null;
+    this.signaturePadInitPending = false;
+  }
+
+  clearSignaturePad(): void {
+    if (this.signaturePad) {
+      this.signaturePad.clear();
+      this.signatureComplete.set(false);
+    }
+  }
+
+  clearSignature(): void {
+    const q = this.question();
+    if (q) {
+      q.value = null;
+      this.signatureComplete.set(false);
+      this.cleanupSignaturePad();
+      this.onValueChange();
+    }
   }
 
   goBack(): void {
@@ -148,34 +323,36 @@ export class InjuryReport implements OnInit {
     const q = this.question();
     if (!q) return;
 
-    if (q.type === Type.signature) {
-      this.captureSignature();
+    // Handle signature upload from embedded canvas
+    if (q.type === Type.signature && !q.value && this.signaturePad && this.signatureComplete()) {
+      this.uploadSignatureFromPad();
     } else {
       this.navigateQuestions(1);
     }
   }
 
-  private captureSignature(): void {
-    this.dialog.open(SignatureDialogComponent).afterClosed().subscribe(dataUrl => {
-      if (dataUrl) {
-        this.uploading.set(true);
-        this.injuryReportService
-          .uploadSignature(dataUrl, this.userService.teamMember?.id || 'anonymous')
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe({
-            next: (url) => {
-              const q = this.question();
-              if (q) q.value = url;
-              this.uploading.set(false);
-              this.navigateQuestions(1);
-            },
-            error: () => {
-              this.uploading.set(false);
-              this.snackbar.open("Failed to save signature", "Dismiss", { duration: 3000 });
-            }
-          });
-      }
-    });
+  private uploadSignatureFromPad(): void {
+    const dataUrl = this.signaturePad?.toDataURL();
+    if (!dataUrl) return;
+
+    this.uploading.set(true);
+    this.injuryReportService
+      .uploadSignature(dataUrl, this.userService.teamMember?.id || 'anonymous')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (url) => {
+          const q = this.question();
+          if (q) q.value = url;
+          this.uploading.set(false);
+          this.signatureComplete.set(false);
+          this.cleanupSignaturePad();
+          this.navigateQuestions(1);
+        },
+        error: () => {
+          this.uploading.set(false);
+          this.snackbar.open("Failed to save signature", "Dismiss", { duration: 3000 });
+        }
+      });
   }
 
   private navigateQuestions(direction: number): void {
@@ -215,6 +392,7 @@ export class InjuryReport implements OnInit {
     if (i >= this.questions.length) i = this.questions.length - 1;
 
     this.index.set(i);
+    this.saveProgress(); // Save progress when navigating
 
     // Focus text input
     setTimeout(() => {
@@ -229,14 +407,20 @@ export class InjuryReport implements OnInit {
     document.getElementById("photo-input")?.click();
   }
 
-  onImageSelected(event: Event): void {
+  onImagesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+    const files = input.files;
+    if (!files || files.length === 0) return;
 
-    this.uploadImage(file);
+    // Upload all selected files
+    Array.from(files).forEach(file => {
+      this.uploadImage(file);
+    });
+    
     input.value = ''; // Reset for re-selection
   }
+
+  private uploadCount = 0;
 
   private uploadImage(file: File): void {
     const q = this.question();
@@ -247,20 +431,31 @@ export class InjuryReport implements OnInit {
       q.value = [];
     }
 
+    this.uploadCount++;
     this.uploading.set(true);
-    const date = new Date().getTime();
-    const filePath = `team/${this.userService.aTeam?.id || 'unknown'}/injury-report/${date}`;
+    
+    // Use unique timestamp with random suffix for multiple files
+    const timestamp = new Date().getTime();
+    const random = Math.random().toString(36).substring(7);
+    const filePath = `team/${this.userService.aTeam?.id || 'unknown'}/injury-report/${timestamp}-${random}`;
     const storageRef = ref(this.storage, filePath);
 
     uploadBytes(storageRef, file)
       .then(() => getDownloadURL(storageRef))
       .then(url => {
         q.value.push({ imageUrl: url });
-        this.uploading.set(false);
+        this.uploadCount--;
+        if (this.uploadCount === 0) {
+          this.uploading.set(false);
+          this.saveProgress();
+        }
       })
       .catch(error => {
         console.error('Error uploading image:', error);
-        this.uploading.set(false);
+        this.uploadCount--;
+        if (this.uploadCount === 0) {
+          this.uploading.set(false);
+        }
         this.snackbar.open("Failed to upload image", "Dismiss", { duration: 3000 });
       });
   }
@@ -269,7 +464,18 @@ export class InjuryReport implements OnInit {
     const q = this.question();
     if (q && Array.isArray(q.value)) {
       q.value.splice(index, 1);
+      this.saveProgress();
     }
+  }
+
+  viewImage(imageUrl: string): void {
+    this.dialog.open(ImageViewerDialogComponent, {
+      data: { imageUrl },
+      width: '100vw',
+      height: '100vh',
+      maxWidth: '100vw',
+      maxHeight: '100vh'
+    });
   }
 
   submitReport(): void {
@@ -291,6 +497,7 @@ export class InjuryReport implements OnInit {
       .createIncidentReport(this.userService.aTeam?.id || '', finishedForm)
       .then(() => {
         this.submitting.set(false);
+        this.clearProgress(); // Clear saved progress on successful submit
         this.snackbar.open("Report submitted successfully", "OK", { duration: 3000 });
         this.router.navigate(['/user'], { queryParamsHandling: "preserve" });
       })
@@ -302,16 +509,48 @@ export class InjuryReport implements OnInit {
   }
 
   quit(): void {
-    this.snackbar.open("Are you sure you want to leave? Your progress will be lost.", "Leave", { duration: 5000 })
-      .onAction()
-      .subscribe(() => {
+    const dialogRef = this.dialog.open(ConfirmLeaveDialogComponent);
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.clearProgress(); // Clear saved progress when user confirms leaving
         this.router.navigate(['/user'], { queryParamsHandling: "preserve" });
-      });
+      }
+    });
   }
 
   // Type enum for template
   readonly Type = Type;
 }
+
+@Component({
+  standalone: true,
+  selector: "confirm-leave-dialog",
+  template: `
+    <h2 mat-dialog-title>
+      <mat-icon>warning</mat-icon>
+      Leave Report?
+    </h2>
+    <mat-dialog-content>
+      Your progress will be lost. Are you sure you want to leave?
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close>Cancel</button>
+      <button mat-flat-button color="warn" [mat-dialog-close]="true">Leave</button>
+    </mat-dialog-actions>
+  `,
+  styles: [`
+    h2[mat-dialog-title] {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h2[mat-dialog-title] mat-icon {
+      color: #F59E0B;
+    }
+  `],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule]
+})
+export class ConfirmLeaveDialogComponent {}
 
 @Component({
   standalone: true,
@@ -396,5 +635,57 @@ export class SignatureDialogComponent implements AfterViewChecked, OnDestroy {
   submit(): void {
     const dataUrl = this.signaturePad?.toDataURL() || null;
     this.dialogRef.close(dataUrl);
+  }
+}
+
+@Component({
+  standalone: true,
+  selector: "image-viewer-dialog",
+  template: `
+    <div class="image-viewer" (click)="close()">
+      <button mat-icon-button class="close-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+      <img [src]="data.imageUrl" alt="Full size image" (click)="$event.stopPropagation()">
+    </div>
+  `,
+  styles: [`
+    .image-viewer {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 10;
+    }
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+  `],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatDialogModule]
+})
+export class ImageViewerDialogComponent {
+  private readonly dialogRef = inject(MatDialogRef<ImageViewerDialogComponent>);
+  readonly data = inject<{ imageUrl: string }>(MAT_DIALOG_DATA);
+
+  close(): void {
+    this.dialogRef.close();
   }
 }

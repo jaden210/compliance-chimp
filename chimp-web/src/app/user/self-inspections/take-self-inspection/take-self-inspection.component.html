@@ -1,76 +1,179 @@
-<mat-toolbar>
-  <div class="toolbar-title">{{ selfInspection?.title }}: {{ inspection?.createdAt?.toDate() | date:'longDate' }}</div>
-  <div class="flex"></div>
-  <button mat-icon-button [matMenuTriggerFor]="menu"><mat-icon>menu</mat-icon></button>
-  <mat-menu #menu="matMenu">
-    <button mat-menu-item (click)="saveAndLeave()">Stop for now</button>
-  </mat-menu>
-</mat-toolbar>
-<div class="window">
-  <div class="panel">
-    <div id="counter">
-      @if (inspection?.completedPercent === 100) {
-        <button mat-raised-button color="accent" (click)="finishAndLeave()" style="margin-right: 12px">Finish Inspection</button>
-      }
-      {{ count }}
-    </div>
-    @for (category of inspection.categories; track category.subject) {
-      <div class="categories">
-        <div class="crow" [ngClass]="{'background': aCategory.subject === category.subject}" (click)="category.show = !category.show">
-          <div class="dot" [ngClass]="{'done': category.finished}"></div>
-          <div class="cname">{{ category.subject }}</div>
-          <div class="flex"></div>
-          <mat-icon [ngClass]="{'rotate': category.show}">keyboard_arrow_left</mat-icon>
-        </div>
-        @if (category.show) {
-          @for (question of category.questions; track question.name) {
-            <div class="questions" (click)="selectQuestion(question)">
-              <div class="qrow" [ngClass]="{'background': aQuestion.name === question.name}">
-                <div class="dot" [ngClass]="{'done': question.answer === true || question.answer === false}"></div>
-                <div class="qname">{{ question.name }}</div>
-              </div>
-            </div>
-          }
-        }
-      </div>
-    }
+@if (!inspection?.id) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
   </div>
-  <div class="viewer">
-    <div id="question-text">{{ aQuestion?.name }}</div>
-    <div id="question-answer">
-      <div class="answer-buttons">
-        <button mat-stroked-button color="primary" (keyup.enter)="nextQuestion()" [ngClass]="{'highlight': aQuestion?.answer === false}" (click)="answerQuestion(false)">
-          <mat-icon class="sm-icon">highlight_off</mat-icon>NO
-        </button>
-        <button mat-stroked-button color="primary" (keyup.enter)="nextQuestion()" [ngClass]="{'highlight-green': aQuestion?.answer}" style="margin-left: 8px" (click)="answerQuestion(true)">
-          <mat-icon class="sm-icon">check_circle</mat-icon>YES
-        </button>
-        <button mat-icon-button color="primary" id="send" (click)="nextQuestion()"><mat-icon>send</mat-icon></button>
+} @else {
+  <div class="inspection-page">
+    <!-- Header -->
+    <header class="inspection-header">
+      <button mat-icon-button class="back-btn" (click)="saveAndLeave()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="header-content">
+        <h1 class="inspection-title">{{ selfInspection?.title }}</h1>
+        <p class="inspection-meta">{{ inspection?.createdAt?.toDate() | date:'MMM d, y' }}</p>
       </div>
-      <div style="height: 0px; width: 0px; overflow:hidden">
-        <input type="file" id="questionImage" accept=".png,.jpg,.mp4" #questionImage (change)="uploadQuestionImage($event)">
+      <button mat-icon-button class="menu-btn" [matMenuTriggerFor]="menu">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="saveAndLeave()">
+          <mat-icon>pause</mat-icon>
+          <span>Save & Exit</span>
+        </button>
+      </mat-menu>
+    </header>
+
+    <!-- Progress Bar -->
+    <div class="progress-section">
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="inspection?.completedPercent || 0"></div>
       </div>
-      <div id="answer-box">
-        @if (aQuestion.images?.length) {
-          <div class="images">
+      <span class="progress-label">{{ count }}</span>
+    </div>
+
+    <!-- Question Content -->
+    <main class="question-content">
+      <!-- Category Navigation (collapsible on mobile) -->
+      <button class="category-toggle" (click)="showCategories = !showCategories">
+        <mat-icon>{{ showCategories ? 'expand_less' : 'list' }}</mat-icon>
+        <span>{{ aCategory?.subject }}</span>
+        <mat-icon class="chevron">chevron_right</mat-icon>
+      </button>
+
+      @if (showCategories) {
+        <div class="categories-drawer">
+          <mat-nav-list>
+            @for (category of inspection.categories; track category.subject) {
+              <mat-list-item 
+                class="category-item"
+                [class.complete]="category.finished"
+                (click)="toggleCategory(category)">
+                <mat-icon matListItemIcon [class.complete]="category.finished">
+                  {{ category.finished ? 'check_circle' : 'radio_button_unchecked' }}
+                </mat-icon>
+                <span matListItemTitle>{{ category.subject }}</span>
+                <span matListItemMeta>
+                  <mat-icon class="expand-icon" [class.expanded]="category.show">expand_more</mat-icon>
+                </span>
+              </mat-list-item>
+              
+              @if (category.show) {
+                @for (question of category.questions; track question.name) {
+                  <mat-list-item 
+                    class="question-item"
+                    [class.active]="aQuestion?.name === question.name"
+                    [class.answered]="question.answer !== undefined"
+                    [class.compliant]="question.answer === true"
+                    [class.non-compliant]="question.answer === false"
+                    (click)="selectQuestion(question); showCategories = false">
+                    <mat-icon matListItemIcon 
+                      [class.unanswered]="question.answer === undefined"
+                      [class.compliant]="question.answer === true"
+                      [class.non-compliant]="question.answer === false">
+                      @if (question.answer === undefined) {
+                        circle
+                      } @else if (question.answer === true) {
+                        check_circle
+                      } @else {
+                        error
+                      }
+                    </mat-icon>
+                    <span matListItemTitle class="question-text-item">{{ question.name }}</span>
+                  </mat-list-item>
+                }
+              }
+            }
+          </mat-nav-list>
+        </div>
+      }
+
+      <!-- Question Card -->
+      <div class="question-card">
+        <p class="question-text">{{ aQuestion?.name }}</p>
+
+        <!-- Attached Images -->
+        @if (aQuestion?.images?.length) {
+          <div class="images-row">
             @for (image of aQuestion.images; track image) {
-              <div class="image">
-                <button mat-icon-button color="primary" class="remove-image-button">
-                  <mat-icon (click)="removeImage(image)">close</mat-icon>
+              <div class="image-thumb">
+                <img [src]="image" alt="Attached image">
+                <button class="remove-image" (click)="removeImage(image)">
+                  <mat-icon>close</mat-icon>
                 </button>
-                <img class="img" [src]="image" alt="image">
               </div>
             }
           </div>
         }
+
         @if (loading) {
-          <mat-progress-bar style="position: absolute;top: 0;left:0" mode="indeterminate"></mat-progress-bar>
+          <mat-progress-bar mode="indeterminate" class="upload-bar"></mat-progress-bar>
         }
-        <button mat-icon-button id="image-button" (click)="uploadImage()"><mat-icon>photo</mat-icon></button>
-        <mat-form-field class="textarea">
-          <textarea matInput [(ngModel)]="aQuestion.comment" matTextareaAutosize matAutosizeMinRows="8" placeholder="optional comments for the question"></textarea>
-        </mat-form-field>
       </div>
+    </main>
+
+    <!-- Response Panel (Fixed Bottom) -->
+    <div class="response-panel">
+      <!-- Answer Buttons -->
+      <div class="answer-section">
+        <span class="answer-label">Is this compliant?</span>
+        <div class="answer-buttons">
+          <button 
+            mat-stroked-button 
+            class="answer-btn yes-btn"
+            [class.selected]="aQuestion?.answer === true"
+            (click)="answerQuestion(true)">
+            <mat-icon>check_circle</mat-icon>
+            Yes
+          </button>
+          <button 
+            mat-stroked-button 
+            class="answer-btn no-btn"
+            [class.selected]="aQuestion?.answer === false"
+            (click)="answerQuestion(false)">
+            <mat-icon>cancel</mat-icon>
+            No
+          </button>
+        </div>
+      </div>
+
+      <!-- Comment & Actions -->
+      <div class="comment-box">
+        <textarea
+          [(ngModel)]="aQuestion.comment"
+          placeholder="Add a comment (optional)"
+          rows="2"
+        ></textarea>
+        <div class="action-buttons">
+          <button mat-icon-button class="attach-btn" (click)="uploadImage()">
+            <mat-icon>add_photo_alternate</mat-icon>
+          </button>
+          <button 
+            mat-fab 
+            color="primary" 
+            class="next-btn"
+            (click)="nextQuestion()">
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Finish Button -->
+      @if (inspection?.completedPercent === 100) {
+        <button mat-flat-button color="accent" class="finish-btn" (click)="finishAndLeave()">
+          <mat-icon>check</mat-icon>
+          Finish Inspection
+        </button>
+      }
     </div>
+
+    <!-- Hidden file input -->
+    <input 
+      type="file" 
+      id="questionImage" 
+      accept=".png,.jpg,.jpeg" 
+      #questionImage 
+      (change)="uploadQuestionImage($event)" 
+      hidden>
   </div>
-</div>
+}

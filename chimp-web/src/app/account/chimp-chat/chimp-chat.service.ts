@@ -40,6 +40,11 @@ interface ChimpChatResponse {
 })
 export class ChimpChatService {
   private conversationHistory: ChimpChatMessage[] = [];
+  
+  // Expose messages for components to bind to
+  get messages(): ChimpChatMessage[] {
+    return this.conversationHistory;
+  }
 
   constructor(
     private functions: Functions,
@@ -127,6 +132,11 @@ export class ChimpChatService {
       default:
         console.warn('Unknown action type:', action.type);
     }
+  }
+
+  // Add a message directly (for tour messages, etc.)
+  addMessage(message: ChimpChatMessage): void {
+    this.conversationHistory.push(message);
   }
 
   clearChat(): void {

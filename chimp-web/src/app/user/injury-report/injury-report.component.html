@@ -33,15 +33,19 @@
         <!-- Radio Options -->
         @if (q.type === Type.radio) {
           <div class="options-container">
-            <mat-radio-group [(ngModel)]="q.value" class="options-group">
+            <div class="options-group">
               @for (option of q.radioOptions; track option.value) {
-                <label class="option-card" [class.selected]="q.value === option.value">
-                  <mat-radio-button [value]="option.value">
-                    {{ option.name }}
-                  </mat-radio-button>
-                </label>
+                <div 
+                  class="option-card" 
+                  [class.selected]="q.value === option.value"
+                  (click)="selectOption(q, option.value)">
+                  <mat-icon class="option-icon">
+                    {{ q.value === option.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  <span class="option-label">{{ option.name }}</span>
+                </div>
               }
-            </mat-radio-group>
+            </div>
           </div>
         }
 
@@ -57,9 +61,10 @@
                 (keydown)="$event.preventDefault()"
                 [matDatepicker]="picker"
                 [(ngModel)]="q.value"
+                (ngModelChange)="onValueChange()"
               />
               <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-              <mat-datepicker touchUi #picker></mat-datepicker>
+              <mat-datepicker touchUi #picker (closed)="onValueChange()"></mat-datepicker>
             </mat-form-field>
           </div>
         }
@@ -71,6 +76,7 @@
               <textarea
                 id="text-input"
                 [(ngModel)]="q.value"
+                (ngModelChange)="onValueChange()"
                 placeholder="Type your response here..."
                 cdkTextareaAutosize
                 cdkAutosizeMinRows="3"
@@ -83,59 +89,58 @@
         <!-- Photo Upload -->
         @if (q.type === Type.photos) {
           <div class="photos-container">
-            <!-- Uploaded Images -->
-            @if (q.value?.length) {
-              <div class="photo-grid">
-                @for (image of q.value; track $index) {
-                  <div class="photo-item">
-                    <img [src]="image.imageUrl" alt="Uploaded photo">
-                    <button mat-icon-button class="remove-photo-btn" (click)="removeImage($index)">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  </div>
-                }
-              </div>
-            }
+            <div class="photo-grid">
+              <!-- Uploaded Images -->
+              @for (image of q.value; track $index) {
+                <div class="photo-item">
+                  <img [src]="image.imageUrl" alt="Uploaded photo" (click)="viewImage(image.imageUrl)">
+                  <button mat-icon-button class="remove-photo-btn" (click)="removeImage($index); $event.stopPropagation()">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              }
 
-            <!-- Add Photo Button -->
-            <button mat-stroked-button class="add-photo-btn" (click)="selectImage()" [disabled]="uploading()">
-              @if (uploading()) {
-                <ng-container>
-                  <mat-spinner diameter="20"></mat-spinner>
-                  <span>Uploading...</span>
-                </ng-container>
-              } @else {
-                <ng-container>
+              <!-- Add Photo Button -->
+              <div class="add-photo-btn" (click)="selectImage()" [class.disabled]="uploading()">
+                @if (uploading()) {
+                  <mat-spinner diameter="24"></mat-spinner>
+                } @else {
                   <mat-icon>add_photo_alternate</mat-icon>
                   <span>Add Photo</span>
-                </ng-container>
-              }
-            </button>
+                }
+              </div>
+            </div>
 
             <input
               type="file"
               id="photo-input"
               accept="image/*"
-              capture="environment"
-              (change)="onImageSelected($event)"
+              multiple
+              (change)="onImagesSelected($event)"
               style="display: none;"
             />
           </div>
         }
 
-        <!-- Signature (now handled via dialog) -->
+        <!-- Signature (embedded canvas) -->
         @if (q.type === Type.signature) {
-          <div class="signature-preview">
+          <div class="signature-area">
             @if (q.value) {
-              <p class="signature-label">Your signature:</p>
               <div class="signature-image-container">
                 <img [src]="q.value" alt="Your signature">
               </div>
+              <button mat-stroked-button class="clear-signature-btn" (click)="clearSignature()">
+                <mat-icon>refresh</mat-icon>
+                Sign Again
+              </button>
             } @else {
-              <div class="signature-placeholder">
-                <mat-icon>draw</mat-icon>
-                <p>Tap "Next" to add your signature</p>
-              </div>
+              <canvas #signatureCanvas class="signature-canvas"></canvas>
+              @if (signatureComplete()) {
+                <button mat-stroked-button class="clear-signature-btn" (click)="clearSignaturePad()">
+                  <mat-icon>refresh</mat-icon>
+                  Clear
+                </button>
+              }
             }
           </div>
         }
@@ -168,10 +173,7 @@
                 <span>Submitting...</span>
               </ng-container>
             } @else {
-              <ng-container>
-                <mat-icon>send</mat-icon>
-                <span>Submit Report</span>
-              </ng-container>
+              Submit Report
             }
           </button>
         } @else {
@@ -201,11 +203,7 @@
               (click)="next()"
               [disabled]="!canGoNext() || uploading()"
             >
-              @if (question()?.type === Type.signature && !question()?.value) {
-                Sign
-              } @else {
-                Next
-              }
+              Next
               <mat-icon>arrow_forward</mat-icon>
             </button>
           }

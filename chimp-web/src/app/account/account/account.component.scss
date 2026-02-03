@@ -280,6 +280,155 @@
   }
 }
 
+// Self-Inspection Settings Section - Reminder Card
+.reminder-settings-card {
+  background: var(--chimp-bg-primary, #ffffff);
+  border: 1px solid var(--chimp-border-light, #e0e0e0);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.reminder-settings-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(255, 145, 0, 0.06), rgba(255, 145, 0, 0.02));
+  border-bottom: 1px solid var(--chimp-border-light, #e0e0e0);
+}
+
+.reminder-settings-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: var(--chimp-accent, #ff9100);
+  flex-shrink: 0;
+}
+
+.reminder-settings-title-section {
+  flex: 1;
+  
+  h3 {
+    margin: 0 0 4px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--chimp-text-secondary);
+    line-height: 1.5;
+  }
+}
+
+.reminder-settings-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--chimp-bg-secondary, #f8f9fa);
+}
+
+.reminder-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--chimp-border-light, #e0e0e0);
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+.reminder-settings-options {
+  padding: 24px;
+  border-top: 1px solid var(--chimp-border-light, #e0e0e0);
+  background: var(--chimp-bg-primary, #ffffff);
+}
+
+.notification-method-section {
+  .method-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--chimp-text-primary);
+    margin-bottom: 12px;
+  }
+}
+
+.method-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
+
+.method-radio-group {
+  display: flex;
+  gap: 24px;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.method-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--chimp-text-secondary);
+  }
+}
+
+.phone-field {
+  width: 240px;
+  
+  @media (max-width: 600px) {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+.phone-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #e65100;
+  max-width: 400px;
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: #ff9800;
+  }
+}
+
 // Billing Section
 .billing-content {
   max-width: 500px;

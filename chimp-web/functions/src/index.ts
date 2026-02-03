@@ -350,6 +350,41 @@ export const autoBuildCompliance = onCall(
         'autoBuildProgress.logQueue': []  // Reset log queue
       });
 
+      // Calculate distributed due dates for inspections
+      // Group by frequency to spread items of the same cadence evenly
+      const inspectionsByFrequency = new Map<string, number[]>();
+      inspectionRecommendations.forEach((rec, index) => {
+        let frequency = rec.frequency || 'Monthly';
+        if (frequency === 'Semi-Annually') frequency = 'Semi-Anually';
+        if (frequency === 'Annually') frequency = 'Anually';
+        
+        if (!inspectionsByFrequency.has(frequency)) {
+          inspectionsByFrequency.set(frequency, []);
+        }
+        inspectionsByFrequency.get(frequency)!.push(index);
+      });
+
+      // Pre-calculate due dates for all inspections
+      const inspectionDueDates: Date[] = new Array(inspectionRecommendations.length);
+      const now = new Date();
+      
+      inspectionsByFrequency.forEach((indices, frequency) => {
+        const intervalDays = getFrequencyIntervalDays(frequency);
+        const count = indices.length;
+        
+        // Spread inspections throughout the interval, starting 7 days from now
+        // Use weekly spacing within the interval
+        const spacingDays = count > 1 
+          ? Math.floor((intervalDays - 7) / count)  // Distribute across the interval
+          : Math.floor(intervalDays / 2);  // Single item: middle of interval
+        
+        indices.forEach((originalIndex, slotIndex) => {
+          const dueDate = new Date(now);
+          dueDate.setDate(dueDate.getDate() + 7 + (slotIndex * spacingDays));
+          inspectionDueDates[originalIndex] = dueDate;
+        });
+      });
+
       // Create all inspections in parallel - they're just Firestore writes
       const inspectionPromises = inspectionRecommendations.map(async (rec, index) => {
         let frequency = rec.frequency || 'Monthly';
@@ -372,11 +407,12 @@ export const autoBuildCompliance = onCall(
           createdAt: new Date(),
           baseQuestions: baseQuestions,
           source: 'auto-build',
-          userId: 'system'
+          userId: 'system',
+          nextDueDate: inspectionDueDates[index]  // Set distributed due date
         };
 
         await db.collection(`team/${teamId}/self-inspection`).add(selfInspection);
-        console.log(`[AutoBuild] Created inspection: ${rec.name}`);
+        console.log(`[AutoBuild] Created inspection: ${rec.name} (due: ${inspectionDueDates[index].toISOString().split('T')[0]})`);
         
         // Return the name for logging after all complete
         return rec.name;
@@ -2818,12 +2854,15 @@ export const createdSelfInspection = onDocumentCreated(
     
     if (!selfInspection) return null;
 
-    /* Calculate next due date based on frequency */
-    const nextDueDate = calculateNextDueDate(selfInspection.inspectionExpiration);
-    
-    // Update the document with the next due date if we calculated one
-    if (nextDueDate && event.data) {
-      await event.data.ref.update({ nextDueDate });
+    // Only calculate next due date if one wasn't already provided
+    // (bulk auto-build sets distributed dates; manual creation needs calculation)
+    if (!selfInspection.nextDueDate) {
+      const nextDueDate = calculateNextDueDate(selfInspection.inspectionExpiration);
+      
+      // Update the document with the next due date if we calculated one
+      if (nextDueDate && event.data) {
+        await event.data.ref.update({ nextDueDate });
+      }
     }
 
     // Invalidate coverage analysis cache since inspections changed
@@ -2904,6 +2943,20 @@ function calculateNextDueDate(frequency: string): Date | null {
 
     default:
       return null;
+  }
+}
+
+/**
+ * Get the number of days in an inspection frequency interval.
+ * Used to distribute due dates evenly across the period.
+ */
+function getFrequencyIntervalDays(frequency: string): number {
+  switch (frequency) {
+    case 'Monthly': return 30;
+    case 'Quarterly': return 90;
+    case 'Semi-Anually': return 180;
+    case 'Anually': return 365;
+    default: return 30;  // Default to monthly
   }
 }
 
@@ -3557,9 +3610,16 @@ function expandTagsToMembers(assignedTags: string[], teamMembers: any[]): string
 async function checkSelfInspectionReminders() {
   const today = moment();
   const teamsSnapshot = await admin.firestore().collection("team").get();
+  let remindersSent = 0;
   
   for (const teamDoc of teamsSnapshot.docs) {
-    const team = { ...teamDoc.data(), id: teamDoc.id };
+    const team = { ...teamDoc.data(), id: teamDoc.id } as any;
+    
+    // Skip disabled teams
+    if (team.disabled) {
+      continue;
+    }
+    
     const selfInspectionsSnapshot = await admin.firestore()
       .collection(`team/${team.id}/self-inspection`)
       .get();
@@ -3567,38 +3627,46 @@ async function checkSelfInspectionReminders() {
     for (const siDoc of selfInspectionsSnapshot.docs) {
       const selfInspection = siDoc.data();
       
-      if (!selfInspection.inspectionExpiration || !selfInspection.lastCompletedAt) {
-        continue; // No interval set or never completed
+      // Calculate due date - either from manual override or from last completed + frequency
+      let dueDate: moment.Moment | null = null;
+      let lastCompleted: moment.Moment | null = null;
+      
+      // Check for manual due date override first
+      if (selfInspection.nextDueDate) {
+        dueDate = moment(selfInspection.nextDueDate.toDate ? selfInspection.nextDueDate.toDate() : selfInspection.nextDueDate);
+      } else if (selfInspection.inspectionExpiration && selfInspection.lastCompletedAt) {
+        lastCompleted = moment(selfInspection.lastCompletedAt.toDate ? selfInspection.lastCompletedAt.toDate() : selfInspection.lastCompletedAt);
+        
+        // Calculate when the next inspection is due based on the interval
+        switch (selfInspection.inspectionExpiration) {
+          case 'Monthly':
+            dueDate = lastCompleted.clone().add(1, 'month');
+            break;
+          case 'Quarterly':
+            dueDate = lastCompleted.clone().add(3, 'months');
+            break;
+          case 'Semi-Anually':
+            dueDate = lastCompleted.clone().add(6, 'months');
+            break;
+          case 'Anually':
+            dueDate = lastCompleted.clone().add(1, 'year');
+            break;
+          default:
+            continue;
+        }
+      } else {
+        continue; // No due date determinable
       }
       
-      const lastCompleted = moment(selfInspection.lastCompletedAt.toDate());
-      let dueDate: moment.Moment;
+      if (!dueDate) continue;
       
-      // Calculate when the next inspection is due based on the interval
-      switch (selfInspection.inspectionExpiration) {
-        case 'Monthly':
-          dueDate = lastCompleted.clone().add(1, 'month');
-          break;
-        case 'Quarterly':
-          dueDate = lastCompleted.clone().add(3, 'months');
-          break;
-        case 'Semi-Anually':
-          dueDate = lastCompleted.clone().add(6, 'months');
-          break;
-        case 'Anually':
-          dueDate = lastCompleted.clone().add(1, 'year');
-          break;
-        default:
-          continue;
-      }
-      
-      // Check if due date is within the next 7 days or past due
+      // Check if due date is within the next 7 days or past due (up to 30 days overdue)
       const daysUntilDue = dueDate.diff(today, 'days');
       
       if (daysUntilDue <= 7 && daysUntilDue >= -30) {
         // Check if we already sent a reminder recently
         const lastReminderSent = selfInspection.lastReminderSent 
-          ? moment(selfInspection.lastReminderSent.toDate()) 
+          ? moment(selfInspection.lastReminderSent.toDate ? selfInspection.lastReminderSent.toDate() : selfInspection.lastReminderSent) 
           : null;
         
         if (lastReminderSent && today.diff(lastReminderSent, 'days') < 7) {
@@ -3611,38 +3679,103 @@ async function checkSelfInspectionReminders() {
           .where("teamId", "==", team.id)
           .get();
         
+        let reminderSentToSomeone = false;
+        
         for (const managerDoc of managersSnapshot.docs) {
-          const manager = managerDoc.data();
-          if (manager.email) {
-            const urgency = daysUntilDue < 0 
-              ? `is ${Math.abs(daysUntilDue)} days overdue` 
-              : daysUntilDue === 0 
-                ? 'is due today'
-                : `is due in ${daysUntilDue} days`;
+          const manager = managerDoc.data() as any;
+          
+          // Check if user has self-inspection reminders enabled (defaults to true if undefined)
+          if (manager.selfInspectionRemindersEnabled === false) {
+            console.log(`Skipping self-inspection reminder for ${manager.name || manager.email} - reminders disabled`);
+            continue;
+          }
+          
+          // Determine notification method (defaults to 'email' if undefined)
+          const reminderMethod = manager.selfInspectionReminderMethod || 'email';
+          
+          // Check if user has required contact info for their preferred method
+          if (reminderMethod === 'sms' && !manager.phone) {
+            console.log(`Skipping SMS reminder for ${manager.name || manager.email} - no phone number`);
+            // Fall back to email if no phone number
+            if (!manager.email) continue;
+          } else if (reminderMethod === 'email' && !manager.email) {
+            console.log(`Skipping email reminder for ${manager.name || manager.email} - no email`);
+            continue;
+          }
+          
+          // Build urgency text and styling
+          const urgencyText = daysUntilDue < 0 
+            ? `${Math.abs(daysUntilDue)} days overdue` 
+            : daysUntilDue === 0 
+              ? 'due today'
+              : `due in ${daysUntilDue} days`;
+          
+          const urgencyBadge = daysUntilDue < 0 
+            ? `${Math.abs(daysUntilDue)} Days Overdue`
+            : daysUntilDue === 0 
+              ? 'Due Today'
+              : `Due in ${daysUntilDue} Days`;
+          
+          const urgencyClass = daysUntilDue < 0 
+            ? 'urgency-danger'
+            : daysUntilDue === 0 
+              ? 'urgency-warning'
+              : 'urgency-info';
+          
+          const inspectionLink = `https://compliancechimp.com/account/self-inspections/${siDoc.id}`;
+          const lastCompletedText = lastCompleted 
+            ? lastCompleted.format('MMMM D, YYYY') 
+            : 'Never';
+          
+          try {
+            if (reminderMethod === 'sms' && manager.phone) {
+              // Send SMS
+              const smsBody = `Compliancechimp Reminder: Your self-inspection "${selfInspection.title}" is ${urgencyText}. Last completed: ${lastCompletedText}. Complete it now: ${inspectionLink}`;
+              await sendMessage({ ...manager, preferEmail: false }, team, smsBody);
+              console.log(`Sent SMS self-inspection reminder to ${manager.phone} for ${selfInspection.title}`);
+            } else if (manager.email) {
+              // Send email with template
+              const emailHtml = getSelfInspectionReminderEmail()
+                .replace(/\{\{recipientName\}\}/g, manager.name || 'there')
+                .replace(/\{\{urgencyText\}\}/g, urgencyText)
+                .replace(/\{\{inspectionTitle\}\}/g, selfInspection.title)
+                .replace(/\{\{urgencyBadge\}\}/g, urgencyBadge)
+                .replace(/\{\{urgencyClass\}\}/g, urgencyClass)
+                .replace(/\{\{lastCompleted\}\}/g, lastCompletedText)
+                .replace(/\{\{frequency\}\}/g, selfInspection.inspectionExpiration || 'Not set')
+                .replace(/\{\{inspectionLink\}\}/g, inspectionLink);
+              
+              await sendMessage({ ...manager, preferEmail: true }, team, emailHtml);
+              console.log(`Sent email self-inspection reminder to ${manager.email} for ${selfInspection.title}`);
+            }
             
-            const body = `
-              <h2>Self-Inspection Reminder</h2>
-              <p>Hi ${manager.name || 'there'},</p>
-              <p>Your self-inspection "<strong>${selfInspection.title}</strong>" ${urgency}.</p>
-              <p>Last completed: ${lastCompleted.format('MMMM D, YYYY')}</p>
-              <p>Frequency: ${selfInspection.inspectionExpiration}</p>
-              <p><a href="https://compliancechimp.com/account/self-inspections/${siDoc.id}">Complete the inspection now</a></p>
-              <p>- The ComplianceChimp Team</p>
-            `;
-            
-            await sendMessage({ ...manager, preferEmail: true }, team, body);
+            remindersSent++;
+            reminderSentToSomeone = true;
+          } catch (error) {
+            console.error(`Failed to send self-inspection reminder to ${manager.email || manager.phone}:`, error);
           }
         }
         
-        // Update the last reminder sent timestamp
-        await admin.firestore()
-          .doc(`team/${team.id}/self-inspection/${siDoc.id}`)
-          .update({ lastReminderSent: new Date() });
+        // Update the last reminder sent timestamp only if we sent to at least one person
+        if (reminderSentToSomeone) {
+          await admin.firestore()
+            .doc(`team/${team.id}/self-inspection/${siDoc.id}`)
+            .update({ lastReminderSent: new Date() });
+        }
       }
     }
   }
   
-  console.log('Self-inspection reminders check complete');
+  console.log(`Self-inspection reminders check complete. Sent ${remindersSent} reminders.`);
+}
+
+/**
+ * Get self-inspection reminder email template
+ */
+function getSelfInspectionReminderEmail(): string {
+  return fs
+    .readFileSync(path.resolve(`src/email-templates/user/self-inspection-reminder.html`))
+    .toString();
 }
 
 function findSurveys(): Promise<any> {
@@ -3761,6 +3894,40 @@ export const resendTeamMemberInvite = onCall(
     }
     
     return await sendMessage(teamMember, team, messageBody);
+  }
+);
+
+/**
+ * Send a mobile access link email to a manager/owner.
+ * Managers use user-id parameter instead of member-id.
+ */
+export const sendManagerAccessLink = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    const { user, team } = request.data as any;
+    
+    if (!user?.email) {
+      throw new HttpsError('invalid-argument', 'User email is required');
+    }
+    
+    // Use the manager access link email template
+    const emailHtml = getEmail("manager-access-link");
+    const messageBody = emailHtml
+      .split("{{recipientName}}")
+      .join(user.name || 'there')
+      .split("{{userId}}")
+      .join(user.id);
+    
+    const client = createSendgridClient();
+    
+    await client.sendMail({
+      from: '"Compliancechimp" <support@compliancechimp.com>',
+      to: user.email,
+      subject: "Your Compliancechimp Mobile Access Link",
+      html: messageBody,
+    });
+    
+    return { success: true };
   }
 );
 

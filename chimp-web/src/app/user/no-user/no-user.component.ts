@@ -1,6 +1,7 @@
 import { Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterModule, Router, ActivatedRoute } from "@angular/router";
+import { MatIconModule } from "@angular/material/icon";
 import { AppService } from "../../app.service";
 
 @Component({
@@ -8,7 +9,7 @@ import { AppService } from "../../app.service";
   selector: "no-user",
   templateUrl: "./no-user.component.html",
   styleUrls: ["./no-user.component.scss"],
-  imports: [CommonModule, RouterModule]
+  imports: [CommonModule, RouterModule, MatIconModule]
 })
 export class NoUserComponent {
   private readonly router = inject(Router);

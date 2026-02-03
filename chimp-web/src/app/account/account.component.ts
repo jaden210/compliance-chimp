@@ -17,7 +17,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { AppService } from "../app.service";
 import { Subscription, filter } from "rxjs";
 import { LoadingChimpComponent } from "./loading-chimp/loading-chimp.component";
-import { ChimpChatComponent } from "./chimp-chat/chimp-chat.component";
+import { ChimpChatComponent, ChimpChatMode } from "./chimp-chat/chimp-chat.component";
 import { addDoc, collection, doc, docData, Firestore } from "@angular/fire/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -76,7 +76,9 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   bShowAccountInfo: boolean = false; // template var
   helperContrast: boolean = false; // template var
   showChimpChat: boolean = false; // ChimpChat panel visibility
+  chatMode: ChimpChatMode = 'dialog'; // ChimpChat display mode
   pendingChatMessage: string | null = null; // Message to auto-submit when chat opens
+  private readonly CHAT_MODE_STORAGE_KEY = 'chimp_chat_mode';
   private authUnsubscribe?: () => void;
   private routerSubscription?: Subscription;
   private startTourListener?: () => void;
@@ -128,6 +130,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
 
   ngOnInit() {
     this.loadNavClickData();
+    this.loadChatMode();
     
     // Track route changes to increment clicks
     this.routerSubscription = this.router.events.pipe(
@@ -142,6 +145,27 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     // Listen for startTour events from child components
     this.startTourListener = () => this.openChimpChatWithMessage('Take the tour');
     document.addEventListener('startTour', this.startTourListener);
+  }
+
+  // Load chat mode preference from localStorage
+  private loadChatMode(): void {
+    try {
+      const stored = localStorage.getItem(this.CHAT_MODE_STORAGE_KEY);
+      if (stored === 'dialog' || stored === 'sidenav') {
+        this.chatMode = stored;
+      }
+    } catch {
+      this.chatMode = 'dialog';
+    }
+  }
+
+  // Save chat mode preference to localStorage
+  private saveChatMode(): void {
+    try {
+      localStorage.setItem(this.CHAT_MODE_STORAGE_KEY, this.chatMode);
+    } catch {
+      // localStorage might be full or unavailable
+    }
   }
 
   ngOnDestroy() {
@@ -271,6 +295,17 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     if (!this.showChimpChat) {
       this.pendingChatMessage = null;
     }
+  }
+
+  closeChimpChat(): void {
+    this.showChimpChat = false;
+    this.pendingChatMessage = null;
+  }
+
+  // Handle mode change from ChimpChat component
+  onChatModeChange(newMode: ChimpChatMode): void {
+    this.chatMode = newMode;
+    this.saveChatMode();
   }
 
   // Open ChimpChat with a pre-filled message that will be auto-submitted

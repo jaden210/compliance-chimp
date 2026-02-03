@@ -13,7 +13,9 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatMenuModule } from "@angular/material/menu";
+import { MatListModule } from "@angular/material/list";
 import { TextFieldModule } from "@angular/cdk/text-field";
 import { UserService } from "../../user.service";
 import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage";
@@ -36,7 +38,9 @@ import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatMenuModule,
+    MatListModule,
     TextFieldModule
   ],
   providers: [DatePipe]
@@ -58,6 +62,7 @@ export class TakeSelfInspectionComponent {
   aQuestion: Question = new Question();
   count: string;
   loading: boolean = false;
+  showCategories: boolean = false;
 
   constructor() {
     this.userService.teamObservable
@@ -137,6 +142,17 @@ export class TakeSelfInspectionComponent {
       category.questions.find(q => q === question) === question
     );
     this.aCategory.show = true;
+  }
+
+  toggleCategory(category: Categories) {
+    if (this.aCategory?.subject === category.subject) {
+      category.show = !category.show;
+    } else {
+      this.inspection.categories.forEach(c => c.show = false);
+      category.show = true;
+      this.aCategory = category;
+      this.aQuestion = category.questions[0];
+    }
   }
 
   nextQuestion() {

@@ -20,6 +20,20 @@
       </div>
     </div>
   </mat-sidenav>
+  
+  <!-- ChimpChat Sidenav (Right side) -->
+  <mat-sidenav #chatSidenav mode="side" position="end" 
+    [opened]="showChimpChat && chatMode === 'sidenav'"
+    class="chat-sidenav">
+    <chimp-chat 
+      mode="sidenav"
+      [initialMessage]="pendingChatMessage"
+      (close)="closeChimpChat()"
+      (modeChange)="onChatModeChange($event)"
+      (messageConsumed)="pendingChatMessage = null">
+    </chimp-chat>
+  </mat-sidenav>
+  
   <mat-sidenav-content>
     <!-- ***** HELPER ***** -->
     <!-- <div class="helper" id="helper-color" *ngIf="accountService.showHelper" [@helper]>
@@ -112,11 +126,13 @@
   </div>
 </div>
 
-<!-- ChimpChat Panel -->
+<!-- ChimpChat Panel (Dialog mode) -->
 <chimp-chat 
-  *ngIf="showChimpChat" 
+  *ngIf="showChimpChat && chatMode === 'dialog'" 
+  mode="dialog"
   [initialMessage]="pendingChatMessage"
-  (close)="showChimpChat = false; pendingChatMessage = null"
+  (close)="closeChimpChat()"
+  (modeChange)="onChatModeChange($event)"
   (messageConsumed)="pendingChatMessage = null">
 </chimp-chat>
 

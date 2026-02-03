@@ -185,6 +185,8 @@ export const TOUR_TRIGGER_PHRASES = [
   'show me the app',
   'show me how',
   'show me everything',
+  'show you the ropes',
+  'show me the ropes',
   'walk me through',
   'walkthrough',
   'walk through',

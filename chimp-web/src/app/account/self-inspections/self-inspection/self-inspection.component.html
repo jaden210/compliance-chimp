@@ -58,6 +58,9 @@
           </div>
           <div class="metric-value muted" *ngIf="!nextDueDate">—</div>
         </div>
+        <button mat-icon-button class="metric-edit-btn" matTooltip="Edit next due date" (click)="openEditDueDateDialog()">
+          <mat-icon>edit</mat-icon>
+        </button>
       </div>
 
       <!-- Days Until Due -->

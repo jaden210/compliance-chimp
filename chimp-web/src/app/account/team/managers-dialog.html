@@ -8,12 +8,8 @@
   <div class="managers-list">
     <!-- Add New Manager Card -->
     <div class="manager-card add-card" (click)="startManager()">
-      <div class="manager-avatar add">
-        <mat-icon>add</mat-icon>
-      </div>
-      <div class="manager-info">
-        <div class="manager-name">Add a New Manager</div>
-      </div>
+      <mat-icon>add</mat-icon>
+      <span class="manager-name">Add a New Manager</span>
     </div>
     
     <!-- New Manager Form -->
@@ -51,7 +47,6 @@
     
     <!-- Existing Managers -->
     <div class="manager-card" *ngFor="let manager of Managers">
-      <img class="manager-avatar" [src]="manager.profileUrl" onerror="this.src = './assets/face.png'">
       <div class="manager-info">
         <div class="manager-name">
           {{ manager.name }}
@@ -59,6 +54,21 @@
         </div>
         <div class="manager-email">{{ manager.email }}</div>
       </div>
+      <!-- Menu for yourself (logged-in manager) -->
+      <button mat-icon-button [matMenuTriggerFor]="youMenu" *ngIf="isYou(manager.id)">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #youMenu="matMenu">
+        <button mat-menu-item (click)="viewYourUserPage()">
+          <mat-icon>open_in_new</mat-icon>
+          View Your User Page
+        </button>
+        <button mat-menu-item (click)="sendAccessLink()" [disabled]="sendingAccessLink">
+          <mat-icon>email</mat-icon>
+          {{ sendingAccessLink ? 'Sending...' : 'Send Access Link' }}
+        </button>
+      </mat-menu>
+      <!-- Menu for other managers (not owner, not yourself) -->
       <button mat-icon-button [matMenuTriggerFor]="menu" *ngIf="!isYou(manager.id) && !isOwner(manager.id)">
         <mat-icon>more_vert</mat-icon>
       </button>

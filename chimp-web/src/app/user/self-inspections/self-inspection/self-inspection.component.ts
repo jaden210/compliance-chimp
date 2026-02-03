@@ -5,10 +5,10 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { SelfInspectionsService, Inspection, SelfInspection } from "../self-inspections.service";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
-import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { jsPDF } from "jspdf";
 import { UserService } from "../../user.service";
 
@@ -22,10 +22,10 @@ import { UserService } from "../../user.service";
     RouterModule,
     MatDialogModule,
     MatSnackBarModule,
-    MatToolbarModule,
     MatButtonModule,
     MatIconModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatProgressSpinnerModule
   ],
   providers: [DatePipe]
 })

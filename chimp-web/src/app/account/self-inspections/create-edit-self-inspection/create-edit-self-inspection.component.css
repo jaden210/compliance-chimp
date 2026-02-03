@@ -156,6 +156,19 @@
   margin-left: -2px;
 }
 
+.frequency-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.frequency-hint {
+  font-size: 12px;
+  color: var(--chimp-on-surface-variant);
+  margin-top: 6px;
+  text-align: right;
+}
+
 /* Questions Section */
 .questions-section {
   margin-bottom: 24px;
@@ -461,9 +474,18 @@
     gap: 12px;
   }
 
+  .frequency-container {
+    width: 100%;
+    align-items: stretch;
+  }
+
   .frequency-dropdown {
     width: 100%;
     justify-content: center;
+  }
+
+  .frequency-hint {
+    text-align: center;
   }
 
   .question-item {

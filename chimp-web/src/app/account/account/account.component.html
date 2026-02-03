@@ -172,6 +172,95 @@
 
   <mat-divider></mat-divider>
 
+  <!-- Self-Inspection Settings Section -->
+  <section class="section">
+    <div class="section-header">
+      <mat-icon class="section-icon">fact_check</mat-icon>
+      <h2>Self-Inspection Settings</h2>
+    </div>
+    
+    <div class="reminder-settings-card">
+      <div class="reminder-settings-header">
+        <mat-icon class="reminder-settings-icon">notifications_active</mat-icon>
+        <div class="reminder-settings-title-section">
+          <h3>Self-Inspection Reminders</h3>
+          <p>Get notified when your self-inspections are due. Reminders are sent 7 days before the due date and on the due date.</p>
+        </div>
+      </div>
+      
+      <div class="reminder-settings-benefits">
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Never miss an inspection deadline</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Runs daily at 8:00 AM Central Time</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Choose between email or SMS notifications</span>
+        </div>
+      </div>
+
+      <div class="reminder-settings-toggle">
+        <div class="toggle-info">
+          <span class="toggle-label">Self-Inspection Reminders</span>
+          <span class="toggle-status" [class.enabled]="selfInspectionRemindersEnabled">
+            {{ selfInspectionRemindersEnabled ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
+        <mat-slide-toggle 
+          [checked]="selfInspectionRemindersEnabled"
+          (change)="selfInspectionRemindersEnabled = $event.checked"
+          color="primary">
+        </mat-slide-toggle>
+      </div>
+
+      <div class="reminder-settings-options" *ngIf="selfInspectionRemindersEnabled">
+        <div class="notification-method-section">
+          <span class="method-label">Notification Method</span>
+          <div class="method-row">
+            <mat-radio-group 
+              [value]="selfInspectionReminderMethod" 
+              (change)="selfInspectionReminderMethod = $event.value"
+              class="method-radio-group">
+              <mat-radio-button value="email" color="primary">
+                <div class="method-option">
+                  <mat-icon>email</mat-icon>
+                  <span>Email</span>
+                </div>
+              </mat-radio-button>
+              <mat-radio-button value="sms" color="primary">
+                <div class="method-option">
+                  <mat-icon>sms</mat-icon>
+                  <span>SMS Text</span>
+                </div>
+              </mat-radio-button>
+            </mat-radio-group>
+            
+            <mat-form-field appearance="outline" class="phone-field" subscriptSizing="dynamic" *ngIf="selfInspectionReminderMethod === 'sms'">
+              <mat-label>Phone Number</mat-label>
+              <input 
+                matInput 
+                type="tel" 
+                [(ngModel)]="accountService.user.phone" 
+                (change)="saveUser()"
+                placeholder="(555) 123-4567">
+              <mat-icon matSuffix>phone</mat-icon>
+            </mat-form-field>
+          </div>
+          <div class="phone-warning" *ngIf="selfInspectionReminderMethod === 'sms' && !accountService.user?.phone">
+            <mat-icon>warning</mat-icon>
+            <span>Please enter your phone number to receive SMS reminders.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <mat-divider></mat-divider>
+
   <!-- Billing Section -->
   <section class="section billing-section">
     <div class="section-header">
