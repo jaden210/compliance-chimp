@@ -14,6 +14,10 @@ import { PlansComponent } from "./plans/plans.component";
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
   { path: "home", component: HomeComponent },
+  {
+    path: "lp",
+    loadChildren: () => import('./lp/lp.routes').then(m => m.lpRoutes)
+  },
   { path: "contact", component: ContactComponent },
   { path: "how-it-works", component: HowComponent },
   { path: "common-questions", component: CommonQuestionsComponent },

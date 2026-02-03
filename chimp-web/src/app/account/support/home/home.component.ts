@@ -4,6 +4,7 @@ import { SupportService } from '../support.service';
 import { InspectionQuestionsComponent } from '../inspection-questions/inspection-questions.component';
 import { StatisticsComponent } from '../statistics/statistics.component';
 import { ResourceLibraryComponent } from '../resource-library/resource-library.component';
+import { ChimpFeedbackComponent } from '../chimp-feedback/chimp-feedback.component';
 
 @Component({
   standalone: true,
@@ -14,7 +15,8 @@ import { ResourceLibraryComponent } from '../resource-library/resource-library.c
     MatTabsModule,
     InspectionQuestionsComponent,
     StatisticsComponent,
-    ResourceLibraryComponent
+    ResourceLibraryComponent,
+    ChimpFeedbackComponent
   ]
 })
 export class HomeComponent {

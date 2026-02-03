@@ -4886,6 +4886,9 @@ export const chimpChat = onCall(
     const db = admin.firestore();
 
     try {
+      const feedbackPromise = classifyChimpChatFeedback(message);
+      const userInfoPromise = userId ? db.doc(`user/${userId}`).get() : null;
+
       // Load team context
       const teamContext = await loadTeamContext(db, teamId);
       
@@ -4937,6 +4940,34 @@ export const chimpChat = onCall(
 
       // Try to parse as JSON response with actions
       let parsedResponse = parseChimpChatResponse(aiMessage);
+
+      try {
+        const feedbackResult = await feedbackPromise;
+        if (feedbackResult?.isFeedback && feedbackResult.confidence >= 0.6) {
+          let userInfo: any = null;
+          if (userInfoPromise) {
+            const userSnap = await userInfoPromise;
+            userInfo = userSnap.exists ? userSnap.data() : null;
+          }
+
+          await db.collection('chimpChatFeedback').add({
+            teamId,
+            teamName: teamContext?.teamName || '',
+            userId: userId || '',
+            userName: userInfo?.name || '',
+            userEmail: userInfo?.email || '',
+            message,
+            summary: feedbackResult.summary || '',
+            category: feedbackResult.category || 'other',
+            sentiment: feedbackResult.sentiment || 'neutral',
+            confidence: feedbackResult.confidence,
+            source: 'chimpChat',
+            createdAt: new Date()
+          });
+        }
+      } catch (feedbackError) {
+        console.warn('ChimpChat feedback capture failed:', feedbackError);
+      }
 
       return parsedResponse;
 
@@ -5313,3 +5344,82 @@ function parseChimpChatResponse(aiMessage: string): { message: string; actions?:
   };
 }
 
+type FeedbackCategory =
+  | 'feature_request'
+  | 'bug_report'
+  | 'complaint'
+  | 'praise'
+  | 'question'
+  | 'other';
+
+type FeedbackSentiment = 'positive' | 'neutral' | 'negative';
+
+interface FeedbackClassification {
+  isFeedback: boolean;
+  category: FeedbackCategory;
+  sentiment: FeedbackSentiment;
+  summary: string;
+  confidence: number;
+}
+
+async function classifyChimpChatFeedback(message: string): Promise<FeedbackClassification | null> {
+  const trimmed = (message || '').trim();
+  if (!trimmed || trimmed.length < 4) return null;
+
+  const systemPrompt = `You are a strict classifier for user feedback. 
+Return only a JSON object with these fields:
+{
+  "isFeedback": boolean,
+  "category": "feature_request" | "bug_report" | "complaint" | "praise" | "question" | "other",
+  "sentiment": "positive" | "neutral" | "negative",
+  "summary": "short summary (<= 20 words)",
+  "confidence": number (0 to 1)
+}
+
+Feedback includes: feature requests, bug reports, complaints, praise, or general feedback about the product or experience.
+Do NOT mark as feedback if the user is only asking how to do a task or requesting help with normal use.
+If unsure, set isFeedback false and confidence below 0.6.
+Return valid JSON only.`;
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: trimmed }
+        ],
+        temperature: 0.0,
+        max_tokens: 200
+      })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const raw: any = await response.json();
+    const content = raw?.choices?.[0]?.message?.content || '';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (typeof parsed?.isFeedback !== 'boolean') return null;
+
+    return {
+      isFeedback: parsed.isFeedback,
+      category: parsed.category || 'other',
+      sentiment: parsed.sentiment || 'neutral',
+      summary: parsed.summary || '',
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0
+    };
+  } catch (error) {
+    console.warn('Feedback classification error:', error);
+    return null;
+  }
+}

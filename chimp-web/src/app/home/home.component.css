@@ -25,6 +25,10 @@
   pointer-events: none;
 }
 
+.challenge-chimp-mobile {
+  display: none;
+}
+
 .challenge-content {
   display: flex;
   gap: 64px;
@@ -128,7 +132,7 @@
 }
 
 .section-title {
-  color: var(--chimp-accent);
+  color: var(--chimp-accent-text);
   font-size: 16px;
   font-weight: 600;
   text-transform: uppercase;
@@ -605,19 +609,22 @@
     box-sizing: border-box;
   }
   
-  .challenge-chimp-image {
+  .challenge-chimp-desktop {
+    display: none;
+  }
+  
+  .challenge-chimp-mobile {
     display: block;
+    position: static;
     width: auto;
-    height: 120px;
+    height: 140px;
     flex-shrink: 0;
-    align-self: flex-end;
-    margin-bottom: -20px;
-    margin-left: -20px;
+    align-self: center;
   }
   
   .challenge-content {
     flex-direction: row;
-    gap: 14px;
+    gap: 16px;
     align-items: center;
     text-align: left;
   }
@@ -630,6 +637,10 @@
     flex: 1;
     min-width: 0;
     overflow: hidden;
+  }
+  
+  .challenge-btn {
+    width: 100%;
   }
   
   /* Show mobile headline, hide desktop headline */
@@ -823,10 +834,8 @@
     gap: 12px;
   }
   
-  .challenge-chimp-image {
-    height: 100px;
-    margin-bottom: -16px;
-    margin-left: -14px;
+  .challenge-chimp-mobile {
+    height: 110px;
   }
   
   .challenge-headline {

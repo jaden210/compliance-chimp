@@ -70,7 +70,7 @@
   flex-direction: column;
 }
 
-.footer-column h4 {
+.footer-heading {
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
@@ -175,7 +175,7 @@
     grid-column: 1;
   }
 
-  .footer-column h4 {
+  .footer-heading {
     margin-bottom: 12px;
   }
 

@@ -6,7 +6,10 @@ import { filter } from 'rxjs/operators';
 declare var gtag: Function;
 
 // GA4 Measurement ID
-const GA_MEASUREMENT_ID = 'G-JJR9XF3TVD';
+const GA_MEASUREMENT_ID = 'G-41ZDMKDVJQ';
+
+// Google Ads Conversion ID
+const GOOGLE_ADS_ID = 'AW-17907440527';
 
 // Conversion funnel step definitions
 export enum FunnelStep {
@@ -204,8 +207,12 @@ export class AnalyticsService implements OnDestroy {
     // For key conversion points, also send as conversion
     if (step === FunnelStep.CHALLENGE_ACCOUNT_CREATED) {
       this.trackConversion('sign_up', params);
+      // Send to Google Ads for campaign optimization
+      this.trackGoogleAdsConversion('sign_up');
     } else if (step === FunnelStep.CHALLENGE_COMPLETE) {
       this.trackConversion('signup_complete', params);
+      // Send to Google Ads - trial started (completed onboarding)
+      this.trackGoogleAdsConversion('trial_start');
     }
   }
 
@@ -236,6 +243,27 @@ export class AnalyticsService implements OnDestroy {
       event_category: 'conversion',
       ...params
     });
+  }
+
+  /**
+   * Send conversion event to Google Ads for campaign optimization
+   * These events are used by Google Ads to optimize bidding and targeting
+   */
+  trackGoogleAdsConversion(conversionType: 'sign_up' | 'trial_start' | 'purchase', value?: number): void {
+    try {
+      if (typeof gtag === 'undefined') return;
+
+      // Send conversion event to Google Ads
+      // Google Ads will match this to conversion actions based on the event name
+      gtag('event', 'conversion', {
+        send_to: GOOGLE_ADS_ID,
+        event_category: conversionType,
+        value: value || 0,
+        currency: 'USD'
+      });
+    } catch (e) {
+      console.debug('Google Ads conversion error:', e);
+    }
   }
 
   /**
@@ -391,12 +419,16 @@ export class AnalyticsService implements OnDestroy {
     try {
       if (typeof gtag === 'undefined') return;
 
+      // GA4 purchase event
       gtag('event', 'purchase', {
         transaction_id: transactionId,
         value: value,
         currency: currency,
         items: items
       });
+
+      // Google Ads purchase conversion
+      this.trackGoogleAdsConversion('purchase', value);
     } catch (e) {
       console.debug('Analytics purchase error:', e);
     }

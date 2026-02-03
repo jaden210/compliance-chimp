@@ -100,6 +100,7 @@
     position: relative;
     z-index: 1;
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    text-decoration: none;
 }
 
 .challenge-pill-text {
@@ -122,13 +123,16 @@
 }
 
 .challenge-pill-btn {
-    background: #ffffff !important;
-    color: #f57c00 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    height: 32px !important;
-    padding: 0 12px !important;
-    border-radius: 6px !important;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    color: #f57c00;
+    font-size: 13px;
+    font-weight: 600;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
     white-space: nowrap;
 }
 

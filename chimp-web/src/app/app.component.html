@@ -26,26 +26,27 @@
         alt="Compliancechimp"
       />
       <div class="flex"></div>
-      <button mat-icon-button (click)="sidenav.close()">
+      <button mat-icon-button (click)="sidenav.close()" aria-label="Close navigation menu">
         <mat-icon style="color:#ffffff">close</mat-icon>
       </button>
     </mat-toolbar>
     <div class="sidenav-content">
-      <div class="sidenav-challenge" (click)="navRoute('get-started')">
+      <a class="sidenav-challenge" routerLink="/get-started" (click)="sidenav.close()">
         <div class="challenge-pill-text">
           <span class="challenge-pill-headline">Get compliant in 6 minutes</span>
           <span class="challenge-pill-sub">14 days free · No credit card required</span>
         </div>
-        <button mat-flat-button class="challenge-pill-btn">
+        <span class="challenge-pill-btn">
           Start
           <mat-icon>arrow_forward</mat-icon>
-        </button>
-      </div>
-      <nav class="sidenav-nav">
+        </span>
+      </a>
+      <nav class="sidenav-nav" aria-label="Mobile navigation">
         <a
           class="sidenav-link"
-          (click)="navRoute('how-it-works')"
+          routerLink="/how-it-works"
           routerLinkActive="sidenav-link-active"
+          (click)="sidenav.close()"
         >
           <mat-icon class="sidenav-link-icon">play_circle_outline</mat-icon>
           <span>How it Works</span>
@@ -53,8 +54,9 @@
 
         <a
           class="sidenav-link"
-          (click)="navRoute('common-questions')"
+          routerLink="/common-questions"
           routerLinkActive="sidenav-link-active"
+          (click)="sidenav.close()"
         >
           <mat-icon class="sidenav-link-icon">help_outline</mat-icon>
           <span>Common Questions</span>
@@ -62,8 +64,9 @@
 
         <a
           class="sidenav-link"
-          (click)="navRoute('contact')"
+          routerLink="/contact"
           routerLinkActive="sidenav-link-active"
+          (click)="sidenav.close()"
         >
           <mat-icon class="sidenav-link-icon">mail_outline</mat-icon>
           <span>Contact</span>
@@ -71,8 +74,9 @@
 
         <a
           class="sidenav-link"
-          (click)="navRoute('blog')"
+          routerLink="/blog"
           routerLinkActive="sidenav-link-active"
+          (click)="sidenav.close()"
         >
           <mat-icon class="sidenav-link-icon">article</mat-icon>
           <span>Blog</span>
@@ -80,7 +84,8 @@
 
         <a
           class="sidenav-link"
-          (click)="trySignIn()"
+          href="/login"
+          (click)="trySignIn(); $event.preventDefault()"
         >
           <mat-icon class="sidenav-link-icon">login</mat-icon>
           <span>Sign in</span>
@@ -144,7 +149,7 @@
         </button>
       </div>
       <div class="mobile">
-        <button mat-icon-button (click)="open = true">
+        <button mat-icon-button (click)="open = true" aria-label="Open navigation menu">
           <mat-icon style="color:#ffffff">menu</mat-icon>
         </button>
       </div>
@@ -165,17 +170,17 @@
     </mat-toolbar>
     
     <div id="spacer"></div>
-    <div class="hwindow" id="scroll">
+    <main class="hwindow" id="scroll">
       <router-outlet></router-outlet>
       <footer
         id="footer"
         *ngIf="
           !router.isActive('/account', false) &&
           !router.isActive('/user', false) &&
-          !router.isActive('/get-started', false)
-        "
+        !router.isActive('/get-started', false)
+      "
       ></footer>
-    </div>
+    </main>
   </mat-sidenav-content>
 </mat-sidenav-container>
 <div class="loading" *ngIf="appService.firstTimeUser">

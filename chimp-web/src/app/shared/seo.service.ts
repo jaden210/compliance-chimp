@@ -79,6 +79,11 @@ export class SeoService implements OnDestroy {
       title: 'Customer Agreement | Compliance Chimp',
       description: 'Review the Compliance Chimp customer agreement. Understand the terms of your subscription and service.',
       keywords: 'customer agreement, subscription terms'
+    },
+    '/lp/osha-compliance': {
+      title: 'Avoid OSHA Fines for $99/Month | Compliance Chimp',
+      description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes for just $99/month. Automated training, self-inspections, and audit-ready documentation.',
+      keywords: 'OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance, OSHA fine prevention'
     }
   };
 
