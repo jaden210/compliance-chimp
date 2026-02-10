@@ -1,9 +1,9 @@
 import { Injectable, Component, inject, Inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { Observable, from, Subject, BehaviorSubject } from "rxjs";
+import { Observable, from } from "rxjs";
 import { collection, collectionData, doc, docData, Firestore, orderBy, query, setDoc, addDoc, updateDoc, deleteDoc } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
-import { map, take, takeUntil } from "rxjs/operators";
+import { map, take } from "rxjs/operators";
 import { AccountService } from "../account.service";
 import { MatDialogRef, MatDialogModule, MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MatButtonModule } from "@angular/material/button";
@@ -37,67 +37,14 @@ export interface CoverageRecommendation {
   questionCount: number;
 }
 
-export interface SelfInspectionTemplate {
-  title: string;
-  frequency: string;
-  baseQuestions: Categories[];
-  description?: string;
-  reason?: string;
-}
-
-// Auto-build progress tracking
-export interface AutoBuildProgress {
-  phase: 'analyzing' | 'building' | 'complete' | 'error';
-  iteration: number;
-  maxIterations: number;
-  currentScore: number;
-  targetScore: number;
-  inspectionsCreated: number;
-  currentAction: string;
-  error?: string;
-  log: AutoBuildLogEntry[];
-}
-
-export interface AutoBuildLogEntry {
-  type: 'analysis' | 'created' | 'info' | 'error';
-  message: string;
-  timestamp: Date;
-}
-
 @Injectable()
 export class SelfInspectionsService {
   private readonly functions = inject(Functions);
-
-  // Holds template data when creating from a recommendation
-  private pendingTemplate: SelfInspectionTemplate | null = null;
 
   constructor(
     public db: Firestore,
     private accountService: AccountService
   ) {}
-
-  /**
-   * Set a pending template to be used when creating a new self-inspection
-   */
-  setPendingTemplate(template: SelfInspectionTemplate): void {
-    this.pendingTemplate = template;
-  }
-
-  /**
-   * Get and clear the pending template
-   */
-  consumePendingTemplate(): SelfInspectionTemplate | null {
-    const template = this.pendingTemplate;
-    this.pendingTemplate = null;
-    return template;
-  }
-
-  /**
-   * Check if there's a pending template
-   */
-  hasPendingTemplate(): boolean {
-    return this.pendingTemplate !== null;
-  }
 
   getSelfInspections(teamId: string = this.accountService.aTeam.id): Observable<SelfInspection[]> {
     const inspectionsRef = collection(this.db, `team/${teamId}/self-inspection`);
@@ -267,36 +214,22 @@ export class SelfInspectionsService {
   }
 
   /**
-   * Create a self-inspection from an AI recommendation immediately
-   * Returns the created inspection with its Firestore ID
+   * Create a new self-inspection and save it to Firestore
+   * Returns a Promise that resolves when saved
    */
-  createFromRecommendation(recommendation: {
-    name: string;
-    frequency: string;
-    baseQuestions: Categories[];
-  }): Promise<SelfInspection> {
-    const selfInspection: Partial<SelfInspection> = {
-      title: recommendation.name,
-      inspectionExpiration: recommendation.frequency,
-      baseQuestions: recommendation.baseQuestions.map(cat => ({
-        subject: cat.subject,
-        questions: cat.questions.map(q => ({ name: q.name }))
-      })),
-      teamId: this.accountService.aTeam.id,
-      createdAt: new Date()
+  createSelfInspection(inspection: Partial<SelfInspection>): Promise<any> {
+    const data = {
+      ...inspection,
+      teamId: inspection.teamId || this.accountService.aTeam.id,
+      createdAt: inspection.createdAt || new Date()
     };
 
     const inspectionsRef = collection(this.db, `team/${this.accountService.aTeam.id}/self-inspection`);
     const dataToSave = Object.fromEntries(
-      Object.entries(selfInspection).filter(([_, value]) => value !== undefined)
+      Object.entries(data).filter(([_, value]) => value !== undefined)
     );
 
-    return addDoc(inspectionsRef, dataToSave).then(snapshot => {
-      return {
-        ...selfInspection,
-        id: snapshot.id
-      } as SelfInspection;
-    });
+    return addDoc(inspectionsRef, dataToSave);
   }
 
   /**
@@ -418,264 +351,6 @@ export class SelfInspectionsService {
     return false;
   }
 
-  /**
-   * Auto-build inspections iteratively until reaching target coverage
-   * Loops through coverage analysis and inspection creation until:
-   * - Coverage score >= targetScore (95%)
-   * - No more recommendations
-   * - Max iterations reached (5)
-   * - Cancelled via the returned cancel function
-   */
-  autoBuildInspections(): { 
-    progress$: BehaviorSubject<AutoBuildProgress>; 
-    cancel: () => void;
-  } {
-    const MAX_ITERATIONS = 5;
-    const TARGET_SCORE = 95;
-    const MAX_INSPECTIONS_PER_ITERATION = 3;
-    
-    const cancelSubject = new Subject<void>();
-    let cancelled = false;
-    
-    const progress$ = new BehaviorSubject<AutoBuildProgress>({
-      phase: 'analyzing',
-      iteration: 1,
-      maxIterations: MAX_ITERATIONS,
-      currentScore: 0,
-      targetScore: TARGET_SCORE,
-      inspectionsCreated: 0,
-      currentAction: 'Starting coverage analysis...',
-      log: [{
-        type: 'info',
-        message: 'Starting auto-build process',
-        timestamp: new Date()
-      }]
-    });
-
-    const cancel = () => {
-      cancelled = true;
-      cancelSubject.next();
-      cancelSubject.complete();
-      const current = progress$.value;
-      progress$.next({
-        ...current,
-        phase: 'error',
-        currentAction: 'Build cancelled by user',
-        error: 'Build cancelled by user',
-        log: [...current.log, {
-          type: 'info',
-          message: 'Build cancelled by user',
-          timestamp: new Date()
-        }]
-      });
-    };
-
-    // Run the auto-build loop
-    this.runAutoBuildLoop(progress$, cancelSubject, MAX_ITERATIONS, TARGET_SCORE, MAX_INSPECTIONS_PER_ITERATION);
-
-    return { progress$, cancel };
-  }
-
-  private async runAutoBuildLoop(
-    progress$: BehaviorSubject<AutoBuildProgress>,
-    cancelSubject: Subject<void>,
-    maxIterations: number,
-    targetScore: number,
-    maxInspectionsPerIteration: number
-  ): Promise<void> {
-    let iteration = 1;
-    let totalCreated = 0;
-    let currentInspections: SelfInspection[] = [];
-
-    while (iteration <= maxIterations) {
-      // Check if cancelled
-      if (cancelSubject.closed) return;
-
-      // Update progress - analyzing phase
-      const currentProgress = progress$.value;
-      progress$.next({
-        ...currentProgress,
-        phase: 'analyzing',
-        iteration,
-        currentAction: `Analyzing coverage (iteration ${iteration}/${maxIterations})...`,
-        log: [...currentProgress.log, {
-          type: 'info',
-          message: `Starting iteration ${iteration}`,
-          timestamp: new Date()
-        }]
-      });
-
-      try {
-        // Fetch current inspections
-        currentInspections = await new Promise<SelfInspection[]>((resolve, reject) => {
-          this.getSelfInspections().pipe(
-            take(1),
-            takeUntil(cancelSubject)
-          ).subscribe({
-            next: resolve,
-            error: reject
-          });
-        });
-
-        if (cancelSubject.closed) return;
-
-        // Run coverage analysis
-        const analysis = await new Promise<CoverageAnalysis>((resolve, reject) => {
-          this.analyzeCoverage(currentInspections).pipe(
-            take(1),
-            takeUntil(cancelSubject)
-          ).subscribe({
-            next: resolve,
-            error: reject
-          });
-        });
-
-        if (cancelSubject.closed) return;
-
-        if (!analysis.success) {
-          throw new Error(analysis.error || 'Coverage analysis failed');
-        }
-
-        // Log analysis result
-        const afterAnalysis = progress$.value;
-        progress$.next({
-          ...afterAnalysis,
-          currentScore: analysis.score,
-          currentAction: `Coverage score: ${analysis.score}%`,
-          log: [...afterAnalysis.log, {
-            type: 'analysis',
-            message: `Coverage analysis complete: ${analysis.score}% score`,
-            timestamp: new Date()
-          }]
-        });
-
-        // Check if target reached
-        if (analysis.score >= targetScore) {
-          const finalProgress = progress$.value;
-          progress$.next({
-            ...finalProgress,
-            phase: 'complete',
-            currentAction: `Target coverage reached: ${analysis.score}%`,
-            log: [...finalProgress.log, {
-              type: 'info',
-              message: `Target coverage of ${targetScore}% reached! Final score: ${analysis.score}%`,
-              timestamp: new Date()
-            }]
-          });
-          return;
-        }
-
-        // Check if there are recommendations
-        const recommendations = analysis.recommendations || [];
-        if (recommendations.length === 0) {
-          const finalProgress = progress$.value;
-          progress$.next({
-            ...finalProgress,
-            phase: 'complete',
-            currentAction: 'No more recommendations available',
-            log: [...finalProgress.log, {
-              type: 'info',
-              message: 'No more recommendations - build complete',
-              timestamp: new Date()
-            }]
-          });
-          return;
-        }
-
-        // Build inspections from recommendations (high priority first, limited per iteration)
-        const sortedRecs = [...recommendations].sort((a, b) => {
-          const priorityOrder = { high: 0, medium: 1, low: 2 };
-          return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
-        });
-
-        const recsToCreate = sortedRecs.slice(0, maxInspectionsPerIteration);
-
-        // Switch to building phase
-        const buildingProgress = progress$.value;
-        progress$.next({
-          ...buildingProgress,
-          phase: 'building',
-          currentAction: `Creating ${recsToCreate.length} inspection(s)...`,
-          log: [...buildingProgress.log, {
-            type: 'info',
-            message: `Found ${recommendations.length} recommendations, creating top ${recsToCreate.length}`,
-            timestamp: new Date()
-          }]
-        });
-
-        // Create each inspection
-        for (const rec of recsToCreate) {
-          if (cancelSubject.closed) return;
-
-          const beforeCreate = progress$.value;
-          progress$.next({
-            ...beforeCreate,
-            currentAction: `Creating: ${rec.name}...`
-          });
-
-          try {
-            await this.createFromRecommendation({
-              name: rec.name,
-              frequency: rec.frequency,
-              baseQuestions: rec.baseQuestions
-            });
-
-            totalCreated++;
-            const afterCreate = progress$.value;
-            progress$.next({
-              ...afterCreate,
-              inspectionsCreated: totalCreated,
-              log: [...afterCreate.log, {
-                type: 'created',
-                message: `Created: ${rec.name}`,
-                timestamp: new Date()
-              }]
-            });
-          } catch (createError: any) {
-            const errorProgress = progress$.value;
-            progress$.next({
-              ...errorProgress,
-              log: [...errorProgress.log, {
-                type: 'error',
-                message: `Failed to create ${rec.name}: ${createError.message}`,
-                timestamp: new Date()
-              }]
-            });
-            // Continue with next recommendation
-          }
-        }
-
-        iteration++;
-      } catch (error: any) {
-        const errorProgress = progress$.value;
-        progress$.next({
-          ...errorProgress,
-          phase: 'error',
-          currentAction: `Error: ${error.message}`,
-          error: error.message,
-          log: [...errorProgress.log, {
-            type: 'error',
-            message: `Error: ${error.message}`,
-            timestamp: new Date()
-          }]
-        });
-        return;
-      }
-    }
-
-    // Max iterations reached
-    const finalProgress = progress$.value;
-    progress$.next({
-      ...finalProgress,
-      phase: 'complete',
-      currentAction: `Completed after ${maxIterations} iterations`,
-      log: [...finalProgress.log, {
-        type: 'info',
-        message: `Max iterations (${maxIterations}) reached - build complete`,
-        timestamp: new Date()
-      }]
-    });
-  }
 }
 
 export class SelfInspection {

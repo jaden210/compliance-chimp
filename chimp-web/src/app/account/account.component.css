@@ -502,6 +502,21 @@ a:hover {
   width: 100%;
 }
 
+/* ChimpChat Wrapper */
+.chimp-chat-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.chimp-chat-wrapper:hover .chimp-chat-button {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
 /* ChimpChat Button */
 .chimp-chat-button {
   width: 56px;
@@ -514,15 +529,8 @@ a:hover {
   cursor: pointer;
   transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-top: 16px;
-  margin-bottom: 8px;
   flex-shrink: 0;
   overflow: hidden;
-}
-
-.chimp-chat-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .chimp-chat-button.active {
@@ -534,6 +542,21 @@ a:hover {
   width: 56px;
   height: 56px;
   object-fit: cover;
+}
+
+/* ChimpChat label */
+.chimp-chat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chimp-on-primary);
+  margin-top: 4px;
+  flex-shrink: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chimp-chat-label-accent {
+  color: var(--chimp-accent);
 }
 
 /* Print styles */

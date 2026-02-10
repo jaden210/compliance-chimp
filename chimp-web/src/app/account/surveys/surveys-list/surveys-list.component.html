@@ -25,29 +25,30 @@
 </mat-toolbar>
 <div class="window">
   <mat-nav-list>
-    <mat-list-item
-      *ngFor="let survey of (surveys | async | surveySearch: searchTerm:people)"
-      (click)="routeTo(survey)"
-    >
-      <div
-        class="count"
-        matListItemAvatar
-        matTooltip="Number of contacts"
-        matTooltipShowDelay="500"
+    @for (survey of (surveys | async | surveySearch: searchTerm:people); track $index) {
+      <mat-list-item
+        (click)="routeTo(survey)"
       >
-        {{ objectKeys(survey.userSurvey).length }}
-      </div>
-      <span matListItemTitle
-        ><span class="top-line"
-          ><h4>{{ survey.category }}</h4>
-          <span class="date" *ngIf="!survey.active">{{
-            survey.createdAt | date
-          }}</span>
-          <span class="date" *ngIf="survey.active">Active</span></span
-        ></span
-      >
-      <span matListItemLine style="max-width: 50vw">{{ survey.title }}</span>
-    </mat-list-item>
+        <div
+          class="count"
+          matListItemAvatar
+          matTooltip="Number of contacts"
+          matTooltipShowDelay="500"
+        >
+          {{ objectKeys(survey.userSurvey).length }}
+        </div>
+        <span matListItemTitle
+          ><span class="top-line"
+            ><h4>{{ survey.category }}</h4>
+            <span class="date" *ngIf="!survey.active">{{
+              survey.createdAt | date
+            }}</span>
+            <span class="date" *ngIf="survey.active">Active</span></span
+          ></span
+        >
+        <span matListItemLine style="max-width: 50vw">{{ survey.title }}</span>
+      </mat-list-item>
+    }
   </mat-nav-list>
   <button
     mat-mini-fab

@@ -1,6 +1,6 @@
 .scroll {
   overflow-y: auto;
-  height: calc(100vh - 48px);
+  height: 100%;
   padding: 16px;
   box-sizing: border-box;
 }
@@ -123,4 +123,9 @@ table {
 
 [mat-icon-button]:disabled {
   opacity: 0.4;
+}
+
+.download-btn {
+  margin-left: auto;
+  align-self: center;
 }

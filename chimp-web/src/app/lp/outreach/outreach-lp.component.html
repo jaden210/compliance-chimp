@@ -1,0 +1,165 @@
+<!-- Loading -->
+<div class="loading-container" *ngIf="loading">
+  <mat-spinner diameter="40"></mat-spinner>
+</div>
+
+<!-- Not found -->
+<div class="not-found" *ngIf="!loading && !lp">
+  <h1>Page not found</h1>
+  <p>This landing page doesn't exist.</p>
+  <a routerLink="/">Go to homepage</a>
+</div>
+
+<ng-container *ngIf="lp">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="eyebrow-badge">
+        <mat-icon>warning</mat-icon>
+        <span>{{ lp.hero.eyebrow }}</span>
+      </div>
+
+      <h1>{{ lp.hero.headline }}</h1>
+      <p class="hero-subheadline">{{ lp.hero.subheadline }}</p>
+
+      <div class="hero-actions">
+        <button
+          mat-flat-button
+          class="primary-cta"
+          routerLink="/get-started"
+          [queryParams]="lp.getStartedParams"
+        >
+          Start 14-Day Free Trial
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <a class="secondary-cta" href="#how-it-works">See 6-Minute Setup</a>
+      </div>
+
+      <div class="hero-trust">
+        <span><mat-icon>check_circle</mat-icon> No credit card required</span>
+        <span><mat-icon>check_circle</mat-icon> Unlimited team members</span>
+        <span><mat-icon>check_circle</mat-icon> Cancel anytime</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pain section -->
+  <section class="pain-section">
+    <div class="section-content">
+      <h2>{{ lp.painHeadline }}</h2>
+      <p class="section-subheadline">{{ lp.painSubheadline }}</p>
+
+      <div class="pain-grid">
+        @for (point of lp.painPoints; track $index) {
+          <article class="pain-card">
+            <h3>{{ point.title }}</h3>
+            <p>{{ point.description }}</p>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution section -->
+  <section id="how-it-works" class="solution-section">
+    <div class="section-content">
+      <p class="section-eyebrow">How Compliance Chimp Helps</p>
+      <h2>{{ lp.solutionHeadline }}</h2>
+
+      <div class="features-grid">
+        @for (feature of lp.features; track $index) {
+          <article class="feature-card">
+            <div class="feature-icon"><mat-icon>{{ feature.icon }}</mat-icon></div>
+            <h3>{{ feature.title }}</h3>
+            <p>{{ feature.description }}</p>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Mid CTA -->
+  <section class="mid-cta">
+    <div class="mid-cta-content">
+      <p>{{ lp.midCta }}</p>
+      <button
+        mat-flat-button
+        class="mid-cta-btn"
+        routerLink="/get-started"
+        [queryParams]="lp.getStartedParams"
+      >
+        Get OSHA-Ready Now
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="pricing-section">
+    <div class="section-content">
+      <div class="pricing-card">
+        <p class="pricing-eyebrow">Simple Flat Pricing</p>
+        <div class="price-line">
+          <span class="price">$99</span>
+          <span class="per">/month</span>
+        </div>
+        <p class="pricing-subheadline">One plan, unlimited users, and all core compliance tools included.</p>
+
+        <ul>
+          <li><mat-icon>check</mat-icon><span>Unlimited team members</span></li>
+          <li><mat-icon>check</mat-icon><span>Training delivery via text and email</span></li>
+          <li><mat-icon>check</mat-icon><span>Inspection and compliance workflows</span></li>
+          <li><mat-icon>check</mat-icon><span>Timestamped records for inspections</span></li>
+        </ul>
+
+        <button
+          mat-flat-button
+          class="primary-cta pricing-btn"
+          routerLink="/get-started"
+          [queryParams]="lp.getStartedParams"
+        >
+          Start Free Trial
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <p class="pricing-note">14-day free trial. No credit card required.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section">
+    <div class="section-content">
+      <h2>Frequently Asked Questions</h2>
+
+      @for (item of lp.faq; track $index) {
+        <article class="faq-item">
+          <h3>{{ item.question }}</h3>
+          <p>{{ item.answer }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <div class="section-content final-cta-content">
+      <h2>{{ lp.finalCta.headline }}</h2>
+      <p>{{ lp.finalCta.subheadline }}</p>
+
+      <button
+        mat-flat-button
+        class="primary-cta final-btn"
+        routerLink="/get-started"
+        [queryParams]="lp.getStartedParams"
+      >
+        Start My Free Trial
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+
+      <div class="final-links">
+        <a routerLink="/plans">View pricing details</a>
+        <a routerLink="/common-questions">Read common questions</a>
+      </div>
+    </div>
+  </section>
+</ng-container>

@@ -1,8 +1,8 @@
 <!-- Hero Section -->
 <header class="blog-header">
-  <h1 class="blog-title">Compliance Resources</h1>
+  <h1 class="blog-title">OSHA Compliance & Safety Training Blog</h1>
   <p class="blog-subtitle">
-    Guides, tips, and insights to help your business stay OSHA compliant—without the headache.
+    Expert guides on workplace safety regulations, compliance training, and hazard prevention—helping your small business stay OSHA-ready without the headache.
   </p>
 </header>
 
@@ -17,41 +17,82 @@
     </div>
 
     <ng-container *ngIf="!loading">
-      <!-- Search Bar -->
-      <div class="search-bar">
-        <mat-icon aria-hidden="true">search</mat-icon>
-        <input 
-          type="text" 
-          placeholder="Search articles..." 
-          [(ngModel)]="searchQuery"
-          (input)="onSearch()"
-          aria-label="Search articles">
-        <button 
-          *ngIf="searchQuery" 
-          class="clear-btn" 
-          (click)="clearSearch()" 
-          aria-label="Clear search">
-          <mat-icon>close</mat-icon>
-        </button>
+      <!-- Search & Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-bar">
+          <mat-icon aria-hidden="true">search</mat-icon>
+          <input 
+            type="text" 
+            placeholder="Search articles..." 
+            [(ngModel)]="searchQuery"
+            (input)="onSearch()"
+            aria-label="Search blog articles">
+          <button 
+            *ngIf="searchQuery" 
+            class="clear-btn" 
+            (click)="clearSearch()" 
+            aria-label="Clear search">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Category Filter Nav -->
+        <nav class="category-nav" aria-label="Filter articles by category" *ngIf="categories.length > 1">
+          <button
+            class="category-chip"
+            [class.active]="!activeCategory"
+            (click)="clearCategory()"
+            aria-label="Show all categories">
+            All
+          </button>
+          @for (cat of categories; track $index) {
+            <button
+              class="category-chip"
+              [class.active]="activeCategory === cat"
+              (click)="filterByCategory(cat)"
+              [attr.aria-label]="'Filter by ' + cat"
+              [attr.aria-pressed]="activeCategory === cat">
+              {{ cat }}
+            </button>
+          }
+        </nav>
       </div>
+
+      <!-- Results Count -->
+      <p class="results-count" *ngIf="activeCategory || searchQuery" aria-live="polite">
+        Showing {{ filteredPosts.length }} {{ filteredPosts.length === 1 ? 'article' : 'articles' }}
+        <span *ngIf="activeCategory"> in <strong>{{ activeCategory }}</strong></span>
+        <span *ngIf="searchQuery"> matching "<strong>{{ searchQuery }}</strong>"</span>
+      </p>
 
       <!-- Posts Grid -->
       <section class="posts-grid" aria-label="Blog articles">
-        <article class="post-card" *ngFor="let post of filteredPosts">
-          <a [routerLink]="['/blog', post.slug]" class="post-link" [attr.aria-label]="'Read article: ' + post.title">
-            <div class="post-meta">
-              <span class="post-category">{{ post.category }}</span>
-              <span class="post-read-time" aria-label="Reading time">{{ post.readTime }}</span>
-            </div>
-            <h2 class="post-title">{{ post.title }}</h2>
-          </a>
-        </article>
+        @for (post of filteredPosts; track $index) {
+          <article class="post-card">
+            <a [routerLink]="['/blog', post.slug]" class="post-link" [attr.aria-label]="'Read article: ' + post.title">
+              <div class="post-meta">
+                <span class="post-category">{{ post.category }}</span>
+                <span class="post-read-time" aria-label="Reading time">{{ post.readTime }}</span>
+              </div>
+              <h2 class="post-title">{{ post.title }}</h2>
+              <p class="post-description">{{ post.description }}</p>
+              <footer class="post-footer">
+                <time class="post-date" [attr.datetime]="post.publishedDate">{{ formatDate(post.publishedDate) }}</time>
+                <span class="post-industry" *ngIf="post.industry">{{ post.industry }}</span>
+              </footer>
+            </a>
+          </article>
+        }
       </section>
 
       <!-- Empty State -->
       <div class="empty-state" *ngIf="filteredPosts.length === 0" role="status">
         <mat-icon aria-hidden="true">article</mat-icon>
-        <p>No posts found. Check back soon!</p>
+        <p *ngIf="searchQuery || activeCategory">No articles match your current filters. Try a different search or category.</p>
+        <p *ngIf="!searchQuery && !activeCategory">No posts found. Check back soon!</p>
+        <button *ngIf="searchQuery || activeCategory" class="reset-btn" (click)="clearSearch(); clearCategory()">
+          Show all articles
+        </button>
       </div>
     </ng-container>
 

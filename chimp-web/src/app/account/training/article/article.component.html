@@ -17,13 +17,14 @@
         Renew {{ article.myContent?.trainingExpiration }}
       </button>
       <mat-menu #menu="matMenu">
-        <button
-          mat-menu-item
-          *ngFor="let time of Timeframe"
-          (click)="setTrainingExpiration(time)"
-        >
-          Renew {{ time }}
-        </button>
+        @for (time of Timeframe; track $index) {
+          <button
+            mat-menu-item
+            (click)="setTrainingExpiration(time)"
+          >
+            Renew {{ time }}
+          </button>
+        }
       </mat-menu>
       <button
         *ngIf="isMyArticle || isDev"

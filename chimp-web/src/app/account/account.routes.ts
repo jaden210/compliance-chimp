@@ -46,6 +46,11 @@ export const accountRoutes: Routes = [
         loadChildren: () =>
         import("./self-inspections/self-inspections.routes").then((m) => m.selfInspectionsRoutes),
       },
+      {
+        path: "outreach",
+        redirectTo: "support/outreach",
+        pathMatch: "full",
+      },
       { path: "**", redirectTo: "dashboard" }
     ]
   }

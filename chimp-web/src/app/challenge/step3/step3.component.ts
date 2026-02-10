@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from "@angular/core";
-import { trigger, transition, style, animate, query, stagger } from "@angular/animations";
+import { trigger, transition, style, animate } from "@angular/animations";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
@@ -15,7 +15,7 @@ import { ChallengeService } from "../challenge.service";
 import { TagInputComponent } from "../../account/team/tag-input/tag-input.component";
 import { TagsHelpDialog } from "../../account/team/team.component";
 import { getTagColor } from "../../shared/tag-colors";
-import { Firestore, collection, collectionData, addDoc, deleteDoc, doc, updateDoc } from "@angular/fire/firestore";
+import { Firestore, collection, collectionData, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, limit } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Subscription } from "rxjs";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
@@ -146,7 +146,7 @@ export class Step3Component implements OnInit, OnDestroy {
       this.teamMembersSub = collectionData(membersCollection, { idField: 'id' }).subscribe(
         (members: any[]) => {
           this.teamMembers = members
-            .filter(m => m.teamId === this.challengeService.teamId)
+            .filter(m => m.teamId === this.challengeService.teamId && !m.deleted)
             .sort((a, b) => {
               // Sort by createdAt so newest members appear at bottom
               const aTime = a.createdAt?.toMillis?.() || a.createdAt?.getTime?.() || 0;
@@ -282,7 +282,32 @@ export class Step3Component implements OnInit, OnDestroy {
     if (!member.id) return;
     
     try {
-      await deleteDoc(doc(this.db, `team-members/${member.id}`));
+      // Smart delete: check for related data before deciding
+      const responsesQuery = query(
+        collection(this.db, "survey-response"),
+        where("teamMemberId", "==", member.id),
+        limit(1)
+      );
+      const incidentsQuery = query(
+        collection(this.db, "incident-report"),
+        where("submittedBy", "==", member.id),
+        limit(1)
+      );
+      const [responses, incidents] = await Promise.all([
+        getDocs(responsesQuery),
+        getDocs(incidentsQuery)
+      ]);
+
+      if (!responses.empty || !incidents.empty) {
+        // Soft delete – preserve for historical references
+        await updateDoc(doc(this.db, `team-members/${member.id}`), {
+          deleted: true,
+          deletedAt: new Date()
+        });
+      } else {
+        // Hard delete – no related data
+        await deleteDoc(doc(this.db, `team-members/${member.id}`));
+      }
     } catch (err) {
       console.error('Error removing team member:', err);
     }
@@ -579,7 +604,7 @@ export class Step3Component implements OnInit, OnDestroy {
   // Proceed to next step
   async proceedToNextStep(): Promise<void> {
     this.isProcessing = true;
-    this.processingMessage = 'Sending welcome messages...';
+    this.processingMessage = 'Setting up your team...';
     
     try {
       // Track step 3 completion
@@ -587,7 +612,11 @@ export class Step3Component implements OnInit, OnDestroy {
         team_member_count: this.teamMembers.length
       });
       
+      // Sync the owner's team member record with all tags from the team
+      await this.syncOwnerTags();
+      
       // Send pending welcome messages to all team members
+      this.processingMessage = 'Sending welcome messages...';
       if (this.challengeService.teamId) {
         try {
           const sendWelcomes = httpsCallable(this.functions, 'sendPendingWelcomeMessages');
@@ -607,6 +636,35 @@ export class Step3Component implements OnInit, OnDestroy {
     } finally {
       this.isProcessing = false;
       this.processingMessage = '';
+    }
+  }
+
+  /**
+   * Give the owner's linked team-member record all unique tags from the team,
+   * so the owner receives every training the team does.
+   */
+  private async syncOwnerTags(): Promise<void> {
+    try {
+      // Find the owner's linked team member (has linkedUserId set)
+      const ownerMember = this.teamMembers.find(m => (m as any).linkedUserId);
+      if (!ownerMember?.id) return;
+
+      // Collect all unique tags from all other team members
+      const allTags = new Set<string>();
+      this.teamMembers.forEach(m => {
+        if (m.id !== ownerMember.id) {
+          (m.tags || []).forEach(tag => allTags.add(tag));
+        }
+      });
+
+      if (allTags.size > 0) {
+        await updateDoc(doc(this.db, `team-members/${ownerMember.id}`), {
+          tags: Array.from(allTags)
+        });
+      }
+    } catch (err) {
+      console.error('Error syncing owner tags:', err);
+      // Non-blocking — don't prevent navigation
     }
   }
   

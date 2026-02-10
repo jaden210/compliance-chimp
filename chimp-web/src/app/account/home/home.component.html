@@ -190,6 +190,17 @@
         <h2>Quick Actions</h2>
       </div>
 
+      <!-- ChimpChat hero - full width, primary entry point -->
+      <div class="chimp-chat-hero" (click)="accountService.requestOpenChimpChat()">
+        <div class="chimp-chat-hero-icon">
+          <img src="/assets/chimpFace.png" alt="" class="chimp-chat-hero-img" />
+        </div>
+        <div class="chimp-chat-hero-text">
+          <h3 class="chimp-chat-hero-title">Chimp<span class="chimp-chat-hero-accent">Chat</span> — Start here and I'll help you get it done.</h3>
+          <p class="chimp-chat-hero-desc">Run training, complete inspections, log incidents, manage your team. Whatever you're here to do.</p>
+        </div>
+      </div>
+
       <div class="actions-grid">
         <div class="action-card" routerLink="/account/team">
           <div class="action-icon">

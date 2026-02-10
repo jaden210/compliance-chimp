@@ -1,7 +1,7 @@
 <mat-sidenav-container>
   <mat-sidenav #sidenav mode="over" position="start">
     <div class="mobile-nav">
-      <ng-container *ngFor="let item of navItems">
+      @for (item of navItems; track $index) {
         <div 
           *ngIf="!item.devOnly || accountService.user?.isDev"
           class="mobile-nav-item" 
@@ -11,7 +11,7 @@
           <mat-icon>{{item.icon}}</mat-icon>
           <span>{{item.label}}</span>
         </div>
-      </ng-container>
+      }
       
       <!-- ChimpChat Button (Mobile) -->
       <div class="mobile-nav-item chimp-chat-mobile" (click)="sidenav.close(); toggleChimpChat()">
@@ -64,7 +64,15 @@
     </div>
     <div id="wrapper">
       <div id="left">
-        <ng-container *ngFor="let item of navItems">
+        <!-- ChimpChat Button -->
+        <div class="chimp-chat-wrapper" (click)="toggleChimpChat()">
+          <div class="chimp-chat-button" [class.active]="showChimpChat">
+            <img src="/assets/chimpFace.png" alt="ChimpChat" />
+          </div>
+          <span class="chimp-chat-label">Chimp<span class="chimp-chat-label-accent">Chat</span></span>
+        </div>
+
+        @for (item of navItems; track $index) {
           <div 
             *ngIf="!item.devOnly || accountService.user?.isDev"
             class="side-button" 
@@ -76,12 +84,7 @@
             <mat-icon>{{item.icon}}</mat-icon>
             <span class="nav-label">{{item.label}}</span>
           </div>
-        </ng-container>
-        
-        <!-- ChimpChat Button -->
-        <div class="chimp-chat-button" [class.active]="showChimpChat" (click)="toggleChimpChat()">
-          <img src="/assets/chimpFace.png" alt="ChimpChat" />
-        </div>
+        }
       </div>
       <div id="body">
         <router-outlet></router-outlet>
@@ -104,7 +107,7 @@
         alt="Compliancechimp"
       />
       <div class="flex"></div>
-      <ng-container *ngFor="let team of accountService.userTeams">
+      @for (team of accountService.userTeams; track $index) {
         <img
           *ngIf="team.id !== accountService.aTeam.id"
           [matTooltip]="team.name"
@@ -116,7 +119,7 @@
           onerror="src = '/assets/lost.png'"
           alt="Compliancechimp"
         />
-      </ng-container>
+      }
     </div>
     <div id="popteamname">{{ accountService.aTeam.name }}</div>
   </div>

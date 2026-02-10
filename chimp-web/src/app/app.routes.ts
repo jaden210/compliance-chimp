@@ -11,6 +11,7 @@ import { JoinTeamComponent } from "./join-team/join-team.component";
 import { CommonQuestionsComponent } from "./common-questions/common-questions.component";
 import { PlansComponent } from "./plans/plans.component";
 import { InspectionRedirectComponent } from "./go/inspection-redirect.component";
+import { NotFoundComponent } from "./not-found/not-found.component";
 
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
@@ -59,4 +60,5 @@ export const appRoutes: Routes = [
     loadChildren: () =>
     import("./user/user.routes").then((m) => m.userRoutes),
   },
+  { path: "**", component: NotFoundComponent },
 ];

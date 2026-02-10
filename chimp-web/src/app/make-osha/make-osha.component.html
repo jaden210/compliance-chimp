@@ -8,13 +8,14 @@
       {{ industry?.name }}
     </button>
     <mat-menu #menu="matMenu">
-      <button
-        mat-menu-item
-        *ngFor="let industry of (industries | async)"
-        (click)="setIndustry(industry)"
-      >
-        {{ industry.name }}
-      </button>
+      @for (industry of (industries | async); track $index) {
+        <button
+          mat-menu-item
+          (click)="setIndustry(industry)"
+        >
+          {{ industry.name }}
+        </button>
+      }
     </mat-menu>
   </mat-toolbar>
   <div id="content">
@@ -22,15 +23,16 @@
       <mat-list-item>
         <h3 matLine>{{ articles?.length }}</h3>
       </mat-list-item>
-      <mat-list-item
-        *ngFor="let article of articles"
-        (click)="setActiveArticle(article)"
-        [class.active-li]="article.id == activeArticle.id"
-      >
-        <h3 matLine [class.ohno]="article.missingTopicId">
-          {{ article.name }}
-        </h3>
-      </mat-list-item>
+      @for (article of articles; track $index) {
+        <mat-list-item
+          (click)="setActiveArticle(article)"
+          [class.active-li]="article.id == activeArticle.id"
+        >
+          <h3 matLine [class.ohno]="article.missingTopicId">
+            {{ article.name }}
+          </h3>
+        </mat-list-item>
+      }
     </mat-nav-list>
     <div id="editor">
       <div style="display: flex">
@@ -52,12 +54,13 @@
         >
           <mat-label>topic</mat-label>
           <mat-select placeholder="topic" required [(ngModel)]="currentTopicId">
-            <mat-option
-              *ngFor="let topic of (topics | async)"
-              [value]="topic?.id"
-            >
-              {{ topic.name }}
-            </mat-option>
+            @for (topic of (topics | async); track $index) {
+              <mat-option
+                [value]="topic?.id"
+              >
+                {{ topic.name }}
+              </mat-option>
+            }
           </mat-select>
           <button
             mat-icon-button

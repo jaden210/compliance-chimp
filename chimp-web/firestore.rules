@@ -97,5 +97,27 @@ service cloud.firestore {
         get(/databases/$(database)/documents/user/$(request.auth.uid)).data.isDev == true;
       allow write: if false;
     }
+
+    // ── Outreach email sequencer ──
+
+    // Landing pages must be publicly readable (unauthenticated visitors)
+    match /outreach-landing-pages/{slug} {
+      allow read: if true;
+      allow write: if request.auth.uid != null;
+    }
+
+    // Campaigns, recipients, settings, suppression (auth required, covered by wildcard)
+    match /outreach-campaigns/{campaignId} {
+      allow read, write: if request.auth.uid != null;
+      match /recipients/{recipientId} {
+        allow read, write: if request.auth.uid != null;
+      }
+    }
+    match /outreach-settings/{doc} {
+      allow read, write: if request.auth.uid != null;
+    }
+    match /outreach-suppression/{hash} {
+      allow read, write: if request.auth.uid != null;
+    }
     }
 }

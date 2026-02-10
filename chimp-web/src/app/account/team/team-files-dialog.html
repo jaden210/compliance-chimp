@@ -1,10 +1,12 @@
 <h2 mat-dialog-title>Team Files</h2>
 <mat-dialog-content class="f-view">
   <div class="file-row">
-    <div class="file" *ngFor="let file of files" [class.f-active]="file.id == aFile?.id" (click)="aFile = file">
-      <mat-icon>insert_drive_file</mat-icon>
-      <span>{{ file.name }}</span>
-    </div>
+    @for (file of files; track $index) {
+      <div class="file" [class.f-active]="file.id == aFile?.id" (click)="aFile = file">
+        <mat-icon>insert_drive_file</mat-icon>
+        <span>{{ file.name }}</span>
+      </div>
+    }
     <div *ngIf="!files?.length" style="color: var(--chimp-text-hint); padding: 16px;">No files uploaded yet</div>
   </div>
   <div id="file-view" *ngIf="aFile?.id">

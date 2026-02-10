@@ -267,8 +267,9 @@ export class UserService implements OnDestroy {
     const membersQuery = query(membersCollection, where("teamId", "==", teamId));
     this.currentTeamMembersSub = collectionData(membersQuery, { idField: "id" }).subscribe((tm: TeamMember[]) => {
       if (tm) {
-        this.teamMembers = tm;
-        this.teamMembersObservable.next(tm);
+        const activeMembers = tm.filter(m => !m.deleted);
+        this.teamMembers = activeMembers;
+        this.teamMembersObservable.next(activeMembers);
       }
     });
   }

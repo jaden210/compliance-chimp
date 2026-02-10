@@ -1,7 +1,7 @@
 import { Component, signal, OnInit, OnDestroy, ViewChild, ElementRef } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { RouterModule } from "@angular/router";
-import { SelfInspectionsService, SelfInspection, Inspection, CoverageAnalysis, CoverageRecommendation, AutoBuildProgress } from "../self-inspections.service";
+import { SelfInspectionsService, SelfInspection, Inspection, CoverageAnalysis, CoverageRecommendation } from "../self-inspections.service";
 import { AccountService } from "../../account.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { MatToolbarModule } from "@angular/material/toolbar";
@@ -68,11 +68,6 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
   coverageError = signal<string | null>(null);
   coverageCollapsed = signal(this.loadCoverageCollapsedState());
   private analysisInProgress = false;
-
-  // Auto-build state
-  autoBuildActive = signal(false);
-  autoBuildProgress = signal<AutoBuildProgress | null>(null);
-  private autoBuildCancelFn: (() => void) | null = null;
 
   // Welcome banner features
   inspectionsWelcomeFeatures: WelcomeFeature[] = [
@@ -257,20 +252,20 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
 
   /**
    * Handle clicking on a coverage recommendation
-   * Navigates to the guide with the recommendation pre-populated
+   * Stores it in sessionStorage and navigates to the Smart Builder
    */
   useRecommendation(recommendation: CoverageRecommendation): void {
-    // Store the recommendation as a pending template
-    this.selfInspectionsService.setPendingTemplate({
-      title: recommendation.name,
-      frequency: recommendation.frequency,
-      baseQuestions: recommendation.baseQuestions,
+    // Store the recommendation in sessionStorage (matching training pattern)
+    sessionStorage.setItem('pendingInspectionRecommendation', JSON.stringify({
+      name: recommendation.name,
       description: recommendation.description,
-      reason: recommendation.reason
-    });
-    
-    // Navigate to the guide
-    this.router.navigate(['guide'], { relativeTo: this.route });
+      frequency: recommendation.frequency,
+      reason: recommendation.reason,
+      baseQuestions: recommendation.baseQuestions
+    }));
+
+    // Navigate to the smart builder
+    this.router.navigate(['smart-builder'], { relativeTo: this.route });
   }
 
   /**
@@ -520,12 +515,12 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
     this.router.navigate([inspection.id], { relativeTo: this.route });
   }
 
-  goToGuide(): void {
-    this.router.navigate(['guide'], { relativeTo: this.route });
+  goToSmartBuilder(): void {
+    this.router.navigate(['smart-builder'], { relativeTo: this.route });
   }
 
-  goToTemplates(): void {
-    this.router.navigate(['new'], { relativeTo: this.route });
+  goToNewInspection(): void {
+    this.router.navigate(['smart-builder'], { relativeTo: this.route, queryParams: { mode: 'scratch' } });
   }
 
   // Handle welcome banner feature clicks
@@ -547,95 +542,6 @@ export class SelfInspectionsListComponent implements OnInit, OnDestroy {
     if (this.inspectionsSection?.nativeElement) {
       this.inspectionsSection.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }
-
-  /**
-   * Start the auto-build process to automatically create inspections
-   * Iteratively analyzes coverage and creates recommended inspections
-   */
-  startAutoBuild(): void {
-    if (this.autoBuildActive()) return;
-
-    this.autoBuildActive.set(true);
-    this.autoBuildProgress.set(null);
-
-    const { progress$, cancel } = this.selfInspectionsService.autoBuildInspections();
-    this.autoBuildCancelFn = cancel;
-
-    progress$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (progress) => {
-        this.autoBuildProgress.set(progress);
-
-        // Check if complete or errored
-        if (progress.phase === 'complete' || progress.phase === 'error') {
-          this.autoBuildActive.set(false);
-          this.autoBuildCancelFn = null;
-          // Coverage cache is automatically invalidated by Cloud Function triggers
-          // when inspections are created, so no manual cache clearing needed
-        }
-      },
-      error: (err) => {
-        this.autoBuildActive.set(false);
-        this.autoBuildCancelFn = null;
-        this.autoBuildProgress.set({
-          phase: 'error',
-          iteration: 0,
-          maxIterations: 5,
-          currentScore: 0,
-          targetScore: 95,
-          inspectionsCreated: 0,
-          currentAction: `Error: ${err.message}`,
-          error: err.message,
-          log: [{
-            type: 'error',
-            message: err.message,
-            timestamp: new Date()
-          }]
-        });
-      }
-    });
-  }
-
-  /**
-   * Cancel the auto-build process
-   */
-  cancelAutoBuild(): void {
-    if (this.autoBuildCancelFn) {
-      this.autoBuildCancelFn();
-      this.autoBuildCancelFn = null;
-    }
-    this.autoBuildActive.set(false);
-  }
-
-  /**
-   * Check if auto-build is complete
-   */
-  isAutoBuildComplete(): boolean {
-    const progress = this.autoBuildProgress();
-    return progress?.phase === 'complete';
-  }
-
-  /**
-   * Check if auto-build had an error
-   */
-  isAutoBuildError(): boolean {
-    const progress = this.autoBuildProgress();
-    return progress?.phase === 'error';
-  }
-
-  /**
-   * Get the progress percentage for the auto-build
-   */
-  getAutoBuildProgressPercent(): number {
-    const progress = this.autoBuildProgress();
-    if (!progress) return 0;
-    
-    // Calculate based on iteration progress and score
-    const iterationProgress = ((progress.iteration - 1) / progress.maxIterations) * 50;
-    const scoreProgress = (progress.currentScore / progress.targetScore) * 50;
-    return Math.min(100, Math.round(iterationProgress + scoreProgress));
   }
 
   startInspection(inspection: SelfInspectionWithStatus) {

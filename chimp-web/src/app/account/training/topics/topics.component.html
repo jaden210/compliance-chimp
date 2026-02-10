@@ -17,22 +17,23 @@
     CREATE TOPIC
   </button>
   <mat-nav-list>
-    <mat-list-item
-      *ngFor="let topic of (topics | async)"
-      (click)="routeTo(topic)"
-    >
-      <img matListAvatar [src]="topic.imageUrl" alt="Compliancechimp" />
-      <h2 matLine>{{ topic.name }}</h2>
-      <p matLine>{{ topic.subpart }}</p>
-      <button
-        class="edit"
-        mat-icon-button
-        *ngIf="!topic.isGlobal || isDev"
-        (click)="editTopic(topic); $event.stopPropagation()"
-        matTooltip="Edit Topic"
+    @for (topic of (topics | async); track $index) {
+      <mat-list-item
+        (click)="routeTo(topic)"
       >
-        <mat-icon>edit</mat-icon>
-      </button>
-    </mat-list-item>
+        <img matListAvatar [src]="topic.imageUrl" alt="Compliancechimp" />
+        <h2 matLine>{{ topic.name }}</h2>
+        <p matLine>{{ topic.subpart }}</p>
+        <button
+          class="edit"
+          mat-icon-button
+          *ngIf="!topic.isGlobal || isDev"
+          (click)="editTopic(topic); $event.stopPropagation()"
+          matTooltip="Edit Topic"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+      </mat-list-item>
+    }
   </mat-nav-list>
 </div>

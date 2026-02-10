@@ -15,14 +15,16 @@ import { AccountService } from "./account.service";
     <h1 mat-dialog-title>Filter</h1>
     <div mat-dialog-content>
       <mat-selection-list dense [(ngModel)]="people" style="outline: none;">
-        <mat-list-option *ngFor="let user of (users | async)" [value]="user.id">
-          <img
-            matListAvatar
-            [src]="user.profileUrl"
-            onerror="src='/assets/face.png'"
-          />
-          <h3 matLine>{{ user.name }}</h3>
-        </mat-list-option>
+        @for (user of (users | async); track $index) {
+          <mat-list-option [value]="user.id">
+            <img
+              matListAvatar
+              [src]="user.profileUrl"
+              onerror="src='/assets/face.png'"
+            />
+            <h3 matLine>{{ user.name }}</h3>
+          </mat-list-option>
+        }
       </mat-selection-list>
     </div>
     <div mat-dialog-actions align="end">

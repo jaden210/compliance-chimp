@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { Router, RouterModule } from "@angular/router";
+import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
@@ -32,6 +32,7 @@ export class Step1Component implements OnInit {
   constructor(
     private challengeService: ChallengeService,
     private router: Router,
+    private route: ActivatedRoute,
     private analytics: AnalyticsService
   ) {}
 
@@ -40,6 +41,12 @@ export class Step1Component implements OnInit {
     this.businessName = this.challengeService.businessName;
     this.businessWebsite = this.challengeService.businessWebsite;
     this.industry = this.challengeService.industry;
+
+    const industryQueryParam = this.route.snapshot.queryParamMap.get('industry')?.trim() || '';
+    if (industryQueryParam) {
+      this.industry = industryQueryParam;
+      this.challengeService.setBusinessInfo(this.businessName, this.businessWebsite, industryQueryParam);
+    }
     
     // Track step 1 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP1_VIEW);

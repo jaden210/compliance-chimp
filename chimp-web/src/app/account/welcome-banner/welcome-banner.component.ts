@@ -29,15 +29,16 @@ export interface WelcomeFeature {
       </div>
 
       <div class="features-grid">
-        <div 
-          class="feature-card" 
-          *ngFor="let feature of features"
-          [class.clickable]="feature.action"
-          (click)="onFeatureClick(feature)">
-          <mat-icon class="feature-icon">{{ feature.icon }}</mat-icon>
-          <div class="feature-title">{{ feature.title }}</div>
-          <div class="feature-description">{{ feature.description }}</div>
-        </div>
+        @for (feature of features; track $index) {
+          <div 
+            class="feature-card" 
+            [class.clickable]="feature.action"
+            (click)="onFeatureClick(feature)">
+            <mat-icon class="feature-icon">{{ feature.icon }}</mat-icon>
+            <div class="feature-title">{{ feature.title }}</div>
+            <div class="feature-description">{{ feature.description }}</div>
+          </div>
+        }
       </div>
     </div>
   `,

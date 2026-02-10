@@ -49,6 +49,33 @@
   margin-right: auto;
 }
 
+/* Who performs note */
+.who-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--chimp-on-surface-variant);
+  background: var(--chimp-surface-container-high);
+  padding: 8px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  max-width: fit-content;
+}
+
+.splash .who-note {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.who-note mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--chimp-primary);
+  flex-shrink: 0;
+}
+
 .splash-actions {
   display: flex;
   flex-wrap: wrap;

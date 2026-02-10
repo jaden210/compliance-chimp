@@ -203,7 +203,7 @@ export class TeamComponent implements OnDestroy {
     {
       icon: 'local_offer',
       title: 'Tags',
-      description: 'Organize team members by role (Warehouse, Office, Driver) to auto-assign relevant training to the right people.',
+      description: 'Organize team members with tags (Warehouse, Office, Driver) to auto-assign relevant training to the right people.',
       action: 'scrollToMembers'
     },
     {
@@ -274,9 +274,22 @@ export class TeamComponent implements OnDestroy {
     this.accountService.teamManagersObservable.subscribe(managers => this.managers = managers);
   }
 
-  public routeToUserPage(userId: string) {
-    const url = `/user?member-id=${userId}`;
-    window.open(url, '_blank');
+  /**
+   * Check if a team member is the linked owner/manager (has linkedUserId).
+   */
+  isLinkedManager(member: TeamMember): boolean {
+    return !!(member as any).linkedUserId;
+  }
+
+  public routeToUserPage(member: TeamMember) {
+    // If this member is linked to a manager, use user-id param for the manager view
+    if ((member as any).linkedUserId) {
+      const url = `/user?user-id=${(member as any).linkedUserId}`;
+      window.open(url, '_blank');
+    } else {
+      const url = `/user?member-id=${member.id}`;
+      window.open(url, '_blank');
+    }
   }
 
   // Handle welcome banner feature clicks
@@ -396,6 +409,35 @@ export class TeamComponent implements OnDestroy {
     // Force change detection by creating new array reference so allTags updates across all tag-inputs
     this.teamMembers = [...this.teamMembers];
     this.saveTeamMember(member);
+    
+    // Keep the owner's linked member in sync with all team tags
+    this.syncOwnerTags();
+  }
+
+  /**
+   * Ensure the owner's linked team-member record has all unique tags from the team,
+   * so they receive every training assigned to any tag.
+   */
+  private syncOwnerTags(): void {
+    const ownerMember = this.teamMembers.find(m => this.isLinkedManager(m));
+    if (!ownerMember?.id) return;
+
+    // Collect all unique tags from non-owner members
+    const allTags = new Set<string>();
+    this.teamMembers.forEach(m => {
+      if (m.id !== ownerMember.id) {
+        (m.tags || []).forEach(tag => allTags.add(tag));
+      }
+    });
+
+    const newTags = Array.from(allTags).sort();
+    const currentTags = (ownerMember.tags || []).slice().sort();
+
+    // Only update if tags actually changed
+    if (JSON.stringify(newTags) !== JSON.stringify(currentTags)) {
+      ownerMember.tags = newTags;
+      updateDoc(doc(this.accountService.db, `team-members/${ownerMember.id}`), { tags: newTags });
+    }
   }
 
   addNewMember(): void {
@@ -468,8 +510,14 @@ export class TeamComponent implements OnDestroy {
   }
 
   confirmDeleteMember(member: TeamMember): void {
+    // Prevent deleting the linked owner/manager record
+    if (this.isLinkedManager(member)) return;
+    
     if (confirm(`Are you sure you want to remove ${member.name} from the team?`)) {
-      this.teamService.removeUser(member);
+      this.teamService.removeUser(member).then(() => {
+        // Re-sync owner tags after member removal
+        this.syncOwnerTags();
+      });
     }
   }
 
@@ -568,7 +616,7 @@ export class TeamComponent implements OnDestroy {
       <div class="help-section">
         <h3>What are tags?</h3>
         <p>
-          Tags are labels you assign to team members to group them by role, department, 
+          Tags are labels you assign to team members to group them by department, job title, 
           or any other category that makes sense for your organization.
         </p>
       </div>
@@ -601,7 +649,7 @@ export class TeamComponent implements OnDestroy {
       <div class="help-section">
         <h3>Best practices</h3>
         <p>
-          Create tags based on job roles or departments within your company. Common examples include:
+          Create tags based on departments or categories within your company. Common examples include:
         </p>
         <div class="tag-examples">
           <span class="tag-chip">Warehouse</span>
@@ -707,7 +755,7 @@ export class TagsHelpDialog {
     </h2>
     <mat-dialog-content>
       <div class="intro-text">
-        Different job titles have different safety requirements. By adding your full team with their roles, 
+        Different job titles have different safety requirements. By adding your full team with their job titles and tags, 
         you ensure the right inspections, trainings, and surveys reach the right people—so nothing gets missed.
       </div>
 
@@ -717,7 +765,7 @@ export class TagsHelpDialog {
           <mat-icon>check_circle</mat-icon>
           <div>
             <strong>Tailored safety checklists</strong>
-            <p>Inspections based on actual job roles and responsibilities</p>
+            <p>Inspections based on actual job titles and responsibilities</p>
           </div>
         </div>
         <div class="benefit-item">
@@ -739,7 +787,7 @@ export class TagsHelpDialog {
       <div class="tip-box">
         <mat-icon>lightbulb</mat-icon>
         <span>
-          <strong>Tip:</strong> Use tags to group team members by department or role, 
+          <strong>Tip:</strong> Use tags to group team members by department, job title, or any category, 
           then assign trainings to entire tags at once.
         </span>
       </div>

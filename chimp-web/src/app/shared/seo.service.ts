@@ -51,9 +51,9 @@ export class SeoService implements OnDestroy {
       keywords: 'contact compliance chimp, OSHA compliance support, safety software help'
     },
     '/blog': {
-      title: 'Blog | Compliance Chimp - Safety & Compliance Insights',
-      description: 'Stay up to date with the latest OSHA regulations, safety tips, and compliance best practices from the Compliance Chimp blog.',
-      keywords: 'OSHA blog, safety compliance blog, workplace safety articles'
+      title: 'OSHA Compliance & Safety Training Blog | Compliance Chimp',
+      description: 'Expert guides on OSHA regulations, workplace safety training, hazard prevention, and industry-specific compliance. Helping small businesses avoid fines and stay compliant.',
+      keywords: 'OSHA compliance blog, safety training articles, workplace safety guides, OSHA regulations, compliance best practices, hazard prevention'
     },
     '/sign-up': {
       title: 'Sign Up | Compliance Chimp - Start Free Trial',
@@ -84,6 +84,11 @@ export class SeoService implements OnDestroy {
       title: 'Avoid OSHA Fines for $99/Month | Compliance Chimp',
       description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes for just $99/month. Automated training, self-inspections, and audit-ready documentation.',
       keywords: 'OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance, OSHA fine prevention'
+    },
+    '/lp/roofing-contractors': {
+      title: 'Roofing OSHA Compliance Software | Compliance Chimp',
+      description: 'Roofing contractors can avoid costly fall protection citations with Compliance Chimp. Get OSHA-focused training, inspection checklists, and audit-ready records in 6 minutes.',
+      keywords: 'roofing OSHA compliance, roofing fall protection training, OSHA software for roofing contractors, roofing safety documentation, avoid OSHA roofing fines'
     }
   };
 

@@ -1,17 +1,12 @@
-<mat-tab-group>
-  <mat-tab label="Resource Library">
-    <resource-library />
-  </mat-tab>
+<mat-toolbar>
+  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
+  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()">
+    <mat-icon>menu</mat-icon>
+  </button>
+  <a class="toolbar-title" routerLink="/account/support">Admin</a>
+  <div class="flex"></div>
+</mat-toolbar>
 
-  <mat-tab label="Self-Inspection Template">
-    <inspection-questions />
-  </mat-tab>
-
-  <mat-tab label="Statistics">
-    <statistics />
-  </mat-tab>
-
-  <mat-tab label="Chimp Chat Feedback">
-    <chimp-feedback />
-  </mat-tab>
-</mat-tab-group>
+<div class="support-content">
+  <router-outlet />
+</div>

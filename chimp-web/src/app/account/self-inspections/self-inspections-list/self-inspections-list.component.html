@@ -59,7 +59,7 @@
 
       <!-- Get Started Hero - shown when no inspections AND can analyze coverage -->
       <ng-container *ngIf="selfInspections$ | async as heroInspections">
-        <section class="get-started-hero" *ngIf="heroInspections.length === 0 && canAnalyzeCoverage() && !autoBuildActive() && !autoBuildProgress()">
+        <section class="get-started-hero" *ngIf="heroInspections.length === 0 && canAnalyzeCoverage()">
           <div class="hero-layout">
             <!-- Left Column - What & Why -->
             <div class="hero-left">
@@ -70,6 +70,10 @@
                 document corrective actions, and maintain compliance. Regular inspections are the 
                 foundation of any effective compliance program.
               </p>
+              <div class="who-note">
+                <mat-icon>info</mat-icon>
+                Self-inspections are completed by account owners and managers, not individual team members.
+              </div>
               
               <div class="hero-benefits">
                 <div class="benefit-item">
@@ -101,12 +105,11 @@
               <div class="hero-action-card">
                 <div class="action-header">
                   <mat-icon>rocket_launch</mat-icon>
-                  <h2>Get Started in Seconds</h2>
+                  <h2>Get Started</h2>
                 </div>
                 <p class="action-description">
-                  We'll build a complete inspection program tailored to your 
-                  <strong>{{ accountService.aTeam?.industry }}</strong> industry and 
-                  <strong>{{ accountService.teamMembers?.length }}</strong> team members.
+                  Describe what you need and we'll generate a custom inspection checklist for your 
+                  <strong>{{ accountService.aTeam?.industry }}</strong> industry.
                 </p>
                 
                 <ul class="action-features">
@@ -120,13 +123,13 @@
                   </li>
                   <li>
                     <mat-icon>check_circle</mat-icon>
-                    <span>Ready to use in under a minute</span>
+                    <span>Fully editable before saving</span>
                   </li>
                 </ul>
 
-                <button mat-flat-button color="accent" class="primary-action" (click)="startAutoBuild()" [disabled]="accountService.isReadOnly">
-                  <mat-icon>rocket_launch</mat-icon>
-                  Build It For Me
+                <button mat-flat-button color="accent" class="primary-action" (click)="goToSmartBuilder()" [disabled]="accountService.isReadOnly">
+                  <mat-icon>construction</mat-icon>
+                  Smart Builder
                 </button>
 
                 <div class="action-divider">
@@ -134,13 +137,9 @@
                 </div>
 
                 <div class="secondary-actions">
-                  <button mat-stroked-button (click)="goToGuide()" [disabled]="accountService.isReadOnly">
-                    <mat-icon>construction</mat-icon>
-                    Smart Builder
-                  </button>
-                  <button mat-stroked-button (click)="goToTemplates()" [disabled]="accountService.isReadOnly">
-                    <mat-icon>list_alt</mat-icon>
-                    Templates
+                  <button mat-stroked-button (click)="goToNewInspection()" [disabled]="accountService.isReadOnly">
+                    <mat-icon>add</mat-icon>
+                    Create Blank Inspection
                   </button>
                 </div>
               </div>
@@ -149,112 +148,32 @@
         </section>
       </ng-container>
 
-      <!-- Normal splash - shown when there ARE inspections and not auto-building -->
+      <!-- Normal splash - shown when there ARE inspections -->
       <ng-container *ngIf="selfInspections$ | async as splashInspections">
-        <section class="splash" *ngIf="hasTeamMembers() && !autoBuildActive() && splashInspections.length > 0">
+        <section class="splash" *ngIf="hasTeamMembers() && splashInspections.length > 0">
           <div class="splash-content">
             <div class="splash-kicker">Self-Inspections</div>
             <div class="splash-title">Turn compliance into a steady rhythm.</div>
             <div class="splash-body">
               Self-inspections are guided checklists that capture how your team is doing. Pick one to review past runs or start a new inspection run.
             </div>
+            <div class="who-note">
+              <mat-icon>info</mat-icon>
+              Self-inspections are completed by account owners and managers, not individual team members.
+            </div>
             <div class="splash-actions">
-              <button mat-flat-button color="accent" (click)="goToGuide()" [disabled]="accountService.isReadOnly">
+              <button mat-flat-button color="accent" (click)="goToSmartBuilder()" [disabled]="accountService.isReadOnly">
                 <mat-icon>build</mat-icon>
                 Smart Builder
               </button>
-              <button mat-stroked-button color="primary" (click)="goToTemplates()" [disabled]="accountService.isReadOnly">
-                <mat-icon>list_alt</mat-icon>
-                Build from Templates
+              <button mat-stroked-button color="primary" (click)="goToNewInspection()" [disabled]="accountService.isReadOnly">
+                <mat-icon>add</mat-icon>
+                Create from Scratch
               </button>
             </div>
           </div>
         </section>
       </ng-container>
-
-      <!-- Auto-Build Progress Section -->
-      <section class="auto-build-section" *ngIf="autoBuildActive() || autoBuildProgress()">
-        <div class="auto-build-card">
-          <!-- Header -->
-          <div class="auto-build-header">
-            <div class="auto-build-icon" [class.spinning]="autoBuildActive() && !isAutoBuildComplete() && !isAutoBuildError()">
-              <mat-icon>{{ isAutoBuildComplete() ? 'check_circle' : isAutoBuildError() ? 'error' : 'auto_awesome' }}</mat-icon>
-            </div>
-            <div class="auto-build-title-section">
-              <h2 class="auto-build-title">
-                {{ isAutoBuildComplete() ? 'Build Complete!' : isAutoBuildError() ? 'Build Error' : 'Building Your Inspection Program' }}
-              </h2>
-              <p class="auto-build-subtitle" *ngIf="autoBuildProgress() as progress">
-                {{ progress.currentAction }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Progress Info -->
-          <div class="auto-build-progress" *ngIf="autoBuildProgress() as progress">
-            <div class="progress-stats">
-              <div class="stat">
-                <span class="stat-label">Iteration</span>
-                <span class="stat-value">{{ progress.iteration }} / {{ progress.maxIterations }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Coverage</span>
-                <span class="stat-value" [class.score-excellent]="progress.currentScore >= 90" [class.score-good]="progress.currentScore >= 70 && progress.currentScore < 90">
-                  {{ progress.currentScore }}%
-                </span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Created</span>
-                <span class="stat-value">{{ progress.inspectionsCreated }}</span>
-              </div>
-            </div>
-
-            <!-- Progress Bar -->
-            <div class="progress-bar-container">
-              <mat-progress-bar 
-                [mode]="isAutoBuildComplete() || isAutoBuildError() ? 'determinate' : 'indeterminate'"
-                [value]="isAutoBuildComplete() ? 100 : getAutoBuildProgressPercent()">
-              </mat-progress-bar>
-            </div>
-
-            <!-- Action Log -->
-            <div class="auto-build-log">
-              <div class="log-header">
-                <mat-icon>list</mat-icon>
-                Progress Log
-              </div>
-              <div class="log-entries">
-                <div class="log-entry" *ngFor="let entry of progress.log" [ngClass]="entry.type">
-                  <mat-icon class="log-icon">
-                    {{ entry.type === 'created' ? 'check_circle' : entry.type === 'error' ? 'error' : entry.type === 'analysis' ? 'analytics' : 'info' }}
-                  </mat-icon>
-                  <span class="log-message">{{ entry.message }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="auto-build-actions">
-            <button mat-stroked-button *ngIf="autoBuildActive() && !isAutoBuildComplete() && !isAutoBuildError()" (click)="cancelAutoBuild()">
-              <mat-icon>close</mat-icon>
-              Cancel
-            </button>
-            <button mat-flat-button color="primary" *ngIf="isAutoBuildComplete()" (click)="autoBuildProgress.set(null)">
-              <mat-icon>visibility</mat-icon>
-              View Inspections
-            </button>
-            <button mat-flat-button color="primary" *ngIf="isAutoBuildError()" (click)="startAutoBuild()">
-              <mat-icon>refresh</mat-icon>
-              Try Again
-            </button>
-            <button mat-stroked-button *ngIf="isAutoBuildError()" (click)="autoBuildProgress.set(null); goToGuide()">
-              <mat-icon>construction</mat-icon>
-              Build Manually
-            </button>
-          </div>
-        </div>
-      </section>
 
       <ng-container *ngIf="selfInspections$ | async as allInspections; else loading">
         <!-- Coverage Analysis Section -->
@@ -363,7 +282,9 @@
                       Strengths
                     </div>
                     <ul class="detail-list">
-                      <li *ngFor="let strength of analysis.strengths">{{ strength }}</li>
+                      @for (strength of analysis.strengths; track $index) {
+                        <li>{{ strength }}</li>
+                      }
                     </ul>
                   </div>
                   <div class="detail-column" *ngIf="analysis.gaps?.length">
@@ -372,7 +293,9 @@
                       Gaps
                     </div>
                     <ul class="detail-list">
-                      <li *ngFor="let gap of analysis.gaps">{{ gap }}</li>
+                      @for (gap of analysis.gaps; track $index) {
+                        <li>{{ gap }}</li>
+                      }
                     </ul>
                   </div>
                 </div>
@@ -384,27 +307,28 @@
                     <span>Recommended Inspections</span>
                   </div>
                   <div class="recommendations-list">
-                    <div class="recommendation-item" 
-                         *ngFor="let rec of analysis.recommendations"
-                         [ngClass]="getPriorityClass(rec.priority)"
-                         (click)="useRecommendation(rec)">
-                      <div class="rec-priority">
-                        <mat-icon>{{ rec.priority === 'high' ? 'priority_high' : rec.priority === 'low' ? 'low_priority' : 'drag_handle' }}</mat-icon>
+                    @for (rec of analysis.recommendations; track $index) {
+                      <div class="recommendation-item" 
+                           [ngClass]="getPriorityClass(rec.priority)"
+                           (click)="useRecommendation(rec)">
+                        <div class="rec-priority">
+                          <mat-icon>{{ rec.priority === 'high' ? 'priority_high' : rec.priority === 'low' ? 'low_priority' : 'drag_handle' }}</mat-icon>
+                        </div>
+                        <div class="rec-content">
+                          <span class="rec-name">{{ rec.name }}</span>
+                          <span class="rec-description">{{ rec.description }}</span>
+                          <span class="rec-reason">
+                            <mat-icon>info</mat-icon>
+                            {{ rec.reason }}
+                          </span>
+                        </div>
+                        <div class="rec-meta">
+                          <span class="rec-frequency">{{ rec.frequency }}</span>
+                          <span class="rec-questions">{{ rec.questionCount }} questions</span>
+                        </div>
+                        <mat-icon class="rec-arrow">chevron_right</mat-icon>
                       </div>
-                      <div class="rec-content">
-                        <span class="rec-name">{{ rec.name }}</span>
-                        <span class="rec-description">{{ rec.description }}</span>
-                        <span class="rec-reason">
-                          <mat-icon>info</mat-icon>
-                          {{ rec.reason }}
-                        </span>
-                      </div>
-                      <div class="rec-meta">
-                        <span class="rec-frequency">{{ rec.frequency }}</span>
-                        <span class="rec-questions">{{ rec.questionCount }} questions</span>
-                      </div>
-                      <mat-icon class="rec-arrow">chevron_right</mat-icon>
-                    </div>
+                    }
                   </div>
                 </div>
 
@@ -432,7 +356,7 @@
         </section>
 
         <!-- Standard empty state - shown when no inspections AND cannot analyze coverage -->
-        <div class="empty-state" *ngIf="allInspections.length === 0 && !canAnalyzeCoverage() && !autoBuildActive() && !autoBuildProgress()">
+        <div class="empty-state" *ngIf="allInspections.length === 0 && !canAnalyzeCoverage()">
           <div class="empty-left">
             <mat-icon class="empty-icon">checklist</mat-icon>
             <div class="empty-content">
@@ -445,6 +369,10 @@
                 Each inspection you create becomes a reusable template. Run it on a schedule—weekly, monthly, or quarterly—and 
                 track your results over time. Document corrective actions and follow up until they're resolved.
               </p>
+              <div class="who-note">
+                <mat-icon>info</mat-icon>
+                Self-inspections are completed by account owners and managers, not individual team members.
+              </div>
             </div>
           </div>
           <div class="empty-right">
@@ -549,61 +477,62 @@
               </div>
 
               <!-- Table Rows (Card-like) -->
-              <div 
-                class="table-row" 
-                *ngFor="let inspection of inspections; trackBy: trackByInspectionId" 
-                [class.overdue]="inspection.status === 'overdue'" 
-                [class.due-soon]="inspection.status === 'dueSoon'"
-                (click)="selectSelfInspection(inspection)">
-                
-                <div class="col-status">
-                  <span class="status-badge" [ngClass]="inspection.status">
-                    {{ getStatusLabel(inspection.status) }}
-                  </span>
-                </div>
-
-                <div class="col-name">
-                  <span class="inspection-title">{{ inspection.title }}</span>
-                </div>
-
-                <div class="col-last">
-                  <span *ngIf="inspection.lastCompletedAt">
-                    {{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'mediumDate') : (inspection.lastCompletedAt | date: 'mediumDate') }}
-                  </span>
-                  <span class="muted" *ngIf="!inspection.lastCompletedAt">Never</span>
-                </div>
-
-                <div class="col-next">
-                  <ng-container *ngIf="inspection.nextDueDate">
-                    <span [class.overdue-text]="inspection.status === 'overdue'" [class.due-soon-text]="inspection.status === 'dueSoon'">
-                      {{ inspection.nextDueDate | date: 'mediumDate' }}
+              @for (inspection of inspections; track inspection.id) {
+                <div 
+                  class="table-row" 
+                  [class.overdue]="inspection.status === 'overdue'" 
+                  [class.due-soon]="inspection.status === 'dueSoon'"
+                  (click)="selectSelfInspection(inspection)">
+                  
+                  <div class="col-status">
+                    <span class="status-badge" [ngClass]="inspection.status">
+                      {{ getStatusLabel(inspection.status) }}
                     </span>
-                    <span class="days-indicator" *ngIf="inspection.daysUntilDue !== undefined">
-                      <ng-container *ngIf="inspection.daysUntilDue < 0">({{ -inspection.daysUntilDue }}d overdue)</ng-container>
-                      <ng-container *ngIf="inspection.daysUntilDue === 0">(Today)</ng-container>
-                      <ng-container *ngIf="inspection.daysUntilDue > 0">({{ inspection.daysUntilDue }}d)</ng-container>
+                  </div>
+
+                  <div class="col-name">
+                    <span class="inspection-title">{{ inspection.title }}</span>
+                  </div>
+
+                  <div class="col-last">
+                    <span *ngIf="inspection.lastCompletedAt">
+                      {{ inspection.lastCompletedAt?.toDate ? (inspection.lastCompletedAt.toDate() | date: 'mediumDate') : (inspection.lastCompletedAt | date: 'mediumDate') }}
                     </span>
-                  </ng-container>
-                  <span class="muted" *ngIf="!inspection.nextDueDate">—</span>
-                </div>
+                    <span class="muted" *ngIf="!inspection.lastCompletedAt">Never</span>
+                  </div>
 
-                <div class="col-frequency">
-                  <span *ngIf="inspection.inspectionExpiration">{{ inspection.inspectionExpiration }}</span>
-                  <span class="muted" *ngIf="!inspection.inspectionExpiration">—</span>
-                </div>
+                  <div class="col-next">
+                    <ng-container *ngIf="inspection.nextDueDate">
+                      <span [class.overdue-text]="inspection.status === 'overdue'" [class.due-soon-text]="inspection.status === 'dueSoon'">
+                        {{ inspection.nextDueDate | date: 'mediumDate' }}
+                      </span>
+                      <span class="days-indicator" *ngIf="inspection.daysUntilDue !== undefined">
+                        <ng-container *ngIf="inspection.daysUntilDue < 0">({{ -inspection.daysUntilDue }}d overdue)</ng-container>
+                        <ng-container *ngIf="inspection.daysUntilDue === 0">(Today)</ng-container>
+                        <ng-container *ngIf="inspection.daysUntilDue > 0">({{ inspection.daysUntilDue }}d)</ng-container>
+                      </span>
+                    </ng-container>
+                    <span class="muted" *ngIf="!inspection.nextDueDate">—</span>
+                  </div>
 
-                <div class="col-actions">
-                  <button 
-                    mat-icon-button 
-                    [color]="inspection.inProgressInspection ? 'primary' : 'accent'" 
-                    class="start-action" 
-                    [class.resume]="inspection.inProgressInspection"
-                    [matTooltip]="inspection.inProgressInspection ? 'Resume in-progress inspection' : 'Start new inspection'" 
-                    (click)="startInspection(inspection); $event.stopPropagation()">
-                    <mat-icon>{{ inspection.inProgressInspection ? 'resume' : 'play_arrow' }}</mat-icon>
-                  </button>
+                  <div class="col-frequency">
+                    <span *ngIf="inspection.inspectionExpiration">{{ inspection.inspectionExpiration }}</span>
+                    <span class="muted" *ngIf="!inspection.inspectionExpiration">—</span>
+                  </div>
+
+                  <div class="col-actions">
+                    <button 
+                      mat-icon-button 
+                      [color]="inspection.inProgressInspection ? 'primary' : 'accent'" 
+                      class="start-action" 
+                      [class.resume]="inspection.inProgressInspection"
+                      [matTooltip]="inspection.inProgressInspection ? 'Resume in-progress inspection' : 'Start new inspection'" 
+                      (click)="startInspection(inspection); $event.stopPropagation()">
+                      <mat-icon>{{ inspection.inProgressInspection ? 'resume' : 'play_arrow' }}</mat-icon>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              }
             </div>
           </ng-container>
         </section>

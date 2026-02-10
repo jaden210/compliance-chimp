@@ -1,5 +1,23 @@
-/* Support Home - Tab container styles */
+/* Support Home - Layout shell */
 :host {
-  display: block;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.flex {
+  flex: 1;
+}
+
+/* Make toolbar title a clickable link back to dashboard */
+a.toolbar-title {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Scrollable content area */
+.support-content {
+  flex: 1;
+  overflow: hidden;
 }

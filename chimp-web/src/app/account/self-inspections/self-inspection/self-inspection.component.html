@@ -124,19 +124,21 @@
       <span class="count-badge">{{ inProgressInspections.length }}</span>
     </div>
     <div class="inspections-list">
-      <div class="inspection-card in-progress" *ngFor="let inspection of inProgressInspections" (click)="resumeSelfInspection(inspection)">
-        <div class="inspection-info">
-          <div class="inspection-date">Started {{ inspection.createdAt | date: 'mediumDate' }}</div>
-          <div class="progress-bar-container">
-            <div class="progress-bar compliant" [style.width.%]="getCompliantOfTotal(inspection)"></div>
-            <div class="progress-bar non-compliant" [style.width.%]="getNonCompliantOfTotal(inspection)"></div>
+      @for (inspection of inProgressInspections; track $index) {
+        <div class="inspection-card in-progress" (click)="resumeSelfInspection(inspection)">
+          <div class="inspection-info">
+            <div class="inspection-date">Started {{ inspection.createdAt | date: 'mediumDate' }}</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar compliant" [style.width.%]="getCompliantOfTotal(inspection)"></div>
+              <div class="progress-bar non-compliant" [style.width.%]="getNonCompliantOfTotal(inspection)"></div>
+            </div>
+            <div class="inspection-progress">{{ inspection.completedPercent }}% complete</div>
           </div>
-          <div class="inspection-progress">{{ inspection.completedPercent }}% complete</div>
+          <button mat-flat-button color="primary" class="continue-btn" (click)="resumeSelfInspection(inspection); $event.stopPropagation()">
+            Continue
+          </button>
         </div>
-        <button mat-flat-button color="primary" class="continue-btn" (click)="resumeSelfInspection(inspection); $event.stopPropagation()">
-          Continue
-        </button>
-      </div>
+      }
     </div>
   </section>
 
@@ -148,25 +150,27 @@
       <span class="count-badge">{{ completedInspections.length }}</span>
     </div>
     <div class="inspections-list">
-      <div class="inspection-card completed" *ngFor="let inspection of completedInspections">
-        <div class="inspection-info">
-          <div class="inspection-date">{{ inspection.completedAt | date: 'mediumDate' }}</div>
-          <div class="inspection-stats">
-            <span class="stat">
-              <mat-icon>task_alt</mat-icon>
-              {{ inspection.completedPercent }}% complete
-            </span>
-            <span class="stat" *ngIf="inspection.compliantPercent !== undefined">
-              <mat-icon>verified</mat-icon>
-              {{ inspection.compliantPercent }}% compliant
-            </span>
+      @for (inspection of completedInspections; track $index) {
+        <div class="inspection-card completed">
+          <div class="inspection-info">
+            <div class="inspection-date">{{ inspection.completedAt | date: 'mediumDate' }}</div>
+            <div class="inspection-stats">
+              <span class="stat">
+                <mat-icon>task_alt</mat-icon>
+                {{ inspection.completedPercent }}% complete
+              </span>
+              <span class="stat" *ngIf="inspection.compliantPercent !== undefined">
+                <mat-icon>verified</mat-icon>
+                {{ inspection.compliantPercent }}% compliant
+              </span>
+            </div>
           </div>
+          <button mat-stroked-button color="primary" (click)="export(inspection)">
+            <mat-icon>download</mat-icon>
+            Export PDF
+          </button>
         </div>
-        <button mat-stroked-button color="primary" (click)="export(inspection)">
-          <mat-icon>download</mat-icon>
-          Export PDF
-        </button>
-      </div>
+      }
     </div>
   </section>
 

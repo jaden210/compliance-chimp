@@ -34,32 +34,33 @@
     <div class="files-container" *ngIf="files?.length > 0">
       <div class="files-content">
         <div class="file-list">
-          <div 
-            class="file-item" 
-            *ngFor="let file of files" 
-            [class.active]="aFile?.id == file.id" 
-            (click)="selectFile(file)">
-            <div class="file-thumb">
-              <img *ngIf="isImageFile(file)" [src]="file.fileUrl" [alt]="file.name" loading="lazy">
-              <video *ngIf="isVideoFile(file)" [src]="file.fileUrl" preload="metadata"></video>
-              <div class="thumb-play" *ngIf="isVideoFile(file)">
-                <mat-icon>play_arrow</mat-icon>
+          @for (file of files; track $index) {
+            <div 
+              class="file-item" 
+              [class.active]="aFile?.id == file.id" 
+              (click)="selectFile(file)">
+              <div class="file-thumb">
+                <img *ngIf="isImageFile(file)" [src]="file.fileUrl" [alt]="file.name" loading="lazy">
+                <video *ngIf="isVideoFile(file)" [src]="file.fileUrl" preload="metadata"></video>
+                <div class="thumb-play" *ngIf="isVideoFile(file)">
+                  <mat-icon>play_arrow</mat-icon>
+                </div>
+                <div *ngIf="isPdfFile(file)" class="thumb-pdf">
+                  <mat-icon>picture_as_pdf</mat-icon>
+                </div>
+                <div *ngIf="!isImageFile(file) && !isVideoFile(file) && !isPdfFile(file)" class="thumb-icon">
+                  <mat-icon>{{ getFileIcon(file) }}</mat-icon>
+                </div>
               </div>
-              <div *ngIf="isPdfFile(file)" class="thumb-pdf">
-                <mat-icon>picture_as_pdf</mat-icon>
-              </div>
-              <div *ngIf="!isImageFile(file) && !isVideoFile(file) && !isPdfFile(file)" class="thumb-icon">
-                <mat-icon>{{ getFileIcon(file) }}</mat-icon>
+              <div class="file-info">
+                <div class="file-name">{{ file.name }}</div>
+                <div class="file-meta">
+                  <span class="file-date">{{ file.createdAt | date: 'mediumDate' }}</span>
+                  <mat-icon class="public-badge" *ngIf="file.isPublic" matTooltip="Visible to team">public</mat-icon>
+                </div>
               </div>
             </div>
-            <div class="file-info">
-              <div class="file-name">{{ file.name }}</div>
-              <div class="file-meta">
-                <span class="file-date">{{ file.createdAt | date: 'mediumDate' }}</span>
-                <mat-icon class="public-badge" *ngIf="file.isPublic" matTooltip="Visible to team">public</mat-icon>
-              </div>
-            </div>
-          </div>
+          }
         </div>
         
         <div class="file-preview" *ngIf="aFile?.id">
@@ -109,13 +110,19 @@
                 <table class="csv-table">
                   <thead>
                     <tr>
-                      <th *ngFor="let cell of csvData[0]">{{ cell }}</th>
+                      @for (cell of csvData[0]; track $index) {
+                        <th>{{ cell }}</th>
+                      }
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let row of csvData.slice(1)">
-                      <td *ngFor="let cell of row">{{ cell }}</td>
-                    </tr>
+                    @for (row of csvData.slice(1); track $index) {
+                      <tr>
+                        @for (cell of row; track $index) {
+                          <td>{{ cell }}</td>
+                        }
+                      </tr>
+                    }
                   </tbody>
                 </table>
               </div>
@@ -155,23 +162,25 @@
         Federal workplace posters and compliance documents.
       </p>
       <div class="resource-grid">
-        <div class="resource-card" *ngFor="let file of resourceFiles">
-          <div class="resource-card-header">
-            <mat-icon class="resource-card-icon">picture_as_pdf</mat-icon>
-            <div class="resource-card-actions">
-              <button mat-icon-button (click)="downloadResourceFile(file)" matTooltip="Download">
-                <mat-icon>download</mat-icon>
-              </button>
-              <a *ngIf="file.sourceUrl" mat-icon-button [href]="file.sourceUrl" target="_blank" matTooltip="View source">
-                <mat-icon>open_in_new</mat-icon>
-              </a>
+        @for (file of resourceFiles; track $index) {
+          <div class="resource-card">
+            <div class="resource-card-header">
+              <mat-icon class="resource-card-icon">picture_as_pdf</mat-icon>
+              <div class="resource-card-actions">
+                <button mat-icon-button (click)="downloadResourceFile(file)" matTooltip="Download">
+                  <mat-icon>download</mat-icon>
+                </button>
+                <a *ngIf="file.sourceUrl" mat-icon-button [href]="file.sourceUrl" target="_blank" matTooltip="View source">
+                  <mat-icon>open_in_new</mat-icon>
+                </a>
+              </div>
+            </div>
+            <div class="resource-card-content">
+              <div class="resource-card-name">{{ file.name }}</div>
+              <div class="resource-card-desc" *ngIf="file.description">{{ file.description }}</div>
             </div>
           </div>
-          <div class="resource-card-content">
-            <div class="resource-card-name">{{ file.name }}</div>
-            <div class="resource-card-desc" *ngIf="file.description">{{ file.description }}</div>
-          </div>
-        </div>
+        }
       </div>
     </div>
   </ng-container>

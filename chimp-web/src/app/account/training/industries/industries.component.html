@@ -8,12 +8,13 @@
 
 <div class="window">
   <mat-nav-list>
-    <mat-list-item
-      *ngFor="let industry of (industries | async)"
-      (click)="routeTo(industry)"
-    >
-      <mat-icon matListItemAvatar class="industry-list-icon">{{ industry.icon }}</mat-icon>
-      <h2 matLine>{{ industry.name }}</h2>
-    </mat-list-item>
+    @for (industry of (industries | async); track $index) {
+      <mat-list-item
+        (click)="routeTo(industry)"
+      >
+        <mat-icon matListItemAvatar class="industry-list-icon">{{ industry.icon }}</mat-icon>
+        <h2 matLine>{{ industry.name }}</h2>
+      </mat-list-item>
+    }
   </mat-nav-list>
 </div>

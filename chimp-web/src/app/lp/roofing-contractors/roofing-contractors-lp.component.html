@@ -1,0 +1,202 @@
+<section class="hero">
+  <div class="hero-content">
+    <div class="eyebrow-badge">
+      <mat-icon>warning</mat-icon>
+      <span>Fall protection remains the #1 OSHA citation category</span>
+    </div>
+
+    <h1>OSHA Compliance for Roofing Contractors in 6 Minutes</h1>
+    <p class="hero-subheadline">
+      Protect your crew, reduce inspection stress, and build audit-ready records without adding admin chaos.
+    </p>
+
+    <div class="hero-actions">
+      <button
+        mat-flat-button
+        class="primary-cta"
+        routerLink="/get-started"
+        [queryParams]="getStartedQueryParams"
+        (click)="trackCTAClick('hero_primary')"
+      >
+        Start 14-Day Free Trial
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+      <a class="secondary-cta" href="#how-it-works" (click)="trackCTAClick('hero_secondary')">
+        See 6-Minute Setup
+      </a>
+    </div>
+
+    <div class="hero-trust">
+      <span><mat-icon>check_circle</mat-icon> No credit card required</span>
+      <span><mat-icon>check_circle</mat-icon> Unlimited team members</span>
+      <span><mat-icon>check_circle</mat-icon> Cancel anytime</span>
+    </div>
+  </div>
+</section>
+
+<section class="pain-section">
+  <div class="section-content">
+    <h2>Roofing Compliance Risks Are Too Expensive to Ignore</h2>
+    <p class="section-subheadline">
+      One major fall-protection citation can cost more than years of software. Repeated violations can be even higher.
+    </p>
+
+    <div class="pain-grid">
+      <article class="pain-card">
+        <h3>Bankruptcy-level penalties</h3>
+        <p>
+          Public roofing enforcement actions in recent years include citations above $250,000 when violations are
+          severe or repeated.
+        </p>
+      </article>
+      <article class="pain-card">
+        <h3>High-risk jobsite exposure</h3>
+        <p>
+          Roofing crews work at heights every day, which puts fall prevention and documentation under heavier
+          inspection focus.
+        </p>
+      </article>
+      <article class="pain-card">
+        <h3>Inspection-day panic</h3>
+        <p>
+          Manual spreadsheets and paper files make it hard to prove what was trained, when it happened, and who
+          completed it.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works" class="solution-section">
+  <div class="section-content">
+    <p class="section-eyebrow">How Compliance Chimp Helps</p>
+    <h2>Built for Roofing Teams, Not Generic Construction Templates</h2>
+
+    <div class="features-grid">
+      <article class="feature-card">
+        <div class="feature-icon"><mat-icon>sms</mat-icon></div>
+        <h3>SMS-first crew training</h3>
+        <p>Deliver training by text and email so workers can complete requirements from any phone in the field.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon"><mat-icon>checklist</mat-icon></div>
+        <h3>Roofing-focused checklists</h3>
+        <p>Run repeatable safety walkthroughs with clear documentation for common roofing hazards and controls.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon"><mat-icon>description</mat-icon></div>
+        <h3>Audit-ready records</h3>
+        <p>Keep timestamped logs of training and compliance activity so documentation is available when you need it.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon"><mat-icon>schedule</mat-icon></div>
+        <h3>Automatic reminders</h3>
+        <p>Stay ahead of recurring requirements with automatic reminders instead of manual follow-ups.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="mid-cta">
+  <div class="mid-cta-content">
+    <p>Get your roofing compliance program started today before your next surprise inspection.</p>
+    <button
+      mat-flat-button
+      class="mid-cta-btn"
+      routerLink="/get-started"
+      [queryParams]="getStartedQueryParams"
+      (click)="trackCTAClick('mid')"
+    >
+      Get OSHA-Ready Now
+      <mat-icon>arrow_forward</mat-icon>
+    </button>
+  </div>
+</section>
+
+<section class="pricing-section">
+  <div class="section-content">
+    <div class="pricing-card">
+      <p class="pricing-eyebrow">Simple Flat Pricing</p>
+      <div class="price-line">
+        <span class="price">$99</span>
+        <span class="per">/month</span>
+      </div>
+      <p class="pricing-subheadline">One plan, unlimited users, and all core compliance tools included.</p>
+
+      <ul>
+        <li><mat-icon>check</mat-icon><span>Unlimited roofing crew members</span></li>
+        <li><mat-icon>check</mat-icon><span>Training delivery via text and email</span></li>
+        <li><mat-icon>check</mat-icon><span>Inspection and compliance workflows</span></li>
+        <li><mat-icon>check</mat-icon><span>Timestamped records for inspections</span></li>
+      </ul>
+
+      <button
+        mat-flat-button
+        class="primary-cta pricing-btn"
+        routerLink="/get-started"
+        [queryParams]="getStartedQueryParams"
+        (click)="trackCTAClick('pricing')"
+      >
+        Start Free Trial
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+      <p class="pricing-note">14-day free trial. No credit card required.</p>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section">
+  <div class="section-content">
+    <h2>Roofing Contractor FAQs</h2>
+
+    <article class="faq-item">
+      <h3>Can this work for small crews and owner-operators?</h3>
+      <p>
+        Yes. Compliance Chimp is designed to be simple enough for small roofing businesses while still providing
+        documentation discipline that larger contracts require.
+      </p>
+    </article>
+
+    <article class="faq-item">
+      <h3>How quickly can new hires be assigned training?</h3>
+      <p>
+        New hires can be added quickly and receive assignments immediately, helping seasonal and fast-changing crews
+        stay on track.
+      </p>
+    </article>
+
+    <article class="faq-item">
+      <h3>Will this replace our current binders and spreadsheets?</h3>
+      <p>
+        That is the goal for most teams. Compliance Chimp centralizes tracking, reminders, and records so compliance
+        does not depend on scattered manual systems.
+      </p>
+    </article>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="section-content final-cta-content">
+    <h2>Stop Guessing About OSHA Compliance</h2>
+    <p>Start your roofing workflow now and move into your next job with better documentation confidence.</p>
+
+    <button
+      mat-flat-button
+      class="primary-cta final-btn"
+      routerLink="/get-started"
+      [queryParams]="getStartedQueryParams"
+      (click)="trackCTAClick('final')"
+    >
+      Start My Free Trial
+      <mat-icon>arrow_forward</mat-icon>
+    </button>
+
+    <div class="final-links">
+      <a routerLink="/plans" (click)="trackCTAClick('plans_link')">View pricing details</a>
+      <a routerLink="/common-questions" (click)="trackCTAClick('faq_link')">Read common questions</a>
+    </div>
+  </div>
+</section>

@@ -9,13 +9,15 @@
         <th>answer</th>
         <th>explination</th>
       </tr>
-      <tr *ngFor="let survey of data.surveys">
-        <td>{{survey.title}}</td>
-        <td>{{survey.createdAt?.toDate() | date: 'short'}}</td>
-        <td>{{(survey.response?.createdAt?.toDate() | date: 'short') || 'no'}}</td>
-        <td>{{survey.response?.shortAnswer}}</td>
-        <td>{{survey.response?.longAnswer}}</td>
-      </tr>
+      @for (survey of data.surveys; track $index) {
+        <tr>
+          <td>{{survey.title}}</td>
+          <td>{{survey.createdAt?.toDate() | date: 'short'}}</td>
+          <td>{{(survey.response?.createdAt?.toDate() | date: 'short') || 'no'}}</td>
+          <td>{{survey.response?.shortAnswer}}</td>
+          <td>{{survey.response?.longAnswer}}</td>
+        </tr>
+      }
     </table>
   </div>
 </mat-dialog-content>

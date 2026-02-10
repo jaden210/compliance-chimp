@@ -3,7 +3,9 @@
   You have {{count}} days to reactivate this team before it is purged from our system.
   <div class="cteams" *ngIf="data.teams.length > 0">
     <div id="sia">or sign in as another team</div>
-    <div class="cteam" *ngFor="let team of data.teams" (click)="close(false, team.id)" matTooltip={{team.name}}><img class="timage" src={{team.logoUrl}} onerror="src = '/assets/ccLogoDark.png'"></div>
+    @for (team of data.teams; track $index) {
+      <div class="cteam" (click)="close(false, team.id)" matTooltip={{team.name}}><img class="timage" src={{team.logoUrl}} onerror="src = '/assets/ccLogoDark.png'"></div>
+    }
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">

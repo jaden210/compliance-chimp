@@ -1,0 +1,51 @@
+.not-found-page {
+  min-height: calc(100vh - var(--toolbar-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url("/assets/chimpDesk.gif");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 24px;
+}
+
+.not-found-overlay {
+  width: min(560px, 100%);
+  background: rgba(5, 77, 138, 0.82);
+  border: 2px solid rgba(255, 145, 0, 0.75);
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+  color: #ffffff;
+  backdrop-filter: blur(2px);
+}
+
+.not-found-overlay h1 {
+  margin: 0;
+  font-size: clamp(56px, 11vw, 92px);
+  line-height: 1;
+}
+
+.not-found-overlay p {
+  margin: 16px 0 0;
+  font-size: 19px;
+  line-height: 1.45;
+}
+
+.home-link {
+  display: inline-block;
+  margin-top: 24px;
+  background: var(--chimp-accent);
+  color: #ffffff;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.home-link:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}

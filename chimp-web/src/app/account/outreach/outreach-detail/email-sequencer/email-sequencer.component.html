@@ -1,0 +1,384 @@
+<!-- Loading -->
+<div class="page-loading" *ngIf="loading">
+  <mat-spinner diameter="32"></mat-spinner>
+  <p>Loading campaign...</p>
+</div>
+
+<div class="campaign-page" *ngIf="!loading && campaign">
+  <!-- ── Top bar ── -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <button mat-icon-button (click)="goBack()" matTooltip="Back to scrape detail">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="campaign-title">
+        <h2>{{ job?.niche | titlecase }} — {{ job?.region }}</h2>
+        <span class="campaign-subtitle">Email Campaign</span>
+      </div>
+    </div>
+    <div class="top-bar-center">
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'sequence'"
+        (click)="activeTab = 'sequence'"
+      >
+        <mat-icon>email</mat-icon>
+        Sequence
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'recipients'"
+        (click)="activeTab = 'recipients'"
+      >
+        <mat-icon>group</mat-icon>
+        Recipients ({{ recipients.length }})
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'landing-page'"
+        (click)="activeTab = 'landing-page'"
+      >
+        <mat-icon>web</mat-icon>
+        Landing Page
+      </button>
+    </div>
+    <div class="top-bar-right">
+      <span
+        class="status-badge"
+        [style.background]="getStatusColor(campaign.status)"
+      >{{ getStatusLabel(campaign.status) }}</span>
+      <div class="top-stats">
+        <span><strong>{{ campaign.stats?.totalSent || 0 }}</strong> sent</span>
+        <span><strong>{{ campaign.recipientCount || 0 }}</strong> recipients</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- SEQUENCE TAB -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="sequence-layout" *ngIf="activeTab === 'sequence'">
+    <!-- Left column: step list + settings -->
+    <div class="steps-column">
+      <!-- Daily limit -->
+      <div class="settings-card">
+        <div class="settings-row">
+          <mat-icon>speed</mat-icon>
+          <span>Daily limit:</span>
+          <input
+            type="number"
+            min="1"
+            max="10000"
+            [(ngModel)]="settings.dailySendLimit"
+            (blur)="saveDailyLimit()"
+            class="limit-input"
+          />
+          <span class="sent-today">{{ settings.sentToday }} sent today</span>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="steps-list">
+        @for (step of campaign.sequence; track $index) {
+          <div
+            class="step-item"
+            [class.active]="selectedStepIndex === $index"
+            (click)="selectStep($index)"
+          >
+            <div class="step-number">{{ $index + 1 }}</div>
+            <div class="step-preview">
+              <div class="step-subject">{{ step.subject || '(no subject)' }}</div>
+              <div class="step-delay" *ngIf="$index > 0">
+                <mat-icon>schedule</mat-icon>
+                {{ step.delayDays }} day{{ step.delayDays !== 1 ? 's' : '' }} after prev
+              </div>
+            </div>
+            <button
+              mat-icon-button
+              class="step-remove"
+              (click)="removeStep($index); $event.stopPropagation()"
+              matTooltip="Remove"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
+      </div>
+
+      <button class="add-step-btn" (click)="addStep()">
+        <mat-icon>add</mat-icon>
+        Add Email Step
+      </button>
+
+      <!-- Campaign controls -->
+      <div class="controls-card">
+        <button
+          class="control-btn start"
+          *ngIf="campaign.status === 'draft' || campaign.status === 'paused'"
+          (click)="startCampaign()"
+          [disabled]="starting || !campaign.sequence?.length"
+        >
+          <mat-icon>play_arrow</mat-icon>
+          {{ starting ? 'Starting...' : campaign.status === 'paused' ? 'Resume' : 'Start Campaign' }}
+        </button>
+        <button
+          class="control-btn pause"
+          *ngIf="campaign.status === 'active'"
+          (click)="pauseCampaign()"
+          [disabled]="pausing"
+        >
+          <mat-icon>pause</mat-icon>
+          {{ pausing ? 'Pausing...' : 'Pause' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Right column: editor -->
+    <div class="editor-column">
+      <div class="editor-empty" *ngIf="!editingStep">
+        <mat-icon>edit_note</mat-icon>
+        <p>Select a step from the left to edit, or add a new one.</p>
+      </div>
+
+      <div class="editor-content" *ngIf="editingStep">
+        <div class="editor-header">
+          <h3>Step {{ selectedStepIndex + 1 }}</h3>
+          <!-- Delay config -->
+          <div class="delay-config" *ngIf="selectedStepIndex > 0">
+            <mat-icon>schedule</mat-icon>
+            <span>Send</span>
+            <input
+              type="number"
+              min="1"
+              max="90"
+              [(ngModel)]="editingStep.delayDays"
+              (blur)="saveStep()"
+              class="delay-input"
+            />
+            <span>days after previous email</span>
+          </div>
+        </div>
+
+        <!-- AI generation bar -->
+        <div class="ai-bar">
+          <button
+            class="ai-btn auto"
+            (click)="autoGenerate()"
+            [disabled]="generating"
+          >
+            <mat-icon>auto_awesome</mat-icon>
+            {{ generating ? 'Generating...' : 'Auto-generate' }}
+          </button>
+          <div class="ai-prompt-row">
+            <input
+              class="ai-prompt-input"
+              [(ngModel)]="aiPrompt"
+              placeholder="Or describe what you want this email to say..."
+              (keydown.enter)="generateWithPrompt()"
+            />
+            <button
+              class="ai-btn prompt"
+              (click)="generateWithPrompt()"
+              [disabled]="generating || !aiPrompt.trim()"
+            >
+              <mat-icon>send</mat-icon>
+            </button>
+          </div>
+          <mat-spinner *ngIf="generating" diameter="20"></mat-spinner>
+        </div>
+
+        <!-- Subject line -->
+        <div class="field-group">
+          <label class="field-label">Subject line</label>
+          <input
+            class="subject-input"
+            [(ngModel)]="editingStep.subject"
+            (blur)="saveStep()"
+            placeholder="Email subject..."
+          />
+          <span class="field-hint">Use {{ '{' }}companyName{{ '}' }} for personalization</span>
+        </div>
+
+        <!-- Rich text editor -->
+        <div class="rich-editor-wrapper">
+          <label class="field-label">Email body</label>
+          <div class="ngx-editor-container">
+            <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+            <ngx-editor
+              [editor]="editor"
+              [(ngModel)]="editingStep.bodyHtml"
+              (ngModelChange)="saveStep()"
+              [placeholder]="'Write your email content...'"
+            ></ngx-editor>
+          </div>
+        </div>
+
+        <!-- Test send -->
+        <div class="test-send-bar">
+          <mat-icon>science</mat-icon>
+          <input
+            class="test-email-input"
+            type="email"
+            [(ngModel)]="testEmail"
+            placeholder="Send test to your email..."
+          />
+          <button
+            class="test-send-btn"
+            (click)="sendTest()"
+            [disabled]="sendingTest || !testEmail"
+          >
+            <mat-icon>{{ testSent ? 'check' : 'send' }}</mat-icon>
+            {{ sendingTest ? 'Sending...' : testSent ? 'Sent!' : 'Send Test' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- RECIPIENTS TAB -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="recipients-layout" *ngIf="activeTab === 'recipients'">
+    <!-- Filter bar -->
+    <div class="recipients-toolbar">
+      <div class="filter-pills">
+        <button
+          class="filter-pill"
+          [class.active]="recipientFilter === 'all'"
+          (click)="recipientFilter = 'all'"
+        >All ({{ recipients.length }})</button>
+        <button
+          class="filter-pill"
+          [class.active]="recipientFilter === 'queued'"
+          (click)="recipientFilter = 'queued'"
+        >Queued ({{ recipientStatusCounts['queued'] || 0 }})</button>
+        <button
+          class="filter-pill"
+          [class.active]="recipientFilter === 'completed'"
+          (click)="recipientFilter = 'completed'"
+        >Completed ({{ recipientStatusCounts['completed'] || 0 }})</button>
+        <button
+          class="filter-pill"
+          [class.active]="recipientFilter === 'failed'"
+          (click)="recipientFilter = 'failed'"
+        >Failed ({{ (recipientStatusCounts['failed'] || 0) + (recipientStatusCounts['bounced'] || 0) }})</button>
+        <button
+          class="filter-pill"
+          [class.active]="recipientFilter === 'unsubscribed'"
+          (click)="recipientFilter = 'unsubscribed'"
+        >Unsub ({{ recipientStatusCounts['unsubscribed'] || 0 }})</button>
+      </div>
+
+      <div class="sync-section" *ngIf="campaign.status === 'active' || campaign.status === 'paused'">
+        <button class="sync-btn" (click)="syncNewContacts()" [disabled]="syncing">
+          <mat-icon>sync</mat-icon>
+          {{ syncing ? 'Syncing...' : 'Sync New Contacts' }}
+        </button>
+        <span class="sync-result" *ngIf="syncResult">
+          +{{ syncResult.added }} added
+          <span *ngIf="syncResult.skippedInvalid">, {{ syncResult.skippedInvalid }} invalid</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Recipients grid -->
+    <div class="recipients-grid">
+      @for (r of filteredRecipients; track $index) {
+        <div class="recipient-card">
+          <div class="recipient-main">
+            <div class="recipient-name">{{ r.companyName || 'Unknown' }}</div>
+            <div class="recipient-email">{{ r.email }}</div>
+          </div>
+          <div class="recipient-progress">
+            <span class="step-indicator">
+              Step {{ r.currentStep + 1 }}/{{ campaign.sequence?.length || 0 }}
+            </span>
+          </div>
+          <span
+            class="recipient-badge"
+            [style.background]="getStatusColor(r.status)"
+          >{{ getStatusLabel(r.status) }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="recipients-empty" *ngIf="!filteredRecipients.length">
+      <mat-icon>group_off</mat-icon>
+      <p *ngIf="campaign.status === 'draft'">Start the campaign to populate recipients from your scrape results.</p>
+      <p *ngIf="campaign.status !== 'draft'">No recipients match this filter.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- LANDING PAGE TAB -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="lp-layout" *ngIf="activeTab === 'landing-page'">
+    <!-- No LP yet -->
+    <div class="lp-empty-state" *ngIf="!landingPage && !generatingLP">
+      <mat-icon>web</mat-icon>
+      <h3>Generate a Landing Page</h3>
+      <p>Create a custom conversion page tailored to <strong>{{ campaign.niche | titlecase }}</strong> in <strong>{{ campaign.region }}</strong>. This becomes the CTA link in all your outreach emails.</p>
+      <button class="generate-lp-btn" (click)="generateLP()">
+        Generate Landing Page
+      </button>
+    </div>
+
+    <!-- Generating -->
+    <div class="lp-generating-state" *ngIf="generatingLP">
+      <mat-spinner diameter="36"></mat-spinner>
+      <p>Generating your landing page with AI...</p>
+    </div>
+
+    <!-- LP exists -->
+    <div class="lp-detail" *ngIf="landingPage && !generatingLP">
+      <div class="lp-url-card">
+        <div class="lp-url-row">
+          <mat-icon>link</mat-icon>
+          <span class="lp-url-text">{{ landingPageUrl }}</span>
+          <button mat-icon-button (click)="openLandingPage()" matTooltip="Open in new tab">
+            <mat-icon>open_in_new</mat-icon>
+          </button>
+        </div>
+        <p class="lp-url-note">All outreach emails now link to this page instead of the default signup.</p>
+      </div>
+
+      <div class="lp-preview">
+        <div class="lp-preview-hero">
+          <span class="lp-preview-eyebrow">{{ landingPage.hero.eyebrow }}</span>
+          <h3>{{ landingPage.hero.headline }}</h3>
+          <p>{{ landingPage.hero.subheadline }}</p>
+        </div>
+
+        <div class="lp-preview-sections">
+          <div class="lp-section-card">
+            <mat-icon>warning</mat-icon>
+            <div>
+              <strong>{{ landingPage.painPoints?.length || 0 }} Pain Points</strong>
+              @for (p of landingPage.painPoints; track $index) {
+                <span>{{ p.title }}. </span>
+              }
+            </div>
+          </div>
+          <div class="lp-section-card">
+            <mat-icon>auto_awesome</mat-icon>
+            <div>
+              <strong>{{ landingPage.features?.length || 0 }} Features</strong>
+              @for (f of landingPage.features; track $index) {
+                <span>{{ f.title }}. </span>
+              }
+            </div>
+          </div>
+          <div class="lp-section-card">
+            <mat-icon>help_outline</mat-icon>
+            <div>
+              <strong>{{ landingPage.faq?.length || 0 }} FAQs</strong>
+              @for (q of landingPage.faq; track $index) {
+                <span>{{ q.question }} </span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

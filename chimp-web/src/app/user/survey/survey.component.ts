@@ -15,8 +15,6 @@ import { ActivatedRoute, ParamMap, Router } from "@angular/router";
 import { LibraryItem } from "src/app/account/training/training.service";
 import { Subject, switchMap, filter, tap } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import SignaturePad from "signature_pad";
-
 @Component({
   standalone: true,
   selector: "survey",
@@ -173,34 +171,87 @@ export class SignatureDialog implements AfterViewChecked, OnDestroy {
 
   private readonly dialogRef = inject(MatDialogRef<SignatureDialog>);
 
-  private signaturePad?: SignaturePad;
+  private signatureCtx: CanvasRenderingContext2D | null = null;
+  private cleanup: (() => void) | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  private isDrawing = false;
+  private lastPoint: { x: number; y: number } | null = null;
   finished: boolean = false;
 
   ngAfterViewChecked() {
-    if (this.signatureCanvas && !this.signaturePad) {
+    if (this.signatureCanvas && !this.signatureCtx) {
       this.canvas = this.signatureCanvas.nativeElement;
-      this.canvas.width = this.canvas.offsetWidth || 320;
-      this.canvas.height = 160;
-      this.signaturePad = new SignaturePad(this.canvas, {
-        minWidth: 1,
-        dotSize: 1
-      });
-      // Use SignaturePad's built-in addEventListener for reliable stroke detection
-      this.signaturePad.addEventListener('endStroke', () => {
-        this.finished = true;
-      });
+      const rect = this.canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      this.canvas.width = (rect.width || 320) * dpr;
+      this.canvas.height = 160 * dpr;
+
+      const ctx = this.canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = '#000';
+      this.signatureCtx = ctx;
+
+      const canvas = this.canvas;
+      const getPoint = (e: PointerEvent) => {
+        const r = canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      };
+
+      const onDown = (e: PointerEvent) => {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        this.isDrawing = true;
+        this.lastPoint = getPoint(e);
+        ctx.beginPath();
+        ctx.arc(this.lastPoint.x, this.lastPoint.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+      };
+
+      const onMove = (e: PointerEvent) => {
+        if (!this.isDrawing || !this.lastPoint) return;
+        e.preventDefault();
+        const point = getPoint(e);
+        ctx.beginPath();
+        ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        this.lastPoint = point;
+      };
+
+      const onUp = () => {
+        if (this.isDrawing) {
+          this.isDrawing = false;
+          this.lastPoint = null;
+          this.finished = true;
+        }
+      };
+
+      canvas.addEventListener('pointerdown', onDown);
+      canvas.addEventListener('pointermove', onMove);
+      canvas.addEventListener('pointerup', onUp);
+      canvas.addEventListener('pointercancel', onUp);
+
+      this.cleanup = () => {
+        canvas.removeEventListener('pointerdown', onDown);
+        canvas.removeEventListener('pointermove', onMove);
+        canvas.removeEventListener('pointerup', onUp);
+        canvas.removeEventListener('pointercancel', onUp);
+      };
     }
   }
 
   ngOnDestroy(): void {
-    if (this.signaturePad) {
-      this.signaturePad.off();
-    }
+    this.cleanup?.();
   }
 
   close(): void {
-    const dataUrl = this.signaturePad ? this.signaturePad.toDataURL() : null;
+    const dataUrl = this.canvas?.toDataURL() || null;
     this.dialogRef.close(dataUrl);
   }
 }

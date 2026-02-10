@@ -152,9 +152,11 @@
         <mat-form-field appearance="outline" class="cadence-field">
           <mat-label>Training Cadence</mat-label>
           <mat-select [(ngModel)]="selectedCadence">
-            <mat-option *ngFor="let option of cadenceOptions" [value]="option.value">
-              {{ option.label }}
-            </mat-option>
+            @for (option of cadenceOptions; track $index) {
+              <mat-option [value]="option.value">
+                {{ option.label }}
+              </mat-option>
+            }
           </mat-select>
         </mat-form-field>
       </div>

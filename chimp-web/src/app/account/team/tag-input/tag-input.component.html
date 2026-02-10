@@ -1,17 +1,18 @@
 <div class="tag-input-container" [class.compact]="compact">
   <div class="tag-list">
-    <span 
-      *ngFor="let tag of tags" 
-      class="tag-pill"
-      [style.backgroundColor]="getTagColor(tag).bg"
-      [style.color]="getTagColor(tag).text"
-      [style.borderColor]="getTagColor(tag).border">
-      <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
-      {{ tag }}
-      <button class="tag-remove" (click)="removeTag(tag)" [style.color]="getTagColor(tag).text">
-        <mat-icon>close</mat-icon>
-      </button>
-    </span>
+    @for (tag of tags; track $index) {
+      <span 
+        class="tag-pill"
+        [style.backgroundColor]="getTagColor(tag).bg"
+        [style.color]="getTagColor(tag).text"
+        [style.borderColor]="getTagColor(tag).border">
+        <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+        {{ tag }}
+        <button class="tag-remove" (click)="removeTag(tag)" [style.color]="getTagColor(tag).text">
+          <mat-icon>close</mat-icon>
+        </button>
+      </span>
+    }
   </div>
   
   <input
@@ -24,12 +25,14 @@
     [matAutocomplete]="auto">
   
   <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selected($event)" panelWidth="auto">
-    <mat-option *ngFor="let tag of filteredTags" [value]="tag">
-      <span class="autocomplete-tag">
-        <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
-        {{ tag }}
-      </span>
-    </mat-option>
+    @for (tag of filteredTags; track $index) {
+      <mat-option [value]="tag">
+        <span class="autocomplete-tag">
+          <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+          {{ tag }}
+        </span>
+      </mat-option>
+    }
     <mat-option *ngIf="inputValue.trim() && !allTags.includes(inputValue.trim())" [value]="inputValue.trim()">
       <span class="autocomplete-create">
         <mat-icon>add_circle</mat-icon>

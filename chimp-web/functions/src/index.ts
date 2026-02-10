@@ -289,7 +289,7 @@ export const autoBuildCompliance = onCall(
 
       // Get team members for job title and tag context
       const teamMembersSnapshot = await db
-        .collection('teamMember')
+        .collection('team-members')
         .where('teamId', '==', teamId)
         .get();
       
@@ -745,12 +745,21 @@ CRITICAL TAG ASSIGNMENT RULES:
 - General safety trainings (harassment, emergency plans, fire safety, emergency action) should have assignedTags: [] to go to everyone
 - Role-specific trainings MUST be assigned to relevant tags:
   - Forklift/material handling → assign to warehouse/operations tags
-  - Driving/CDL → assign to driver tags
+  - Driving/vehicle safety/DOT → assign to driver tags
+  - Heavy lifting/ergonomics/material handling → assign to heavy lifting/warehouse tags
   - Machine/equipment operation → assign to operations/technician tags
   - Office/computer/data → assign to office tags
+  - Heights/fall protection → assign to construction/field tags
 - You MUST use the exact tags provided in the TEAM TAGS AVAILABLE list
 - Do NOT make up new tags - only use tags from the provided list
 - If no tags are provided, use assignedTags: [] for all trainings
+- EVERY job title in the team should be covered by at least one role-specific training with appropriate tags
+
+ROLE COVERAGE REQUIREMENT:
+- Look at the team's job titles and ensure each role has at least one training specifically tagged for them
+- For example, if there is a "Delivery Driver", ensure there is a driving safety training tagged with the driver tag
+- If there is a "Warehouse Worker", ensure there are material handling and forklift trainings tagged appropriately
+- Every person on the team must be covered under OSHA - no one should fall through the cracks
 
 Generate 10-12 training topics that provide COMPLETE compliance coverage. Be thorough - it's better to have more coverage than to leave gaps that could result in violations.`
           },
@@ -1236,9 +1245,12 @@ export const suggestTagsForJobTitle = onCall(
               role: 'system',
               content: `You are helping categorize employees for an OSHA safety compliance system. Based on a job title, suggest 1-3 appropriate tags that would help group this employee with others who need similar OSHA safety trainings and surveys.
 
+Think about what OSHA-required trainings this person would need based on their job duties, and assign tags that map to those training requirements.
+
 Common tag categories include:
-- Work environment: "Warehouse", "Office", "Field", "Remote", "Shop", "Manufacturing"
-- Role type: "Driver", "Manager", "Technician", "Sales", "Production"
+- Work environment: "Warehouse", "Office", "Field", "Remote", "Shop", "Manufacturing", "Construction Site"
+- Role type: "Driver", "Manager", "Technician", "Sales", "Production", "Maintenance"
+- Hazard exposure: "Heavy Lifting", "Hazmat", "Heights", "Confined Spaces", "Electrical"
 - Special certifications: "Forklift Operator", "CDL Driver", "First Responder", "Welder"
 - Status: "New Hire" (for roles with "trainee", "intern", "new", etc.)
 
@@ -1248,17 +1260,20 @@ Rules:
 3. STRONGLY prefer existing tags when they fit - consistency is critical
 4. Look at other team members' job titles and tags to understand the team structure
 5. If similar roles have a tag, this role should probably have it too (e.g., if "Forklift Operator" has "Warehouse", then "Welder" probably works in the warehouse too)
-6. Be specific but not overly granular
-7. Return a JSON object with a "tags" array${existingTagsList}${teamContext}${industryContext}
+6. Be specific but not overly granular - tags should map to groups that need the same OSHA trainings
+7. Consider the physical activities and hazards of the role (driving, lifting, operating machinery, chemical exposure, etc.)
+8. Return a JSON object with a "tags" array${existingTagsList}${teamContext}${industryContext}
 
 Example responses:
 - "Warehouse Manager" → {"tags": ["Warehouse", "Manager"]}
 - "CDL Truck Driver" → {"tags": ["Driver", "CDL Driver"]}
+- "Delivery Driver" → {"tags": ["Driver", "Heavy Lifting"]}
 - "Office Administrator" → {"tags": ["Office"]}
 - "Forklift Operator" → {"tags": ["Warehouse", "Forklift Operator"]}
-- "Sales Representative" → {"tags": ["Sales", "Field"]}
-- "IT Support Technician" → {"tags": ["Office", "Technician"]}
-- "Welder" (when team has Warehouse tags) → {"tags": ["Warehouse", "Welder"]}`
+- "Sales Representative" → {"tags": ["Field"]}
+- "IT Support Technician" → {"tags": ["Office"]}
+- "Welder" (when team has Warehouse tags) → {"tags": ["Warehouse", "Welder"]}
+- "Construction Laborer" → {"tags": ["Construction Site", "Heavy Lifting"]}`
             },
             {
               role: 'user',
@@ -1787,6 +1802,170 @@ Generate a well-structured, easy-to-understand training article that covers the 
       };
     } catch (error: any) {
       console.error('Error generating article:', error);
+      throw new HttpsError('internal', error.message);
+    }
+  }
+);
+
+// AI-powered single inspection generation from a description
+// Mirrors generateArticleFromDescription but for inspections
+export const generateInspectionFromDescription = onCall(
+  { 
+    secrets: [xaiApiKey],
+    timeoutSeconds: 180,
+    memory: "1GiB"
+  },
+  async (request) => {
+    const { description, industry, teamMembers } = request.data as any;
+
+    if (!description) {
+      throw new HttpsError('invalid-argument', 'Inspection description is required');
+    }
+
+    // Build a list of unique job titles for more focused generation
+    const jobTitles = teamMembers?.length > 0
+      ? [...new Set(teamMembers.map((tm: { jobTitle: string }) => tm.jobTitle).filter(Boolean))]
+      : [];
+
+    const jobTitlesText = jobTitles.length > 0
+      ? `Team job titles include: ${jobTitles.join(', ')}`
+      : 'No specific job titles provided';
+
+    try {
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an OSHA compliance expert who creates comprehensive self-inspection checklists. Given a description, you generate a single, detailed inspection with relevant categories and yes/no questions.
+
+OSHA applies to most private-sector employers. Create inspections tailored to the given industry:
+- Healthcare/Medical → OSHA healthcare standards, bloodborne pathogens, safe patient handling, infection control
+- Manufacturing/Construction/Warehouse → OSHA workplace safety, machine guarding, fall protection, PPE, material handling
+- Food Service/Restaurant → Slip/fall prevention, chemical safety, cut/laceration hazards, ergonomics
+- Office/Retail → Walking-working surfaces, emergency egress, electrical safety, ergonomics
+- Any industry → Fire safety, emergency equipment, first aid, housekeeping, PPE
+
+FREQUENCY OPTIONS - CRITICAL REQUIREMENT:
+You MUST use ONLY one of these four values. No exceptions:
+- "Monthly" - For items that need regular checks
+- "Quarterly" - For seasonal or quarterly reviews  
+- "Semi-Annually" - For semi-annual comprehensive reviews
+- "Annually" - For annual compliance audits
+
+DO NOT use "Daily" or "Weekly" - these are NOT valid options.
+
+Return your response as a JSON object with this exact structure:
+{
+  "title": "Clear, descriptive inspection title",
+  "description": "Brief description of what this inspection covers",
+  "frequency": "Quarterly",
+  "reason": "Why this inspection is important",
+  "customCategories": [
+    {
+      "subject": "Category Name",
+      "questions": [
+        "Specific yes/no inspection question?",
+        "Another actionable inspection item?"
+      ]
+    }
+  ]
+}
+
+Guidelines:
+- Create 3-8 relevant categories with 3-8 questions each
+- Each question should be phrased as a yes/no inspection item
+- Be specific and practical - avoid vague or generic questions
+- Consider the team's job titles when creating questions
+- Reference actual OSHA regulations when relevant (OSHA 29 CFR 1910, 1926, etc.)
+- ONLY use frequencies: Monthly, Quarterly, Semi-Annually, Annually`
+            },
+            {
+              role: 'user',
+              content: `Please create a detailed self-inspection checklist based on this description:
+
+"${description}"
+
+Industry: ${industry || 'General'}
+
+${jobTitlesText}
+
+Team size: ${teamMembers?.length || 'Unknown'} team members
+
+Create a comprehensive inspection with custom categories and questions specific to this topic.`
+            }
+          ],
+          temperature: 0.4
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Grok API error:', errorText);
+        throw new Error(`Grok API error: ${response.status}`);
+      }
+
+      const grokResponse: any = await response.json();
+      const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+      // Parse the AI response
+      let inspectionData: any = {};
+      try {
+        const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          inspectionData = JSON.parse(jsonMatch[0]);
+        }
+      } catch (parseError) {
+        console.error('Error parsing AI response:', aiMessage);
+        throw new Error('Failed to parse AI response');
+      }
+
+      // Process categories
+      const categories: any[] = [];
+      if (inspectionData.customCategories && Array.isArray(inspectionData.customCategories)) {
+        inspectionData.customCategories.forEach((customCat: any) => {
+          if (customCat.subject && customCat.questions && Array.isArray(customCat.questions)) {
+            const questions = customCat.questions.map((q: string) => ({
+              name: q
+            }));
+            
+            if (questions.length > 0) {
+              categories.push({
+                subject: customCat.subject,
+                questions: questions
+              });
+            }
+          }
+        });
+      }
+
+      // Map frequency to match the app's enum (with typos)
+      let mappedFrequency = inspectionData.frequency || 'Quarterly';
+      if (mappedFrequency === 'Semi-Annually') {
+        mappedFrequency = 'Semi-Anually';
+      } else if (mappedFrequency === 'Annually') {
+        mappedFrequency = 'Anually';
+      } else if (mappedFrequency === 'Daily' || mappedFrequency === 'Weekly') {
+        mappedFrequency = 'Monthly';
+      }
+
+      return {
+        success: true,
+        title: inspectionData.title || 'New Inspection',
+        description: inspectionData.description || '',
+        frequency: mappedFrequency,
+        reason: inspectionData.reason || '',
+        baseQuestions: categories,
+        questionCount: categories.reduce((sum: number, cat: any) => sum + cat.questions.length, 0)
+      };
+    } catch (error: any) {
+      console.error('Error generating inspection:', error);
       throw new HttpsError('internal', error.message);
     }
   }
@@ -3190,7 +3369,7 @@ export const addToLibrary = onDocumentCreated(
       EventType.customContent,
       EventAction.created,
       event.params.id,
-      libraryItem.teamMemberId,
+      libraryItem.addedBy || 'system',
       `A new Article was Added to the Library: ${libraryItem.name}`,
       libraryItem.teamId
     );
@@ -3277,14 +3456,17 @@ function blastSurvey(survey: any): Promise<any> {
   let teamMember: any[] = [];
   return admin.firestore().collection(`team-members`).where("teamId", "==", survey.teamId).get().then((users: any) => {
       users.forEach((userDoc: any) => {
-        teamMember.push({...userDoc.data(), id: userDoc.id});
+        const data = userDoc.data();
+        if (!data.deleted) {
+          teamMember.push({...data, id: userDoc.id});
+        }
       });
       survey.trainees.forEach((tmId: string) => {
         let member = teamMember.find(tm => tm.id == tmId);
         if (member) {
           console.log('sending');
           const body = `Hi ${member.name}. A new survey is waiting for you. Click the link to answer. Please answer right away to help your employer maintain current records. Thank you! - The Compliancechimp team.\n
-          https://compliancechimp.com/user?member-id=${member.id}`;
+          ${getUserPageUrl(member)}`;
           return sendMessage(member, null, body).then(() => {
             return;
           });
@@ -3446,10 +3628,9 @@ async function autoStartDueTrainings() {
         .where('teamId', '==', team.id)
         .get();
       
-      const teamMembers = teamMembersSnapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      }));
+      const teamMembers = teamMembersSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id }))
+        .filter((m: any) => !m.deleted);
       
       if (teamMembers.length === 0) {
         continue;
@@ -3846,9 +4027,18 @@ export const teamMemberAdded = onDocumentCreated(
       return null;
     }
     
+    // Skip welcome for linked managers (owner/manager who is also a team member)
+    // They already have their own access and don't need an invitation
+    if (data.linkedUserId) {
+      console.log(`Skipping welcome message for ${data.name} - linked manager (${data.linkedUserId})`);
+      return null;
+    }
+    
     const teamMember = { ...data, id: event.params.teamMemberId };
     const teamDoc = await admin.firestore().doc(`team/${teamMember.teamId}`).get();
     const team = teamDoc.data();
+    
+    const pageUrl = getUserPageUrl(teamMember);
     
     let messageBody: string;
     if (teamMember.preferEmail) {
@@ -3861,7 +4051,7 @@ export const teamMemberAdded = onDocumentCreated(
         .join(teamMember.id);
     } else {
       // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
     }
     
     // Mark as sent and send the message
@@ -3879,18 +4069,29 @@ export const resendTeamMemberInvite = onCall(
   async (request) => {
     const { teamMember, team } = request.data as any;
     
+    const pageUrl = getUserPageUrl(teamMember);
+    
     let messageBody: string;
     if (teamMember.preferEmail) {
-      // Use HTML email template for email
-      const emailHtml = getEmail("add-team-member");
-      messageBody = emailHtml
-        .split("{{recipientName}}")
-        .join(teamMember.name)
-        .split("{{userId}}")
-        .join(teamMember.id);
+      // Use HTML email template for email - linked managers get the manager link template
+      if (teamMember.linkedUserId) {
+        const emailHtml = getEmail("manager-access-link");
+        messageBody = emailHtml
+          .split("{{recipientName}}")
+          .join(teamMember.name)
+          .split("{{userId}}")
+          .join(teamMember.linkedUserId);
+      } else {
+        const emailHtml = getEmail("add-team-member");
+        messageBody = emailHtml
+          .split("{{recipientName}}")
+          .join(teamMember.name)
+          .split("{{userId}}")
+          .join(teamMember.id);
+      }
     } else {
       // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training, surveys, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training, surveys, and more: ${pageUrl}`;
     }
     
     return await sendMessage(teamMember, team, messageBody);
@@ -3971,6 +4172,17 @@ export const sendPendingWelcomeMessages = onCall(
       const memberData = memberDoc.data() as any;
       const teamMember = { ...memberData, id: memberDoc.id };
       
+      // Skip soft-deleted members
+      if (teamMember.deleted) {
+        continue;
+      }
+      
+      // Skip linked managers (owner/manager who is also a team member)
+      if (teamMember.linkedUserId) {
+        await memberDoc.ref.update({ welcomeSent: true, welcomeSentAt: new Date() });
+        continue;
+      }
+      
       // Skip if no contact info
       if (!teamMember.phone && !teamMember.email) {
         errors.push(`${teamMember.name}: No contact info`);
@@ -3978,6 +4190,8 @@ export const sendPendingWelcomeMessages = onCall(
       }
       
       try {
+        const pageUrl = getUserPageUrl(teamMember);
+        
         let messageBody: string;
         if (teamMember.preferEmail) {
           const emailHtml = getEmail("add-team-member");
@@ -3987,7 +4201,7 @@ export const sendPendingWelcomeMessages = onCall(
             .split("{{userId}}")
             .join(teamMember.id);
         } else {
-          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
         }
         
         await sendMessage(teamMember, team, messageBody);
@@ -4022,6 +4236,7 @@ export const resendSurveyNotification = onCall(
     
     const surveyTitle = survey?.title || 'a survey';
     const teamName = team?.name || 'your company';
+    const pageUrl = getUserPageUrl(teamMember);
     
     let messageBody: string;
     if (teamMember.preferEmail) {
@@ -4049,7 +4264,7 @@ export const resendSurveyNotification = onCall(
               <p><strong>${surveyTitle}</strong></p>
               <p>Please take a moment to complete this survey at your earliest convenience.</p>
               <p style="text-align: center; margin: 24px 0;">
-                <a href="https://compliancechimp.com/user?member-id=${teamMember.id}" class="button">Complete Survey</a>
+                <a href="${pageUrl}" class="button">Complete Survey</a>
               </p>
               <p>Thank you,<br>The Compliancechimp Team</p>
             </div>
@@ -4059,7 +4274,7 @@ export const resendSurveyNotification = onCall(
       `;
     } else {
       // Plain text for SMS
-      messageBody = `Hi ${teamMember.name}. Reminder from ${teamName}: You have an outstanding survey "${surveyTitle}" waiting for your response. Please complete it here: https://compliancechimp.com/user?member-id=${teamMember.id}`;
+      messageBody = `Hi ${teamMember.name}. Reminder from ${teamName}: You have an outstanding survey "${surveyTitle}" waiting for your response. Please complete it here: ${pageUrl}`;
     }
     
     return await sendMessage(teamMember, team, messageBody);
@@ -4070,6 +4285,19 @@ export function getEmail(location: string) {
   return fs
     .readFileSync(path.resolve(`src/email-templates/user/${location}.html`))
     .toString();
+}
+
+/**
+ * Get the correct user page URL for a team member.
+ * If the member is linked to a manager (has linkedUserId), use user-id param
+ * so they always land in the manager experience.
+ * Otherwise use the standard member-id param.
+ */
+function getUserPageUrl(member: any): string {
+  if (member.linkedUserId) {
+    return `https://compliancechimp.com/user?user-id=${member.linkedUserId}`;
+  }
+  return `https://compliancechimp.com/user?member-id=${member.id}`;
 }
 
 function sendMessage(teamMember: any, team: any, body: string) {
@@ -4460,6 +4688,7 @@ export const sitemap = onRequest(
       { loc: '/contact', changefreq: 'monthly', priority: '0.6' },
       { loc: '/blog', changefreq: 'daily', priority: '0.8' },
       { loc: '/get-started', changefreq: 'monthly', priority: '0.8' },
+      { loc: '/lp/roofing-contractors', changefreq: 'weekly', priority: '0.8' },
       { loc: '/terms-of-service', changefreq: 'yearly', priority: '0.3' },
       { loc: '/privacy-policy', changefreq: 'yearly', priority: '0.3' },
       { loc: '/customer-agreement', changefreq: 'yearly', priority: '0.3' },
@@ -5161,9 +5390,9 @@ async function loadTeamContext(db: FirebaseFirestore.Firestore, teamId: string) 
   const team = teamDoc.data() || {};
   const now = new Date();
   
-  // Build team member lookup map
+  // Build team member lookup map (exclude soft-deleted members)
   const teamMemberMap: { [id: string]: string } = {};
-  const teamMembers = teamMembersSnapshot.docs.map(doc => {
+  const teamMembers = teamMembersSnapshot.docs.filter(doc => !doc.data().deleted).map(doc => {
     const data = doc.data();
     const name = data.name || 'Unknown';
     teamMemberMap[doc.id] = name;
@@ -5590,3 +5819,813 @@ Return valid JSON only.`;
     return null;
   }
 }
+
+// =============================================================================
+//  SCRAPER API - HTTP endpoint for lead scraper tool
+//  The local Python scraper POSTs progress and results here.
+// =============================================================================
+
+export const scraperApi = onRequest(
+  {
+    cors: true,
+    timeoutSeconds: 60,
+  },
+  async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    const { action, jobId, data } = req.body || {};
+
+    if (!action) {
+      res.status(400).json({ error: "Missing action field" });
+      return;
+    }
+
+    const db = admin.firestore();
+    const COLLECTION = "scrape-jobs";
+
+    try {
+      switch (action) {
+        // Create a new scrape job
+        case "createJob": {
+          const docRef = db.collection(COLLECTION).doc();
+          const jobData = {
+            niche: data?.niche || "",
+            region: data?.region || "",
+            status: "created",
+            progress: {
+              gridTotal: 0,
+              gridScanned: 0,
+              placesFound: 0,
+              placesScraped: 0,
+              emailsScraped: 0,
+              emailsFound: 0,
+              totalWithPhone: 0,
+              totalWithEmail: 0,
+              totalWithWebsite: 0,
+            },
+            totalResults: 0,
+            csvUrl: "",
+            results: [],
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          await docRef.set(jobData);
+          res.status(200).json({ success: true, jobId: docRef.id });
+          return;
+        }
+
+        // Update job progress/status
+        case "updateJob": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          const updateData: any = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          if (data?.status) updateData.status = data.status;
+          if (data?.progress) {
+            // Merge progress fields
+            for (const [key, value] of Object.entries(data.progress)) {
+              updateData[`progress.${key}`] = value;
+            }
+          }
+          if (data?.totalResults !== undefined)
+            updateData.totalResults = data.totalResults;
+          if (data?.csvUrl !== undefined) updateData.csvUrl = data.csvUrl;
+
+          await db.collection(COLLECTION).doc(jobId).update(updateData);
+          res.status(200).json({ success: true });
+          return;
+        }
+
+        // Upload final results array
+        case "uploadResults": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          const results = data?.results || [];
+          await db
+            .collection(COLLECTION)
+            .doc(jobId)
+            .update({
+              results: results,
+              totalResults: results.length,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          res.status(200).json({ success: true, count: results.length });
+          return;
+        }
+
+        // Upload CSV content and store as a download URL via base64
+        case "uploadCsv": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          const csvContent = data?.csv || "";
+          const fileName = data?.fileName || "results.csv";
+
+          // Store CSV in Cloud Storage
+          const bucket = admin.storage().bucket();
+          const filePath = `scrape-results/${jobId}/${fileName}`;
+          const file = bucket.file(filePath);
+
+          await file.save(csvContent, {
+            metadata: { contentType: "text/csv" },
+          });
+
+          // Make publicly accessible
+          await file.makePublic();
+          const csvUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+          await db.collection(COLLECTION).doc(jobId).update({
+            csvUrl: csvUrl,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          res.status(200).json({ success: true, csvUrl });
+          return;
+        }
+
+        // Delete a scrape job
+        case "deleteJob": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          await db.collection(COLLECTION).doc(jobId).delete();
+          res.status(200).json({ success: true });
+          return;
+        }
+
+        default:
+          res.status(400).json({ error: `Unknown action: ${action}` });
+          return;
+      }
+    } catch (error: any) {
+      console.error("Scraper API error:", error);
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  }
+);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OUTREACH EMAIL SEQUENCER
+// ══════════════════════════════════════════════════════════════════════════════
+
+const crypto = require("crypto");
+
+// ── Email validation helper ──
+function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim().toLowerCase();
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!re.test(trimmed)) return false;
+  const junk = ["noemail", "no-email", "n/a", "none", "test@test", "info@info"];
+  if (junk.some((j) => trimmed.includes(j))) return false;
+  return true;
+}
+
+function emailHash(email: string): string {
+  return crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+}
+
+function generateHmacToken(recipientId: string, campaignId: string): string {
+  const secret = process.env.SENDGRID_API_KEY || "outreach-secret";
+  return crypto.createHmac("sha256", secret).update(`${recipientId}:${campaignId}`).digest("hex");
+}
+
+// ── generateOutreachEmail ──
+export const generateOutreachEmail = onCall(
+  { secrets: [xaiApiKey] },
+  async (request) => {
+    const { niche, region, stepNumber, totalSteps, prompt } = request.data;
+    if (!niche || !region || !stepNumber || !totalSteps) {
+      throw new HttpsError("invalid-argument", "Missing required fields");
+    }
+
+    const systemPrompt = `You are Ulysses, the chimp who runs ComplianceChimp, an OSHA workplace safety and compliance platform. You are writing cold outreach emails to business owners in a specific industry.
+
+YOUR VOICE (this is non-negotiable):
+- You are a chimp. You own and run this company. This is not a bit, it is who you are. Reference it naturally, not in every email, but it should come through. Never use "monkey", you are an ape.
+- Concise and direct. No corporate fluff, no marketing jargon. You talk like a knowledgeable peer who genuinely cares about their safety.
+- Dry, understated wit. A slight smirk. Not corny jokes, just wry observations.
+- You lead with real consequences (deaths, injuries, fines) because you genuinely find poor compliance concerning. Not fearmongering, just matter-of-fact reality.
+- You NEVER use em-dashes. Use commas, periods, or restructure instead.
+- You NEVER use phrases like: "picture this", "imagine", "let's dive in", "here's the thing", "the reality is", "at the end of the day"
+
+FORMATTING RULES:
+- Use <strong> tags for key stats and important lines
+- Use arrow bullets (→) for feature lists, regular bullets (•) for stat lists
+- Keep paragraphs short (2-3 sentences max)
+- Include a clear CTA link using the placeholder {{ctaUrl}} (this gets replaced at send time)
+- Sign off with: — Ulysses 🐵<br>ComplianceChimp
+- Include a P.S. that is self-aware about being a chimp (playful, not forced)
+- Use {companyName} as a template variable for the recipient's business name
+- Do NOT include an unsubscribe link; that is appended automatically by the system
+
+CONTENT RULES:
+- ONLY cite real OSHA statistics, real CFR standards, and real fine amounts. If you are not confident a stat is accurate, do not include it.
+- Reference OSHA's actual top violations list for the industry when relevant.
+- Mention specific features: SMS-delivered training, auto-generated inspection checklists, 6-minute setup, $99/month, 14-day free trial, no credit card.
+- Tailor every email to the specific industry/niche provided.
+
+ABOUT COMPLIANCECHIMP (use these facts accurately):
+- Generates complete safety training programs automatically
+- SMS-delivered safety training that crews actually complete
+- Auto-generated inspection checklists
+- OSHA-ready documentation with timestamps
+- 6-minute setup time
+- $99/month pricing
+- 14-day free trial, no credit card required
+- 200+ contractors already use the platform
+
+SEQUENCE STEP GUIDANCE:
+- Email 1 (intro): Lead with a compelling, specific industry stat (deaths, fines, violation frequency). Introduce yourself briefly. Present the problem and the solution. This is the longest email.
+- Email 2 (follow-up): Shorter. Reference that you reached out before. Add a new angle, a different stat, or address a common objection.
+- Email 3+ (final push): Very short. Create gentle urgency. Maybe reference a recent OSHA enforcement action. Keep it to 4-6 sentences.
+
+EXAMPLE (roofing industry, email 1 style):
+Subject: "110 roofing workers died last year, 90% from preventable falls"
+Body: Hey {companyName}, Quick question - are you prepared for an OSHA fall protection inspection? [continues with stats, features, CTA, P.S.]`;
+
+    const userMessage = `Generate outreach email step ${stepNumber} of ${totalSteps} for:
+- Industry/niche: ${niche}
+- Region: ${region}
+${prompt ? "Additional direction: " + prompt : ""}
+
+Return a JSON object: { "subject": "...", "bodyHtml": "..." }
+The bodyHtml should be valid HTML (use <p>, <strong>, <br>, <a> tags).`;
+
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
+
+    const data: any = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      console.error("Failed to parse AI response:", content);
+    }
+
+    return { subject: "", bodyHtml: content };
+  }
+);
+
+// ── generateOutreachLandingPage ──
+export const generateOutreachLandingPage = onCall(
+  { secrets: [xaiApiKey] },
+  async (request) => {
+    const { campaignId } = request.data;
+    if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
+
+    const db = admin.firestore();
+    const campaignDoc = await db.collection("outreach-campaigns").doc(campaignId).get();
+    if (!campaignDoc.exists) throw new HttpsError("not-found", "Campaign not found");
+
+    const campaign = campaignDoc.data()!;
+    const { niche, region } = campaign;
+
+    const slug = `${niche}-${region}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+    const systemPrompt = `You are writing a conversion-focused landing page for ComplianceChimp, an OSHA compliance platform. The page targets a specific industry and region.
+
+Follow the exact same tone as the existing landing pages: professional, authoritative, direct. NOT the chimp mascot voice. Write like a knowledgeable industry peer.
+
+CRITICAL RULES:
+- NEVER use em-dashes
+- NEVER use "picture this", "imagine", "let's dive in", etc.
+- ONLY cite real OSHA standards (CFR numbers) and real fine amounts
+- Every sentence must provide value or drive toward conversion
+- Tailor all content to the specific industry provided
+
+Return a JSON object with this exact structure:
+{
+  "hero": { "eyebrow": "Short alarming stat (under 60 chars)", "headline": "OSHA Compliance for [Industry] in 6 Minutes", "subheadline": "One sentence value prop (under 120 chars)" },
+  "painPoints": [ { "title": "Short title", "description": "2-3 sentence explanation" }, { "title": "Short title", "description": "2-3 sentence explanation" }, { "title": "Short title", "description": "2-3 sentence explanation" } ],
+  "painHeadline": "Main pain section headline",
+  "painSubheadline": "Supporting sentence for pain section",
+  "solutionHeadline": "Built for [Industry] Teams, Not Generic Templates",
+  "features": [ { "icon": "material_icon_name", "title": "Feature title", "description": "1-2 sentences" }, { "icon": "material_icon_name", "title": "Feature title", "description": "1-2 sentences" }, { "icon": "material_icon_name", "title": "Feature title", "description": "1-2 sentences" }, { "icon": "material_icon_name", "title": "Feature title", "description": "1-2 sentences" } ],
+  "midCta": "One compelling sentence for mid-page CTA",
+  "faq": [ { "question": "?", "answer": "2-3 sentences" }, { "question": "?", "answer": "2-3 sentences" }, { "question": "?", "answer": "2-3 sentences" } ],
+  "finalCta": { "headline": "Stop Guessing About OSHA Compliance", "subheadline": "One sentence with urgency" },
+  "seoTitle": "Under 60 chars with primary keyword",
+  "seoDescription": "Under 155 chars meta description"
+}
+
+Use material icon names from: sms, checklist, description, schedule, security, engineering, construction, health_and_safety, verified_user, assignment, fact_check, shield, local_shipping, build, supervisor_account.`;
+
+    const userMessage = `Generate a landing page for: Industry: ${niche}, Region: ${region}`;
+
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
+
+    const data: any = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    let lpData: any = {};
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) lpData = JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      throw new HttpsError("internal", "Failed to parse AI landing page response");
+    }
+
+    const industryFormatted = niche.replace(/\b\w/g, (l: string) => l.toUpperCase());
+    await db.collection("outreach-landing-pages").doc(slug).set({
+      ...lpData,
+      slug,
+      campaignId,
+      niche,
+      region,
+      getStartedParams: { industry: industryFormatted, source: "outreach" },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await db.collection("outreach-campaigns").doc(campaignId).update({
+      landingPageSlug: slug,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { slug, url: `https://compliancechimp.com/lp/o/${slug}` };
+  }
+);
+
+// ── startOutreachCampaign ──
+export const startOutreachCampaign = onCall(async (request) => {
+  const { campaignId } = request.data;
+  if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
+
+  const db = admin.firestore();
+  const campaignDoc = await db.collection("outreach-campaigns").doc(campaignId).get();
+  if (!campaignDoc.exists) throw new HttpsError("not-found", "Campaign not found");
+
+  const campaign = campaignDoc.data()!;
+  if (!campaign.sequence?.length) {
+    throw new HttpsError("failed-precondition", "Campaign must have at least one sequence step");
+  }
+
+  const jobDoc = await db.collection("scrape-jobs").doc(campaign.jobId).get();
+  if (!jobDoc.exists) throw new HttpsError("not-found", "Scrape job not found");
+
+  const results: any[] = jobDoc.data()!.results || [];
+  const existingRecipients = await db.collection(`outreach-campaigns/${campaignId}/recipients`).get();
+  const existingEmails = new Set(existingRecipients.docs.map((d) => d.data().email?.toLowerCase()));
+
+  let recipientCount = existingRecipients.size;
+  let skippedInvalid = 0;
+
+  const batch = db.batch();
+  for (const result of results) {
+    const email = (result.email || "").trim().toLowerCase();
+    if (!email || existingEmails.has(email)) continue;
+    if (!isValidEmail(email)) {
+      skippedInvalid++;
+      continue;
+    }
+
+    // Check suppression list
+    const suppressionDoc = await db.collection("outreach-suppression").doc(emailHash(email)).get();
+    if (suppressionDoc.exists) continue;
+
+    const recipientRef = db.collection(`outreach-campaigns/${campaignId}/recipients`).doc();
+    batch.set(recipientRef, {
+      email,
+      companyName: result.name || "",
+      website: result.website || "",
+      currentStep: 0,
+      status: "queued",
+      nextSendAt: admin.firestore.FieldValue.serverTimestamp(),
+      history: [],
+    });
+    existingEmails.add(email);
+    recipientCount++;
+  }
+
+  await batch.commit();
+  await db.collection("outreach-campaigns").doc(campaignId).update({
+    status: "active",
+    recipientCount,
+    "stats.totalRecipients": recipientCount,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { recipientCount, skippedInvalid };
+});
+
+// ── pauseOutreachCampaign ──
+export const pauseOutreachCampaign = onCall(async (request) => {
+  const { campaignId } = request.data;
+  if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
+
+  const db = admin.firestore();
+  await db.collection("outreach-campaigns").doc(campaignId).update({
+    status: "paused",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+});
+
+// ── syncOutreachRecipients ──
+export const syncOutreachRecipients = onCall(async (request) => {
+  const { campaignId } = request.data;
+  if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
+
+  const db = admin.firestore();
+  const campaignDoc = await db.collection("outreach-campaigns").doc(campaignId).get();
+  if (!campaignDoc.exists) throw new HttpsError("not-found", "Campaign not found");
+
+  const campaign = campaignDoc.data()!;
+  const jobDoc = await db.collection("scrape-jobs").doc(campaign.jobId).get();
+  if (!jobDoc.exists) throw new HttpsError("not-found", "Scrape job not found");
+
+  const results: any[] = jobDoc.data()!.results || [];
+  const existingRecipients = await db.collection(`outreach-campaigns/${campaignId}/recipients`).get();
+  const existingEmails = new Set(existingRecipients.docs.map((d) => d.data().email?.toLowerCase()));
+
+  let added = 0;
+  let skippedInvalid = 0;
+  const batch = db.batch();
+
+  for (const result of results) {
+    const email = (result.email || "").trim().toLowerCase();
+    if (!email || existingEmails.has(email)) continue;
+    if (!isValidEmail(email)) {
+      skippedInvalid++;
+      continue;
+    }
+
+    const suppressionDoc = await db.collection("outreach-suppression").doc(emailHash(email)).get();
+    if (suppressionDoc.exists) continue;
+
+    const recipientRef = db.collection(`outreach-campaigns/${campaignId}/recipients`).doc();
+    batch.set(recipientRef, {
+      email,
+      companyName: result.name || "",
+      website: result.website || "",
+      currentStep: 0,
+      status: "queued",
+      nextSendAt: admin.firestore.FieldValue.serverTimestamp(),
+      history: [],
+    });
+    existingEmails.add(email);
+    added++;
+  }
+
+  if (added > 0) {
+    await batch.commit();
+    await db.collection("outreach-campaigns").doc(campaignId).update({
+      recipientCount: admin.firestore.FieldValue.increment(added),
+      "stats.totalRecipients": admin.firestore.FieldValue.increment(added),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  return { added, skippedInvalid };
+});
+
+// ── processOutreachQueue (scheduled every 15 minutes) ──
+export const processOutreachQueue = onSchedule(
+  { schedule: "*/15 * * * *", secrets: [sendgridApiKey] },
+  async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    // Load global settings
+    const settingsRef = db.collection("outreach-settings").doc("global");
+    const settingsDoc = await settingsRef.get();
+    const settings = settingsDoc.exists
+      ? settingsDoc.data()!
+      : { dailySendLimit: 100, sentToday: 0, sentTodayDate: "" };
+
+    // Reset daily counter if new day
+    let sentToday = settings.sentToday || 0;
+    if (settings.sentTodayDate !== todayStr) {
+      sentToday = 0;
+      await settingsRef.set(
+        { sentToday: 0, sentTodayDate: todayStr, dailySendLimit: settings.dailySendLimit || 100 },
+        { merge: true }
+      );
+    }
+
+    const dailyLimit = settings.dailySendLimit || 100;
+    let remaining = dailyLimit - sentToday;
+    if (remaining <= 0) return;
+
+    // Cap per invocation
+    const MAX_PER_RUN = 50;
+    remaining = Math.min(remaining, MAX_PER_RUN);
+
+    // Get active campaigns
+    const campaignsSnap = await db
+      .collection("outreach-campaigns")
+      .where("status", "==", "active")
+      .get();
+    if (campaignsSnap.empty) return;
+
+    const client = createSendgridClient();
+    let totalSentThisRun = 0;
+
+    for (const campaignDoc of campaignsSnap.docs) {
+      if (totalSentThisRun >= remaining) break;
+
+      const campaign = campaignDoc.data();
+      const campaignId = campaignDoc.id;
+      const sequence = campaign.sequence || [];
+      if (!sequence.length) continue;
+
+      const share = Math.ceil(remaining / campaignsSnap.size);
+      const limit = Math.min(share, remaining - totalSentThisRun);
+
+      const recipientsSnap = await db
+        .collection(`outreach-campaigns/${campaignId}/recipients`)
+        .where("status", "==", "queued")
+        .where("nextSendAt", "<=", now)
+        .orderBy("nextSendAt")
+        .limit(limit)
+        .get();
+
+      for (const recipientDoc of recipientsSnap.docs) {
+        if (totalSentThisRun >= remaining) break;
+
+        const recipient = recipientDoc.data();
+        const recipientId = recipientDoc.id;
+        const email = (recipient.email || "").trim().toLowerCase();
+
+        // Validate email
+        if (!isValidEmail(email)) {
+          await recipientDoc.ref.update({ status: "failed" });
+          continue;
+        }
+
+        // Check suppression
+        const suppressionDoc = await db.collection("outreach-suppression").doc(emailHash(email)).get();
+        if (suppressionDoc.exists) {
+          await recipientDoc.ref.update({ status: suppressionDoc.data()!.reason || "failed" });
+          continue;
+        }
+
+        // Idempotency: set to sending
+        await recipientDoc.ref.update({ status: "sending" });
+
+        const stepIndex = recipient.currentStep || 0;
+        if (stepIndex >= sequence.length) {
+          await recipientDoc.ref.update({ status: "completed" });
+          continue;
+        }
+
+        const step = sequence[stepIndex];
+        const companyName = recipient.companyName || "your company";
+
+        // Build CTA URL
+        let ctaUrl = "https://compliancechimp.com/get-started?source=outreach";
+        if (campaign.landingPageSlug) {
+          ctaUrl = `https://compliancechimp.com/lp/o/${campaign.landingPageSlug}`;
+        }
+
+        // Build unsubscribe URL
+        const token = generateHmacToken(recipientId, campaignId);
+        const unsubscribeUrl = `https://us-central1-teamlog-2d74c.cloudfunctions.net/unsubscribeOutreach?rid=${recipientId}&cid=${campaignId}&token=${token}`;
+
+        // Replace placeholders
+        let subject = (step.subject || "").replace(/\{companyName\}/g, companyName);
+        let body = (step.bodyHtml || "")
+          .replace(/\{companyName\}/g, companyName)
+          .replace(/\{\{ctaUrl\}\}/g, ctaUrl)
+          .replace(/\{\{unsubscribeUrl\}\}/g, unsubscribeUrl);
+
+        // Append CAN-SPAM footer
+        body += `<p style="font-size:11px;color:#999;margin-top:32px;border-top:1px solid #eee;padding-top:12px;">ComplianceChimp, Inc.<br><a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a> from this email sequence.</p>`;
+
+        try {
+          const info = await client.sendMail({
+            from: '"ComplianceChimp" <support@compliancechimp.app>',
+            to: email,
+            subject,
+            html: body,
+          });
+
+          const messageId = info?.messageId || "";
+          const nextStep = stepIndex + 1;
+          const isLastStep = nextStep >= sequence.length;
+          const nextDelay = isLastStep ? 0 : (sequence[nextStep]?.delayDays || 3);
+          const nextSendAt = new Date(now.getTime() + nextDelay * 24 * 60 * 60 * 1000);
+
+          await recipientDoc.ref.update({
+            status: isLastStep ? "completed" : "queued",
+            currentStep: nextStep,
+            nextSendAt: isLastStep ? null : nextSendAt,
+            history: admin.firestore.FieldValue.arrayUnion({
+              stepIndex,
+              sentAt: admin.firestore.FieldValue.serverTimestamp(),
+              messageId,
+            }),
+          });
+
+          // Increment counters
+          await settingsRef.update({
+            sentToday: admin.firestore.FieldValue.increment(1),
+          });
+          await db.collection("outreach-campaigns").doc(campaignId).update({
+            "stats.totalSent": admin.firestore.FieldValue.increment(1),
+          });
+
+          totalSentThisRun++;
+        } catch (err: any) {
+          console.error(`Failed to send to ${email}:`, err.message);
+          await recipientDoc.ref.update({ status: "failed" });
+        }
+      }
+
+      // Check if all recipients are done
+      const remainingRecipients = await db
+        .collection(`outreach-campaigns/${campaignId}/recipients`)
+        .where("status", "==", "queued")
+        .limit(1)
+        .get();
+      if (remainingRecipients.empty) {
+        const sendingRecipients = await db
+          .collection(`outreach-campaigns/${campaignId}/recipients`)
+          .where("status", "==", "sending")
+          .limit(1)
+          .get();
+        if (sendingRecipients.empty) {
+          await db.collection("outreach-campaigns").doc(campaignId).update({
+            status: "completed",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    }
+
+    console.log(`Outreach queue processed: ${totalSentThisRun} emails sent`);
+  }
+);
+
+// ── handleOutreachWebhook ──
+export const handleOutreachWebhook = onRequest(
+  { secrets: [sendgridApiKey] },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method not allowed");
+      return;
+    }
+
+    const db = admin.firestore();
+    const events = req.body || [];
+
+    for (const event of events) {
+      const eventType = event.event;
+      if (!["bounce", "dropped", "spamreport"].includes(eventType)) continue;
+
+      const email = (event.email || "").trim().toLowerCase();
+      if (!email) continue;
+
+      const reason = eventType === "spamreport" ? "complained" : "bounced";
+
+      // Add to suppression list
+      await db.collection("outreach-suppression").doc(emailHash(email)).set({
+        email,
+        reason,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Try to find and update the recipient by messageId if available
+      // This is best-effort; the suppression list is the primary guard
+      console.log(`Outreach webhook: ${eventType} for ${email}`);
+    }
+
+    res.status(200).json({ received: true });
+  }
+);
+
+// ── unsubscribeOutreach ──
+export const unsubscribeOutreach = onRequest(async (req, res) => {
+  const { rid, cid, token } = req.query as { rid: string; cid: string; token: string };
+
+  if (!rid || !cid || !token) {
+    res.status(400).send("Invalid unsubscribe link.");
+    return;
+  }
+
+  // Validate HMAC token
+  const expectedToken = generateHmacToken(rid, cid);
+  if (token !== expectedToken) {
+    res.status(403).send("Invalid token.");
+    return;
+  }
+
+  const db = admin.firestore();
+  const recipientRef = db.collection(`outreach-campaigns/${cid}/recipients`).doc(rid);
+  const recipientDoc = await recipientRef.get();
+
+  if (recipientDoc.exists) {
+    const email = (recipientDoc.data()!.email || "").trim().toLowerCase();
+
+    await recipientRef.update({
+      status: "unsubscribed",
+      unsubscribedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (email) {
+      await db.collection("outreach-suppression").doc(emailHash(email)).set({
+        email,
+        reason: "unsubscribed",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+    <head><title>Unsubscribed</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;color:#333;}
+    .card{background:#fff;padding:40px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:400px;}h1{font-size:20px;margin:0 0 8px;}p{color:#666;}</style></head>
+    <body><div class="card"><h1>You've been unsubscribed</h1><p>You won't receive further emails from this campaign.</p></div></body>
+    </html>
+  `);
+});
+
+// ── sendTestOutreachEmail ──
+export const sendTestOutreachEmail = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    const { campaignId, stepIndex, testEmail } = request.data;
+    if (!campaignId || stepIndex === undefined || !testEmail) {
+      throw new HttpsError("invalid-argument", "Missing required fields");
+    }
+
+    if (!isValidEmail(testEmail)) {
+      throw new HttpsError("invalid-argument", "Invalid test email address");
+    }
+
+    const db = admin.firestore();
+    const campaignDoc = await db.collection("outreach-campaigns").doc(campaignId).get();
+    if (!campaignDoc.exists) throw new HttpsError("not-found", "Campaign not found");
+
+    const campaign = campaignDoc.data()!;
+    const step = campaign.sequence?.[stepIndex];
+    if (!step) throw new HttpsError("not-found", "Sequence step not found");
+
+    let ctaUrl = "https://compliancechimp.com/get-started?source=outreach";
+    if (campaign.landingPageSlug) {
+      ctaUrl = `https://compliancechimp.com/lp/o/${campaign.landingPageSlug}`;
+    }
+
+    let subject = (step.subject || "").replace(/\{companyName\}/g, "Acme Roofing");
+    let body = (step.bodyHtml || "")
+      .replace(/\{companyName\}/g, "Acme Roofing")
+      .replace(/\{\{ctaUrl\}\}/g, ctaUrl)
+      .replace(/\{\{unsubscribeUrl\}\}/g, "#");
+
+    body += `<p style="font-size:11px;color:#999;margin-top:32px;border-top:1px solid #eee;padding-top:12px;"><em>This is a test email. Unsubscribe link is disabled.</em></p>`;
+
+    const client = createSendgridClient();
+    await client.sendMail({
+      from: '"ComplianceChimp" <support@compliancechimp.app>',
+      to: testEmail,
+      subject: `[TEST] ${subject}`,
+      html: body,
+    });
+  }
+);

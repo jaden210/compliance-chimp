@@ -17,29 +17,30 @@
     CREATE ARTICLE
   </button>
   <mat-nav-list>
-    <mat-list-item
-      *ngFor="let article of (articles | async)"
-      (click)="routeTo(article)"
-    >
-      <progress-indicator
-        *ngIf="article.favorited && article.myContent"
-        [myContent]="article.myContent"
-      ></progress-indicator>
-      <button
-        class="heart"
-        mat-icon-button
-        class="heart"
-        color="warn"
-        (click)="favorite(article); $event.stopPropagation()"
+    @for (article of (articles | async); track $index) {
+      <mat-list-item
+        (click)="routeTo(article)"
       >
-        <mat-icon
-          matListIcon
-          [ngStyle]="{ color: article.favorited ? '#E91E63' : '#757575' }"
+        <progress-indicator
+          *ngIf="article.favorited && article.myContent"
+          [myContent]="article.myContent"
+        ></progress-indicator>
+        <button
+          class="heart"
+          mat-icon-button
+          class="heart"
+          color="warn"
+          (click)="favorite(article); $event.stopPropagation()"
         >
-          {{ article.favorited ? "favorite" : "favorite_border" }}
-        </mat-icon>
-      </button>
-      <a matLine>{{ article.name }}</a>
-    </mat-list-item>
+          <mat-icon
+            matListIcon
+            [ngStyle]="{ color: article.favorited ? '#E91E63' : '#757575' }"
+          >
+            {{ article.favorited ? "favorite" : "favorite_border" }}
+          </mat-icon>
+        </button>
+        <a matLine>{{ article.name }}</a>
+      </mat-list-item>
+    }
   </mat-nav-list>
 </div>

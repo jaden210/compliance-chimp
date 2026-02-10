@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { combineLatest, Observable } from "rxjs";
-import { Firestore, collection, collectionData, doc, updateDoc, addDoc, deleteDoc, query, where, orderBy } from "@angular/fire/firestore";
+import { Firestore, collection, collectionData, doc, updateDoc, addDoc, deleteDoc, query, where, orderBy, getDocs, limit } from "@angular/fire/firestore";
 import { map } from "rxjs/operators";
 import { AccountService, TeamMember } from "../account.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -77,8 +77,47 @@ export class TeamService {
     return collectionData(achievementQuery, { idField: "id" });
   }
 
+  /**
+   * Smart delete: hard deletes the member if no history exists,
+   * soft deletes (marks deleted) if survey responses or incident reports are tied to them.
+   */
   async removeUser(user: TeamMember): Promise<any> {
-    return deleteDoc(doc(this.db, `team-members/${user.id}`));
+    const hasHistory = await this.memberHasHistory(user.id);
+
+    if (hasHistory) {
+      // Soft delete – preserve the document for historical references
+      return updateDoc(doc(this.db, `team-members/${user.id}`), {
+        deleted: true,
+        deletedAt: new Date()
+      });
+    } else {
+      // Hard delete – no related data, safe to remove entirely
+      return deleteDoc(doc(this.db, `team-members/${user.id}`));
+    }
+  }
+
+  /**
+   * Check whether a team member has any historical data tied to them
+   * (survey responses, incident reports). Uses limit(1) for efficiency.
+   */
+  async memberHasHistory(memberId: string): Promise<boolean> {
+    const responsesQuery = query(
+      collection(this.db, "survey-response"),
+      where("teamMemberId", "==", memberId),
+      limit(1)
+    );
+    const incidentsQuery = query(
+      collection(this.db, "incident-report"),
+      where("submittedBy", "==", memberId),
+      limit(1)
+    );
+
+    const [responses, incidents] = await Promise.all([
+      getDocs(responsesQuery),
+      getDocs(incidentsQuery)
+    ]);
+
+    return !responses.empty || !incidents.empty;
   }
 
   public getSurveysByTeamMember(memberId: string): Observable<any> {

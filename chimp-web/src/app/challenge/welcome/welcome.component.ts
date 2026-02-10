@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { Router, RouterModule } from "@angular/router";
+import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { ChallengeService } from "../challenge.service";
@@ -19,9 +19,12 @@ import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
   ]
 })
 export class WelcomeComponent implements OnInit {
+  private preselectedIndustry = "";
+
   constructor(
     private challengeService: ChallengeService,
     private router: Router,
+    private route: ActivatedRoute,
     private analytics: AnalyticsService
   ) {}
 
@@ -29,6 +32,11 @@ export class WelcomeComponent implements OnInit {
     // Reset the challenge state whenever welcome page is loaded
     // This ensures a fresh start when returning to the beginning
     this.challengeService.reset();
+
+    this.preselectedIndustry = this.route.snapshot.queryParamMap.get("industry")?.trim() || "";
+    if (this.preselectedIndustry) {
+      this.challengeService.setBusinessInfo("", "", this.preselectedIndustry);
+    }
     
     // Track welcome page view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_WELCOME_VIEW);
@@ -37,7 +45,9 @@ export class WelcomeComponent implements OnInit {
   getStarted(): void {
     // Track that user is starting the challenge
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_START);
-    
-    this.router.navigate(['/get-started/step1']);
+
+    this.router.navigate(['/get-started/step1'], {
+      queryParams: this.preselectedIndustry ? { industry: this.preselectedIndustry } : undefined
+    });
   }
 }

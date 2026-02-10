@@ -181,9 +181,21 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
     // --- INFO BOX ---
     const boxTop = y;
     const boxPadding = 0.15;
-    
+    const jobTitleX = leftMargin + 5;
+    const jobTitleMaxWidth = leftMargin + contentWidth - jobTitleX - boxPadding;
+
+    // Pre-calculate job title lines to determine box height
+    let jobTitleLines: string[] = [];
+    if (this.report.user?.jobTitle) {
+      pdfDoc.setFontSize(11);
+      pdfDoc.setFont("helvetica", "bold");
+      jobTitleLines = pdfDoc.splitTextToSize(this.report.user.jobTitle, jobTitleMaxWidth);
+    }
+    const extraJobTitleLines = Math.max(0, jobTitleLines.length - 1);
+    const boxHeight = 0.9 + (extraJobTitleLines * lineSpace);
+
     pdfDoc.setFillColor(248, 249, 250);
-    pdfDoc.roundedRect(leftMargin, y, contentWidth, 0.9, 0.1, 0.1, 'F');
+    pdfDoc.roundedRect(leftMargin, y, contentWidth, boxHeight, 0.1, 0.1, 'F');
     y += boxPadding + 0.1;
 
     // Date reported
@@ -193,7 +205,7 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
     pdfDoc.text("Date Reported", leftMargin + boxPadding, y);
     pdfDoc.text("Reported By", leftMargin + 2.5, y);
     if (this.report.user?.jobTitle) {
-      pdfDoc.text("Job Title", leftMargin + 5, y);
+      pdfDoc.text("Job Title", jobTitleX, y);
     }
     y += lineSpace;
 
@@ -205,11 +217,11 @@ export class IncidentReportComponent implements OnInit, OnDestroy {
       : String(this.report.createdAt || '');
     pdfDoc.text(dateStr, leftMargin + boxPadding, y);
     pdfDoc.text(this.report.user?.name || 'Unknown', leftMargin + 2.5, y);
-    if (this.report.user?.jobTitle) {
-      pdfDoc.text(this.report.user.jobTitle, leftMargin + 5, y);
+    if (jobTitleLines.length > 0) {
+      pdfDoc.text(jobTitleLines, jobTitleX, y);
     }
 
-    y = boxTop + 0.9 + sectionGap;
+    y = boxTop + boxHeight + sectionGap;
 
     // --- QUESTIONS SECTION ---
     pdfDoc.setFontSize(14);

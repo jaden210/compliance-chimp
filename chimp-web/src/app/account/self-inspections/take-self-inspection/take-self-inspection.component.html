@@ -37,38 +37,41 @@
     </div>
     
     <div class="categories-list">
-      <div class="category" *ngFor="let category of inspection.categories">
-        <div 
-          class="category-header" 
-          [class.active]="aCategory?.subject === category.subject"
-          [class.complete]="category.finished"
-          (click)="category.show = !category.show">
-          <div class="category-status">
-            <mat-icon *ngIf="category.finished" class="status-complete">check_circle</mat-icon>
-            <mat-icon *ngIf="!category.finished" class="status-pending">radio_button_unchecked</mat-icon>
-          </div>
-          <span class="category-name">{{ category.subject }}</span>
-          <mat-icon class="expand-icon" [class.expanded]="category.show">expand_more</mat-icon>
-        </div>
-        
-        <div class="questions-list" *ngIf="category.show">
+      @for (category of inspection.categories; track $index) {
+        <div class="category">
           <div 
-            class="question-row" 
-            *ngFor="let question of category.questions"
-            [class.active]="aQuestion?.name === question.name"
-            [class.answered]="question.answer !== undefined"
-            [class.compliant]="isCompliant(question)"
-            [class.non-compliant]="isNonCompliant(question)"
-            (click)="selectQuestion(question)">
-            <div class="question-status">
-              <mat-icon *ngIf="question.answer === undefined" class="status-unanswered">circle</mat-icon>
-              <mat-icon *ngIf="isCompliant(question)" class="status-compliant">check_circle</mat-icon>
-              <mat-icon *ngIf="isNonCompliant(question)" class="status-non-compliant">error</mat-icon>
+            class="category-header" 
+            [class.active]="aCategory?.subject === category.subject"
+            [class.complete]="category.finished"
+            (click)="category.show = !category.show">
+            <div class="category-status">
+              <mat-icon *ngIf="category.finished" class="status-complete">check_circle</mat-icon>
+              <mat-icon *ngIf="!category.finished" class="status-pending">radio_button_unchecked</mat-icon>
             </div>
-            <span class="question-name">{{ question.name }}</span>
+            <span class="category-name">{{ category.subject }}</span>
+            <mat-icon class="expand-icon" [class.expanded]="category.show">expand_more</mat-icon>
+          </div>
+          
+          <div class="questions-list" *ngIf="category.show">
+            @for (question of category.questions; track $index) {
+              <div 
+                class="question-row" 
+                [class.active]="aQuestion?.name === question.name"
+                [class.answered]="question.answer !== undefined"
+                [class.compliant]="isCompliant(question)"
+                [class.non-compliant]="isNonCompliant(question)"
+                (click)="selectQuestion(question)">
+                <div class="question-status">
+                  <mat-icon *ngIf="question.answer === undefined" class="status-unanswered">circle</mat-icon>
+                  <mat-icon *ngIf="isCompliant(question)" class="status-compliant">check_circle</mat-icon>
+                  <mat-icon *ngIf="isNonCompliant(question)" class="status-non-compliant">error</mat-icon>
+                </div>
+                <span class="question-name">{{ question.name }}</span>
+              </div>
+            }
           </div>
         </div>
-      </div>
+      }
     </div>
   </aside>
 
@@ -112,12 +115,14 @@
         <!-- Comment & Images -->
         <div class="comment-section">
           <div class="images-row" *ngIf="aQuestion?.images?.length">
-            <div class="image-thumb" *ngFor="let image of aQuestion.images">
-              <img [src]="image" alt="Attached image" (click)="viewImage(image)">
-              <button mat-mini-fab class="remove-image" (click)="removeImage(image); $event.stopPropagation()" matTooltip="Remove image">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </div>
+            @for (image of aQuestion.images; track $index) {
+              <div class="image-thumb">
+                <img [src]="image" alt="Attached image" (click)="viewImage(image)">
+                <button mat-mini-fab class="remove-image" (click)="removeImage(image); $event.stopPropagation()" matTooltip="Remove image">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            }
           </div>
           
           <mat-progress-bar *ngIf="loading" mode="indeterminate" class="upload-progress"></mat-progress-bar>

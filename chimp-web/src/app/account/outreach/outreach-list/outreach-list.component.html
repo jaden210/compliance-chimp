@@ -1,0 +1,143 @@
+<div class="window">
+
+  <!-- Download / Setup Section -->
+  <div class="setup-card" [class.collapsed]="setupCollapsed && hasJobs">
+    <div class="setup-header" (click)="hasJobs ? setupCollapsed = !setupCollapsed : null">
+      <div class="setup-header-left">
+        <mat-icon class="setup-icon">campaign</mat-icon>
+        <div>
+          <h3>Lead Scraper Tool</h3>
+          <p class="setup-subtitle">Find business contacts by niche — phones, emails, websites, addresses</p>
+        </div>
+      </div>
+      <button mat-icon-button *ngIf="hasJobs">
+        <mat-icon>{{ setupCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+      </button>
+    </div>
+
+    <div class="setup-body" *ngIf="!setupCollapsed || !hasJobs">
+      <div class="setup-steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Download the scraper</h4>
+            <p>Get the tool — it's a lightweight Python app (16 KB) that runs on your machine.</p>
+            <a
+              class="download-btn"
+              href="https://storage.googleapis.com/teamlog-2d74c.appspot.com/public/lead-scraper.zip"
+              download
+            >
+              <mat-icon>download</mat-icon>
+              Download Lead Scraper
+            </a>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Run it</h4>
+            <p>Unzip the folder, then double-click <strong>start.command</strong> (Mac) or <strong>start.bat</strong> (Windows).
+              It installs everything automatically on first run.</p>
+            <p class="step-note">Requires <a href="https://www.python.org/downloads/" target="_blank">Python 3</a> installed.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Pick a niche & scrape</h4>
+            <p>The tool opens a browser UI. Enter a business type (e.g. "roofing companies"),
+              pick a region, and hit Start. Progress shows up here in real-time.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-note">
+        <mat-icon>info_outline</mat-icon>
+        <span>
+          The scraper uses Google Places API (free tier) and web scraping — total cost is $0.
+          You'll need a <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Places API key</a>.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jobs List -->
+  <div class="section-header" *ngIf="hasJobs">
+    <h3>Scrape Jobs</h3>
+  </div>
+
+  <div class="jobs-list" *ngIf="(jobs$ | async) as jobs">
+    @for (job of jobs; track $index) {
+      <div
+        class="job-card"
+        (click)="viewJob(job)"
+      >
+        <div class="job-header">
+          <div class="job-title">
+            <h3>{{ job.niche | titlecase }}</h3>
+            <span class="job-region">{{ job.region }}</span>
+          </div>
+          <div class="job-actions">
+            <button
+              mat-icon-button
+              *ngIf="job.status === 'complete'"
+              (click)="downloadCsv($event, job)"
+              matTooltip="Download CSV"
+            >
+              <mat-icon>download</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              (click)="deleteJob($event, job)"
+              matTooltip="Delete"
+            >
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="job-status">
+          <span
+            class="status-dot"
+            [class.running]="service.isRunning(job.status)"
+            [style.background]="service.getStatusColor(job.status)"
+          ></span>
+          <span class="status-text">{{ service.getStatusLabel(job.status) }}</span>
+          <span class="job-date" *ngIf="job.createdAt">{{ job.createdAt | date:'short' }}</span>
+        </div>
+
+        <mat-progress-bar
+          *ngIf="service.isRunning(job.status)"
+          mode="determinate"
+          [value]="service.getProgressPercent(job)"
+          color="accent"
+        ></mat-progress-bar>
+
+        <div class="job-stats" *ngIf="job.progress">
+          <div class="stat" *ngIf="job.progress.placesFound">
+            <span class="stat-value">{{ job.progress.placesFound }}</span>
+            <span class="stat-label">Found</span>
+          </div>
+          <div class="stat" *ngIf="job.progress.placesScraped">
+            <span class="stat-value">{{ job.progress.placesScraped }}</span>
+            <span class="stat-label">Scraped</span>
+          </div>
+          <div class="stat" *ngIf="job.progress.totalWithPhone">
+            <span class="stat-value">{{ job.progress.totalWithPhone }}</span>
+            <span class="stat-label">Phones</span>
+          </div>
+          <div class="stat" *ngIf="job.progress.totalWithEmail || job.progress.emailsFound">
+            <span class="stat-value">{{ job.progress.totalWithEmail || job.progress.emailsFound }}</span>
+            <span class="stat-label">Emails</span>
+          </div>
+          <div class="stat" *ngIf="job.totalResults">
+            <span class="stat-value">{{ job.totalResults }}</span>
+            <span class="stat-label">Total</span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -22,30 +22,31 @@
 
 <div class="window">
   <mat-nav-list>
-    <mat-list-item
-      *ngFor="let content of (myContent | async)"
-      (click)="routeTo(content.articleId)"
-    >
-      <progress-indicator
-        *ngIf="!content.disabled"
-        [myContent]="content"
-      ></progress-indicator>
-
-      <button
-        mat-icon-button
-        class="heart"
-        color="warn"
-        (click)="favorite(content); $event.stopPropagation()"
+    @for (content of (myContent | async); track $index) {
+      <mat-list-item
+        (click)="routeTo(content.articleId)"
       >
-        <mat-icon
-          matListIcon
-          [ngStyle]="{ color: !content.disabled ? '#E91E63' : '#757575' }"
+        <progress-indicator
+          *ngIf="!content.disabled"
+          [myContent]="content"
+        ></progress-indicator>
+
+        <button
+          mat-icon-button
+          class="heart"
+          color="warn"
+          (click)="favorite(content); $event.stopPropagation()"
         >
-          {{ !content.disabled ? "favorite" : "favorite_border" }}
-        </mat-icon>
-      </button>
-      <a matLine>{{ content.articleName }}</a>
-    </mat-list-item>
+          <mat-icon
+            matListIcon
+            [ngStyle]="{ color: !content.disabled ? '#E91E63' : '#757575' }"
+          >
+            {{ !content.disabled ? "favorite" : "favorite_border" }}
+          </mat-icon>
+        </button>
+        <a matLine>{{ content.articleName }}</a>
+      </mat-list-item>
+    }
   </mat-nav-list>
   <div id="no-results" *ngIf="noResults">
     No results

@@ -137,8 +137,10 @@
                 <mat-spinner diameter="20"></mat-spinner>
                 <span>Sending...</span>
               } @else {
-                <mat-icon>send</mat-icon>
-                <span>Send Message</span>
+                <ng-container>
+                  <mat-icon>send</mat-icon>
+                  <span>Send Message</span>
+                </ng-container>
               }
             </button>
           </form>

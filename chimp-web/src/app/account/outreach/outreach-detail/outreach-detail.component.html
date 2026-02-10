@@ -1,0 +1,187 @@
+<div class="window" *ngIf="job">
+  <div class="detail-header">
+    <button mat-icon-button (click)="goBack()" matTooltip="Back to list">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="detail-title">{{ job.niche | titlecase }} — {{ job.region }}</div>
+    <div class="flex"></div>
+    <button
+      mat-icon-button
+      *ngIf="job.status === 'complete'"
+      (click)="downloadCsv()"
+      matTooltip="Download CSV"
+    >
+      <mat-icon>download</mat-icon>
+    </button>
+  </div>
+  <!-- Progress section -->
+  <div class="progress-section" *ngIf="service.isRunning(job.status)">
+    <div class="progress-header">
+      <span
+        class="status-dot"
+        [style.background]="service.getStatusColor(job.status)"
+      ></span>
+      <span class="status-label">{{ service.getStatusLabel(job.status) }}</span>
+      <span class="progress-pct">{{ service.getProgressPercent(job) | number:'1.0-0' }}%</span>
+    </div>
+    <mat-progress-bar
+      mode="determinate"
+      [value]="service.getProgressPercent(job)"
+      color="accent"
+    ></mat-progress-bar>
+  </div>
+
+  <!-- Stats cards -->
+  <div class="stats-row" *ngIf="job.progress">
+    <div class="stat-card">
+      <div class="stat-number">{{ job.progress.placesFound || 0 }}</div>
+      <div class="stat-text">Businesses Found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ job.progress.placesScraped || 0 }}</div>
+      <div class="stat-text">Details Scraped</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ job.progress.totalWithPhone || 0 }}</div>
+      <div class="stat-text">Phone Numbers</div>
+    </div>
+    <div
+      class="stat-card accent clickable-card"
+      (click)="openCampaign()"
+      matTooltip="Open email campaign"
+    >
+      <div class="stat-number">{{ job.progress.totalWithEmail || job.progress.emailsFound || 0 }}</div>
+      <div class="stat-text">
+        Emails Found
+        <mat-icon class="card-action-icon">mail_outline</mat-icon>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results table -->
+  <div class="results-section" *ngIf="job.results?.length">
+    <div class="results-header">
+      <h3>Results ({{ dataSource.filteredData.length }})</h3>
+      <div class="search-box">
+        <mat-icon>search</mat-icon>
+        <input
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="applyFilter()"
+          placeholder="Filter results..."
+        />
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table mat-table [dataSource]="dataSource" matSort>
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Business Name</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="business-name">{{ row.name }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="phone">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Phone</th>
+          <td mat-cell *matCellDef="let row; let i = index">
+            <div class="editable-cell" *ngIf="editingCell?.row === i && editingCell?.col === 'phone'; else showPhone">
+              <input
+                class="inline-edit"
+                [(ngModel)]="editValue"
+                (blur)="saveEdit(row, 'phone')"
+                (keydown.enter)="saveEdit(row, 'phone')"
+                (keydown.escape)="cancelEdit()"
+                #editInput
+              />
+            </div>
+            <ng-template #showPhone>
+              <span
+                class="clickable"
+                *ngIf="row.phone"
+                (click)="copyPhone(row.phone)"
+                matTooltip="Click to copy, double-click to edit"
+                (dblclick)="startEdit(i, 'phone', row.phone)"
+              >{{ row.phone }}</span>
+              <span
+                class="add-value"
+                *ngIf="!row.phone"
+                (click)="startEdit(i, 'phone', '')"
+                matTooltip="Add phone"
+              >+ add</span>
+            </ng-template>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Email</th>
+          <td mat-cell *matCellDef="let row; let i = index">
+            <div class="editable-cell" *ngIf="editingCell?.row === i && editingCell?.col === 'email'; else showEmail">
+              <input
+                class="inline-edit"
+                [(ngModel)]="editValue"
+                (blur)="saveEdit(row, 'email')"
+                (keydown.enter)="saveEdit(row, 'email')"
+                (keydown.escape)="cancelEdit()"
+                #editInput
+              />
+            </div>
+            <ng-template #showEmail>
+              <span
+                class="clickable email"
+                *ngIf="row.email"
+                (click)="copyEmail(row.email)"
+                matTooltip="Click to copy, double-click to edit"
+                (dblclick)="startEdit(i, 'email', row.email)"
+              >{{ row.email }}</span>
+              <span
+                class="add-value"
+                *ngIf="!row.email"
+                (click)="startEdit(i, 'email', '')"
+                matTooltip="Add email"
+              >+ add</span>
+            </ng-template>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="website">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Website</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="clickable link"
+              *ngIf="row.website"
+              (click)="openWebsite(row.website)"
+              matTooltip="Open website"
+            >{{ row.website | slice:0:35 }}{{ row.website?.length > 35 ? '...' : '' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="address">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Address</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="clickable"
+              *ngIf="row.address"
+              (click)="openMaps(row.googleMapsUrl)"
+              matTooltip="Open in Google Maps"
+            >{{ row.address | slice:0:40 }}{{ row.address?.length > 40 ? '...' : '' }}</span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty state for running jobs -->
+  <div class="empty-state" *ngIf="!job.results?.length && service.isRunning(job.status)">
+    <mat-icon>hourglass_top</mat-icon>
+    <p>Scraper is running. Results will appear here as they come in.</p>
+  </div>
+
+  <!-- Empty state for completed jobs with no results -->
+  <div class="empty-state" *ngIf="!job.results?.length && job.status === 'complete'">
+    <mat-icon>search_off</mat-icon>
+    <p>No results found for this scrape job.</p>
+  </div>
+</div>

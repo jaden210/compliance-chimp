@@ -163,6 +163,18 @@ export class UserComponent implements AfterViewInit {
       .subscribe(tm => {
         console.log('[UserComponent] getUser() result:', tm);
         if (tm) {
+          // If this team member is linked to a manager, upgrade to manager view
+          if ((tm as any).linkedUserId) {
+            console.log('[UserComponent] Team member is linked to manager, upgrading to manager view:', (tm as any).linkedUserId);
+            localStorage.setItem("ccuid", JSON.stringify((tm as any).linkedUserId));
+            localStorage.removeItem("ccmid");
+            this.userService.isViewingAsManager = true;
+            this.userService.isViewingAsMember = false;
+            this.userService.surveysLoaded.next(false);
+            this.fetchManagerData((tm as any).linkedUserId);
+            return;
+          }
+          
           // Cache and set team member
           this.cacheData(`cc_tm_${memberId}`, tm);
           this.userService.teamMember = tm;
@@ -223,7 +235,9 @@ export class UserComponent implements AfterViewInit {
   }
 
   /**
-   * Load team data for a manager (similar to loadTeamData but without surveys)
+   * Load team data for a manager.
+   * If the manager has a linkedMemberId, load surveys for that member ID
+   * so the manager sees their own trainings.
    */
   private loadTeamDataForManager(manager: any, userId: string): void {
     this.userService.getTeam(manager.teamId)
@@ -241,10 +255,16 @@ export class UserComponent implements AfterViewInit {
           // Check auth state (non-blocking)
           this.userService.checkAuthState();
           
-          // Managers don't have surveys assigned to them (they're not in the trainees list)
-          // So we just mark surveys as loaded with an empty array
-          this.userService.surveys = [];
-          this.userService.surveysLoaded.next(true);
+          // If manager has a linked member record, load surveys for that member ID
+          const linkedMemberId = manager.linkedMemberId;
+          if (linkedMemberId) {
+            console.log('[UserComponent] Manager has linked member, loading surveys for:', linkedMemberId);
+            this.loadSurveys(team.id, linkedMemberId);
+          } else {
+            // No linked member - no surveys
+            this.userService.surveys = [];
+            this.userService.surveysLoaded.next(true);
+          }
           
           // Load files (in parallel)
           this.loadFiles(manager.teamId);

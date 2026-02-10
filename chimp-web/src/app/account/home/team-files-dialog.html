@@ -3,10 +3,12 @@
   <mat-progress-bar mode="indeterminate" *ngIf="loading" style="top: -24px;position: absolute"></mat-progress-bar>
   <div style="height: 0px; width: 0px; overflow:hidden"><input type="file" #upFiled id="upFile" accept=".png,.jpg,.mp4,.csv,.pdf,.xls" #upload (change)="uploadFile($event)"></div>
   <div class="file-row">
-    <div class="file" *ngFor="let file of files" [ngClass]="{'f-active': aFile.id == file.id}" (click)="aFile = file">
-      <div class="f-name">{{file.name}}&nbsp;-&nbsp;</div>
-      {{file.createdAt | date}}
-    </div>
+    @for (file of files; track $index) {
+      <div class="file" [ngClass]="{'f-active': aFile.id == file.id}" (click)="aFile = file">
+        <div class="f-name">{{file.name}}&nbsp;-&nbsp;</div>
+        {{file.createdAt | date}}
+      </div>
+    }
   </div>
   <div id="file-view">
     <div id="file-preview"><img id="file-file" src={{aFile.fileUrl}} onerror="src = '/assets/lost.png'"></div>

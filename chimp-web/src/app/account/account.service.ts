@@ -1,6 +1,6 @@
 import { Injectable, Component, Inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, Subject } from "rxjs";
 import { Firestore, collection, collectionData, doc, docData, query, where, updateDoc, setDoc, addDoc } from "@angular/fire/firestore";
 import { map, debounceTime } from "rxjs/operators";
 import {
@@ -55,6 +55,9 @@ export class AccountService {
   helperProfiles: any;
   helper: Helper;
   feedback: Helper;
+
+  /** Emits when a child (e.g. dashboard) requests to open ChimpChat. AccountComponent subscribes and opens the panel. */
+  openChimpChatRequested = new Subject<void>();
 
   constructor(
     public db: Firestore,
@@ -115,10 +118,11 @@ export class AccountService {
     const membersCollection = collection(this.db, "team-members");
     const membersQuery = query(membersCollection, where("teamId", "==", teamId));
     collectionData(membersQuery, { idField: "id" }).subscribe((teamMembers: TeamMember[]) => {
-      teamMembers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      this.teamMembers = teamMembers;
+      const activeMembers = teamMembers.filter(m => !m.deleted);
+      activeMembers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      this.teamMembers = activeMembers;
       this.teamMembersLoaded = true;
-      this.teamMembersObservable.next(teamMembers);
+      this.teamMembersObservable.next(activeMembers);
     });
   }
 
@@ -257,6 +261,11 @@ export class AccountService {
     this.sidenav = sidenav;
   }
 
+  /** Request to open ChimpChat from anywhere (e.g. dashboard quick action). */
+  requestOpenChimpChat(): void {
+    this.openChimpChatRequested.next();
+  }
+
   public toggle(): void {
     this.sidenav.toggle();
   }
@@ -348,6 +357,8 @@ export class User {
   // Self-inspection reminder preferences
   selfInspectionRemindersEnabled?: boolean; // Defaults to true if undefined
   selfInspectionReminderMethod?: 'email' | 'sms'; // Defaults to 'email' if undefined
+  // Link to corresponding team-members document (owner/manager is also a team member)
+  linkedMemberId?: string;
 }
 
 export class TeamMember {
@@ -361,6 +372,10 @@ export class TeamMember {
   teamId: string;
   tags?: string[];
   preferEmail?: boolean;
+  deleted?: boolean;
+  deletedAt?: any;
+  // Link to corresponding user document (when this team member is also a manager/owner)
+  linkedUserId?: string;
 }
 
 export class Team {

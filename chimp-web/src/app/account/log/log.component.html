@@ -50,115 +50,115 @@
     </div>
     <!-- End No results log -->
 
-    <ng-container *ngFor="let group of (logsGroup | async)">
+    @for (group of (logsGroup | async); track $index) {
       <div id="date">
         <span>{{ group.date }}</span>
       </div>
-      <div
-        class="chat-line-wrapper"
-        [class.is-me]="authorGroup.isMe"
-        *ngFor="let authorGroup of group.logsByAuthor; last as lastAuthorGroup"
-      >
-        <div class="chat-line">
-          <div class="circle-container">
-            <div
-              class="circle"
-              [ngStyle]="{ background: authorGroup.author?.color }"
-            ></div>
-            <span [ngStyle]="{ color: authorGroup.author?.color }">{{
-              authorGroup.author?.name?.charAt(0)
-            }}</span>
-            <img
-              [src]="authorGroup.author?.profileUrl"
-              onerror="this.style.display='none'"
-            />
-          </div>
-          <div class="bubbles-container">
-            <span
-              class="name"
-              [ngStyle]="{ color: authorGroup.author?.color }"
-              >{{ authorGroup.author?.name }}</span
-            >
-            <div
-              class="bubble-time-wrapper"
-              (click)="showTime(log)"
-              *ngFor="
-                let log of authorGroup.logs;
-                first as isFirst;
-                last as isLast
-              "
-            >
-              <div class="bubble-wrapper">
-                <div
-                  class="chat-bubble"
-                  [class.is-image]="log.imageUrl"
-                  [ngClass]="
-                    authorGroup.logs.length > 1
-                      ? isFirst
-                        ? 'top'
-                        : isLast
-                        ? 'bottom'
-                        : 'middle'
-                      : null
-                  "
-                >
-                  <p *ngIf="log?.description">{{ log?.description }}</p>
-                  <img
-                    *ngIf="log.imageUrl"
-                    [src]="log.imageUrl"
-                    onerror="this.style.display='none'"
-                  />
-                </div>
-                <button
-                  mat-icon-button
-                  class="more-button"
-                  (click)="$event.stopPropagation()"
-                  [matMenuTriggerFor]="appMenu"
-                  [matMenuTriggerData]="{ log: log }"
-                >
-                  <mat-icon>more_vert</mat-icon>
-                </button>
-              </div>
+      @for (authorGroup of group.logsByAuthor; track $index) {
+        @let lastAuthorGroup = $last;
+        <div
+          class="chat-line-wrapper"
+          [class.is-me]="authorGroup.isMe"
+        >
+          <div class="chat-line">
+            <div class="circle-container">
               <div
-                class="time"
-                [ngStyle]="{
-                  maxHeight:
-                    (isLast && lastAuthorGroup) || log.showTime ? '24px' : '0px'
-                }"
+                class="circle"
+                [ngStyle]="{ background: authorGroup.author?.color }"
+              ></div>
+              <span [ngStyle]="{ color: authorGroup.author?.color }">{{
+                authorGroup.author?.name?.charAt(0)
+              }}</span>
+              <img
+                [src]="authorGroup.author?.profileUrl"
+                onerror="this.style.display='none'"
+              />
+            </div>
+            <div class="bubbles-container">
+              <span
+                class="name"
+                [ngStyle]="{ color: authorGroup.author?.color }"
+                >{{ authorGroup.author?.name }}</span
               >
-                <p>{{ authorGroup.time | date: "shortTime" }}</p>
-              </div>
+              @for (log of authorGroup.logs; track $index) {
+                <div
+                  class="bubble-time-wrapper"
+                  (click)="showTime(log)"
+                >
+                  <div class="bubble-wrapper">
+                    <div
+                      class="chat-bubble"
+                      [class.is-image]="log.imageUrl"
+                      [ngClass]="
+                        authorGroup.logs.length > 1
+                          ? $first
+                            ? 'top'
+                            : $last
+                            ? 'bottom'
+                            : 'middle'
+                          : null
+                      "
+                    >
+                      <p *ngIf="log?.description">{{ log?.description }}</p>
+                      <img
+                        *ngIf="log.imageUrl"
+                        [src]="log.imageUrl"
+                        onerror="this.style.display='none'"
+                      />
+                    </div>
+                    <button
+                      mat-icon-button
+                      class="more-button"
+                      (click)="$event.stopPropagation()"
+                      [matMenuTriggerFor]="appMenu"
+                      [matMenuTriggerData]="{ log: log }"
+                    >
+                      <mat-icon>more_vert</mat-icon>
+                    </button>
+                  </div>
+                  <div
+                    class="time"
+                    [ngStyle]="{
+                      maxHeight:
+                        ($last && lastAuthorGroup) || log.showTime ? '24px' : '0px'
+                    }"
+                  >
+                    <p>{{ authorGroup.time | date: "shortTime" }}</p>
+                  </div>
+                </div>
+              }
             </div>
           </div>
         </div>
-      </div>
-    </ng-container>
+      }
+    }
 
     <!-- For temporary response logs -->
     <div class="chat-line-wrapper is-me">
       <div class="chat-line">
         <div class="bubbles-container">
-          <div
-            class="chat-bubble"
-            *ngFor="let rl of responseLogs; first as isFirst; last as isLast"
-            [class.is-image]="rl.imageUrl"
-            [ngClass]="
-              responseLogs.length > 1
-                ? isFirst
-                  ? 'top'
-                  : isLast
-                  ? 'bottom'
-                  : 'middle'
-                : null
-            "
-          >
-            <img
-              *ngIf="rl.imageUrl"
-              [src]="rl.imageUrl"
-              onerror="this.style.display='none'"
-            />
-            <p *ngIf="rl.description">{{ rl?.description }}</p>
-          </div>
+          @for (rl of responseLogs; track $index) {
+            <div
+              class="chat-bubble"
+              [class.is-image]="rl.imageUrl"
+              [ngClass]="
+                responseLogs.length > 1
+                  ? $first
+                    ? 'top'
+                    : $last
+                    ? 'bottom'
+                    : 'middle'
+                  : null
+              "
+            >
+              <img
+                *ngIf="rl.imageUrl"
+                [src]="rl.imageUrl"
+                onerror="this.style.display='none'"
+              />
+              <p *ngIf="rl.description">{{ rl?.description }}</p>
+            </div>
+          }
           <mat-icon *ngIf="errorIcon" id="alert" (click)="resendLog()"
             >alert</mat-icon
           >
@@ -177,10 +177,12 @@
     <div id="textbox" #textbox>
       <div id="flexcol">
         <div id="images">
-          <div class="img-wrapper" *ngFor="let image of images">
-            <img [src]="image.previewImage" />
-            <mat-icon (click)="removeImage(image)">close</mat-icon>
-          </div>
+          @for (image of images; track $index) {
+            <div class="img-wrapper">
+              <img [src]="image.previewImage" />
+              <mat-icon (click)="removeImage(image)">close</mat-icon>
+            </div>
+          }
         </div>
         <textarea
           #myInput

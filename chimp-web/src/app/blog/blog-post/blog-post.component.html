@@ -8,16 +8,20 @@
   <!-- Post Header (Hero) -->
   <header class="post-header">
     <div class="post-header-content">
-      <a routerLink="/blog" class="back-link" aria-label="Back to all articles">
-        <mat-icon aria-hidden="true">arrow_back</mat-icon>
-        <span>All Articles</span>
-      </a>
+      <!-- Breadcrumb Navigation -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li><a routerLink="/home">Home</a></li>
+          <li><a routerLink="/blog">Blog</a></li>
+          <li aria-current="page">{{ post.title }}</li>
+        </ol>
+      </nav>
       
       <div class="post-meta">
         <span class="post-category">{{ post.category }}</span>
-        <span class="post-dot" aria-hidden="true">•</span>
+        <span class="post-dot" aria-hidden="true">·</span>
         <time class="post-date" [attr.datetime]="post.publishedDate">{{ formatDate(post.publishedDate) }}</time>
-        <span class="post-dot" aria-hidden="true">•</span>
+        <span class="post-dot" aria-hidden="true">·</span>
         <span class="post-read-time" aria-label="Reading time">{{ post.readTime }}</span>
       </div>
 
@@ -42,6 +46,24 @@
   <main class="post-container" role="main">
     <div class="post-body">
       <article class="post-content" [innerHTML]="renderedContent"></article>
+
+      <!-- Related Articles for Internal Linking -->
+      <section class="related-posts" *ngIf="relatedPosts.length > 0" aria-label="Related articles">
+        <h2 class="related-heading">Related Articles</h2>
+        <div class="related-grid">
+          @for (related of relatedPosts; track $index) {
+            <article class="related-card">
+              <a [routerLink]="['/blog', related.slug]" class="related-link" [attr.aria-label]="'Read: ' + related.title">
+                <span class="related-category">{{ related.category }}</span>
+                <h3 class="related-title">{{ related.title }}</h3>
+                <p class="related-description">{{ related.description }}</p>
+                <span class="related-read-more">Read article</span>
+              </a>
+            </article>
+          }
+        </div>
+      </section>
+
       <blog-cta [industry]="post.industry"></blog-cta>
     </div>
   </main>

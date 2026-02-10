@@ -1,0 +1,21 @@
+<div class="dashboard">
+  <div class="dashboard-header">
+    <h1>Admin Dashboard</h1>
+    <p>Manage your platform tools and resources.</p>
+  </div>
+
+  <div class="cards">
+    @for (section of sections; track section.route) {
+      <a class="card" [routerLink]="section.route" [class]="'card ' + section.color">
+        <div class="card-icon">
+          <mat-icon>{{ section.icon }}</mat-icon>
+        </div>
+        <div class="card-body">
+          <h3>{{ section.label }}</h3>
+          <p>{{ section.description }}</p>
+        </div>
+        <mat-icon class="card-arrow">arrow_forward</mat-icon>
+      </a>
+    }
+  </div>
+</div>

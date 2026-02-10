@@ -1,0 +1,473 @@
+/* Loading and not-found states */
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.not-found {
+  text-align: center;
+  padding: 120px 20px;
+  color: #555;
+}
+
+.not-found h1 {
+  color: #333;
+  font-size: 28px;
+}
+
+.not-found a {
+  color: var(--chimp-primary, #054d8a);
+}
+
+/* ── Identical to roofing-contractors-lp.component.css ── */
+
+.hero {
+  padding: 56px 20px 64px;
+  background: linear-gradient(135deg, var(--chimp-primary) 0%, #0b3b66 100%);
+}
+
+.hero-content,
+.section-content {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.hero-content {
+  text-align: center;
+}
+
+.eyebrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-bottom: 20px;
+  border-radius: 20px;
+  background: rgba(255, 145, 0, 0.18);
+  color: #ffd7a0;
+  border: 1px solid rgba(255, 145, 0, 0.45);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.eyebrow-badge mat-icon {
+  color: var(--chimp-accent);
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.hero-subheadline {
+  margin: 16px auto 28px;
+  max-width: 760px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.primary-cta {
+  height: 54px;
+  padding: 0 28px;
+  border-radius: 27px;
+  font-weight: 600;
+  font-size: 16px;
+  background: linear-gradient(135deg, var(--chimp-accent) 0%, #e65100 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 20px rgba(255, 145, 0, 0.35);
+}
+
+.primary-cta mat-icon,
+.mid-cta-btn mat-icon {
+  margin-left: 8px;
+}
+
+.secondary-cta {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.hero-trust {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.hero-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+}
+
+.hero-trust mat-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  color: #9ad4a2;
+}
+
+.pain-section,
+.pricing-section,
+.faq-section {
+  background: var(--chimp-surface);
+  padding: 56px 20px;
+}
+
+.pain-section h2,
+.solution-section h2,
+.faq-section h2,
+.final-cta h2 {
+  margin: 0 0 12px;
+  color: var(--chimp-primary);
+  text-align: center;
+  font-size: 30px;
+  line-height: 1.25;
+}
+
+.section-subheadline {
+  margin: 0 auto 32px;
+  max-width: 760px;
+  text-align: center;
+  color: var(--chimp-on-surface-variant);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.pain-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.pain-card {
+  background: #fff;
+  border: 1px solid var(--chimp-outline-variant);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.pain-card h3 {
+  margin: 0 0 10px;
+  color: var(--chimp-on-surface);
+  font-size: 20px;
+}
+
+.pain-card p {
+  margin: 0;
+  color: var(--chimp-on-surface-variant);
+  line-height: 1.55;
+}
+
+.solution-section {
+  padding: 64px 20px;
+  background: #fff;
+}
+
+.section-eyebrow {
+  margin: 0 0 8px;
+  text-align: center;
+  color: var(--chimp-accent);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.features-grid {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.feature-card {
+  border-radius: 16px;
+  padding: 22px;
+  background: var(--chimp-surface-container-low);
+}
+
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--chimp-primary);
+}
+
+.feature-icon mat-icon {
+  color: #fff;
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: var(--chimp-on-surface);
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--chimp-on-surface-variant);
+  line-height: 1.5;
+}
+
+.mid-cta {
+  padding: 36px 20px;
+  background: linear-gradient(135deg, var(--chimp-accent) 0%, #e65100 100%);
+}
+
+.mid-cta-content {
+  max-width: 920px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.mid-cta-content p {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.mid-cta-btn {
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 24px;
+  background: #fff !important;
+  color: #e65100 !important;
+  font-weight: 700;
+}
+
+.pricing-card {
+  max-width: 520px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px;
+  border: 2px solid var(--chimp-primary);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  padding: 30px 24px;
+}
+
+.pricing-eyebrow {
+  margin: 0;
+  text-align: center;
+  color: var(--chimp-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 13px;
+}
+
+.price-line {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.price {
+  color: var(--chimp-primary);
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.per {
+  color: var(--chimp-on-surface-variant);
+  font-size: 20px;
+}
+
+.pricing-subheadline,
+.pricing-note {
+  margin: 10px 0 0;
+  text-align: center;
+  color: var(--chimp-on-surface-variant);
+}
+
+.pricing-card ul {
+  list-style: none;
+  margin: 22px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pricing-card li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--chimp-on-surface);
+}
+
+.pricing-card li mat-icon {
+  color: #43a047;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.pricing-btn {
+  width: 100%;
+}
+
+.faq-section {
+  background: #fff;
+}
+
+.faq-item {
+  border: 1px solid var(--chimp-outline-variant);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--chimp-surface);
+}
+
+.faq-item + .faq-item {
+  margin-top: 12px;
+}
+
+.faq-item h3 {
+  margin: 0 0 8px;
+  color: var(--chimp-on-surface);
+  font-size: 20px;
+}
+
+.faq-item p {
+  margin: 0;
+  color: var(--chimp-on-surface-variant);
+  line-height: 1.55;
+}
+
+.final-cta {
+  padding: 60px 20px 72px;
+  background: linear-gradient(135deg, var(--chimp-primary) 0%, #0b3b66 100%);
+}
+
+.final-cta-content {
+  text-align: center;
+}
+
+.final-cta h2 {
+  color: #fff;
+}
+
+.final-cta p {
+  margin: 0 auto 26px;
+  max-width: 700px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.final-btn {
+  min-width: 270px;
+}
+
+.final-links {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.final-links a {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media screen and (min-width: 700px) {
+  h1 {
+    font-size: 46px;
+  }
+
+  .hero-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .hero-trust {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+
+  .pain-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mid-cta-content {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .mid-cta-content p {
+    text-align: left;
+  }
+
+  .final-links {
+    flex-direction: row;
+    justify-content: center;
+    gap: 18px;
+  }
+}
+
+@media screen and (min-width: 980px) {
+  .hero {
+    padding: 76px 32px 88px;
+  }
+
+  .pain-section,
+  .pricing-section,
+  .faq-section {
+    padding: 88px 32px;
+  }
+
+  .solution-section {
+    padding: 96px 32px;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .final-cta {
+    padding: 88px 32px 96px;
+  }
+}

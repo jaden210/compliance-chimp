@@ -17,7 +17,6 @@ import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { TextFieldModule } from "@angular/cdk/text-field";
-import SignaturePad from "signature_pad";
 import { UserService } from "../user.service";
 import {
   InjuryReportService,
@@ -66,8 +65,10 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
 
   // Signature pad elements
   @ViewChild('signatureCanvas') signatureCanvas?: ElementRef<HTMLCanvasElement>;
-  private signaturePad?: SignaturePad;
-  private signatureHandleEnd: (() => void) | null = null;
+  private signatureCtx: CanvasRenderingContext2D | null = null;
+  private signatureCleanup: (() => void) | null = null;
+  private isDrawing = false;
+  private lastPoint: { x: number; y: number } | null = null;
   readonly signatureComplete = signal(false);
 
   // Reactive signals
@@ -233,7 +234,7 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
   ngAfterViewChecked(): void {
     // Initialize signature pad when canvas becomes available
     const q = this.question();
-    if (q?.type === Type.signature && !q.value && this.signatureCanvas && !this.signaturePad && !this.signaturePadInitPending) {
+    if (q?.type === Type.signature && !q.value && this.signatureCanvas && !this.signatureCtx && !this.signaturePadInitPending) {
       this.signaturePadInitPending = true;
       // Use requestAnimationFrame to ensure canvas has rendered
       requestAnimationFrame(() => {
@@ -245,7 +246,7 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   private initializeSignaturePad(): void {
-    if (!this.signatureCanvas || this.signaturePad) {
+    if (!this.signatureCanvas || this.signatureCtx) {
       this.signaturePadInitPending = false;
       return;
     }
@@ -260,21 +261,71 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
       return;
     }
     
-    // Set canvas dimensions to match displayed size for proper drawing
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    // Scale canvas for device pixel ratio for sharp rendering on mobile
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
     
-    this.signaturePad = new SignaturePad(canvas, { 
-      minWidth: 1, 
-      maxWidth: 2.5,
-      penColor: '#000'
-    });
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      this.signaturePadInitPending = false;
+      return;
+    }
     
-    this.signatureHandleEnd = () => {
-      this.signatureComplete.set(true);
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#000';
+    this.signatureCtx = ctx;
+    
+    const getPoint = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
-    canvas.addEventListener('mouseup', this.signatureHandleEnd);
-    canvas.addEventListener('touchend', this.signatureHandleEnd);
+    
+    const onPointerDown = (e: PointerEvent) => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      this.isDrawing = true;
+      const point = getPoint(e);
+      this.lastPoint = point;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    
+    const onPointerMove = (e: PointerEvent) => {
+      if (!this.isDrawing || !this.lastPoint) return;
+      e.preventDefault();
+      const point = getPoint(e);
+      ctx.beginPath();
+      ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      this.lastPoint = point;
+    };
+    
+    const onPointerUp = () => {
+      if (this.isDrawing) {
+        this.isDrawing = false;
+        this.lastPoint = null;
+        this.signatureComplete.set(true);
+      }
+    };
+    
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    
+    this.signatureCleanup = () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+    };
     
     this.signaturePadInitPending = false;
   }
@@ -284,19 +335,27 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   private cleanupSignaturePad(): void {
-    if (this.signatureCanvas && this.signatureHandleEnd) {
-      const canvas = this.signatureCanvas.nativeElement;
-      canvas.removeEventListener('mouseup', this.signatureHandleEnd);
-      canvas.removeEventListener('touchend', this.signatureHandleEnd);
-    }
-    this.signaturePad = undefined;
-    this.signatureHandleEnd = null;
+    this.signatureCleanup?.();
+    this.signatureCtx = null;
+    this.isDrawing = false;
+    this.lastPoint = null;
+    this.signatureCleanup = null;
     this.signaturePadInitPending = false;
   }
 
   clearSignaturePad(): void {
-    if (this.signaturePad) {
-      this.signaturePad.clear();
+    if (this.signatureCtx && this.signatureCanvas) {
+      const canvas = this.signatureCanvas.nativeElement;
+      const dpr = window.devicePixelRatio || 1;
+      // Reset transform, clear canvas, restore drawing state
+      this.signatureCtx.setTransform(1, 0, 0, 1, 0, 0);
+      this.signatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+      this.signatureCtx.scale(dpr, dpr);
+      this.signatureCtx.lineWidth = 2;
+      this.signatureCtx.lineCap = 'round';
+      this.signatureCtx.lineJoin = 'round';
+      this.signatureCtx.strokeStyle = '#000';
+      this.signatureCtx.fillStyle = '#000';
       this.signatureComplete.set(false);
     }
   }
@@ -324,7 +383,7 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
     if (!q) return;
 
     // Handle signature upload from embedded canvas
-    if (q.type === Type.signature && !q.value && this.signaturePad && this.signatureComplete()) {
+    if (q.type === Type.signature && !q.value && this.signatureCtx && this.signatureComplete()) {
       this.uploadSignatureFromPad();
     } else {
       this.navigateQuestions(1);
@@ -332,7 +391,7 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   private uploadSignatureFromPad(): void {
-    const dataUrl = this.signaturePad?.toDataURL();
+    const dataUrl = this.signatureCanvas?.nativeElement.toDataURL();
     if (!dataUrl) return;
 
     this.uploading.set(true);
@@ -605,35 +664,87 @@ export class SignatureDialogComponent implements AfterViewChecked, OnDestroy {
   @ViewChild("signatureCanvas") signatureCanvas?: ElementRef<HTMLCanvasElement>;
 
   private readonly dialogRef = inject(MatDialogRef<SignatureDialogComponent>);
-  private signaturePad?: SignaturePad;
-  private handleEnd: (() => void) | null = null;
+  private signatureCtx: CanvasRenderingContext2D | null = null;
+  private cleanup: (() => void) | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  private isDrawing = false;
+  private lastPoint: { x: number; y: number } | null = null;
   finished = false;
 
   ngAfterViewChecked() {
-    if (this.signatureCanvas && !this.signaturePad) {
+    if (this.signatureCanvas && !this.signatureCtx) {
       this.canvas = this.signatureCanvas.nativeElement;
-      this.canvas.width = this.canvas.offsetWidth || 320;
-      this.canvas.height = 180;
-      this.signaturePad = new SignaturePad(this.canvas, { minWidth: 1, dotSize: 1 });
-      
-      this.handleEnd = () => {
-        this.finished = true;
+      const rect = this.canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      this.canvas.width = (rect.width || 320) * dpr;
+      this.canvas.height = 180 * dpr;
+
+      const ctx = this.canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = '#000';
+      this.signatureCtx = ctx;
+
+      const canvas = this.canvas;
+      const getPoint = (e: PointerEvent) => {
+        const r = canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
       };
-      this.canvas.addEventListener("mouseup", this.handleEnd);
-      this.canvas.addEventListener("touchend", this.handleEnd);
+
+      const onDown = (e: PointerEvent) => {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        this.isDrawing = true;
+        this.lastPoint = getPoint(e);
+        ctx.beginPath();
+        ctx.arc(this.lastPoint.x, this.lastPoint.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+      };
+
+      const onMove = (e: PointerEvent) => {
+        if (!this.isDrawing || !this.lastPoint) return;
+        e.preventDefault();
+        const point = getPoint(e);
+        ctx.beginPath();
+        ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        this.lastPoint = point;
+      };
+
+      const onUp = () => {
+        if (this.isDrawing) {
+          this.isDrawing = false;
+          this.lastPoint = null;
+          this.finished = true;
+        }
+      };
+
+      canvas.addEventListener('pointerdown', onDown);
+      canvas.addEventListener('pointermove', onMove);
+      canvas.addEventListener('pointerup', onUp);
+      canvas.addEventListener('pointercancel', onUp);
+
+      this.cleanup = () => {
+        canvas.removeEventListener('pointerdown', onDown);
+        canvas.removeEventListener('pointermove', onMove);
+        canvas.removeEventListener('pointerup', onUp);
+        canvas.removeEventListener('pointercancel', onUp);
+      };
     }
   }
 
   ngOnDestroy(): void {
-    if (this.canvas && this.handleEnd) {
-      this.canvas.removeEventListener("mouseup", this.handleEnd);
-      this.canvas.removeEventListener("touchend", this.handleEnd);
-    }
+    this.cleanup?.();
   }
 
   submit(): void {
-    const dataUrl = this.signaturePad?.toDataURL() || null;
+    const dataUrl = this.canvas?.toDataURL() || null;
     this.dialogRef.close(dataUrl);
   }
 }

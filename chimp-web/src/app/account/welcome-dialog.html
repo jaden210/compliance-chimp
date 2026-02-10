@@ -29,9 +29,11 @@
       placeholder="which industry best describes your business?"
       [(ngModel)]="data.industryId"
     >
-      <mat-option *ngFor="let industry of industries" [value]="industry.id">
-        {{ industry.name }}
-      </mat-option>
+      @for (industry of industries; track $index) {
+        <mat-option [value]="industry.id">
+          {{ industry.name }}
+        </mat-option>
+      }
     </mat-select>
   </mat-form-field>
 </mat-dialog-content>

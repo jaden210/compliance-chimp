@@ -45,14 +45,16 @@
       [(ngModel)]="searchParams.employees"
       style="outline: none;"
     >
-      <mat-list-option *ngFor="let user of (users | async)" [value]="user">
-        <img
-          matListAvatar
-          [src]="user.profileUrl"
-          onerror="src='/assets/face.png'"
-        />
-        <h3 matLine>{{ user.name }}</h3>
-      </mat-list-option>
+      @for (user of (users | async); track $index) {
+        <mat-list-option [value]="user">
+          <img
+            matListAvatar
+            [src]="user.profileUrl"
+            onerror="src='/assets/face.png'"
+          />
+          <h3 matLine>{{ user.name }}</h3>
+        </mat-list-option>
+      }
     </mat-selection-list>
   </ng-container>
 </mat-dialog-content>

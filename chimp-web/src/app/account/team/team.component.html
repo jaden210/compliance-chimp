@@ -256,18 +256,19 @@
             <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon>
           </div>
           <div class="tags-list">
-            <button 
-              *ngFor="let item of tagCounts" 
-              class="tag-chip clickable"
-              (click)="filterByTag(item.tag)"
-              [matTooltip]="'Click to filter by ' + item.tag"
-              [style.backgroundColor]="getTagColor(item.tag).bg"
-              [style.color]="getTagColor(item.tag).text"
-              [style.borderColor]="getTagColor(item.tag).border">
-              <span class="tag-dot" [style.backgroundColor]="getTagColor(item.tag).text"></span>
-              <span class="tag-name">{{ item.tag }}</span>
-              <span class="tag-count" [style.backgroundColor]="getTagColor(item.tag).text">{{ item.count }}</span>
-            </button>
+            @for (item of tagCounts; track $index) {
+              <button 
+                class="tag-chip clickable"
+                (click)="filterByTag(item.tag)"
+                [matTooltip]="'Click to filter by ' + item.tag"
+                [style.backgroundColor]="getTagColor(item.tag).bg"
+                [style.color]="getTagColor(item.tag).text"
+                [style.borderColor]="getTagColor(item.tag).border">
+                <span class="tag-dot" [style.backgroundColor]="getTagColor(item.tag).text"></span>
+                <span class="tag-name">{{ item.tag }}</span>
+                <span class="tag-count" [style.backgroundColor]="getTagColor(item.tag).text">{{ item.count }}</span>
+              </button>
+            }
           </div>
         </div>
       </section>
@@ -315,84 +316,89 @@
           </div>
 
           <!-- Existing Members -->
-          <div class="table-row" *ngFor="let member of filteredTeamMembers; trackBy: trackByMemberId">
-            <div class="col-name">
-              <input 
-                class="inline-input"
-                [(ngModel)]="member.name"
-                (blur)="saveTeamMember(member)"
-                (keydown.enter)="$event.target.blur()"
-                placeholder="Name">
-            </div>
-            <div class="col-job">
-              <input 
-                class="inline-input"
-                [(ngModel)]="member.jobTitle"
-                (blur)="saveTeamMember(member)"
-                (keydown.enter)="$event.target.blur()"
-                placeholder="Job title">
-            </div>
-            <div class="col-contact">
-              <div class="contact-fields">
+          @for (member of filteredTeamMembers; track member.id) {
+            <div class="table-row" [class.owner-row]="isLinkedManager(member)">
+              <div class="col-name">
+                <div class="name-with-badge">
+                  <input 
+                    class="inline-input"
+                    [(ngModel)]="member.name"
+                    (blur)="saveTeamMember(member)"
+                    (keydown.enter)="$event.target.blur()"
+                    placeholder="Name">
+                  <span class="owner-badge" *ngIf="isLinkedManager(member)">Owner</span>
+                </div>
+              </div>
+              <div class="col-job">
                 <input 
                   class="inline-input"
-                  [class.input-error]="hasMemberPhoneError(member)"
-                  [(ngModel)]="member.phone"
+                  [(ngModel)]="member.jobTitle"
                   (blur)="saveTeamMember(member)"
                   (keydown.enter)="$event.target.blur()"
-                  (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].phone = false)"
-                  placeholder="Phone"
-                  type="tel">
-                <div class="contact-toggle">
-                  <mat-slide-toggle 
-                    [ngModel]="!member.preferEmail"
-                    (ngModelChange)="member.preferEmail = !$event; saveTeamMember(member)"
-                    [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'">
-                    <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
-                  </mat-slide-toggle>
+                  placeholder="Job title">
+              </div>
+              <div class="col-contact">
+                <div class="contact-fields">
+                  <input 
+                    class="inline-input"
+                    [class.input-error]="hasMemberPhoneError(member)"
+                    [(ngModel)]="member.phone"
+                    (blur)="saveTeamMember(member)"
+                    (keydown.enter)="$event.target.blur()"
+                    (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].phone = false)"
+                    placeholder="Phone"
+                    type="tel">
+                  <div class="contact-toggle">
+                    <mat-slide-toggle 
+                      [ngModel]="!member.preferEmail"
+                      (ngModelChange)="member.preferEmail = !$event; saveTeamMember(member)"
+                      [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'">
+                      <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                    </mat-slide-toggle>
+                  </div>
+                  <input 
+                    *ngIf="member.preferEmail"
+                    class="inline-input email-input"
+                    [class.input-error]="hasMemberEmailError(member)"
+                    [(ngModel)]="member.email"
+                    (blur)="saveTeamMember(member)"
+                    (keydown.enter)="$event.target.blur()"
+                    (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].email = false)"
+                    placeholder="Email"
+                    type="email">
                 </div>
-                <input 
-                  *ngIf="member.preferEmail"
-                  class="inline-input email-input"
-                  [class.input-error]="hasMemberEmailError(member)"
-                  [(ngModel)]="member.email"
-                  (blur)="saveTeamMember(member)"
-                  (keydown.enter)="$event.target.blur()"
-                  (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].email = false)"
-                  placeholder="Email"
-                  type="email">
+              </div>
+              <div class="col-tags">
+                <app-tag-input
+                  [tags]="member.tags || []"
+                  [allTags]="allTags"
+                  (tagsChange)="onTagsChange(member, $event)"
+                  [compact]="true"
+                  placeholder="Add tags...">
+                </app-tag-input>
+              </div>
+              <div class="col-actions">
+                <button mat-icon-button [matMenuTriggerFor]="memberMenu" class="action-btn">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #memberMenu="matMenu">
+                  <button mat-menu-item (click)="routeToUserPage(member)">
+                    <mat-icon>open_in_new</mat-icon>
+                    <span>View User Page</span>
+                  </button>
+                  <button mat-menu-item (click)="resendInvite(member)" [disabled]="$any(member).sending" *ngIf="!isLinkedManager(member)">
+                    <mat-icon>send</mat-icon>
+                    <span>{{ $any(member).sending ? 'Sending...' : 'Send Access Link' }}</span>
+                  </button>
+                  <mat-divider *ngIf="!isLinkedManager(member)"></mat-divider>
+                  <button mat-menu-item class="delete-action" (click)="confirmDeleteMember(member)" *ngIf="!isLinkedManager(member)">
+                    <mat-icon>delete</mat-icon>
+                    <span>Remove from Team</span>
+                  </button>
+                </mat-menu>
               </div>
             </div>
-            <div class="col-tags">
-              <app-tag-input
-                [tags]="member.tags || []"
-                [allTags]="allTags"
-                (tagsChange)="onTagsChange(member, $event)"
-                [compact]="true"
-                placeholder="Add tags...">
-              </app-tag-input>
-            </div>
-            <div class="col-actions">
-              <button mat-icon-button [matMenuTriggerFor]="memberMenu" class="action-btn">
-                <mat-icon>more_vert</mat-icon>
-              </button>
-              <mat-menu #memberMenu="matMenu">
-                <button mat-menu-item (click)="routeToUserPage(member.id)">
-                  <mat-icon>open_in_new</mat-icon>
-                  <span>View User Page</span>
-                </button>
-                <button mat-menu-item (click)="resendInvite(member)" [disabled]="$any(member).sending">
-                  <mat-icon>send</mat-icon>
-                  <span>{{ $any(member).sending ? 'Sending...' : 'Send Access Link' }}</span>
-                </button>
-                <mat-divider></mat-divider>
-                <button mat-menu-item class="delete-action" (click)="confirmDeleteMember(member)">
-                  <mat-icon>delete</mat-icon>
-                  <span>Remove from Team</span>
-                </button>
-              </mat-menu>
-            </div>
-          </div>
+          }
 
           <!-- Add New Row -->
           <div class="table-row add-row">

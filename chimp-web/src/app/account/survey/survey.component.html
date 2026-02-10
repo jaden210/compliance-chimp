@@ -117,22 +117,24 @@
         <span class="count-badge">{{ tmGroup.length }}</span>
       </div>
       <div class="recipients-grid">
-        <div class="recipient-chip" *ngFor="let tm of tmGroup" [class.responded]="hasResponded(tm.id)">
-          <div class="recipient-avatar" [style.background]="tm.color + '20'" [style.color]="tm.color">
-            <span *ngIf="!tm.profileUrl">{{ tm.name?.charAt(0) }}</span>
-            <img *ngIf="tm.profileUrl" [src]="tm.profileUrl" [alt]="tm.name" />
+        @for (tm of tmGroup; track $index) {
+          <div class="recipient-chip" [class.responded]="hasResponded(tm.id)">
+            <div class="recipient-avatar" [style.background]="tm.color + '20'" [style.color]="tm.color">
+              <span *ngIf="!tm.profileUrl">{{ tm.name?.charAt(0) }}</span>
+              <img *ngIf="tm.profileUrl" [src]="tm.profileUrl" [alt]="tm.name" />
+            </div>
+            <span class="recipient-name">{{ tm.name }}</span>
+            <mat-icon class="responded-icon" *ngIf="hasResponded(tm.id)">check_circle</mat-icon>
+            <mat-icon 
+              class="pending-icon" 
+              *ngIf="!hasResponded(tm.id) && !tm.sending"
+              (click)="resendNotification(tm); $event.stopPropagation()"
+              matTooltip="Click to resend notification">schedule</mat-icon>
+            <mat-icon 
+              class="pending-icon spinning" 
+              *ngIf="!hasResponded(tm.id) && tm.sending">sync</mat-icon>
           </div>
-          <span class="recipient-name">{{ tm.name }}</span>
-          <mat-icon class="responded-icon" *ngIf="hasResponded(tm.id)">check_circle</mat-icon>
-          <mat-icon 
-            class="pending-icon" 
-            *ngIf="!hasResponded(tm.id) && !tm.sending"
-            (click)="resendNotification(tm); $event.stopPropagation()"
-            matTooltip="Click to resend notification">schedule</mat-icon>
-          <mat-icon 
-            class="pending-icon spinning" 
-            *ngIf="!hasResponded(tm.id) && tm.sending">sync</mat-icon>
-        </div>
+        }
       </div>
     </section>
 
@@ -155,34 +157,36 @@
 
       <!-- Response Cards -->
       <div class="responses-list" *ngIf="responses.length > 0">
-        <div class="response-card" *ngFor="let response of responses">
-          <div class="response-header">
-            <div class="responder-avatar" [style.background]="response.color + '20'" [style.color]="response.color">
-              <span *ngIf="!response.user?.profileUrl">{{ response.user?.name?.charAt(0) }}</span>
-              <img *ngIf="response.user?.profileUrl" [src]="response.user.profileUrl" [alt]="response.user?.name" />
+        @for (response of responses; track $index) {
+          <div class="response-card">
+            <div class="response-header">
+              <div class="responder-avatar" [style.background]="response.color + '20'" [style.color]="response.color">
+                <span *ngIf="!response.user?.profileUrl">{{ response.user?.name?.charAt(0) }}</span>
+                <img *ngIf="response.user?.profileUrl" [src]="response.user.profileUrl" [alt]="response.user?.name" />
+              </div>
+              <div class="responder-info">
+                <div class="responder-name">{{ response.user?.name || 'Unknown' }}</div>
+                <div class="response-date">{{ formatDate(response.createdAt) }}</div>
+              </div>
+              <div class="response-badge" [class.yes]="response.shortAnswer?.toLowerCase() === 'yes'" [class.no]="response.shortAnswer?.toLowerCase() === 'no'">
+                <mat-icon>{{ response.shortAnswer?.toLowerCase() === 'yes' ? 'check' : 'close' }}</mat-icon>
+                {{ response.shortAnswer }}
+              </div>
             </div>
-            <div class="responder-info">
-              <div class="responder-name">{{ response.user?.name || 'Unknown' }}</div>
-              <div class="response-date">{{ formatDate(response.createdAt) }}</div>
+            
+            <div class="response-body" *ngIf="response.longAnswer">
+              <div class="response-label">Additional Comments</div>
+              <div class="response-content">{{ response.longAnswer }}</div>
             </div>
-            <div class="response-badge" [class.yes]="response.shortAnswer?.toLowerCase() === 'yes'" [class.no]="response.shortAnswer?.toLowerCase() === 'no'">
-              <mat-icon>{{ response.shortAnswer?.toLowerCase() === 'yes' ? 'check' : 'close' }}</mat-icon>
-              {{ response.shortAnswer }}
+            
+            <div class="response-signature" *ngIf="response.signatureUrl">
+              <div class="signature-label">Signature</div>
+              <div class="signature-container">
+                <img [src]="response.signatureUrl" alt="Signature" />
+              </div>
             </div>
           </div>
-          
-          <div class="response-body" *ngIf="response.longAnswer">
-            <div class="response-label">Additional Comments</div>
-            <div class="response-content">{{ response.longAnswer }}</div>
-          </div>
-          
-          <div class="response-signature" *ngIf="response.signatureUrl">
-            <div class="signature-label">Signature</div>
-            <div class="signature-container">
-              <img [src]="response.signatureUrl" alt="Signature" />
-            </div>
-          </div>
-        </div>
+        }
       </div>
     </section>
   </div>

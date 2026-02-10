@@ -135,20 +135,21 @@
           <span>Activity Log</span>
         </div>
         <div class="log-entries">
-          <div 
-            class="log-entry" 
-            *ngFor="let entry of activityLogReversed; let i = index"
-            [ngClass]="entry.type"
-            [@logEntryAnimation]
-          >
-            <mat-icon class="log-icon" [class.spinning]="entry.type === 'working'">{{ getLogIcon(entry.type) }}</mat-icon>
-            <div class="log-content">
-              <span class="log-source" [class.inspection]="entry.source === 'inspection'" [class.training]="entry.source === 'training'">
-                {{ entry.source === 'inspection' ? 'Inspections' : 'Training' }}
-              </span>
-              <span class="log-message">{{ entry.message }}</span>
+          @for (entry of activityLogReversed; track $index) {
+            <div 
+              class="log-entry" 
+              [ngClass]="entry.type"
+              [@logEntryAnimation]
+            >
+              <mat-icon class="log-icon" [class.spinning]="entry.type === 'working'">{{ getLogIcon(entry.type) }}</mat-icon>
+              <div class="log-content">
+                <span class="log-source" [class.inspection]="entry.source === 'inspection'" [class.training]="entry.source === 'training'">
+                  {{ entry.source === 'inspection' ? 'Inspections' : 'Training' }}
+                </span>
+                <span class="log-message">{{ entry.message }}</span>
+              </div>
             </div>
-          </div>
+          }
         </div>
       </div>
 

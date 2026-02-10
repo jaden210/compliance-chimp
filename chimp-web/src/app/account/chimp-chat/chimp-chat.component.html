@@ -30,52 +30,55 @@
         <p>I can help you navigate your OSHA compliance program, find trainings, and more.</p>
         
         <div class="suggested-prompts">
-          <button 
-            *ngFor="let prompt of suggestedPrompts" 
-            class="prompt-button"
-            [class.tour-button]="prompt.variant === 'tour'"
-            (click)="selectPrompt(prompt)">
-            <mat-icon>{{prompt.icon}}</mat-icon>
-            <span>{{prompt.text}}</span>
-          </button>
+          @for (prompt of suggestedPrompts; track $index) {
+            <button 
+              class="prompt-button"
+              [class.tour-button]="prompt.variant === 'tour'"
+              (click)="selectPrompt(prompt)">
+              <mat-icon>{{prompt.icon}}</mat-icon>
+              <span>{{prompt.text}}</span>
+            </button>
+          }
         </div>
       </div>
     </div>
 
     <!-- Chat Messages -->
     <ng-container *ngIf="!showWelcome">
-      <div 
-        *ngFor="let message of messages" 
-        class="message-wrapper"
-        [class.user-message]="message.role === 'user'"
-        [class.assistant-message]="message.role === 'assistant'">
-        
-        <!-- Assistant avatar -->
-        <div class="avatar" *ngIf="message.role === 'assistant'">
-          <img src="/assets/chimpFace.png" alt="Chimp" />
-        </div>
-        
-        <!-- Message bubble -->
-        <div class="message-bubble">
-          <p [innerHTML]="message.content"></p>
+      @for (message of messages; track $index) {
+        <div 
+          class="message-wrapper"
+          [class.user-message]="message.role === 'user'"
+          [class.assistant-message]="message.role === 'assistant'">
           
-          <!-- Action buttons -->
-          <div class="action-buttons" *ngIf="message.actions && message.actions.length > 0">
-            <button 
-              *ngFor="let action of message.actions; let i = index"
-              class="action-button"
-              [class.tour-next-button]="action.type === 'tourNext'"
-              [class.secondary-action]="action.type === 'navigate' && action.queryParams"
-              (click)="executeAction(action)">
-              <mat-icon *ngIf="action.icon">{{action.icon}}</mat-icon>
-              <mat-icon *ngIf="!action.icon && action.type === 'navigate'">arrow_forward</mat-icon>
-              <mat-icon *ngIf="!action.icon && action.type === 'smartBuilder'">auto_awesome</mat-icon>
-              <mat-icon *ngIf="!action.icon && action.type === 'search'">search</mat-icon>
-              <span>{{action.label}}</span>
-            </button>
+          <!-- Assistant avatar -->
+          <div class="avatar" *ngIf="message.role === 'assistant'">
+            <img src="/assets/chimpFace.png" alt="Chimp" />
+          </div>
+          
+          <!-- Message bubble -->
+          <div class="message-bubble">
+            <p [innerHTML]="message.content"></p>
+            
+            <!-- Action buttons -->
+            <div class="action-buttons" *ngIf="message.actions && message.actions.length > 0">
+              @for (action of message.actions; track $index) {
+                <button 
+                  class="action-button"
+                  [class.tour-next-button]="action.type === 'tourNext'"
+                  [class.secondary-action]="action.type === 'navigate' && action.queryParams"
+                  (click)="executeAction(action)">
+                  <mat-icon *ngIf="action.icon">{{action.icon}}</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'navigate'">arrow_forward</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'smartBuilder'">auto_awesome</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'search'">search</mat-icon>
+                  <span>{{action.label}}</span>
+                </button>
+              }
+            </div>
           </div>
         </div>
-      </div>
+      }
     </ng-container>
 
     <!-- Loading indicator -->

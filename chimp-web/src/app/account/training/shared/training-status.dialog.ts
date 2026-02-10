@@ -15,21 +15,23 @@ import { AccountService } from "../../account.service";
     <h1 mat-dialog-title>Training Status</h1>
     <div mat-dialog-content style="padding: 0;">
       <mat-list dense style="outline: none;">
-        <mat-list-item *ngFor="let user of srt">
-          <img
-            matListAvatar
-            [src]="user.profileUrl"
-            onerror="src='/assets/face.png'"
-          />
-          <h3 matLine>{{ user.name }}</h3>
-          <span matLine>
-            <mat-icon *ngIf="user.isExpired">error_outline</mat-icon>
-            <ng-template #good>
-              <mat-icon id="good">check_circle_outline</mat-icon>
-            </ng-template>
-            {{ user.lastTrained }}
-          </span>
-        </mat-list-item>
+        @for (user of srt; track $index) {
+          <mat-list-item>
+            <img
+              matListAvatar
+              [src]="user.profileUrl"
+              onerror="src='/assets/face.png'"
+            />
+            <h3 matLine>{{ user.name }}</h3>
+            <span matLine>
+              <mat-icon *ngIf="user.isExpired">error_outline</mat-icon>
+              <ng-template #good>
+                <mat-icon id="good">check_circle_outline</mat-icon>
+              </ng-template>
+              {{ user.lastTrained }}
+            </span>
+          </mat-list-item>
+        }
       </mat-list>
     </div>
     <div mat-dialog-actions align="end">

@@ -27,7 +27,6 @@ import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { BlasterDialog } from "src/app/blaster/blaster.component";
-import { CreateEditArticleComponent } from "../library/create-edit-article/create-edit-article.component";
 import { WelcomeService } from "../../welcome.service";
 import { WelcomeBannerComponent, WelcomeFeature } from "../../welcome-banner/welcome-banner.component";
 
@@ -84,7 +83,6 @@ export interface TrainingHistoryItem {
     MatSnackBarModule,
     MatCheckboxModule,
     MatSlideToggleModule,
-    CreateEditArticleComponent,
     WelcomeBannerComponent
   ],
   providers: [DatePipe]
@@ -164,7 +162,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     {
       icon: 'construction',
       title: 'Smart Builder',
-      description: 'Create custom training articles with AI assistance or browse OSHA content to add to your library.',
+      description: 'Create custom training articles tailored to your team or browse OSHA content to add to your library.',
       action: 'smartBuilder'
     },
     {
@@ -336,9 +334,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private setupLibraryObservable(): void {
     const teamMemberIds = this.teamMembers.map(m => m.id);
+    const teamMembersWithTags = this.teamMembers.map(m => ({ id: m.id, tags: m.tags || [] }));
     
     this.library$ = this.trainingService.getLibrary(this.team.id).pipe(
-      map(library => library.map(item => this.enrichLibraryItem(item, teamMemberIds))),
+      map(library => library.map(item => this.enrichLibraryItem(item, teamMemberIds, teamMembersWithTags))),
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
@@ -361,7 +360,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  private enrichLibraryItem(item: LibraryItem, teamMemberIds: string[]): LibraryItemWithStatus {
+  private enrichLibraryItem(item: LibraryItem, teamMemberIds: string[], teamMembers: { id?: string; tags?: string[] }[]): LibraryItemWithStatus {
     const result: LibraryItemWithStatus = { ...item };
     
     // Ensure cadence has a default
@@ -384,8 +383,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       result.daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
     
-    // Calculate compliance stats
-    result.complianceStats = this.trainingService.getComplianceStats(result, teamMemberIds);
+    // Calculate compliance stats - pass team members with tags for accurate tag-based filtering
+    result.complianceStats = this.trainingService.getComplianceStats(result, teamMemberIds, teamMembers);
     
     return result;
   }

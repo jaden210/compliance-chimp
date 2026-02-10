@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
-import { MatTabsModule } from '@angular/material/tabs';
+import { RouterModule } from '@angular/router';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { AccountService } from '../../account.service';
 import { SupportService } from '../support.service';
-import { InspectionQuestionsComponent } from '../inspection-questions/inspection-questions.component';
-import { StatisticsComponent } from '../statistics/statistics.component';
-import { ResourceLibraryComponent } from '../resource-library/resource-library.component';
-import { ChimpFeedbackComponent } from '../chimp-feedback/chimp-feedback.component';
 
 @Component({
   standalone: true,
@@ -12,13 +12,13 @@ import { ChimpFeedbackComponent } from '../chimp-feedback/chimp-feedback.compone
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
   imports: [
-    MatTabsModule,
-    InspectionQuestionsComponent,
-    StatisticsComponent,
-    ResourceLibraryComponent,
-    ChimpFeedbackComponent
+    RouterModule,
+    MatToolbarModule,
+    MatIconModule,
+    MatButtonModule
   ]
 })
 export class HomeComponent {
+  readonly accountService = inject(AccountService);
   readonly supportService = inject(SupportService);
 }

@@ -565,20 +565,39 @@ export class TrainingService {
   }
 
   /**
-   * Get compliance stats for a library item
+   * Get compliance stats for a library item.
+   * Takes team members (with tags) to correctly resolve tag-based assignments.
    */
-  public getComplianceStats(item: LibraryItem, teamMemberIds: string[]): ComplianceStats {
+  public getComplianceStats(item: LibraryItem, teamMemberIds: string[], teamMembers?: { id?: string; tags?: string[] }[]): ComplianceStats {
     const shouldReceive = item.shouldReceiveTraining || {};
-    const assignedMembers = Object.keys(shouldReceive);
+    const assignedTags = item.assignedTags || [];
     
-    if (assignedMembers.length === 0) {
-      // If no specific assignments, use all team members
-      const total = teamMemberIds.length;
+    // Determine the effective set of members who should receive this training:
+    // 1. If assignedTags exist, expand them to matching team member IDs
+    // 2. Combine with any direct assignments from shouldReceiveTraining
+    // 3. If neither exists, fall back to all team members (training applies to everyone)
+    let effectiveMemberIds: string[];
+    
+    if (assignedTags.length > 0 && teamMembers) {
+      // Training has tags - resolve to specific members
+      const tagMembers = this.expandTagsToMembers(assignedTags, teamMembers);
+      const directMembers = Object.keys(shouldReceive);
+      // Union of tag-based and direct assignments
+      effectiveMemberIds = Array.from(new Set([...tagMembers, ...directMembers]));
+    } else if (Object.keys(shouldReceive).length > 0) {
+      // No tags but has direct assignments - use those
+      effectiveMemberIds = Object.keys(shouldReceive);
+    } else {
+      // No tags and no direct assignments - applies to everyone
+      effectiveMemberIds = teamMemberIds;
+    }
+
+    if (effectiveMemberIds.length === 0) {
       return {
         current: 0,
-        total,
+        total: 0,
         percentage: 0,
-        needsTraining: teamMemberIds
+        needsTraining: []
       };
     }
 
@@ -586,7 +605,7 @@ export class TrainingService {
     let currentCount = 0;
     const needsTraining: string[] = [];
 
-    assignedMembers.forEach(userId => {
+    effectiveMemberIds.forEach(userId => {
       const lastTrained = shouldReceive[userId];
       if (!lastTrained) {
         needsTraining.push(userId);
@@ -604,8 +623,8 @@ export class TrainingService {
 
     return {
       current: currentCount,
-      total: assignedMembers.length,
-      percentage: Math.round((currentCount / assignedMembers.length) * 100),
+      total: effectiveMemberIds.length,
+      percentage: effectiveMemberIds.length > 0 ? Math.round((currentCount / effectiveMemberIds.length) * 100) : 0,
       needsTraining
     };
   }

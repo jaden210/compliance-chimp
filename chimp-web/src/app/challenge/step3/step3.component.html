@@ -96,83 +96,85 @@
       </div>
 
       <!-- Existing Members -->
-      <div class="table-row" *ngFor="let member of teamMembers; trackBy: trackByMemberId" 
-           [class.has-issues]="!member.jobTitle?.trim() || (!member.phone?.trim() && !member.email?.trim())">
-        <div class="col-name">
-          <input 
-            class="inline-input"
-            [ngModel]="member.name"
-            (ngModelChange)="updateMemberField(member, 'name', $event)"
-            (blur)="onMemberFieldBlur(member, 'name')"
-            placeholder="Name (required)"
-          />
-        </div>
-        <div class="col-job">
-          <input 
-            class="inline-input"
-            [ngModel]="member.jobTitle"
-            (ngModelChange)="updateMemberField(member, 'jobTitle', $event)"
-            (blur)="onMemberFieldBlur(member, 'jobTitle')"
-            placeholder="Job title (required)"
-          />
-        </div>
-        <div class="col-contact">
-          <div class="contact-fields">
+      @for (member of teamMembers; track member.id) {
+        <div class="table-row" 
+             [class.has-issues]="!member.jobTitle?.trim() || (!member.phone?.trim() && !member.email?.trim())">
+          <div class="col-name">
             <input 
               class="inline-input"
-              [ngModel]="member.phone"
-              (ngModelChange)="updateMemberField(member, 'phone', $event)"
-              (blur)="onMemberFieldBlur(member, 'phone')"
-              placeholder="Phone"
-              type="tel"
+              [ngModel]="member.name"
+              (ngModelChange)="updateMemberField(member, 'name', $event)"
+              (blur)="onMemberFieldBlur(member, 'name')"
+              placeholder="Name (required)"
             />
-            <div class="contact-toggle">
-              <mat-slide-toggle 
-                [ngModel]="!member.preferEmail"
-                (ngModelChange)="toggleMemberPreference(member, !$event)"
-                [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'"
-              >
-                <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
-              </mat-slide-toggle>
-            </div>
+          </div>
+          <div class="col-job">
             <input 
-              *ngIf="member.preferEmail"
-              class="inline-input email-input"
-              [ngModel]="member.email"
-              (ngModelChange)="updateMemberField(member, 'email', $event)"
-              (blur)="onMemberFieldBlur(member, 'email')"
-              placeholder="Email"
-              type="email"
+              class="inline-input"
+              [ngModel]="member.jobTitle"
+              (ngModelChange)="updateMemberField(member, 'jobTitle', $event)"
+              (blur)="onMemberFieldBlur(member, 'jobTitle')"
+              placeholder="Job title (required)"
             />
           </div>
-        </div>
-        <div class="col-tags" [class.tagging]="isMemberBeingTagged(member.id)">
-          <!-- Show spinner when this member is being tagged -->
-          <div class="tagging-indicator" *ngIf="isMemberBeingTagged(member.id)">
-            <mat-spinner diameter="16"></mat-spinner>
-            <span>Generating...</span>
+          <div class="col-contact">
+            <div class="contact-fields">
+              <input 
+                class="inline-input"
+                [ngModel]="member.phone"
+                (ngModelChange)="updateMemberField(member, 'phone', $event)"
+                (blur)="onMemberFieldBlur(member, 'phone')"
+                placeholder="Phone"
+                type="tel"
+              />
+              <div class="contact-toggle">
+                <mat-slide-toggle 
+                  [ngModel]="!member.preferEmail"
+                  (ngModelChange)="toggleMemberPreference(member, !$event)"
+                  [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'"
+                >
+                  <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                </mat-slide-toggle>
+              </div>
+              <input 
+                *ngIf="member.preferEmail"
+                class="inline-input email-input"
+                [ngModel]="member.email"
+                (ngModelChange)="updateMemberField(member, 'email', $event)"
+                (blur)="onMemberFieldBlur(member, 'email')"
+                placeholder="Email"
+                type="email"
+              />
+            </div>
           </div>
-          <!-- Show tag input -->
-          <app-tag-input
-            *ngIf="!isMemberBeingTagged(member.id)"
-            [tags]="member.tags || []"
-            [allTags]="allTags"
-            (tagsChange)="saveMemberTags(member, $event)"
-            [compact]="true"
-            placeholder="Tags...">
-          </app-tag-input>
+          <div class="col-tags" [class.tagging]="isMemberBeingTagged(member.id)">
+            <!-- Show spinner when this member is being tagged -->
+            <div class="tagging-indicator" *ngIf="isMemberBeingTagged(member.id)">
+              <mat-spinner diameter="16"></mat-spinner>
+              <span>Generating...</span>
+            </div>
+            <!-- Show tag input -->
+            <app-tag-input
+              *ngIf="!isMemberBeingTagged(member.id)"
+              [tags]="member.tags || []"
+              [allTags]="allTags"
+              (tagsChange)="saveMemberTags(member, $event)"
+              [compact]="true"
+              placeholder="Tags...">
+            </app-tag-input>
+          </div>
+          <div class="col-actions">
+            <button 
+              mat-icon-button 
+              class="remove-btn"
+              (click)="removeMember(member)"
+              matTooltip="Remove"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
         </div>
-        <div class="col-actions">
-          <button 
-            mat-icon-button 
-            class="remove-btn"
-            (click)="removeMember(member)"
-            matTooltip="Remove"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-      </div>
+      }
 
       <!-- Add New Row -->
       <div class="table-row add-row">

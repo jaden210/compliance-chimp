@@ -12,16 +12,18 @@
     <button mat-icon-button color="primary" (click)="addGroup()" style="margin-left: 8px" [disabled]="!newGroup.name || !newGroup.description"><mat-icon>add</mat-icon></button>
   </div>
   <div class="scroll">
-    <div class="ug-row" *ngFor="let group of userGroups">
-      <mat-form-field>
-        <input matInput readonly placeholder="name" [(ngModel)]="group.name">
-      </mat-form-field>
-      <mat-form-field style="margin-left: 8px; width: 100%;">
-        <input matInput readonly placeholder="description" [(ngModel)]="group.description">
-      </mat-form-field>
-      <div style="flex:1"></div>
-      <button mat-icon-button style="margin-left: 8px;" (click)="archiveGroup(group.id)"><mat-icon>archive</mat-icon></button>
-    </div>
+    @for (group of userGroups; track $index) {
+      <div class="ug-row">
+        <mat-form-field>
+          <input matInput readonly placeholder="name" [(ngModel)]="group.name">
+        </mat-form-field>
+        <mat-form-field style="margin-left: 8px; width: 100%;">
+          <input matInput readonly placeholder="description" [(ngModel)]="group.description">
+        </mat-form-field>
+        <div style="flex:1"></div>
+        <button mat-icon-button style="margin-left: 8px;" (click)="archiveGroup(group.id)"><mat-icon>archive</mat-icon></button>
+      </div>
+    }
   </div>
 </mat-dialog-content>
 <mat-dialog-actions align="end">

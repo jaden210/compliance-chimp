@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { AppService } from "../app.service";
-import { Firestore, collection, doc, setDoc, addDoc } from "@angular/fire/firestore";
+import { Firestore, collection, doc, setDoc, addDoc, updateDoc } from "@angular/fire/firestore";
 import { Auth } from "@angular/fire/auth";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { BehaviorSubject } from "rxjs";
@@ -277,11 +277,36 @@ export class ChallengeService {
       isManager: false,
       teamId: teamId,
       createdAt: new Date(),
-      disabledBy: null
+      disabledBy: null,
+      linkedMemberId: null as string | null
     };
     
     return setDoc(doc(this.db, `user/${userData.id}`), userData)
-      .then(() => userData)
+      .then(() => {
+        // Also create a linked team-members doc so the owner gets trainings, surveys, etc.
+        const memberData = {
+          name: this.state.name,
+          email: user.user.email,
+          phone: null,
+          teamId: teamId,
+          createdAt: new Date(),
+          tags: [],
+          preferEmail: true,
+          linkedUserId: user.user.uid,
+          welcomeSent: true // Owner doesn't need a welcome message
+        };
+        // Remove null fields
+        const cleanedMember = Object.fromEntries(
+          Object.entries(memberData).filter(([_, v]) => v !== null)
+        );
+        return addDoc(collection(this.db, 'team-members'), cleanedMember)
+          .then(memberDoc => {
+            // Link the user doc back to the team member
+            userData.linkedMemberId = memberDoc.id;
+            return updateDoc(doc(this.db, `user/${userData.id}`), { linkedMemberId: memberDoc.id })
+              .then(() => userData);
+          });
+      })
       .catch(error => {
         console.error(error);
         throw error;

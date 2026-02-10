@@ -26,6 +26,10 @@
         </div>
         <mat-icon class="stat-icon">person</mat-icon>
       </div>
+      <button mat-raised-button color="primary" (click)="downloadTeams()" class="download-btn">
+        <mat-icon>download</mat-icon>
+        Download CSV
+      </button>
     </div>
 
     <table mat-table matSort [dataSource]="dataSource">
@@ -47,7 +51,7 @@
 
       <ng-container matColumnDef="email">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Email</th>
-        <td mat-cell *matCellDef="let team">{{ team.email }}</td>
+        <td mat-cell *matCellDef="let team">{{ team.ownerEmail || team.email || '-' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="created">
@@ -58,24 +62,6 @@
       <ng-container matColumnDef="users">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Users</th>
         <td mat-cell *matCellDef="let team">{{ team.userCount ?? '-' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="logs">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Logs</th>
-        <td mat-cell *matCellDef="let team">{{ team.logCount ?? '-' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="lastActivity">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Last Activity</th>
-        <td mat-cell *matCellDef="let team">
-          @if (team.lastActivity) {
-            <span class="activity-badge" [class]="getActivityStatus(team.lastActivity)">
-              {{ team.lastActivity | date: 'shortDate' }}
-            </span>
-          } @else {
-            <span class="no-activity">No activity</span>
-          }
-        </td>
       </ng-container>
 
       <ng-container matColumnDef="delete">

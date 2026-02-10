@@ -1,9 +1,10 @@
 import { Injectable, Component } from "@angular/core";
 import { Observable } from "rxjs";
-import { Firestore, collection, collectionData, doc, deleteDoc, query, where, orderBy } from "@angular/fire/firestore";
+import { Firestore, collection, collectionData, doc, query, where, orderBy } from "@angular/fire/firestore";
 import { map } from "rxjs/operators";
 import { AccountService, InviteToTeam, TeamMember } from "../account.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
+import { TeamService } from "../team/team.service";
 
 @Injectable({
   providedIn: "root"
@@ -11,7 +12,8 @@ import { SelfInspection } from "../self-inspections/self-inspections.service";
 export class HomeService {
   constructor(
     public db: Firestore,
-    private accountService: AccountService
+    private accountService: AccountService,
+    private teamService: TeamService
   ) {}
 
   getSelfInspections(): Observable<SelfInspection[]> {
@@ -41,8 +43,8 @@ export class HomeService {
     return collectionData(filesCollection, { idField: "id" });
   }
 
-  removeUser(user: TeamMember): void {
-    deleteDoc(doc(this.db, `team-members/${user.id}`));
+  removeUser(user: TeamMember): Promise<any> {
+    return this.teamService.removeUser(user);
   }
 
   getIncidentReports(): Observable<any[]> {

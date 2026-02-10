@@ -81,6 +81,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   private readonly CHAT_MODE_STORAGE_KEY = 'chimp_chat_mode';
   private authUnsubscribe?: () => void;
   private routerSubscription?: Subscription;
+  private openChimpChatSubscription?: Subscription;
   private startTourListener?: () => void;
 
   // Nav items configuration
@@ -145,6 +146,10 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     // Listen for startTour events from child components
     this.startTourListener = () => this.openChimpChatWithMessage('Take the tour');
     document.addEventListener('startTour', this.startTourListener);
+
+    this.openChimpChatSubscription = this.accountService.openChimpChatRequested.subscribe(() => {
+      if (!this.showChimpChat) this.showChimpChat = true;
+    });
   }
 
   // Load chat mode preference from localStorage
@@ -175,6 +180,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
     }
+    this.openChimpChatSubscription?.unsubscribe();
     if (this.startTourListener) {
       document.removeEventListener('startTour', this.startTourListener);
     }
