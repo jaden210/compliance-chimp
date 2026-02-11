@@ -30,7 +30,7 @@
       </div>
     }
 
-    <!-- Quick Actions -->
+    <!-- Quick Actions (top) — urgent/primary actions only -->
     <section class="actions-section">
       <div class="action-cards">
         <div class="action-card injury" (click)="startInjuryReport()">
@@ -43,19 +43,6 @@
           </div>
           <mat-icon class="action-arrow">chevron_right</mat-icon>
         </div>
-
-        @if (hasFilesOrResources) {
-          <div class="action-card files" routerLink="files">
-            <div class="action-icon">
-              <mat-icon>folder_open</mat-icon>
-            </div>
-            <div class="action-details">
-              <span class="action-title">Team Files</span>
-              <span class="action-subtitle">{{ totalFilesCount }} file{{ totalFilesCount !== 1 ? 's' : '' }} available</span>
-            </div>
-            <mat-icon class="action-arrow">chevron_right</mat-icon>
-          </div>
-        }
 
         @if (IsLoggedIn) {
           <div class="action-card training" routerLink="articles" queryParamsHandling="preserve">
@@ -82,6 +69,27 @@
         }
       </div>
     </section>
+
+    <!-- Sign-in Prompt (for managers/owners who aren't signed in) -->
+    @if (hasAccountButNotSignedIn) {
+      <section class="sign-in-section">
+        <div class="sign-in-card">
+          <div class="sign-in-content">
+            <div class="sign-in-icon-wrap">
+              <mat-icon>lock_open</mat-icon>
+            </div>
+            <div class="sign-in-text">
+              <strong>Unlock more features</strong>
+              <span>Sign in to access training, self-inspections, team management, and more.</span>
+            </div>
+          </div>
+          <a class="sign-in-button" routerLink="/sign-in">
+            Sign In
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+      </section>
+    }
 
     <!-- Surveys Section -->
     <section class="surveys-section">
@@ -131,6 +139,39 @@
         </div>
       }
     </section>
+
+    <!-- Secondary Actions — below surveys -->
+    @if (hasFilesOrResources || completedSurveyCount > 0) {
+      <section class="actions-section secondary-actions">
+        <div class="action-cards">
+          @if (hasFilesOrResources) {
+            <div class="action-card files" routerLink="files">
+              <div class="action-icon">
+                <mat-icon>folder_open</mat-icon>
+              </div>
+              <div class="action-details">
+                <span class="action-title">Team Files</span>
+                <span class="action-subtitle">{{ totalFilesCount }} file{{ totalFilesCount !== 1 ? 's' : '' }} available</span>
+              </div>
+              <mat-icon class="action-arrow">chevron_right</mat-icon>
+            </div>
+          }
+
+          @if (completedSurveyCount > 0) {
+            <div class="action-card history" routerLink="survey-history" queryParamsHandling="preserve">
+              <div class="action-icon">
+                <mat-icon>history</mat-icon>
+              </div>
+              <div class="action-details">
+                <span class="action-title">Survey History</span>
+                <span class="action-subtitle">{{ completedSurveyCount }} completed survey{{ completedSurveyCount !== 1 ? 's' : '' }}</span>
+              </div>
+              <mat-icon class="action-arrow">chevron_right</mat-icon>
+            </div>
+          }
+        </div>
+      </section>
+    }
 
     <!-- Footer -->
     <footer class="page-footer">

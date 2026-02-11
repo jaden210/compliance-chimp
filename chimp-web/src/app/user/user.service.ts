@@ -1,7 +1,7 @@
 import { Injectable, inject, OnDestroy } from "@angular/core";
 import { BehaviorSubject, combineLatest, Observable, of, Subscription } from "rxjs";
 import { Firestore, collection, collectionData, doc, docData, query, where, orderBy, limit, addDoc, updateDoc } from "@angular/fire/firestore";
-import { map, catchError, tap, mergeMap, take } from "rxjs/operators";
+import { map, catchError, tap, take } from "rxjs/operators";
 import { Auth } from "@angular/fire/auth";
 import { Router, ActivatedRoute } from "@angular/router";
 import { onAuthStateChanged, Unsubscribe } from "firebase/auth";
@@ -76,28 +76,14 @@ export class UserService implements OnDestroy {
   private authUnsubscribe: Unsubscribe | null = null;
 
   public getUser(userId: string): Observable<TeamMember> {
-    console.log('[UserService] getUser() called with userId:', userId);
-    return docData(doc(this.db, `team-members/${userId}`), { idField: "id" }).pipe(
-      tap(user => console.log('[UserService] getUser() result:', user)),
-      catchError(error => {
-        console.error('[UserService] getUser() error:', error);
-        throw error;
-      })
-    ) as Observable<TeamMember>;
+    return docData(doc(this.db, `team-members/${userId}`), { idField: "id" }) as Observable<TeamMember>;
   }
 
   /**
    * Get a manager/owner from the 'user' collection by their ID.
    */
   public getManager(managerId: string): Observable<User> {
-    console.log('[UserService] getManager() called with managerId:', managerId);
-    return docData(doc(this.db, `user/${managerId}`), { idField: "id" }).pipe(
-      tap(user => console.log('[UserService] getManager() result:', user)),
-      catchError(error => {
-        console.error('[UserService] getManager() error:', error);
-        throw error;
-      })
-    ) as Observable<User>;
+    return docData(doc(this.db, `user/${managerId}`), { idField: "id" }) as Observable<User>;
   }
 
   public getSurvey(surveyId: string): Observable<Survey> {
@@ -142,14 +128,7 @@ export class UserService implements OnDestroy {
   }
 
   public getTeam(id: string): Observable<Team> {
-    console.log('[UserService] getTeam() called with id:', id);
-    return docData(doc(this.db, `team/${id}`), { idField: "id" }).pipe(
-      tap(team => console.log('[UserService] getTeam() result:', team)),
-      catchError(error => {
-        console.error('[UserService] getTeam() error:', error);
-        throw error;
-      })
-    ) as Observable<Team>;
+    return docData(doc(this.db, `team/${id}`), { idField: "id" }) as Observable<Team>;
   }
 
   public getLibraryItem(id: string): Observable<LibraryItem> {
@@ -157,17 +136,19 @@ export class UserService implements OnDestroy {
   }
 
   public getSurveyResponses(id: string): Observable<SurveyResponse[]> {
-    console.log('[UserService] getSurveyResponses() called with surveyId:', id);
     const responsesQuery = query(collection(this.db, "survey-response"), where("surveyId", "==", id));
-    return collectionData(responsesQuery, { idField: "id" }).pipe(
-      tap(responses => {
-        console.log('[UserService] getSurveyResponses() result for survey', id, ':', responses);
-      }),
-      catchError(error => {
-        console.error('[UserService] getSurveyResponses() error for survey', id, ':', error);
-        throw error;
-      })
-    ) as Observable<SurveyResponse[]>;
+    return collectionData(responsesQuery, { idField: "id" }) as Observable<SurveyResponse[]>;
+  }
+
+  /**
+   * Get all survey responses submitted by a specific team member.
+   */
+  public getResponsesByTeamMember(teamMemberId: string): Observable<SurveyResponse[]> {
+    const responsesQuery = query(
+      collection(this.db, "survey-response"),
+      where("teamMemberId", "==", teamMemberId)
+    );
+    return collectionData(responsesQuery, { idField: "id" }) as Observable<SurveyResponse[]>;
   }
 
   public createResponse(response: SurveyResponse): Promise<any> {
@@ -372,26 +353,11 @@ export class UserService implements OnDestroy {
   public getSurveys(teamId: string, userId: string): Observable<Survey[]> {
     // Note: We only filter by trainees array-contains to avoid needing a composite index.
     // The teamId filter is redundant since team members are already scoped to their team.
-    console.log('[UserService] getSurveys() called with teamId:', teamId, 'userId:', userId);
     const surveysQuery = query(
       collection(this.db, "survey"),
       where("trainees", "array-contains", userId)
     );
-    return collectionData(surveysQuery, { idField: "id" }).pipe(
-      tap(surveys => {
-        console.log('[UserService] getSurveys() Firebase query returned:', surveys);
-        console.log('[UserService] getSurveys() Number of surveys:', surveys?.length || 0);
-        if (surveys) {
-          surveys.forEach((s: any) => {
-            console.log('[UserService] Survey:', s.id, s.title, '- trainees:', s.trainees);
-          });
-        }
-      }),
-      catchError(error => {
-        console.error('[UserService] getSurveys() Firebase query error:', error);
-        throw error;
-      })
-    ) as Observable<Survey[]>;
+    return collectionData(surveysQuery, { idField: "id" }) as Observable<Survey[]>;
   }
 
   public cache(): void {

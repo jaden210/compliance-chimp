@@ -1,0 +1,53 @@
+<div class="survey-history-page">
+  <!-- Header -->
+  <header class="history-header">
+    <button mat-icon-button class="back-btn" (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-content">
+      <h1 class="header-title">Survey History</h1>
+      <p class="header-subtitle">Your completed surveys</p>
+    </div>
+  </header>
+
+  <main class="history-content">
+    @if (loading) {
+      <div class="loading-state">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading your survey history...</p>
+      </div>
+    } @else if (completedSurveys.length) {
+      <div class="survey-list">
+        @for (item of completedSurveys; track item.survey.id) {
+          <div class="history-card" [routerLink]="item.survey.id" queryParamsHandling="preserve">
+            <div class="card-left">
+              <div class="answer-badge" [class.yes]="item.response.shortAnswer === 'Yes'" [class.no]="item.response.shortAnswer === 'No'">
+                <mat-icon>{{ item.response.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
+              </div>
+            </div>
+            <div class="card-info">
+              <span class="card-title">{{ item.survey.title }}</span>
+              <span class="card-meta">
+                Completed {{ getResponseDate(item.response) | date:'MMM d, y' }}
+              </span>
+              @if (item.response.longAnswer) {
+                <span class="card-comment">"{{ item.response.longAnswer }}"</span>
+              }
+            </div>
+            <div class="card-arrow">
+              <mat-icon>chevron_right</mat-icon>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <mat-icon>history</mat-icon>
+        </div>
+        <h3>No completed surveys yet</h3>
+        <p>Once you complete a survey, it will appear here for your reference.</p>
+      </div>
+    }
+  </main>
+</div>

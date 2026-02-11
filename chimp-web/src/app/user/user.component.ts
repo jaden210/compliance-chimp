@@ -7,7 +7,7 @@ import { UserService } from "./user.service";
 import { MatDialog } from "@angular/material/dialog";
 import { AppService } from "../app.service";
 import { combineLatest, of } from "rxjs";
-import { map, mergeMap, catchError } from "rxjs/operators";
+import { map, catchError, switchMap, tap, take } from "rxjs/operators";
 
 @Component({
   standalone: true,
@@ -87,20 +87,15 @@ export class UserComponent implements AfterViewInit {
   private getData() {
     const memberId = JSON.parse(localStorage.getItem("ccmid") || 'null');
     const userId = JSON.parse(localStorage.getItem("ccuid") || 'null');
-    console.log('[UserComponent] getData() called');
-    console.log('[UserComponent] memberId from localStorage:', memberId);
-    console.log('[UserComponent] userId from localStorage:', userId);
     
     // Check if we're viewing as a manager (user-id takes precedence)
     if (userId) {
-      console.log('[UserComponent] Loading manager data for userId:', userId);
       this.userService.surveysLoaded.next(false);
       this.fetchManagerData(userId);
       return;
     }
     
     if (!memberId) {
-      console.log('[UserComponent] No memberId found, redirecting to no-user');
       this.router.navigate(['user/no-user']);
       return;
     }
@@ -126,21 +121,18 @@ export class UserComponent implements AfterViewInit {
 
       if (cachedTeamMember) {
         const tm = JSON.parse(cachedTeamMember);
-        console.log('[UserComponent] Loaded cached team member:', tm.name);
         this.userService.teamMember = tm;
         this.userService.teamMemberObservable.next(tm);
       }
 
       if (cachedTeam) {
         const team = JSON.parse(cachedTeam);
-        console.log('[UserComponent] Loaded cached team:', team.name);
         this.userService.aTeam = team;
         this.userService.teamObservable.next(team);
       }
 
       if (cachedSurveys) {
         const surveys = JSON.parse(cachedSurveys);
-        console.log('[UserComponent] Loaded cached surveys:', surveys.length);
         this.userService.surveys = surveys;
       }
     } catch (e) {
@@ -154,6 +146,7 @@ export class UserComponent implements AfterViewInit {
   private fetchFreshData(memberId: string): void {
     this.userService.getUser(memberId)
       .pipe(
+        take(1),
         takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error('[UserComponent] Error fetching team member:', error);
@@ -161,11 +154,9 @@ export class UserComponent implements AfterViewInit {
         })
       )
       .subscribe(tm => {
-        console.log('[UserComponent] getUser() result:', tm);
         if (tm) {
           // If this team member is linked to a manager, upgrade to manager view
           if ((tm as any).linkedUserId) {
-            console.log('[UserComponent] Team member is linked to manager, upgrading to manager view:', (tm as any).linkedUserId);
             localStorage.setItem("ccuid", JSON.stringify((tm as any).linkedUserId));
             localStorage.removeItem("ccmid");
             this.userService.isViewingAsManager = true;
@@ -179,13 +170,11 @@ export class UserComponent implements AfterViewInit {
           this.cacheData(`cc_tm_${memberId}`, tm);
           this.userService.teamMember = tm;
           this.userService.teamMemberObservable.next(tm);
-          console.log('[UserComponent] Team member set, teamId:', tm.teamId);
           
           // Load team and other data in parallel
           this.loadTeamData(tm, memberId);
         } else if (!this.userService.teamMember) {
           // Only redirect if we don't have cached data
-          console.log('[UserComponent] No team member found, redirecting to no-user');
           this.router.navigate(['user/no-user']);
         }
       });
@@ -198,6 +187,7 @@ export class UserComponent implements AfterViewInit {
   private fetchManagerData(userId: string): void {
     this.userService.getManager(userId)
       .pipe(
+        take(1),
         takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error('[UserComponent] Error fetching manager:', error);
@@ -205,7 +195,6 @@ export class UserComponent implements AfterViewInit {
         })
       )
       .subscribe((manager: any) => {
-        console.log('[UserComponent] getManager() result:', manager);
         if (manager) {
           // Store the manager and create a pseudo team member for display purposes
           this.userService.currentManager = manager;
@@ -223,12 +212,10 @@ export class UserComponent implements AfterViewInit {
           
           this.userService.teamMember = pseudoMember;
           this.userService.teamMemberObservable.next(pseudoMember);
-          console.log('[UserComponent] Manager set as pseudo team member, teamId:', manager.teamId);
           
           // Load team and other data
           this.loadTeamDataForManager(manager, userId);
         } else {
-          console.log('[UserComponent] No manager found, redirecting to no-user');
           this.router.navigate(['user/no-user']);
         }
       });
@@ -242,15 +229,14 @@ export class UserComponent implements AfterViewInit {
   private loadTeamDataForManager(manager: any, userId: string): void {
     this.userService.getTeam(manager.teamId)
       .pipe(
+        take(1),
         takeUntilDestroyed(this.destroyRef),
         catchError(e => { console.error('[UserComponent] Error fetching team:', e); return of(null); })
       )
       .subscribe(team => {
-        console.log('[UserComponent] getTeam() result for manager:', team);
         if (team && team.id) {
           this.userService.aTeam = team;
           this.userService.teamObservable.next(team);
-          console.log('[UserComponent] Team set for manager:', team.id, team.name);
           
           // Check auth state (non-blocking)
           this.userService.checkAuthState();
@@ -258,7 +244,6 @@ export class UserComponent implements AfterViewInit {
           // If manager has a linked member record, load surveys for that member ID
           const linkedMemberId = manager.linkedMemberId;
           if (linkedMemberId) {
-            console.log('[UserComponent] Manager has linked member, loading surveys for:', linkedMemberId);
             this.loadSurveys(team.id, linkedMemberId);
           } else {
             // No linked member - no surveys
@@ -272,7 +257,6 @@ export class UserComponent implements AfterViewInit {
           // Load team managers in background
           this.loadTeamManagers(manager.teamId);
         } else {
-          console.error('[UserComponent] Team not found for manager');
           this.router.navigate(['user/no-team']);
         }
       });
@@ -283,19 +267,20 @@ export class UserComponent implements AfterViewInit {
    */
   private loadTeamData(tm: any, memberId: string): void {
     // Start all requests in parallel for faster loading
+    // take(1) ensures we only process the initial snapshot and don't
+    // re-trigger all dependent loads on subsequent Firestore re-emissions
     this.userService.getTeam(tm.teamId)
       .pipe(
+        take(1),
         takeUntilDestroyed(this.destroyRef),
         catchError(e => { console.error('[UserComponent] Error fetching team:', e); return of(null); })
       )
       .subscribe(team => {
-        console.log('[UserComponent] getTeam() result:', team);
         if (team && team.id) {
           // Cache and set team
           this.cacheData(`cc_team_${memberId}`, team);
           this.userService.aTeam = team;
           this.userService.teamObservable.next(team);
-          console.log('[UserComponent] Team set:', team.id, team.name);
           
           // Check auth state (non-blocking)
           this.userService.checkAuthState();
@@ -309,52 +294,48 @@ export class UserComponent implements AfterViewInit {
           // Load team managers in background (low priority - for author info only)
           this.loadTeamManagers(tm.teamId);
         } else if (!this.userService.aTeam) {
-          console.error('[UserComponent] Team not found or invalid');
           this.router.navigate(['user/no-team']);
         }
       });
   }
 
   /**
-   * Load surveys with optimized response fetching
+   * Load surveys with optimized response fetching.
+   * Uses switchMap so each new emission from getSurveys cancels the previous
+   * inner response-fetching subscriptions, preventing duplicate calls.
    */
   private loadSurveys(teamId: string, memberId: string): void {
-    console.log('[UserComponent] Fetching surveys for teamId:', teamId, 'memberId:', memberId);
-    
     this.userService.getSurveys(teamId, memberId)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        catchError(e => { console.error('[UserComponent] Error fetching surveys:', e); return of([]); })
+        catchError(e => { console.error('[UserComponent] Error fetching surveys:', e); return of([]); }),
+        tap(surveys => {
+          if (surveys.length > 0) {
+            // OPTIMIZATION: Show surveys immediately (without responses)
+            // This lets the UI update faster, then we fetch responses
+            const surveysWithEmptyResponses = surveys.map(s => ({ ...s, responses: [] }));
+            this.userService.surveys = surveysWithEmptyResponses;
+          }
+        }),
+        switchMap(surveys => {
+          if (surveys.length === 0) {
+            return of([]);
+          }
+          // Fetch responses for all surveys in parallel, take(1) to get the
+          // initial snapshot and then complete (no lingering live listeners)
+          return combineLatest(surveys.map(s => 
+            this.userService.getSurveyResponses(s.id).pipe(
+              take(1),
+              map(r => ({ ...s, responses: r })),
+              catchError(() => of({ ...s, responses: [] }))
+            )
+          ));
+        })
       )
-      .subscribe(surveys => {
-        console.log('[UserComponent] getSurveys() raw result:', surveys);
-        
-        if (surveys.length === 0) {
-          this.userService.surveys = [];
-          this.userService.surveysLoaded.next(true);
-          this.cacheData(`cc_surveys_${memberId}`, []);
-          return;
-        }
-
-        // OPTIMIZATION: Show surveys immediately (without responses)
-        // This lets the UI update faster, then we fetch responses
-        const surveysWithEmptyResponses = surveys.map(s => ({ ...s, responses: [] }));
-        this.userService.surveys = surveysWithEmptyResponses;
-
-        // Fetch responses for all surveys in parallel
-        combineLatest(surveys.map(s => 
-          this.userService.getSurveyResponses(s.id).pipe(
-            map(r => ({ ...s, responses: r })),
-            catchError(() => of({ ...s, responses: [] }))
-          )
-        )).pipe(
-          takeUntilDestroyed(this.destroyRef)
-        ).subscribe(surveysWithResponses => {
-          console.log('[UserComponent] Final surveys with responses:', surveysWithResponses);
-          this.userService.surveys = surveysWithResponses;
-          this.userService.surveysLoaded.next(true);
-          this.cacheData(`cc_surveys_${memberId}`, surveysWithResponses);
-        });
+      .subscribe(surveysWithResponses => {
+        this.userService.surveys = surveysWithResponses;
+        this.userService.surveysLoaded.next(true);
+        this.cacheData(`cc_surveys_${memberId}`, surveysWithResponses);
       });
   }
 
@@ -368,7 +349,6 @@ export class UserComponent implements AfterViewInit {
         catchError(e => { console.error('[UserComponent] Error fetching files:', e); return of([]); })
       )
       .subscribe(files => {
-        console.log('[UserComponent] Files loaded:', files.length);
         this.userService.files = files;
       });
   }
@@ -383,7 +363,6 @@ export class UserComponent implements AfterViewInit {
         catchError(e => { console.error('[UserComponent] Error fetching managers:', e); return of([]); })
       )
       .subscribe(teamManagers => {
-        console.log('[UserComponent] Team managers loaded:', teamManagers.length);
         this.userService.teamManagersObservable.next(teamManagers);
         this.userService.teamManagers = teamManagers;
       });

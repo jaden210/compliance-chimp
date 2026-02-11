@@ -16,9 +16,13 @@ import { NotFoundComponent } from "./not-found/not-found.component";
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
   { path: "home", component: HomeComponent },
-  // Gateway route for self-inspection links - detects device + auth and redirects
+  // Gateway routes for self-inspection links - detects device + auth and redirects
   {
     path: "go/inspection/:selfInspectionId/:inspectionId",
+    component: InspectionRedirectComponent
+  },
+  {
+    path: "go/inspection/:selfInspectionId",
     component: InspectionRedirectComponent
   },
   {

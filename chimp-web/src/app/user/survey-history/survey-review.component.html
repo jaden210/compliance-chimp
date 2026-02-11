@@ -1,0 +1,89 @@
+@if (loading) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+} @else if (survey) {
+  <div class="review-page">
+    <!-- Header -->
+    <header class="review-header">
+      <button mat-icon-button class="back-btn" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="header-content">
+        <h1 class="review-title">{{ survey.title }}</h1>
+        <p class="review-meta">
+          @if (sender?.name) {
+            From {{ sender.name }} · {{ survey?.createdAt | date: 'MMM d, y' }}
+          } @else {
+            {{ survey?.createdAt | date: 'MMM d, y' }}
+          }
+        </p>
+      </div>
+    </header>
+
+    <!-- Scrollable content -->
+    <div class="review-scroll">
+      <!-- Article Content -->
+      @if (article?.content) {
+        <div class="article-body" [innerHTML]="article.content"></div>
+      } @else {
+        <div class="no-content">
+          <mat-icon>description</mat-icon>
+          <p>No training content available</p>
+        </div>
+      }
+
+      <!-- Response Summary -->
+      <div class="response-summary">
+        <div class="summary-header">
+          <mat-icon class="summary-icon">fact_check</mat-icon>
+          <span class="summary-label">Your Response</span>
+          @if (getResponseDate()) {
+            <span class="summary-date">{{ getResponseDate() | date: 'MMM d, y' }}</span>
+          }
+        </div>
+
+        @if (response) {
+          <div class="response-details">
+            <!-- Attendance Answer -->
+            <div class="response-row">
+              <span class="response-question">Did you attend this training?</span>
+              <div class="answer-chip" [class.yes]="response.shortAnswer === 'Yes'" [class.no]="response.shortAnswer === 'No'">
+                <mat-icon>{{ response.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
+                <span>{{ response.shortAnswer }}</span>
+              </div>
+            </div>
+
+            <!-- Comment -->
+            @if (response.longAnswer) {
+              <div class="response-row comment-row">
+                <span class="response-question">Your comment</span>
+                <p class="response-comment">{{ response.longAnswer }}</p>
+              </div>
+            }
+
+            <!-- Signature -->
+            @if (response.signatureUrl) {
+              <div class="response-row signature-row">
+                <span class="response-question">Your signature</span>
+                <div class="signature-display">
+                  <img [src]="response.signatureUrl" alt="Your signature">
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="no-response">
+            <p>Response details not found.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="error-container">
+    <mat-icon>error_outline</mat-icon>
+    <p>Survey not found</p>
+    <button mat-raised-button color="primary" (click)="goBack()">Go Back</button>
+  </div>
+}

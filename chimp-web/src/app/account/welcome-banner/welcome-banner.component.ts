@@ -43,7 +43,16 @@ export interface WelcomeFeature {
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+
     .welcome-banner {
+      width: 100%;
+      min-width: 100%;
+      box-sizing: border-box;
       background: linear-gradient(135deg, #ff9800, #f57c00);
       border-radius: 12px;
       margin-bottom: 20px;
@@ -94,16 +103,22 @@ export interface WelcomeFeature {
     }
 
     .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
       gap: 1px;
       background: rgba(0, 0, 0, 0.1);
       margin: 0 1px 1px;
       border-radius: 0 0 11px 11px;
       overflow: hidden;
+      width: 100%;
+      min-width: 100%;
     }
 
     .feature-card {
+      flex: 1 1 0;
+      min-width: 200px;
+      max-width: 100%;
+      box-sizing: border-box;
       background: white;
       padding: 14px 16px;
       transition: background-color 0.15s ease;
@@ -145,10 +160,6 @@ export interface WelcomeFeature {
 
       .banner-header .subtitle {
         display: none;
-      }
-
-      .features-grid {
-        grid-template-columns: repeat(2, 1fr);
       }
 
       .feature-card {

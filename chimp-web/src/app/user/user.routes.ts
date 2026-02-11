@@ -7,6 +7,8 @@ import { ArticleComponent } from "./article/article.component";
 import { InjuryReport } from "./injury-report/injury-report.component";
 import { SurveyComponent } from "./survey/survey.component";
 import { FilesComponent } from "./files/files.component";
+import { SurveyHistoryComponent } from "./survey-history/survey-history.component";
+import { SurveyReviewComponent } from "./survey-history/survey-review.component";
 
 export const userRoutes: Routes = [
   {
@@ -15,6 +17,8 @@ export const userRoutes: Routes = [
     children: [
       { path: "", component: UserPageComponent },
       { path: "survey/:surveyId", component: SurveyComponent },
+      { path: "survey-history", component: SurveyHistoryComponent },
+      { path: "survey-history/:surveyId", component: SurveyReviewComponent },
       { path: "no-user", component: NoUserComponent },
       { path: "no-team", component: NoUserComponent },
       { path: "injury-report", component: InjuryReport },

@@ -340,3 +340,8 @@ agm-map {
 .chat-sidenav .mat-drawer-inner-container {
   border-radius: 0 !important;
 }
+
+/* Signature bottom sheet - larger panel so user can sign without page scroll */
+.mat-mdc-bottom-sheet-container.signature-sheet-panel {
+  max-height: 90vh;
+}

@@ -93,33 +93,6 @@
   );
 }
 
-.header-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.meta-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-
-  &.industry {
-    background: rgba(5, 77, 138, 0.1);
-    color: var(--chimp-primary);
-  }
-
-  &.topic {
-    background: rgba(255, 152, 0, 0.12);
-    color: var(--chimp-warning, #f57c00);
-  }
-}
 
 .article-title {
   font-size: 32px;

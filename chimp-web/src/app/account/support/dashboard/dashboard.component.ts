@@ -23,35 +23,35 @@ export class DashboardComponent {
       label: 'Statistics',
       description: 'Team metrics, user counts, and subscription data with CSV export.',
       icon: 'bar_chart',
-      route: '../statistics',
+      route: 'statistics',
       color: 'primary'
     },
     {
       label: 'Resource Library',
       description: 'Upload and manage posters, compliance docs, and safety resources.',
       icon: 'library_books',
-      route: '../resource-library',
+      route: 'resource-library',
       color: 'tertiary'
     },
     {
       label: 'Inspection Template',
       description: 'Configure self-inspection categories and questions.',
       icon: 'checklist',
-      route: '../inspection-template',
+      route: 'inspection-template',
       color: 'secondary'
     },
     {
       label: 'Feedback',
       description: 'Review Chimp Chat feedback, sentiment analysis, and user reports.',
       icon: 'feedback',
-      route: '../feedback',
+      route: 'feedback',
       color: 'accent'
     },
     {
       label: 'Outreach',
       description: 'Manage outreach campaigns and lead generation.',
       icon: 'campaign',
-      route: '../outreach',
+      route: 'outreach',
       color: 'warm'
     }
   ];

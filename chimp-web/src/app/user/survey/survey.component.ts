@@ -1,9 +1,8 @@
-import { Component, inject, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from "@angular/core";
+import { Component, inject, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
-import { MatBottomSheetModule } from "@angular/material/bottom-sheet";
-import { MatDialog, MatDialogRef, MatDialogModule } from "@angular/material/dialog";
+import { MatBottomSheet, MatBottomSheetModule } from "@angular/material/bottom-sheet";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatFormFieldModule } from "@angular/material/form-field";
@@ -13,8 +12,9 @@ import { UserService } from "../user.service";
 import { ShortAnswer, Survey, SurveyResponse, User } from "src/app/app.service";
 import { ActivatedRoute, ParamMap, Router } from "@angular/router";
 import { LibraryItem } from "src/app/account/training/training.service";
-import { Subject, switchMap, filter, tap } from "rxjs";
+import { Subject, switchMap, filter } from "rxjs";
 import { takeUntil } from "rxjs/operators";
+import { SignatureBottomSheetComponent } from "./signature-bottom-sheet.component";
 @Component({
   standalone: true,
   selector: "survey",
@@ -25,7 +25,6 @@ import { takeUntil } from "rxjs/operators";
     FormsModule,
     RouterModule,
     MatBottomSheetModule,
-    MatDialogModule,
     MatButtonModule,
     MatIconModule,
     MatFormFieldModule,
@@ -41,7 +40,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
   private readonly datePipe = inject(DatePipe);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly dialog = inject(MatDialog);
+  private readonly bottomSheet = inject(MatBottomSheet);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
 
@@ -146,112 +145,17 @@ export class SurveyComponent implements OnInit, OnDestroy {
   }
 
   private captureSignature(): void {
-    this.dialog.open(SignatureDialog).afterClosed().subscribe(data => {
-      if (data) {
-        this.createResponse(data);
-      }
-    });
+    this.bottomSheet
+      .open(SignatureBottomSheetComponent, { panelClass: "signature-sheet-panel" })
+      .afterDismissed()
+      .subscribe((data: string | undefined) => {
+        if (data) {
+          this.createResponse(data);
+        }
+      });
   }
 
   close() {
     this.router.navigate(['/user'], { queryParamsHandling: 'preserve' });
-  }
-}
-
-
-@Component({
-  standalone: true,
-  selector: "signature-dialog",
-  templateUrl: "signature-dialog.html",
-  styleUrls: ["./survey.component.scss"],
-  imports: [CommonModule, MatDialogModule, MatButtonModule]
-})
-export class SignatureDialog implements AfterViewChecked, OnDestroy {
-  @ViewChild("signatureCanvas") signatureCanvas?: ElementRef<HTMLCanvasElement>;
-
-  private readonly dialogRef = inject(MatDialogRef<SignatureDialog>);
-
-  private signatureCtx: CanvasRenderingContext2D | null = null;
-  private cleanup: (() => void) | null = null;
-  private canvas: HTMLCanvasElement | null = null;
-  private isDrawing = false;
-  private lastPoint: { x: number; y: number } | null = null;
-  finished: boolean = false;
-
-  ngAfterViewChecked() {
-    if (this.signatureCanvas && !this.signatureCtx) {
-      this.canvas = this.signatureCanvas.nativeElement;
-      const rect = this.canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      this.canvas.width = (rect.width || 320) * dpr;
-      this.canvas.height = 160 * dpr;
-
-      const ctx = this.canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.scale(dpr, dpr);
-      ctx.lineWidth = 1.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#000';
-      ctx.fillStyle = '#000';
-      this.signatureCtx = ctx;
-
-      const canvas = this.canvas;
-      const getPoint = (e: PointerEvent) => {
-        const r = canvas.getBoundingClientRect();
-        return { x: e.clientX - r.left, y: e.clientY - r.top };
-      };
-
-      const onDown = (e: PointerEvent) => {
-        e.preventDefault();
-        canvas.setPointerCapture(e.pointerId);
-        this.isDrawing = true;
-        this.lastPoint = getPoint(e);
-        ctx.beginPath();
-        ctx.arc(this.lastPoint.x, this.lastPoint.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-        ctx.fill();
-      };
-
-      const onMove = (e: PointerEvent) => {
-        if (!this.isDrawing || !this.lastPoint) return;
-        e.preventDefault();
-        const point = getPoint(e);
-        ctx.beginPath();
-        ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
-        ctx.lineTo(point.x, point.y);
-        ctx.stroke();
-        this.lastPoint = point;
-      };
-
-      const onUp = () => {
-        if (this.isDrawing) {
-          this.isDrawing = false;
-          this.lastPoint = null;
-          this.finished = true;
-        }
-      };
-
-      canvas.addEventListener('pointerdown', onDown);
-      canvas.addEventListener('pointermove', onMove);
-      canvas.addEventListener('pointerup', onUp);
-      canvas.addEventListener('pointercancel', onUp);
-
-      this.cleanup = () => {
-        canvas.removeEventListener('pointerdown', onDown);
-        canvas.removeEventListener('pointermove', onMove);
-        canvas.removeEventListener('pointerup', onUp);
-        canvas.removeEventListener('pointercancel', onUp);
-      };
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.cleanup?.();
-  }
-
-  close(): void {
-    const dataUrl = this.canvas?.toDataURL() || null;
-    this.dialogRef.close(dataUrl);
   }
 }

@@ -41,10 +41,46 @@ export * from './outbound';
 const fs = require("fs");
 const path = require("path");
 
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Require that the caller is authenticated.
+ * Returns the authenticated user's UID.
+ */
+function requireAuth(request: any): string {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+  return request.auth.uid;
+}
+
+/**
+ * Require that the caller is authenticated AND owns the given team.
+ * Returns the authenticated user's UID.
+ */
+async function requireTeamOwner(
+  request: any,
+  teamId: string
+): Promise<string> {
+  const uid = requireAuth(request);
+  const teamDoc = await admin.firestore().doc(`team/${teamId}`).get();
+  if (!teamDoc.exists) {
+    throw new HttpsError("not-found", "Team not found");
+  }
+  if (teamDoc.data()?.ownerId !== uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "You do not have permission to access this team."
+    );
+  }
+  return uid;
+}
+
 // Callable function to send a test welcome email (e.g. from Firebase Console or app)
 export const sendTestWelcomeEmail = onCall(
   { secrets: [sendgridApiKey] },
   async (request) => {
+    requireAuth(request);
     const { to, recipientName = "there" } = (request.data || {}) as {
       to?: string;
       recipientName?: string;
@@ -88,6 +124,7 @@ export const getIndustryArticleCount = onCall(
       throw new HttpsError('invalid-argument', 'Team ID is required');
     }
 
+    await requireTeamOwner(request, teamId);
     const db = admin.firestore();
 
     // Get the team
@@ -156,6 +193,7 @@ export const applyIndustryTemplates = onCall(
       throw new HttpsError('invalid-argument', 'Team ID is required');
     }
 
+    await requireTeamOwner(request, teamId);
     const db = admin.firestore();
 
     // Get the team
@@ -274,6 +312,7 @@ export const autoBuildCompliance = onCall(
       throw new HttpsError('invalid-argument', 'Team ID is required');
     }
 
+    await requireTeamOwner(request, teamId);
     console.log(`[AutoBuild] Starting auto-build for team ${teamId}`);
     const db = admin.firestore();
     const teamRef = db.doc(`team/${teamId}`);
@@ -1201,6 +1240,7 @@ export const suggestTagsForJobTitle = onCall(
     memory: "256MiB"
   },
   async (request) => {
+    requireAuth(request);
     const { jobTitle, existingTags, industry, teamMembers } = request.data as any;
 
     if (!jobTitle || !jobTitle.trim()) {
@@ -1327,6 +1367,7 @@ export const getAISuggestedArticles = onCall(
     memory: "512MiB"
   },
   async (request) => {
+    requireAuth(request);
     const { industry, teamId } = request.data as any;
 
     if (!industry) {
@@ -1464,6 +1505,7 @@ export const getSelfInspectionRecommendations = onCall(
     memory: "1GiB"
   },
   async (request) => {
+    requireAuth(request);
     const { industry, teamMembers, customPrompt } = request.data as any;
 
     if (!industry) {
@@ -1654,6 +1696,7 @@ export const generateArticleFromDescription = onCall(
     memory: "1GiB"
   },
   async (request) => {
+    requireAuth(request);
     const { description, industry, teamTags } = request.data as any;
 
     if (!description) {
@@ -1816,6 +1859,7 @@ export const generateInspectionFromDescription = onCall(
     memory: "1GiB"
   },
   async (request) => {
+    requireAuth(request);
     const { description, industry, teamMembers } = request.data as any;
 
     if (!description) {
@@ -1990,6 +2034,11 @@ export const analyzeInspectionCoverage = onCall(
       teamMembers,
       existingInspections 
     } = request.data as any;
+
+    if (!teamId) {
+      throw new HttpsError('invalid-argument', 'Team ID is required');
+    }
+    await requireTeamOwner(request, teamId);
 
     if (!industry) {
       throw new HttpsError('invalid-argument', 'Industry is required for coverage analysis');
@@ -2287,6 +2336,11 @@ export const analyzeTrainingCoverage = onCall(
       allTags
     } = request.data as any;
 
+    if (!teamId) {
+      throw new HttpsError('invalid-argument', 'Team ID is required');
+    }
+    await requireTeamOwner(request, teamId);
+
     if (!industry) {
       throw new HttpsError('invalid-argument', 'Industry is required for coverage analysis');
     }
@@ -2573,6 +2627,7 @@ export const generateTrainingArticleForAutoBuilder = onCall(
     memory: "1GiB"
   },
   async (request) => {
+    requireAuth(request);
     const { 
       topic, 
       description,
@@ -3903,7 +3958,7 @@ async function checkSelfInspectionReminders() {
               ? 'urgency-warning'
               : 'urgency-info';
           
-          const inspectionLink = `https://compliancechimp.com/account/self-inspections/${siDoc.id}`;
+          const inspectionLink = `https://compliancechimp.com/go/inspection/${siDoc.id}`;
           const lastCompletedText = lastCompleted 
             ? lastCompleted.format('MMMM D, YYYY') 
             : 'Never';
@@ -4067,6 +4122,7 @@ export const teamMemberAdded = onDocumentCreated(
 export const resendTeamMemberInvite = onCall(
   { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
   async (request) => {
+    requireAuth(request);
     const { teamMember, team } = request.data as any;
     
     const pageUrl = getUserPageUrl(teamMember);
@@ -4105,6 +4161,7 @@ export const resendTeamMemberInvite = onCall(
 export const sendManagerAccessLink = onCall(
   { secrets: [sendgridApiKey] },
   async (request) => {
+    requireAuth(request);
     const { user, team } = request.data as any;
     
     if (!user?.email) {
@@ -4144,6 +4201,8 @@ export const sendPendingWelcomeMessages = onCall(
     if (!teamId) {
       throw new HttpsError('invalid-argument', 'Team ID is required');
     }
+
+    await requireTeamOwner(request, teamId);
     
     const db = admin.firestore();
     
@@ -4232,6 +4291,7 @@ export const sendPendingWelcomeMessages = onCall(
 export const resendSurveyNotification = onCall(
   { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
   async (request) => {
+    requireAuth(request);
     const { teamMember, survey, team } = request.data as any;
     
     const surveyTitle = survey?.title || 'a survey';
@@ -4753,6 +4813,7 @@ export const sitemap = onRequest(
 export const seedInitialBlogPost = onCall(
   {},
   async (request) => {
+    requireAuth(request);
     const db = admin.firestore();
     
     // Check if the blog already exists
@@ -5104,6 +5165,8 @@ export const deleteTeamCompletely = onCall(
       throw new HttpsError('invalid-argument', 'Team ID is required');
     }
 
+    await requireTeamOwner(request, teamId);
+
     const db = admin.firestore();
     const batch = db.batch();
     const deletionResults = {
@@ -5278,6 +5341,8 @@ export const chimpChat = onCall(
     if (!teamId || !message) {
       throw new HttpsError('invalid-argument', 'Team ID and message are required');
     }
+
+    await requireTeamOwner(request, teamId);
 
     const db = admin.firestore();
 
@@ -6009,6 +6074,7 @@ function generateHmacToken(recipientId: string, campaignId: string): string {
 export const generateOutreachEmail = onCall(
   { secrets: [xaiApiKey] },
   async (request) => {
+    requireAuth(request);
     const { niche, region, stepNumber, totalSteps, prompt } = request.data;
     if (!niche || !region || !stepNumber || !totalSteps) {
       throw new HttpsError("invalid-argument", "Missing required fields");
@@ -6102,6 +6168,7 @@ The bodyHtml should be valid HTML (use <p>, <strong>, <br>, <a> tags).`;
 export const generateOutreachLandingPage = onCall(
   { secrets: [xaiApiKey] },
   async (request) => {
+    requireAuth(request);
     const { campaignId } = request.data;
     if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
 
@@ -6193,6 +6260,7 @@ Use material icon names from: sms, checklist, description, schedule, security, e
 
 // ── startOutreachCampaign ──
 export const startOutreachCampaign = onCall(async (request) => {
+  requireAuth(request);
   const { campaignId } = request.data;
   if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
 
@@ -6255,6 +6323,7 @@ export const startOutreachCampaign = onCall(async (request) => {
 
 // ── pauseOutreachCampaign ──
 export const pauseOutreachCampaign = onCall(async (request) => {
+  requireAuth(request);
   const { campaignId } = request.data;
   if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
 
@@ -6267,6 +6336,7 @@ export const pauseOutreachCampaign = onCall(async (request) => {
 
 // ── syncOutreachRecipients ──
 export const syncOutreachRecipients = onCall(async (request) => {
+  requireAuth(request);
   const { campaignId } = request.data;
   if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
 
@@ -6590,6 +6660,7 @@ export const unsubscribeOutreach = onRequest(async (req, res) => {
 export const sendTestOutreachEmail = onCall(
   { secrets: [sendgridApiKey] },
   async (request) => {
+    requireAuth(request);
     const { campaignId, stepIndex, testEmail } = request.data;
     if (!campaignId || stepIndex === undefined || !testEmail) {
       throw new HttpsError("invalid-argument", "Missing required fields");

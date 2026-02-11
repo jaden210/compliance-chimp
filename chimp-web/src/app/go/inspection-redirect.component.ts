@@ -101,20 +101,19 @@ export class InspectionRedirectComponent implements OnInit {
     memberId: string | null
   ): void {
     const queryParams = memberId ? { 'member-id': memberId } : {};
-    this.router.navigate(
-      ['/user/self-inspections', selfInspectionId, inspectionId],
-      { queryParams, queryParamsHandling: 'merge' }
-    );
+    const segments: string[] = ['/user/self-inspections'];
+    if (selfInspectionId) segments.push(selfInspectionId);
+    if (inspectionId) segments.push(inspectionId);
+    this.router.navigate(segments, { queryParams, queryParamsHandling: 'merge' });
   }
 
   private navigateToAccountModule(
     selfInspectionId: string | null,
     inspectionId: string | null
   ): void {
-    this.router.navigate([
-      '/account/self-inspections',
-      selfInspectionId,
-      inspectionId
-    ]);
+    const segments: string[] = ['/account/self-inspections'];
+    if (selfInspectionId) segments.push(selfInspectionId);
+    if (inspectionId) segments.push(inspectionId);
+    this.router.navigate(segments);
   }
 }

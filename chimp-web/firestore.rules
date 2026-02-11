@@ -26,10 +26,16 @@ service cloud.firestore {
         allow write: if request.auth.uid != null;
       }
       match /self-inspection/{inspectionId} {
-        allow read, write;
+        // Unauthenticated team members can read inspection templates.
+        // Only authenticated users can create/edit/delete templates.
+        allow read;
+        allow write: if request.auth.uid != null;
         
         match /inspections/{subInspectionId} {
-          allow read, write;
+          // Team members can read and submit/update inspection entries.
+          // Only authenticated users can delete entries.
+          allow read, create, update;
+          allow delete: if request.auth.uid != null;
         }
       }
       match /survey/{surveyId} {
@@ -56,17 +62,24 @@ service cloud.firestore {
       allow write: if request.auth.uid != null;
     }
     match /team-members/{userId} {
-      allow read, write;
+      // Team members (unauthenticated) can read their own doc via member-id URL.
+      // Only authenticated team owners can create/update/delete members.
+      allow read;
+      allow write: if request.auth.uid != null;
     }
     match /survey/{userId} {
       allow read;
       allow write: if request.auth.uid != null;
     }
     match /survey-response/{responseId} {
-      allow read, write;
+      // Unauthenticated team members can submit new responses only.
+      // Authenticated users can read/update/delete via the wildcard rule.
+      allow create;
     }
     match /incident-report/{reportId} {
-      allow read, write;
+      // Unauthenticated team members can submit new reports only.
+      // Authenticated users can read/update/delete via the wildcard rule.
+      allow create;
     }
     match /topic/{topicId} {
       allow read;

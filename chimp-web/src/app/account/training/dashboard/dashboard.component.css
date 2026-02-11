@@ -1,5 +1,11 @@
 /* Training Dashboard - Updated with accessible theme tokens */
 
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 /* Sidenav Container */
 .training-container {
   height: calc(100vh - 64px);
@@ -16,6 +22,7 @@
   padding: 24px 24px 96px;
   box-sizing: border-box;
   min-height: 100%;
+  width: 100%;
 }
 
 /* Toolbar Button */

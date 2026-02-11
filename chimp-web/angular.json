@@ -43,7 +43,16 @@
               "src/styles.scss",
               "src/app/material/theme.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "moment",
+              "canvg",
+              "core-js",
+              "raf",
+              "rgbcolor",
+              "html2canvas",
+              "dompurify"
+            ]
           },
           "configurations": {
             "production": {

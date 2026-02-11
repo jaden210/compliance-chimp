@@ -70,7 +70,7 @@ $radius-lg: 16px;
   justify-content: center;
   gap: 8px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, $success 0%, darken($success, 10%) 100%);
+  background: linear-gradient(135deg, $success 0%, color.adjust($success, $lightness: -10%) 100%);
   color: #fff;
   font-size: 14px;
   font-weight: 500;

@@ -44,6 +44,7 @@ export class UserPageComponent implements OnInit {
 
   // Reactive surveys that update when the service data changes
   filteredSurveys: Survey[] = [];
+  completedSurveyCount = 0;
   surveysLoaded = false;
   
   // Resource library
@@ -65,7 +66,6 @@ export class UserPageComponent implements OnInit {
     this.userService.surveysObservable
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(surveys => {
-        console.log('[UserPageComponent] surveysObservable received:', surveys);
         this.updateFilteredSurveys(surveys);
       });
 
@@ -73,7 +73,6 @@ export class UserPageComponent implements OnInit {
     this.userService.surveysLoaded
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(loaded => {
-        console.log('[UserPageComponent] surveysLoaded:', loaded);
         this.surveysLoaded = loaded;
         this.cdr.detectChanges();
       });
@@ -83,7 +82,6 @@ export class UserPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(tm => {
         if (tm) {
-          console.log('[UserPageComponent] teamMemberObservable received:', tm.id);
           this.updateFilteredSurveys(this.userService.surveys);
         }
       });
@@ -92,23 +90,20 @@ export class UserPageComponent implements OnInit {
   private updateFilteredSurveys(surveys: Survey[] | null): void {
     const teamMemberId = this.userService.teamMember?.id;
     if (!teamMemberId) {
-      console.log('[UserPageComponent] updateFilteredSurveys: No teamMemberId yet');
       this.filteredSurveys = [];
       return;
     }
 
     const allSurveys = surveys || [];
-    console.log('[UserPageComponent] updateFilteredSurveys - teamMemberId:', teamMemberId);
-    console.log('[UserPageComponent] updateFilteredSurveys - allSurveys:', allSurveys.length);
 
+    let completedCount = 0;
     this.filteredSurveys = allSurveys.filter(s => {
       const responses = (s as any)['responses'] || [];
       const hasResponded = responses.some((sr: any) => sr.teamMemberId == teamMemberId);
-      console.log('[UserPageComponent] Survey', s.id, (s as any)['title'], '- responses:', responses.length, '- hasResponded:', hasResponded);
+      if (hasResponded) completedCount++;
       return !hasResponded;
     });
-
-    console.log('[UserPageComponent] filteredSurveys result:', this.filteredSurveys.length, this.filteredSurveys);
+    this.completedSurveyCount = completedCount;
     
     // Force change detection since Firebase callbacks happen outside Angular's zone
     this.cdr.detectChanges();
@@ -139,9 +134,8 @@ export class UserPageComponent implements OnInit {
 
   public async installApp(): Promise<void> {
     const installed = await this.pwaInstallService.promptInstall();
-    if (installed) {
-      console.log('App installed successfully');
-    }
+    // Installation handled by the PWA service
+    
   }
 
   /**
@@ -150,6 +144,14 @@ export class UserPageComponent implements OnInit {
    */
   public get IsLoggedIn(): boolean {
     return this.userService.isLoggedIn && !this.userService.isViewingAsMember;
+  }
+
+  /**
+   * Returns true when the current person has a linked account (manager/owner)
+   * but is not signed in. Used to show a sign-in prompt.
+   */
+  public get hasAccountButNotSignedIn(): boolean {
+    return this.userService.isViewingAsManager && !this.userService.isLoggedIn;
   }
 
   get TeamMember(): TeamMember {
