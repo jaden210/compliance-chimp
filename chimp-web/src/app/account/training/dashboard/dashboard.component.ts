@@ -29,6 +29,7 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { BlasterDialog } from "src/app/blaster/blaster.component";
 import { WelcomeService } from "../../welcome.service";
 import { WelcomeBannerComponent, WelcomeFeature } from "../../welcome-banner/welcome-banner.component";
+import { SurveyService } from "../../survey/survey.service";
 
 export type ViewMode = 'schedule' | 'history';
 export type FilterType = 'all' | 'overdue' | 'dueSoon' | 'current' | 'neverTrained';
@@ -51,6 +52,7 @@ export interface TrainingHistoryItem {
   articleId?: string;
   libraryId?: string;
   receivedTraining: string[];
+  trainees?: string[];
   userId: string;
   active: boolean;
   createdAt: any;
@@ -110,6 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   trainingHistory: TrainingHistoryItem[] = [];
   filteredHistory$: Observable<TrainingHistoryItem[]>;
   searchTerm$ = new BehaviorSubject<string>('');
+  responseCountsMap: Record<string, number> = {};
   
   // Library view state
   libraryContent$: Observable<LibraryItem[]>;
@@ -195,7 +198,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private snackBar: MatSnackBar,
     private db: Firestore,
-    public welcomeService: WelcomeService
+    public welcomeService: WelcomeService,
+    private surveyService: SurveyService
   ) {}
 
   // Auto-start trainings - undefined/missing means disabled (grandfather existing teams)
@@ -505,6 +509,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return { ...h, creator, creatorUser } as TrainingHistoryItem;
       });
       this.setupFilteredHistory();
+      this.loadResponseCounts(this.trainingHistory);
+    });
+  }
+
+  private loadResponseCounts(history: TrainingHistoryItem[]): void {
+    history.forEach(item => {
+      if (item.id) {
+        this.surveyService.getSurveyResponses(item.id).pipe(
+          take(1)
+        ).subscribe(responses => {
+          this.responseCountsMap[item.id] = responses.length;
+          this.cdr.markForCheck();
+        });
+      }
     });
   }
 
@@ -785,7 +803,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getAttendeeCount(history: TrainingHistoryItem): number {
-    return history.receivedTraining?.length || 0;
+    // Check trainees array first (used in newer surveys)
+    if (history.trainees?.length) {
+      return history.trainees.length;
+    }
+    // Fall back to receivedTraining (legacy format)
+    if (history.receivedTraining?.length) {
+      return history.receivedTraining.length;
+    }
+    // Fall back to userSurvey object keys
+    if (history.userSurvey) {
+      return Object.keys(history.userSurvey).length;
+    }
+    return 0;
+  }
+
+  getResponseCount(history: TrainingHistoryItem): number {
+    return this.responseCountsMap[history.id] ?? 0;
   }
 
   trackByItemId(index: number, item: LibraryItemWithStatus): string {

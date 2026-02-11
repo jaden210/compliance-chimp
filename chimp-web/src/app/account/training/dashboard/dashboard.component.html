@@ -728,7 +728,7 @@
                       <div class="col-date">Date</div>
                       <div class="col-title">Training</div>
                       <div class="col-trainer">Trainer</div>
-                      <div class="col-attendees">Attendees</div>
+                      <div class="col-attendees">Responses</div>
                       <div class="col-actions">Actions</div>
                     </div>
 
@@ -752,9 +752,12 @@
                         </div>
 
                         <div class="col-attendees">
-                          <span class="attendee-badge" [class.has-attendees]="getAttendeeCount(item) > 0">
+                          <span class="attendee-badge"
+                            [class.response-none]="getAttendeeCount(item) > 0 && getResponseCount(item) === 0"
+                            [class.response-partial]="getResponseCount(item) > 0 && getResponseCount(item) < getAttendeeCount(item)"
+                            [class.response-complete]="getAttendeeCount(item) > 0 && getResponseCount(item) >= getAttendeeCount(item)">
                             <mat-icon>people</mat-icon>
-                            {{ getAttendeeCount(item) }}
+                            {{ getResponseCount(item) }} of {{ getAttendeeCount(item) }}
                           </span>
                         </div>
 

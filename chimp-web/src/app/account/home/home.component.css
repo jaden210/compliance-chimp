@@ -443,6 +443,11 @@
   color: var(--chimp-error);
 }
 
+.metric-icon.primary {
+  background: var(--chimp-primary-container);
+  color: var(--chimp-primary);
+}
+
 .metric-icon mat-icon {
   font-size: 24px;
   width: 24px;
@@ -622,81 +627,216 @@
   color: rgba(255, 255, 255, 0.95);
 }
 
-/* Status Section */
-.status-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.status-card {
-  background: var(--chimp-surface-container-lowest);
-  border-radius: 12px;
-  border: 1px solid var(--chimp-outline-variant);
-  padding: 20px;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.status-card:hover {
-  box-shadow: var(--chimp-elevation-3);
-  transform: translateY(-2px);
-  border-color: var(--chimp-primary);
-}
-
-.status-header {
+.chimp-chat-hero-action {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  color: var(--chimp-on-surface-variant);
-  font-size: 14px;
-  font-weight: 500;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--chimp-accent);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: background 150ms ease, transform 150ms ease;
 }
 
-.status-header mat-icon {
+.chimp-chat-hero:hover .chimp-chat-hero-action {
+  background: color-mix(in srgb, var(--chimp-accent) 85%, #fff);
+  transform: translateX(2px);
+}
+
+.chimp-chat-hero-action-label {
+  white-space: nowrap;
+}
+
+.chimp-chat-hero-action-icon {
   font-size: 20px;
   width: 20px;
   height: 20px;
 }
 
-.status-stats {
-  display: flex;
-  gap: 24px;
-}
-
-.stat {
+/* Activity Overview Section */
+.activity-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
 }
 
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
+.activity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.activity-card {
+  background: var(--chimp-surface-container-lowest);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-outline-variant);
+  padding: 24px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.activity-card:hover {
+  box-shadow: var(--chimp-elevation-3);
+  transform: translateY(-2px);
+  border-color: var(--chimp-primary);
+}
+
+.activity-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activity-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--chimp-on-surface);
-  line-height: 1;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.stat-value.success {
-  color: var(--chimp-success);
+.activity-card-title mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: var(--chimp-primary);
 }
 
-.stat-value.warning {
-  color: var(--chimp-warning);
-}
-
-.stat-label {
-  font-size: 12px;
+.activity-card-total {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--chimp-outline);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+}
+
+/* Stacked Bar Chart */
+.stacked-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stacked-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--chimp-surface-container);
+}
+
+.bar-segment {
+  transition: width 400ms ease;
+  min-width: 4px;
+}
+
+.bar-segment.overdue {
+  background: var(--chimp-error);
+}
+
+.bar-segment.due-soon {
+  background: var(--chimp-warning);
+}
+
+.bar-segment.on-track {
+  background: var(--chimp-success);
+}
+
+.bar-segment.never-run {
+  background: var(--chimp-outline-variant);
+}
+
+/* Legend */
+.bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot.overdue {
+  background: var(--chimp-error);
+}
+
+.legend-dot.due-soon {
+  background: var(--chimp-warning);
+}
+
+.legend-dot.on-track {
+  background: var(--chimp-success);
+}
+
+.legend-dot.never-run {
+  background: var(--chimp-outline-variant);
+}
+
+.legend-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chimp-on-surface);
+}
+
+.legend-label {
+  font-size: 13px;
+  color: var(--chimp-outline);
+}
+
+/* Empty State */
+.activity-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  color: var(--chimp-outline);
+  font-size: 14px;
+}
+
+.activity-empty mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  opacity: 0.6;
+}
+
+/* Activity Chart */
+.activity-chart-card {
+  background: var(--chimp-surface-container-lowest);
+  border-radius: 12px;
+  border: 1px solid var(--chimp-outline-variant);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activity-chart-wrap {
+  position: relative;
+  height: 220px;
+  width: 100%;
 }
 
 /* Mobile/Desktop Visibility Classes */
@@ -875,16 +1015,8 @@
 
   .metrics-grid,
   .actions-grid,
-  .status-grid {
+  .activity-grid {
     grid-template-columns: 1fr;
-  }
-
-  .status-stats {
-    gap: 16px;
-  }
-
-  .stat-value {
-    font-size: 24px;
   }
 
   /* Onboarding responsive */

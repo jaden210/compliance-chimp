@@ -108,30 +108,6 @@
 
       <!-- Metrics Grid -->
       <div class="metrics-grid">
-        <!-- Training Complete -->
-        <div class="metric-card desktop-clickable" routerLink="/account/training">
-          <div class="metric-icon success">
-            <mat-icon>school</mat-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">Training Complete</div>
-            <div class="metric-value">{{ trainingComplete || 0 }}%</div>
-          </div>
-          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
-        </div>
-
-        <!-- Members Needing Training -->
-        <div class="metric-card desktop-clickable" routerLink="/account/training">
-          <div class="metric-icon warning">
-            <mat-icon>pending_actions</mat-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">Need Training</div>
-            <div class="metric-value">{{ needsTraining?.length || 0 }} members</div>
-          </div>
-          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
-        </div>
-
         <!-- Team Members -->
         <div class="metric-card desktop-clickable" routerLink="/account/team">
           <div class="metric-icon info">
@@ -144,6 +120,30 @@
           <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
         </div>
 
+        <!-- Self Inspections -->
+        <div class="metric-card desktop-clickable" routerLink="/account/self-inspections">
+          <div class="metric-icon" [ngClass]="{
+            'warning': selfInspection.overdue > 0 || selfInspection.dueSoon > 0,
+            'success': selfInspection.total > 0 && selfInspection.overdue === 0 && selfInspection.dueSoon === 0,
+            'info': selfInspection.total === 0
+          }">
+            <mat-icon>fact_check</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Self Inspections</div>
+            <div class="metric-value" *ngIf="selfInspection.overdue > 0 || selfInspection.dueSoon > 0">
+              {{ selfInspection.overdue + selfInspection.dueSoon }} need attention
+            </div>
+            <div class="metric-value" *ngIf="selfInspection.overdue === 0 && selfInspection.dueSoon === 0 && selfInspection.total > 0">
+              All on track
+            </div>
+            <div class="metric-value" *ngIf="selfInspection.total === 0">
+              None yet
+            </div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+
         <!-- Incident Reports -->
         <div class="metric-card desktop-clickable" routerLink="/account/incident-reports">
           <div class="metric-icon error">
@@ -152,6 +152,18 @@
           <div class="metric-content">
             <div class="metric-label">Incident Reports</div>
             <div class="metric-value">{{ incidentReportsCount }}</div>
+          </div>
+          <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
+        </div>
+
+        <!-- Team Files -->
+        <div class="metric-card desktop-clickable" routerLink="/account/files">
+          <div class="metric-icon primary">
+            <mat-icon>folder_open</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">Team Files</div>
+            <div class="metric-value">{{ teamFilesCount }} documents</div>
           </div>
           <mat-icon class="metric-action desktop-only">arrow_forward</mat-icon>
         </div>
@@ -199,6 +211,10 @@
           <h3 class="chimp-chat-hero-title">Chimp<span class="chimp-chat-hero-accent">Chat</span> — Start here and I'll help you get it done.</h3>
           <p class="chimp-chat-hero-desc">Run training, complete inspections, log incidents, manage your team. Whatever you're here to do.</p>
         </div>
+        <div class="chimp-chat-hero-action">
+          <span class="chimp-chat-hero-action-label">Let's Go</span>
+          <mat-icon class="chimp-chat-hero-action-icon">arrow_forward</mat-icon>
+        </div>
       </div>
 
       <div class="actions-grid">
@@ -244,72 +260,149 @@
       </div>
     </section>
 
-    <!-- Status Overview Section -->
-    <section class="status-section desktop-only">
+    <!-- Activity Overview Section -->
+    <section class="activity-section desktop-only">
       <div class="section-header">
         <mat-icon>assessment</mat-icon>
-        <h2>Compliance Status</h2>
+        <h2>Activity Overview</h2>
       </div>
 
-      <div class="status-grid">
-        <!-- Self Inspections -->
-        <div class="status-card" routerLink="/account/self-inspections">
-          <div class="status-header">
-            <mat-icon>fact_check</mat-icon>
-            <span>Self Inspections</span>
+      <div class="activity-grid">
+        <!-- Inspection Health -->
+        <div class="activity-card" routerLink="/account/self-inspections">
+          <div class="activity-card-header">
+            <div class="activity-card-title">
+              <mat-icon>fact_check</mat-icon>
+              <span>Inspection Health</span>
+            </div>
+            <span class="activity-card-total" *ngIf="selfInspection.total > 0">{{ selfInspection.total }} total</span>
           </div>
-          <div class="status-stats">
-            <div class="stat">
-              <span class="stat-value success">{{ selfInspection?.current || 0 }}</span>
-              <span class="stat-label">Current</span>
+
+          <!-- Stacked bar chart -->
+          <div class="stacked-bar-container" *ngIf="selfInspection.total > 0">
+            <div class="stacked-bar">
+              <div class="bar-segment overdue"
+                   *ngIf="selfInspection.overdue > 0"
+                   [style.width.%]="(selfInspection.overdue / selfInspection.total) * 100">
+              </div>
+              <div class="bar-segment due-soon"
+                   *ngIf="selfInspection.dueSoon > 0"
+                   [style.width.%]="(selfInspection.dueSoon / selfInspection.total) * 100">
+              </div>
+              <div class="bar-segment on-track"
+                   *ngIf="selfInspection.onTrack > 0"
+                   [style.width.%]="(selfInspection.onTrack / selfInspection.total) * 100">
+              </div>
+              <div class="bar-segment never-run"
+                   *ngIf="selfInspection.neverRun > 0"
+                   [style.width.%]="(selfInspection.neverRun / selfInspection.total) * 100">
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-value" [class.warning]="selfInspection?.expired > 0">{{ selfInspection?.expired || 0 }}</span>
-              <span class="stat-label">Expired</span>
+
+            <div class="bar-legend">
+              <div class="legend-item" *ngIf="selfInspection.overdue > 0">
+                <span class="legend-dot overdue"></span>
+                <span class="legend-count">{{ selfInspection.overdue }}</span>
+                <span class="legend-label">Overdue</span>
+              </div>
+              <div class="legend-item" *ngIf="selfInspection.dueSoon > 0">
+                <span class="legend-dot due-soon"></span>
+                <span class="legend-count">{{ selfInspection.dueSoon }}</span>
+                <span class="legend-label">Due Soon</span>
+              </div>
+              <div class="legend-item" *ngIf="selfInspection.onTrack > 0">
+                <span class="legend-dot on-track"></span>
+                <span class="legend-count">{{ selfInspection.onTrack }}</span>
+                <span class="legend-label">On Track</span>
+              </div>
+              <div class="legend-item" *ngIf="selfInspection.neverRun > 0">
+                <span class="legend-dot never-run"></span>
+                <span class="legend-count">{{ selfInspection.neverRun }}</span>
+                <span class="legend-label">Never Run</span>
+              </div>
             </div>
+          </div>
+
+          <!-- Empty state -->
+          <div class="activity-empty" *ngIf="selfInspection.total === 0">
+            <mat-icon>add_task</mat-icon>
+            <span>No inspections set up yet</span>
           </div>
         </div>
 
-        <!-- Survey Responses -->
-        <div class="status-card" routerLink="/account/training">
-          <div class="status-header">
-            <mat-icon>poll</mat-icon>
-            <span>Survey Responses</span>
+        <!-- Training Health -->
+        <div class="activity-card" routerLink="/account/training">
+          <div class="activity-card-header">
+            <div class="activity-card-title">
+              <mat-icon>school</mat-icon>
+              <span>Training Health</span>
+            </div>
+            <span class="activity-card-total" *ngIf="trainingHealth.total > 0">{{ trainingHealth.total }} total</span>
           </div>
-          <div class="status-stats">
-            <div class="stat">
-              <span class="stat-value">{{ surveyResponsesCount }}</span>
-              <span class="stat-label">Total Responses</span>
+
+          <!-- Stacked bar chart -->
+          <div class="stacked-bar-container" *ngIf="trainingHealth.total > 0">
+            <div class="stacked-bar">
+              <div class="bar-segment on-track"
+                   *ngIf="trainingHealth.compliant > 0"
+                   [style.width.%]="(trainingHealth.compliant / trainingHealth.total) * 100">
+              </div>
+              <div class="bar-segment due-soon"
+                   *ngIf="trainingHealth.inProgress > 0"
+                   [style.width.%]="(trainingHealth.inProgress / trainingHealth.total) * 100">
+              </div>
+              <div class="bar-segment never-run"
+                   *ngIf="trainingHealth.notStarted > 0"
+                   [style.width.%]="(trainingHealth.notStarted / trainingHealth.total) * 100">
+              </div>
+            </div>
+
+            <div class="bar-legend">
+              <div class="legend-item" *ngIf="trainingHealth.compliant > 0">
+                <span class="legend-dot on-track"></span>
+                <span class="legend-count">{{ trainingHealth.compliant }}</span>
+                <span class="legend-label">Compliant</span>
+              </div>
+              <div class="legend-item" *ngIf="trainingHealth.inProgress > 0">
+                <span class="legend-dot due-soon"></span>
+                <span class="legend-count">{{ trainingHealth.inProgress }}</span>
+                <span class="legend-label">In Progress</span>
+              </div>
+              <div class="legend-item" *ngIf="trainingHealth.notStarted > 0">
+                <span class="legend-dot never-run"></span>
+                <span class="legend-count">{{ trainingHealth.notStarted }}</span>
+                <span class="legend-label">Not Started</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Trainings Given -->
-        <div class="status-card" routerLink="/account/training">
-          <div class="status-header">
+          <!-- Empty state -->
+          <div class="activity-empty" *ngIf="trainingHealth.total === 0 && !hasTrainingContent">
             <mat-icon>cast_for_education</mat-icon>
-            <span>Trainings Given</span>
+            <span>No training content yet</span>
           </div>
-          <div class="status-stats">
-            <div class="stat">
-              <span class="stat-value">{{ surveysGivenCount }}</span>
-              <span class="stat-label">Sessions</span>
-            </div>
+          <div class="activity-empty" *ngIf="trainingHealth.total === 0 && hasTrainingContent">
+            <mat-icon>schedule</mat-icon>
+            <span>Trainings scheduled — waiting on first completions</span>
           </div>
         </div>
+      </div>
 
-        <!-- Team Files -->
-        <div class="status-card" routerLink="/account/files">
-          <div class="status-header">
-            <mat-icon>folder_open</mat-icon>
-            <span>Team Files</span>
+      <!-- Activity Timeline Chart -->
+      <div class="activity-chart-card" *ngIf="hasEvents">
+        <div class="activity-chart-header">
+          <div class="activity-card-title">
+            <mat-icon>timeline</mat-icon>
+            <span>Activity — Last 30 Days</span>
           </div>
-          <div class="status-stats">
-            <div class="stat">
-              <span class="stat-value">{{ (files | async)?.length || 0 }}</span>
-              <span class="stat-label">Documents</span>
-            </div>
-          </div>
+          <span class="activity-card-total">{{ totalEventsCount }} events</span>
+        </div>
+        <div class="activity-chart-wrap">
+          <canvas baseChart
+                  [type]="activityChartConfig.type"
+                  [data]="activityChartConfig.data"
+                  [options]="activityChartConfig.options">
+          </canvas>
         </div>
       </div>
     </section>

@@ -1,6 +1,6 @@
 import { Injectable, Component } from "@angular/core";
 import { Observable } from "rxjs";
-import { Firestore, collection, collectionData, doc, query, where, orderBy } from "@angular/fire/firestore";
+import { Firestore, collection, collectionData, doc, query, where, orderBy, Timestamp } from "@angular/fire/firestore";
 import { map } from "rxjs/operators";
 import { AccountService, InviteToTeam, TeamMember } from "../account.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -81,5 +81,29 @@ export class HomeService {
       where("teamId", "==", this.accountService.aTeam.id)
     );
     return collectionData(responseQuery, { idField: "id" });
+  }
+
+  getEvents(daysBack: number = 30): Observable<any[]> {
+    if (!this.accountService.aTeam?.id) {
+      return new Observable(observer => observer.next([]));
+    }
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysBack);
+
+    const path = `team/${this.accountService.aTeam.id}/event`;
+    const eventsCollection = collection(this.db, path);
+    const eventsQuery = query(
+      eventsCollection,
+      where("createdAt", ">=", Timestamp.fromDate(cutoff)),
+      orderBy("createdAt", "asc")
+    );
+    return collectionData(eventsQuery, { idField: "id" }).pipe(
+      map((events: any[]) =>
+        events.map(e => ({
+          ...e,
+          createdAt: e.createdAt?.toDate ? e.createdAt.toDate() : e.createdAt
+        }))
+      )
+    );
   }
 }

@@ -771,7 +771,17 @@
   color: var(--chimp-outline);
 }
 
-.attendee-badge.has-attendees {
+.attendee-badge.response-none {
+  background: var(--chimp-error-container);
+  color: var(--chimp-on-error-container);
+}
+
+.attendee-badge.response-partial {
+  background: var(--chimp-accent-light, #fff3e0);
+  color: var(--chimp-accent, #ff9800);
+}
+
+.attendee-badge.response-complete {
   background: var(--chimp-success-container);
   color: var(--chimp-on-success-container);
 }
