@@ -4301,37 +4301,12 @@ export const resendSurveyNotification = onCall(
     let messageBody: string;
     if (teamMember.preferEmail) {
       // HTML email for survey reminder
-      messageBody = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #1a5a96; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-            .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
-            .button { display: inline-block; background: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 24px; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h2>Survey Reminder</h2>
-            </div>
-            <div class="content">
-              <p>Hi ${teamMember.name},</p>
-              <p>This is a reminder from <strong>${teamName}</strong> that you have an outstanding survey waiting for your response:</p>
-              <p><strong>${surveyTitle}</strong></p>
-              <p>Please take a moment to complete this survey at your earliest convenience.</p>
-              <p style="text-align: center; margin: 24px 0;">
-                <a href="${pageUrl}" class="button">Complete Survey</a>
-              </p>
-              <p>Thank you,<br>The Compliancechimp Team</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+      let emailHtml = getEmail('survey-reminder');
+      messageBody = emailHtml
+        .split('{{recipientName}}').join(teamMember.name)
+        .split('{{teamName}}').join(teamName)
+        .split('{{surveyTitle}}').join(surveyTitle)
+        .split('{{pageUrl}}').join(pageUrl);
     } else {
       // Plain text for SMS
       messageBody = `Hi ${teamMember.name}. Reminder from ${teamName}: You have an outstanding survey "${surveyTitle}" waiting for your response. Please complete it here: ${pageUrl}`;
@@ -6143,7 +6118,7 @@ FORMATTING RULES:
 - Use <strong> tags for key stats and important lines
 - Use arrow bullets (→) for feature lists, regular bullets (•) for stat lists
 - Keep paragraphs short (2-3 sentences max)
-- Include a clear CTA link using the placeholder {{ctaUrl}} (this gets replaced at send time)
+- Include a clear CTA link using the placeholder {{ctaUrl}} (this gets replaced at send time). IMPORTANT: Always show the full URL as the visible link text so recipients can see where the link goes. For example: <a href="{{ctaUrl}}">{{ctaUrl}}</a>. Do NOT hide the URL behind generic text like "Click here" or "Get started" — showing the full URL builds trust and avoids looking like a phishing email.
 - Sign off with: — Ulysses 🐵<br>ComplianceChimp
 - Include a P.S. that is self-aware about being a chimp (playful, not forced)
 - Use {companyName} as a template variable for the recipient's business name
