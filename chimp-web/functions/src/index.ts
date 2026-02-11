@@ -5978,13 +5978,24 @@ export const scraperApi = onRequest(
             res.status(400).json({ error: "Missing jobId" });
             return;
           }
-          const results = data?.results || [];
+          const rawResults = data?.results || [];
+
+          // Clean and validate email fields on ingestion
+          const results = rawResults.map((r: any) => ({
+            ...r,
+            email: cleanEmailField(r.email || ""),
+          }));
+
+          const totalWithEmail = results.filter((r: any) => r.email).length;
+
           await db
             .collection(COLLECTION)
             .doc(jobId)
             .update({
               results: results,
               totalResults: results.length,
+              "progress.totalWithEmail": totalWithEmail,
+              "progress.emailsFound": totalWithEmail,
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           res.status(200).json({ success: true, count: results.length });
@@ -6050,7 +6061,45 @@ export const scraperApi = onRequest(
 
 const crypto = require("crypto");
 
-// ── Email validation helper ──
+// ── Email extraction & validation helpers ──
+
+/**
+ * Extract all email-shaped tokens from a raw string that may contain
+ * multiple emails, extra text, delimiters, or other records.
+ */
+function extractEmails(raw: string): string[] {
+  if (!raw || typeof raw !== "string") return [];
+  // Match email-like patterns anywhere in the string
+  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  const matches = raw.match(emailRegex) || [];
+  // Deduplicate and normalize
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const m of matches) {
+    const normalized = m.trim().toLowerCase();
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      results.push(normalized);
+    }
+  }
+  return results;
+}
+
+/**
+ * Clean a raw email field: extract emails, validate each one, and
+ * return the first valid email (or empty string if none found).
+ * Handles messy fields with multiple emails, delimiters, extra text, etc.
+ */
+function cleanEmailField(raw: string): string {
+  const candidates = extractEmails(raw);
+  for (const candidate of candidates) {
+    if (isValidEmail(candidate)) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
 function isValidEmail(email: string): boolean {
   if (!email || typeof email !== "string") return false;
   const trimmed = email.trim().toLowerCase();
@@ -6285,7 +6334,8 @@ export const startOutreachCampaign = onCall(async (request) => {
 
   const batch = db.batch();
   for (const result of results) {
-    const email = (result.email || "").trim().toLowerCase();
+    // Clean the email field in case it wasn't cleaned at ingestion
+    const email = cleanEmailField(result.email || "");
     if (!email || existingEmails.has(email)) continue;
     if (!isValidEmail(email)) {
       skippedInvalid++;
@@ -6357,7 +6407,8 @@ export const syncOutreachRecipients = onCall(async (request) => {
   const batch = db.batch();
 
   for (const result of results) {
-    const email = (result.email || "").trim().toLowerCase();
+    // Clean the email field in case it wasn't cleaned at ingestion
+    const email = cleanEmailField(result.email || "");
     if (!email || existingEmails.has(email)) continue;
     if (!isValidEmail(email)) {
       skippedInvalid++;
