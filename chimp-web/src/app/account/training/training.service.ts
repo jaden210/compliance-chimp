@@ -646,7 +646,8 @@ export class TrainingService {
    */
   public expandTagsToMembers(assignedTags: string[], teamMembers: { id?: string; tags?: string[] }[]): string[] {
     if (!assignedTags || assignedTags.length === 0) {
-      return [];
+      // If no tags assigned, return all team members (matches cloud function behavior)
+      return teamMembers.map(tm => tm.id).filter((id): id is string => !!id);
     }
     
     const memberIds = new Set<string>();

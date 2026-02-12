@@ -28,6 +28,9 @@
         }
       }
 
+      <!-- Missing Contact Info Banner -->
+      <app-contact-info-banner context="training"></app-contact-info-banner>
+
       <!-- Team Members Required Notice -->
       @if (accountService.teamMembersLoaded && !hasTeamMembers()) {
         <section class="setup-notice">

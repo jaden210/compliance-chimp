@@ -1,121 +1,50 @@
 .challenge-container {
-  min-height: 100vh;
+  min-height: calc(100vh - var(--toolbar-height));
   display: flex;
   flex-direction: column;
   background: var(--chimp-bg-secondary);
   position: relative;
 }
 
-// Timer Card (Rounded Rectangle)
-.timer-card {
+// Dry run badge - developer indicator when no real data will be created. Click to exit.
+.dry-run-badge {
+  position: fixed;
+  top: 80px;
+  left: 24px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(var(--chimp-accent-rgb, 255, 145, 0), 0.15);
+  border: 1px solid rgba(var(--chimp-accent-rgb, 255, 145, 0), 0.4);
+  color: var(--chimp-accent, #ff9100);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:hover {
+    background: rgba(var(--chimp-accent-rgb, 255, 145, 0), 0.25);
+  }
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Timer wrapper - positions the timer card
+.timer-wrapper {
   position: fixed;
   top: 80px;
   right: 24px;
-  width: 172px;
-  height: 200px;
   z-index: 100;
-  border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  &.paused {
-    .timer-border-progress {
-      stroke: #9e9e9e;
-    }
-    
-    .timer-value {
-      color: #9e9e9e;
-    }
-  }
-  
-  &.complete {
-    .timer-border-progress {
-      stroke: var(--chimp-accent, #ff9800);
-    }
-  }
-  
-  &.overtime {
-    .timer-border-progress {
-      stroke: #e53935;
-    }
-    
-    .timer-value {
-      color: #e53935;
-    }
-  }
-}
-
-.timer-border-svg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.timer-border-bg {
-  fill: var(--chimp-bg-primary);
-  stroke: rgba(0, 0, 0, 0.1);
-  stroke-width: 6;
-}
-
-.timer-border-progress {
-  fill: none;
-  stroke: var(--chimp-accent, #ff9800);
-  stroke-width: 6;
-  stroke-linecap: round;
-  stroke-dasharray: 688; // Approximate perimeter
-  transition: stroke-dashoffset 0.1s linear;
-}
-
-.timer-card-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-
-.timer-chimp {
-  width: 100%;
-  height: auto;
-  border-radius: 12px;
-  object-fit: cover;
-}
-
-.timer-content {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px 0 0 0;
-}
-
-.timer-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-family: 'Monaco', 'Consolas', monospace;
-  color: var(--chimp-text-primary);
-  line-height: 1;
-}
-
-.timer-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--chimp-text-secondary);
-  
-  &.paused {
-    color: var(--chimp-accent);
-    font-weight: 600;
-  }
-  
-  &.complete {
-    color: var(--chimp-accent, #ff9800);
-    font-weight: 600;
-  }
 }
 
 // Main Content
@@ -123,19 +52,58 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+
+  // Style the Angular host element rendered by router-outlet
+  > router-outlet + * {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
 }
 
-// Responsive - Mobile: Timer card above content (centered, same proportions)
-@media screen and (max-width: 600px) {
-  .challenge-container {
-    background: var(--chimp-bg-primary);
-  }
-  
-  .timer-card {
+// Responsive - Below 1500px: Stack timer above content (except step4 tablet - handled in step4)
+@media screen and (max-width: 1500px) {
+  .timer-wrapper {
     position: relative;
     top: auto;
     right: auto;
     margin: 16px auto 0 auto;
-    // Keep same dimensions as desktop so SVG calculations work correctly
+  }
+
+  .dry-run-badge {
+    top: 72px;
+    left: 16px;
+  }
+}
+
+// Responsive - Mobile
+@media screen and (max-width: 600px) {
+  .challenge-container {
+    background: var(--chimp-bg-primary);
+  }
+
+  .timer-wrapper {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 16px auto 0 auto;
+  }
+
+  .dry-run-badge {
+    position: relative;
+    top: auto;
+    left: auto;
+    align-self: flex-start;
+    margin: 12px 0 0 12px;
+    padding: 4px 10px;
+    font-size: 11px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
   }
 }

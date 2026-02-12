@@ -37,7 +37,12 @@ export class WelcomeComponent implements OnInit {
     if (this.preselectedIndustry) {
       this.challengeService.setBusinessInfo("", "", this.preselectedIndustry);
     }
-    
+
+    const dryrun = this.route.snapshot.queryParamMap.get("dryrun");
+    if (dryrun !== null) {
+      this.challengeService.setDryRun(dryrun === 'true');
+    }
+
     // Track welcome page view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_WELCOME_VIEW);
   }

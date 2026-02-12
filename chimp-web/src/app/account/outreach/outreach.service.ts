@@ -45,6 +45,7 @@ export interface ScrapeJob {
   results: ScrapeJobResult[];
   createdAt: Date;
   updatedAt: Date;
+  lastHeartbeat: Date;
 }
 
 @Injectable()
@@ -67,7 +68,10 @@ export class OutreachService {
           const updatedAt = data.updatedAt?.toDate
             ? data.updatedAt.toDate()
             : data.updatedAt;
-          return { ...data, createdAt, updatedAt } as ScrapeJob;
+          const lastHeartbeat = data.lastHeartbeat?.toDate
+            ? data.lastHeartbeat.toDate()
+            : data.lastHeartbeat;
+          return { ...data, createdAt, updatedAt, lastHeartbeat } as ScrapeJob;
         })
       ),
       catchError((error) => {
@@ -88,7 +92,10 @@ export class OutreachService {
         const updatedAt = data.updatedAt?.toDate
           ? data.updatedAt.toDate()
           : data.updatedAt;
-        return { ...data, createdAt, updatedAt } as ScrapeJob;
+        const lastHeartbeat = data.lastHeartbeat?.toDate
+          ? data.lastHeartbeat.toDate()
+          : data.lastHeartbeat;
+        return { ...data, createdAt, updatedAt, lastHeartbeat } as ScrapeJob;
       }),
       catchError((error) => {
         console.error("Error loading scrape job:", error);
@@ -113,7 +120,16 @@ export class OutreachService {
     });
   }
 
-  getStatusLabel(status: string): string {
+  getStatusLabel(status: string, job?: ScrapeJob): string {
+    if (job && this.isInterrupted(job)) {
+      const phase: Record<string, string> = {
+        scanning: "Interrupted during scan",
+        scraping: "Interrupted during scraping",
+        emails: "Interrupted during email search",
+        exporting: "Interrupted during export",
+      };
+      return phase[status] || "Interrupted";
+    }
     const labels: Record<string, string> = {
       created: "Created",
       scanning: "Scanning for businesses...",
@@ -129,7 +145,8 @@ export class OutreachService {
     return labels[status] || status;
   }
 
-  getStatusColor(status: string): string {
+  getStatusColor(status: string, job?: ScrapeJob): string {
+    if (job && this.isInterrupted(job)) return "#ff9800";
     if (status === "complete") return "#4caf50";
     if (status === "error") return "#f44336";
     if (status?.includes("complete")) return "#2196f3";
@@ -138,6 +155,15 @@ export class OutreachService {
 
   isRunning(status: string): boolean {
     return ["scanning", "scraping", "emails", "exporting"].includes(status);
+  }
+
+  isInterrupted(job: ScrapeJob): boolean {
+    if (!this.isRunning(job.status)) return false;
+    const heartbeat = job.lastHeartbeat;
+    if (!heartbeat) return false;
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(heartbeat).getTime();
+    return diffMs > 2 * 60 * 1000;
   }
 
   getProgressPercent(job: ScrapeJob): number {

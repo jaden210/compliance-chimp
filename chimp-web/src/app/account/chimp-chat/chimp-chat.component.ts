@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, ViewChild, ElementRef, AfterViewChecked, OnDestroy, OnInit, inject, Input } from '@angular/core';
+import { Component, Output, EventEmitter, ViewChild, ElementRef, AfterViewChecked, OnDestroy, OnInit, OnChanges, SimpleChanges, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -45,15 +45,17 @@ const PANEL_HEIGHT = 520;
   templateUrl: './chimp-chat.component.html',
   styleUrls: ['./chimp-chat.component.scss']
 })
-export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
+export class ChimpChatComponent implements OnInit, OnChanges, AfterViewChecked, OnDestroy {
   private chimpChatService = inject(ChimpChatService);
   private tourService = inject(TourService);
   private router = inject(Router);
   
   @Input() initialMessage: string | null = null;
   @Input() mode: ChimpChatMode = 'dialog';
+  @Input() isMobile: boolean = false;
   @Output() close = new EventEmitter<void>();
   @Output() modeChange = new EventEmitter<ChimpChatMode>();
+  @Output() minimize = new EventEmitter<void>();
   @Output() messageConsumed = new EventEmitter<void>();
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   @ViewChild('messageInput') private messageInput!: ElementRef;
@@ -80,14 +82,18 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   ngOnInit(): void {
     this.loadPosition();
-    
-    // Auto-submit initial message if provided
-    if (this.initialMessage && !this.hasProcessedInitialMessage) {
-      this.hasProcessedInitialMessage = true;
-      // Small delay to ensure component is fully initialized
-      setTimeout(() => {
-        this.processInitialMessage(this.initialMessage!);
-      }, 100);
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['initialMessage']) {
+      if (!this.initialMessage) {
+        this.hasProcessedInitialMessage = false;
+      } else if (!this.hasProcessedInitialMessage) {
+        this.hasProcessedInitialMessage = true;
+        setTimeout(() => {
+          this.processInitialMessage(this.initialMessage!);
+        }, 100);
+      }
     }
   }
 
@@ -184,6 +190,10 @@ export class ChimpChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   closePanel(): void {
     this.close.emit();
+  }
+
+  minimizePanel(): void {
+    this.minimize.emit();
   }
 
   toggleMode(): void {

@@ -1,0 +1,25 @@
+@if (fact || isLoading) {
+  <div class="chimp-fact-wrapper" [class.hide-avatar]="hideAvatar" @cardEnter>
+    @if (!hideAvatar) {
+      <img src="assets/thought.png" alt="Ulysses" class="chimp-avatar" />
+    }
+    <div class="chimp-fact-card">
+      <div class="fact-content">
+        @if (isLoading && !fact) {
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        }
+        @if (fact) {
+          @if (animationStyle === 'crossfade') {
+            @if (showText) {
+              <p class="fact-text" @crossfade>{{ displayedText }}</p>
+            }
+          } @else {
+            <p class="fact-text" [class.typing]="isTyping">{{ displayedText }}<span class="cursor" *ngIf="isTyping">|</span></p>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -29,6 +29,7 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { BlasterDialog } from "src/app/blaster/blaster.component";
 import { WelcomeService } from "../../welcome.service";
 import { WelcomeBannerComponent, WelcomeFeature } from "../../welcome-banner/welcome-banner.component";
+import { ContactInfoBannerComponent } from "../../contact-info-banner/contact-info-banner.component";
 import { SurveyService } from "../../survey/survey.service";
 
 export type ViewMode = 'schedule' | 'history';
@@ -85,7 +86,8 @@ export interface TrainingHistoryItem {
     MatSnackBarModule,
     MatCheckboxModule,
     MatSlideToggleModule,
-    WelcomeBannerComponent
+    WelcomeBannerComponent,
+    ContactInfoBannerComponent
   ],
   providers: [DatePipe]
 })

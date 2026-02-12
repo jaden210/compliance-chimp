@@ -274,3 +274,50 @@ td.mat-cell {
 .add-value:hover {
   color: var(--chimp-primary, #054d8a);
 }
+
+/* ---- Interrupted Banner ---- */
+
+.interrupted-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff3e0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.interrupted-banner mat-icon {
+  font-size: 22px;
+  height: 22px;
+  width: 22px;
+  color: #ff9800;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.interrupted-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.interrupted-text strong {
+  font-size: 14px;
+  color: #e65100;
+}
+
+.interrupted-text span {
+  font-size: 13px;
+  color: #5d4037;
+  line-height: 1.5;
+}
+
+.interrupted-pct {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e65100;
+  flex-shrink: 0;
+}

@@ -1,11 +1,12 @@
 import { Injectable } from "@angular/core";
 import { AppService } from "../app.service";
-import { Firestore, collection, doc, setDoc, addDoc, updateDoc } from "@angular/fire/firestore";
+import { Firestore, collection, doc, setDoc, addDoc, updateDoc, getDoc } from "@angular/fire/firestore";
 import { Auth } from "@angular/fire/auth";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { BehaviorSubject } from "rxjs";
 
 const STORAGE_KEY = 'chimp_challenge_state';
+const DRY_RUN_KEY = 'chimp_dry_run';
 const CHALLENGE_DURATION_SECONDS = 360; // 6 minutes
 
 export interface ChallengeState {
@@ -232,6 +233,24 @@ export class ChallengeService {
   get teamId(): string | null { return this.state.teamId; }
   get isTimerStarted(): boolean { return this.state.startTime !== null; }
 
+  // Dry run mode - allows testing the onboarding flow without creating real data
+  get isDryRun(): boolean {
+    try {
+      return localStorage.getItem(DRY_RUN_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  /** Set dry run mode (e.g. from ?dryrun=true query param). */
+  setDryRun(enabled: boolean): void {
+    if (enabled) {
+      localStorage.setItem(DRY_RUN_KEY, 'true');
+    } else {
+      localStorage.removeItem(DRY_RUN_KEY);
+    }
+  }
+
   // Auth and database methods
   createAuthUser(password: string): Promise<any> {
     return createUserWithEmailAndPassword(this.auth, this.state.email, password)
@@ -239,6 +258,20 @@ export class ChallengeService {
         console.error(error);
         throw error;
       });
+  }
+
+  /** Dry run only: sign in with existing dev account to use real auth for callable functions. */
+  async signInForDryRun(email: string, password: string): Promise<{ teamId: string; name: string }> {
+    const credential = await signInWithEmailAndPassword(this.auth, email.trim().toLowerCase(), password);
+    const userDoc = await getDoc(doc(this.db, `user/${credential.user.uid}`));
+    if (!userDoc.exists()) {
+      throw new Error('User document not found');
+    }
+    const data = userDoc.data() as { teamId: string; name: string; email?: string };
+    if (!data.teamId) {
+      throw new Error('User has no team');
+    }
+    return { teamId: data.teamId, name: data.name || credential.user.displayName || data.email || email };
   }
 
   createTeam(userId: string): Promise<string> {
@@ -290,7 +323,8 @@ export class ChallengeService {
           phone: null,
           teamId: teamId,
           createdAt: new Date(),
-          tags: [],
+          jobTitle: 'Owner',
+          tags: ['owner'],
           preferEmail: true,
           linkedUserId: user.user.uid,
           welcomeSent: true // Owner doesn't need a welcome message

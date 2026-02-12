@@ -1,0 +1,18 @@
+---
+description: Chimp brand Pantone colors reference
+alwaysApply: true
+---
+
+# Brand Colors
+
+## Pantone Colors
+- **Orange**: Pantone 1495 C
+- **Blue**: Pantone 301 C
+
+## Hex Values (from theme.scss)
+- **Primary Blue**: `#054d8a` (Pantone 301 C equivalent)
+- **Accent Orange**: `#ff9100` (Pantone 1495 C equivalent)
+
+## CSS Custom Properties
+- `--chimp-primary`: Primary blue
+- `--chimp-accent`: Accent orange

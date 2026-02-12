@@ -1,0 +1,120 @@
+:host {
+  display: block;
+  min-height: 100px;
+}
+
+.chimp-fact-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-top: 20px;
+}
+
+.chimp-avatar {
+  flex-shrink: 0;
+  object-fit: contain;
+  object-position: bottom;
+  align-self: flex-end;
+  width: 60px;
+  max-height: 90px;
+}
+
+.chimp-fact-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 14px 18px;
+  background: rgba(5, 77, 138, 0.04);
+  border: 1px solid rgba(5, 77, 138, 0.12);
+  border-radius: 12px;
+}
+
+.fact-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 60px;
+  position: relative;
+}
+
+.fact-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--chimp-text-secondary, #546e7a);
+  font-style: italic;
+  font-weight: 400;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+
+  .cursor {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--chimp-primary, #054d8a);
+    animation: blink 0.6s step-end infinite;
+  }
+}
+
+// Typing indicator dots
+.typing-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 20px;
+  padding: 8px 0;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--chimp-primary, #054d8a);
+    opacity: 0.3;
+    animation: typingBounce 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+// Responsive
+@media screen and (max-width: 600px) {
+  .chimp-fact-wrapper {
+    margin-top: 16px;
+  }
+
+  .chimp-avatar {
+    width: 50px;
+    max-height: 80px;
+  }
+
+  .chimp-fact-card {
+    padding: 10px 14px;
+  }
+
+  .fact-text {
+    font-size: 12.5px;
+  }
+}

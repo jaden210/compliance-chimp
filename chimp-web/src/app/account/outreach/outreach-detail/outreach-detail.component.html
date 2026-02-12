@@ -14,14 +14,30 @@
       <mat-icon>download</mat-icon>
     </button>
   </div>
-  <!-- Progress section -->
-  <div class="progress-section" *ngIf="service.isRunning(job.status)">
+  <!-- Interrupted banner -->
+  <div class="interrupted-banner" *ngIf="service.isInterrupted(job)">
+    <mat-icon>warning_amber</mat-icon>
+    <div class="interrupted-text">
+      <strong>{{ service.getStatusLabel(job.status, job) }}</strong>
+      <span>The scraper process was interrupted. Re-open the Lead Scraper tool on your computer and click Resume to pick up where it left off.</span>
+    </div>
+    <span class="interrupted-pct">{{ service.getProgressPercent(job) | number:'1.0-0' }}%</span>
+  </div>
+  <mat-progress-bar
+    *ngIf="service.isInterrupted(job)"
+    mode="determinate"
+    [value]="service.getProgressPercent(job)"
+    color="primary"
+  ></mat-progress-bar>
+
+  <!-- Progress section (active) -->
+  <div class="progress-section" *ngIf="service.isRunning(job.status) && !service.isInterrupted(job)">
     <div class="progress-header">
       <span
         class="status-dot"
-        [style.background]="service.getStatusColor(job.status)"
+        [style.background]="service.getStatusColor(job.status, job)"
       ></span>
-      <span class="status-label">{{ service.getStatusLabel(job.status) }}</span>
+      <span class="status-label">{{ service.getStatusLabel(job.status, job) }}</span>
       <span class="progress-pct">{{ service.getProgressPercent(job) | number:'1.0-0' }}%</span>
     </div>
     <mat-progress-bar
@@ -174,9 +190,15 @@
   </div>
 
   <!-- Empty state for running jobs -->
-  <div class="empty-state" *ngIf="!job.results?.length && service.isRunning(job.status)">
+  <div class="empty-state" *ngIf="!job.results?.length && service.isRunning(job.status) && !service.isInterrupted(job)">
     <mat-icon>hourglass_top</mat-icon>
     <p>Scraper is running. Results will appear here as they come in.</p>
+  </div>
+
+  <!-- Empty state for interrupted jobs -->
+  <div class="empty-state" *ngIf="!job.results?.length && service.isInterrupted(job)">
+    <mat-icon>pause_circle_outline</mat-icon>
+    <p>This job was interrupted before results were collected. Re-open the Lead Scraper tool and click Resume to continue.</p>
   </div>
 
   <!-- Empty state for completed jobs with no results -->

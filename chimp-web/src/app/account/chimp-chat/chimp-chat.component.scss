@@ -36,6 +36,30 @@
       border-radius: 0;
     }
   }
+
+  // Mobile mode - full screen overlay (below Material dialog overlay at 1000)
+  &.mobile-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    z-index: 999;
+    border: none;
+    // Reset any CDK drag transforms
+    transform: none !important;
+
+    .chat-header {
+      cursor: default;
+
+      &:active {
+        cursor: default;
+      }
+    }
+  }
 }
 
 // Header
@@ -97,6 +121,15 @@
 
 .close-btn {
   color: var(--chimp-on-primary);
+}
+
+.minimize-btn {
+  color: var(--chimp-on-primary);
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 
 // Messages container
@@ -412,10 +445,11 @@
   }
 }
 
-// Mobile responsive
-@media screen and (max-width: 600px) {
-  .chimp-chat-panel:not(.sidenav-mode) {
+// Mobile responsive fallback (for when isMobile input isn't set)
+@media screen and (max-width: 768px) {
+  .chimp-chat-panel:not(.sidenav-mode):not(.mobile-mode) {
     position: fixed;
+    top: 0;
     bottom: 0;
     right: 0;
     left: 0;

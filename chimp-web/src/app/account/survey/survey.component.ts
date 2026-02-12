@@ -77,6 +77,10 @@ export class SurveyComponent implements OnInit, OnDestroy {
     return this.responses.some(r => r.teamMemberId === tmId);
   }
 
+  public hasContactInfo(tm: any): boolean {
+    return !!(tm.phone || tm.email);
+  }
+
   public formatDate(date: any): string {
     if (!date) return '';
     const jsDate = date.toDate ? date.toDate() : date;

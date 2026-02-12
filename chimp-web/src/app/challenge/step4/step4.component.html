@@ -1,61 +1,74 @@
 <div class="step-container">
   <div class="step-card">
-    <div class="step-header">
-      <div class="step-indicator">Step 4 of 4</div>
-      <h1>{{ buildStarted ? 'Building your compliance program' : 'Ready to build your compliance program' }}</h1>
-      <p class="step-subtitle" *ngIf="!buildStarted">
-        The Chimp will analyze your team and industry to create everything you need — in 6 minutes or less.
-      </p>
-      <p class="step-subtitle" *ngIf="buildStarted">
-        The Chimp is creating personalized inspections and trainings for your team.
-      </p>
+    <div class="step-header" [class.has-timer]="buildStarted && challengeService.isTimerStarted">
+      <div class="step-header-content">
+        <div class="step-indicator">Step 4 of 4</div>
+        <h1 class="step-title-desktop">{{ buildStarted ? 'Building your compliance program' : 'Ready to build your compliance program' }}</h1>
+        <h1 class="step-title-mobile">{{ buildStarted ? 'Building your program' : 'Time to build your program' }}</h1>
+        <p class="step-subtitle" *ngIf="!buildStarted">
+          The Chimp will analyze your team and industry to create everything you need — in 6 minutes or less.
+        </p>
+        <p class="step-subtitle" *ngIf="buildStarted">
+          The Chimp is creating personalized inspections and trainings for your team.
+        </p>
+      </div>
+      <div class="step-header-timer" *ngIf="buildStarted && challengeService.isTimerStarted">
+        <challenge-timer></challenge-timer>
+      </div>
     </div>
 
     <!-- Pre-build intro -->
     <div class="intro-section" *ngIf="!buildStarted">
       <div class="intro-cards">
         <div class="intro-card">
-          <div class="intro-card-icon">
-            <mat-icon>checklist</mat-icon>
+          <div class="intro-card-header">
+            <div class="intro-card-icon">
+              <mat-icon>checklist</mat-icon>
+            </div>
+            <h4>Self-Inspection Checklists</h4>
           </div>
-          <h4>Self-Inspection Checklists</h4>
           <p>We'll create custom safety checklists tailored to your industry. Use them to document regular walkthroughs and catch hazards before they become incidents.</p>
         </div>
         <div class="intro-card">
-          <div class="intro-card-icon">
-            <mat-icon>school</mat-icon>
+          <div class="intro-card-header">
+            <div class="intro-card-icon">
+              <mat-icon>school</mat-icon>
+            </div>
+            <h4>Training Library</h4>
           </div>
-          <h4>Training Library</h4>
           <p>Your team will get OSHA safety training tailored to your industry — covering the regulations and hazards most relevant to your business.</p>
         </div>
         <div class="intro-card">
-          <div class="intro-card-icon">
-            <mat-icon>schedule_send</mat-icon>
+          <div class="intro-card-header">
+            <div class="intro-card-icon">
+              <mat-icon>schedule_send</mat-icon>
+            </div>
+            <h4>Scheduled Outreach</h4>
           </div>
-          <h4>Scheduled Outreach</h4>
           <p>Trainings are scheduled on a smart cadence based on priority. Your team will receive assignments via text or email as each training comes due.</p>
         </div>
       </div>
       
       <div class="go-section">
         <div class="challenge-cta-card">
-          <div class="cta-timer-visual">
-            <div class="timer-circle">
-              <span class="timer-number">6</span>
-              <span class="timer-label">min</span>
+          <img src="/assets/chimpTop.png" alt="" class="cta-chimp-image" />
+          <div class="cta-header-row">
+            <div class="cta-timer-visual">
+              <div class="timer-circle">
+                <span class="timer-number">6</span>
+                <span class="timer-label">min</span>
+              </div>
             </div>
-          </div>
-          <div class="cta-content">
             <h3 class="cta-headline">The Chimp will build your entire compliance program while you watch.</h3>
-            <button
-              mat-flat-button
-              class="cta-start-btn"
-              (click)="startBuild()"
-            >
-              <mat-icon>play_arrow</mat-icon>
-              Begin
-            </button>
           </div>
+          <button
+            mat-flat-button
+            class="cta-start-btn"
+            (click)="startBuild()"
+          >
+            <mat-icon>play_arrow</mat-icon>
+            Begin
+          </button>
         </div>
         <button
           mat-button
@@ -127,6 +140,14 @@
           </mat-progress-bar>
         </div>
       </div>
+
+      <!-- Chimp Fact Card -->
+      <chimp-fact-card
+        animationStyle="typewriter"
+        [cycleInterval]="30000"
+        [recentActivity]="recentlyCreatedItems"
+        contextHint="Their compliance program is being built in real time. Inspections and trainings are being created and added to their account. Reference the specific checklists and trainings when possible — why that particular inspection or training matters for their industry. NEVER say 'in your log' or 'in the log' — that's just a progress display, not their actual content. Their stuff goes to their self-inspections and training library. Mix in occasional quips. Keep it distinct from team-building step."
+      ></chimp-fact-card>
 
       <!-- Activity Log -->
       <div class="activity-log">

@@ -1,7 +1,7 @@
 <div class="page-layout">
 <mat-toolbar>
-  <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
-  <button mat-icon-button class="toolbar-expand-mobile" (click)="accountService.toggle()"><mat-icon>menu</mat-icon></button>
+  <img class="toolbar-logo toolbar-logo-desktop" src="/assets/complianceChimpLogoLight.png" />
+  <button mat-icon-button class="toolbar-back-mobile" routerLink="/account/dashboard"><mat-icon>arrow_back</mat-icon></button>
   <div class="toolbar-title">Team</div>
   <div class="flex"></div>
   <button 
@@ -32,6 +32,9 @@
         (closed)="welcomeService.hide('team')"
         (featureClicked)="onWelcomeFeatureClick($event)">
       </app-welcome-banner>
+
+      <!-- Missing Contact Info Banner -->
+      <app-contact-info-banner context="team"></app-contact-info-banner>
 
       <!-- Splash Section - Empty State (Full) -->
       <section class="splash" *ngIf="teamMembers?.length === 0">
@@ -135,34 +138,41 @@
             </div>
             <div class="col-contact">
               <div class="contact-fields">
-                <input 
-                  class="inline-input"
-                  [class.input-error]="newMemberPhoneError"
-                  [(ngModel)]="newMember.phone"
-                  (keydown.enter)="addNewMember()"
-                  (blur)="validateNewMemberPhone()"
-                  (input)="newMemberPhoneError = false"
-                  placeholder="Phone"
-                  type="tel">
-                <div class="contact-toggle">
-                  <mat-slide-toggle 
-                    [ngModel]="!newMember.preferEmail"
-                    (ngModelChange)="newMember.preferEmail = !$event"
-                    [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
-                    tabindex="-1">
-                    <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
-                  </mat-slide-toggle>
+                <div class="contact-phone-row">
+                  <div class="input-with-icon">
+                    <mat-icon>phone</mat-icon>
+                    <input 
+                      class="inline-input"
+                      [class.input-error]="newMemberPhoneError"
+                      [(ngModel)]="newMember.phone"
+                      (keydown.enter)="addNewMember()"
+                      (blur)="validateNewMemberPhone()"
+                      (input)="newMemberPhoneError = false"
+                      placeholder="Phone"
+                      type="tel">
+                  </div>
+                  <div class="contact-toggle">
+                    <mat-slide-toggle 
+                      [ngModel]="!newMember.preferEmail"
+                      (ngModelChange)="newMember.preferEmail = !$event"
+                      [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
+                      tabindex="-1">
+                      <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                    </mat-slide-toggle>
+                  </div>
                 </div>
-                <input 
-                  *ngIf="newMember.preferEmail"
-                  class="inline-input email-input"
-                  [class.input-error]="newMemberEmailError"
-                  [(ngModel)]="newMember.email"
-                  (keydown.enter)="addNewMember()"
-                  (blur)="validateNewMemberEmail()"
-                  (input)="newMemberEmailError = false"
-                  placeholder="Email"
-                  type="email">
+                <div class="input-with-icon" *ngIf="newMember.preferEmail">
+                  <mat-icon>email</mat-icon>
+                  <input 
+                    class="inline-input email-input"
+                    [class.input-error]="newMemberEmailError"
+                    [(ngModel)]="newMember.email"
+                    (keydown.enter)="addNewMember()"
+                    (blur)="validateNewMemberEmail()"
+                    (input)="newMemberEmailError = false"
+                    placeholder="Email"
+                    type="email">
+                </div>
               </div>
             </div>
             <div class="col-tags">
@@ -180,7 +190,7 @@
                 mat-flat-button 
                 color="accent" 
                 (click)="addNewMember()"
-                [disabled]="accountService.isReadOnly || !newMember.name || (!newMember.phone && !newMember.preferEmail) || (newMember.preferEmail && !newMember.email) || newMemberPhoneError || newMemberEmailError"
+                [disabled]="accountService.isReadOnly || !newMember.name || newMemberPhoneError || newMemberEmailError"
                 class="add-first-btn"
                 tabindex="-1">
                 <mat-icon>add</mat-icon>
@@ -201,7 +211,7 @@
           <div class="header-actions">
             <button mat-flat-button class="coverage-btn" (click)="openTeamCoverageDialog()">
               <mat-icon>groups</mat-icon>
-              Full Team Coverage
+              <span class="coverage-btn-text">Full Team Coverage</span>
             </button>
             <button mat-flat-button color="accent" class="add-btn" (click)="scrollToAddMember()" [disabled]="accountService.isReadOnly">
               <mat-icon>person_add</mat-icon>
@@ -259,14 +269,15 @@
             @for (item of tagCounts; track $index) {
               <button 
                 class="tag-chip clickable"
+                [class.selected]="searchQuery === item.tag"
                 (click)="filterByTag(item.tag)"
-                [matTooltip]="'Click to filter by ' + item.tag"
-                [style.backgroundColor]="getTagColor(item.tag).bg"
-                [style.color]="getTagColor(item.tag).text"
+                [matTooltip]="searchQuery === item.tag ? 'Clear filter' : 'Click to filter by ' + item.tag"
+                [style.backgroundColor]="searchQuery === item.tag ? getTagColor(item.tag).text : getTagColor(item.tag).bg"
+                [style.color]="searchQuery === item.tag ? '#fff' : getTagColor(item.tag).text"
                 [style.borderColor]="getTagColor(item.tag).border">
-                <span class="tag-dot" [style.backgroundColor]="getTagColor(item.tag).text"></span>
+                <span class="tag-dot" [style.backgroundColor]="searchQuery === item.tag ? '#fff' : getTagColor(item.tag).text"></span>
                 <span class="tag-name">{{ item.tag }}</span>
-                <span class="tag-count" [style.backgroundColor]="getTagColor(item.tag).text">{{ item.count }}</span>
+                <span class="tag-count" [style.backgroundColor]="searchQuery === item.tag ? 'rgba(255,255,255,0.35)' : getTagColor(item.tag).text">{{ item.count }}</span>
               </button>
             }
           </div>
@@ -276,11 +287,13 @@
       <!-- Team Members Table -->
       <section class="members-section" #membersSection>
         <div class="section-header">
-          <mat-icon>people</mat-icon>
-          <h2>Team Members</h2>
-          <span class="count-badge" *ngIf="!searchQuery">{{ teamMembers?.length }}</span>
-          <span class="count-badge filtered" *ngIf="searchQuery">{{ filteredTeamMembers?.length }} / {{ teamMembers?.length }}</span>
-          <div class="flex"></div>
+          <div class="section-header-title">
+            <mat-icon>people</mat-icon>
+            <h2>Team Members</h2>
+            <span class="count-badge" *ngIf="!searchQuery">{{ teamMembers?.length }}</span>
+            <span class="count-badge filtered" *ngIf="searchQuery">{{ filteredTeamMembers?.length }} / {{ teamMembers?.length }}</span>
+          </div>
+          <div class="section-header-search">
           <div class="search-box">
             <mat-icon>search</mat-icon>
             <input 
@@ -295,6 +308,7 @@
               (click)="searchQuery = ''">
               <mat-icon>close</mat-icon>
             </button>
+          </div>
           </div>
         </div>
 
@@ -339,33 +353,40 @@
               </div>
               <div class="col-contact">
                 <div class="contact-fields">
-                  <input 
-                    class="inline-input"
-                    [class.input-error]="hasMemberPhoneError(member)"
-                    [(ngModel)]="member.phone"
-                    (blur)="saveTeamMember(member)"
-                    (keydown.enter)="$event.target.blur()"
-                    (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].phone = false)"
-                    placeholder="Phone"
-                    type="tel">
-                  <div class="contact-toggle">
-                    <mat-slide-toggle 
-                      [ngModel]="!member.preferEmail"
-                      (ngModelChange)="member.preferEmail = !$event; saveTeamMember(member)"
-                      [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'">
-                      <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
-                    </mat-slide-toggle>
+                  <div class="contact-phone-row">
+                    <div class="input-with-icon">
+                      <mat-icon>phone</mat-icon>
+                      <input 
+                        class="inline-input"
+                        [class.input-error]="hasMemberPhoneError(member)"
+                        [(ngModel)]="member.phone"
+                        (blur)="saveTeamMember(member)"
+                        (keydown.enter)="$event.target.blur()"
+                        (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].phone = false)"
+                        placeholder="Phone"
+                        type="tel">
+                    </div>
+                    <div class="contact-toggle">
+                      <mat-slide-toggle 
+                        [ngModel]="!member.preferEmail"
+                        (ngModelChange)="member.preferEmail = !$event; saveTeamMember(member)"
+                        [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'">
+                        <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                      </mat-slide-toggle>
+                    </div>
                   </div>
-                  <input 
-                    *ngIf="member.preferEmail"
-                    class="inline-input email-input"
-                    [class.input-error]="hasMemberEmailError(member)"
-                    [(ngModel)]="member.email"
-                    (blur)="saveTeamMember(member)"
-                    (keydown.enter)="$event.target.blur()"
-                    (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].email = false)"
-                    placeholder="Email"
-                    type="email">
+                  <div class="input-with-icon" *ngIf="member.preferEmail">
+                    <mat-icon>email</mat-icon>
+                    <input 
+                      class="inline-input email-input"
+                      [class.input-error]="hasMemberEmailError(member)"
+                      [(ngModel)]="member.email"
+                      (blur)="saveTeamMember(member)"
+                      (keydown.enter)="$event.target.blur()"
+                      (input)="memberValidationErrors[member.id] && (memberValidationErrors[member.id].email = false)"
+                      placeholder="Email"
+                      type="email">
+                  </div>
                 </div>
               </div>
               <div class="col-tags">
@@ -419,34 +440,41 @@
             </div>
             <div class="col-contact">
               <div class="contact-fields">
-                <input 
-                  class="inline-input"
-                  [class.input-error]="newMemberPhoneError"
-                  [(ngModel)]="newMember.phone"
-                  (keydown.enter)="addNewMember()"
-                  (blur)="validateNewMemberPhone()"
-                  (input)="newMemberPhoneError = false"
-                  placeholder="Phone"
-                  type="tel">
-                <div class="contact-toggle">
-                  <mat-slide-toggle 
-                    [ngModel]="!newMember.preferEmail"
-                    (ngModelChange)="newMember.preferEmail = !$event"
-                    [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
-                    tabindex="-1">
-                    <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
-                  </mat-slide-toggle>
+                <div class="contact-phone-row">
+                  <div class="input-with-icon">
+                    <mat-icon>phone</mat-icon>
+                    <input 
+                      class="inline-input"
+                      [class.input-error]="newMemberPhoneError"
+                      [(ngModel)]="newMember.phone"
+                      (keydown.enter)="addNewMember()"
+                      (blur)="validateNewMemberPhone()"
+                      (input)="newMemberPhoneError = false"
+                      placeholder="Phone"
+                      type="tel">
+                  </div>
+                  <div class="contact-toggle">
+                    <mat-slide-toggle 
+                      [ngModel]="!newMember.preferEmail"
+                      (ngModelChange)="newMember.preferEmail = !$event"
+                      [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
+                      tabindex="-1">
+                      <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
+                    </mat-slide-toggle>
+                  </div>
                 </div>
-                <input 
-                  *ngIf="newMember.preferEmail"
-                  class="inline-input email-input"
-                  [class.input-error]="newMemberEmailError"
-                  [(ngModel)]="newMember.email"
-                  (keydown.enter)="addNewMember()"
-                  (blur)="validateNewMemberEmail()"
-                  (input)="newMemberEmailError = false"
-                  placeholder="Email"
-                  type="email">
+                <div class="input-with-icon" *ngIf="newMember.preferEmail">
+                  <mat-icon>email</mat-icon>
+                  <input 
+                    class="inline-input email-input"
+                    [class.input-error]="newMemberEmailError"
+                    [(ngModel)]="newMember.email"
+                    (keydown.enter)="addNewMember()"
+                    (blur)="validateNewMemberEmail()"
+                    (input)="newMemberEmailError = false"
+                    placeholder="Email"
+                    type="email">
+                </div>
               </div>
             </div>
             <div class="col-tags">

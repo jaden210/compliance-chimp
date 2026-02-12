@@ -21,9 +21,9 @@
     </div>
   </mat-sidenav>
   
-  <!-- ChimpChat Sidenav (Right side) -->
+  <!-- ChimpChat Sidenav (Right side, desktop only) -->
   <mat-sidenav #chatSidenav mode="side" position="end" 
-    [opened]="showChimpChat && chatMode === 'sidenav'"
+    [opened]="showChimpChat && chatMode === 'sidenav' && !isMobile"
     class="chat-sidenav">
     <chimp-chat 
       mode="sidenav"
@@ -129,14 +129,22 @@
   </div>
 </div>
 
-<!-- ChimpChat Panel (Dialog mode) -->
-<chimp-chat 
-  *ngIf="showChimpChat && chatMode === 'dialog'" 
-  mode="dialog"
-  [initialMessage]="pendingChatMessage"
-  (close)="closeChimpChat()"
-  (modeChange)="onChatModeChange($event)"
-  (messageConsumed)="pendingChatMessage = null">
-</chimp-chat>
+<!-- ChimpChat Panel (Dialog mode / Mobile full-screen) -->
+<div [hidden]="isChatMinimized" *ngIf="showChimpChat && (chatMode === 'dialog' || isMobile)">
+  <chimp-chat 
+    mode="dialog"
+    [isMobile]="isMobile"
+    [initialMessage]="pendingChatMessage"
+    (close)="closeChimpChat()"
+    (minimize)="onChatMinimize()"
+    (modeChange)="onChatModeChange($event)"
+    (messageConsumed)="pendingChatMessage = null">
+  </chimp-chat>
+</div>
+
+<!-- Floating Chimp Bubble (always visible on mobile, hidden when chat is full-screen open) -->
+<div class="chimp-bubble" *ngIf="isMobile && (!showChimpChat || isChatMinimized)" (click)="restoreChat()">
+  <img src="/assets/chimpFace.png" alt="ChimpChat" />
+</div>
 
 <loading-chimp></loading-chimp>

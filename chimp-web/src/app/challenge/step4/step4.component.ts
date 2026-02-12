@@ -6,6 +6,8 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { ChallengeService } from "../challenge.service";
+import { ChimpFactCardComponent } from "../chimp-fact-card/chimp-fact-card.component";
+import { ChallengeTimerComponent } from "../challenge-timer/challenge-timer.component";
 import { Firestore, doc, onSnapshot } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
@@ -49,7 +51,9 @@ interface QueuedLogEntry {
     CommonModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressBarModule
+    MatProgressBarModule,
+    ChimpFactCardComponent,
+    ChallengeTimerComponent
   ]
 })
 export class Step4Component implements OnInit, OnDestroy {
@@ -74,7 +78,7 @@ export class Step4Component implements OnInit, OnDestroy {
   private unsubscribeProgress: (() => void) | null = null;
 
   constructor(
-    private challengeService: ChallengeService,
+    public challengeService: ChallengeService,
     private router: Router,
     private db: Firestore,
     private functions: Functions,
@@ -90,7 +94,7 @@ export class Step4Component implements OnInit, OnDestroy {
   }
   
   private async checkExistingBuildProgress(): Promise<void> {
-    if (!this.challengeService.teamId) return;
+    if (!this.challengeService.teamId || this.challengeService.isDryRun) return;
     
     // Check team document for existing build progress
     const teamRef = doc(this.db, `team/${this.challengeService.teamId}`);
@@ -146,8 +150,65 @@ export class Step4Component implements OnInit, OnDestroy {
     // Start timer when build begins - the Chimp is now on the clock
     this.challengeService.startTimer();
     
+    // Dry run: simulate the build process with fake progress
+    if (this.challengeService.isDryRun) {
+      this.simulateDryRunBuild();
+      return;
+    }
+    
     // Start the auto-build process
     this.startAutoBuild();
+  }
+
+  // Dry run: simulate the build process with fake progress and log entries
+  private simulateDryRunBuild(): void {
+    console.log('[DRY RUN] Simulating auto-build process');
+    
+    this.addLogEntry('info', 'inspection', 'Starting inspection builder...');
+    this.addLogEntry('info', 'training', 'Starting training builder...');
+    
+    this.inspectionProgress = { currentAction: 'Analyzing team roles...', inspectionsCreated: 0 };
+    this.trainingProgress = { currentAction: 'Analyzing team roles...', trainingsCreated: 0, total: 8 };
+    
+    const steps = [
+      { delay: 800, action: () => {
+        this.inspectionProgress = { currentAction: 'Creating inspection checklists...', inspectionsCreated: 2 };
+        this.addLogEntry('working', 'inspection', 'Generating safety inspection checklists...');
+      }},
+      { delay: 1200, action: () => {
+        this.inspectionProgress = { currentAction: 'Creating inspection checklists...', inspectionsCreated: 5 };
+        this.addLogEntry('success', 'inspection', 'Created: Workplace Safety Checklist');
+      }},
+      { delay: 800, action: () => {
+        this.trainingProgress = { currentAction: 'Generating training content...', trainingsCreated: 2, total: 8 };
+        this.addLogEntry('working', 'training', 'Generating training articles...');
+      }},
+      { delay: 1000, action: () => {
+        this.inspectionProgress = { currentAction: 'Complete', inspectionsCreated: 8 };
+        this.inspectionComplete = true;
+        this.addLogEntry('success', 'inspection', 'Completed 8 inspections');
+      }},
+      { delay: 1200, action: () => {
+        this.trainingProgress = { currentAction: 'Generating training content...', trainingsCreated: 5, total: 8 };
+        this.addLogEntry('success', 'training', 'Created: Hazard Communication Training');
+      }},
+      { delay: 1000, action: () => {
+        this.trainingProgress = { currentAction: 'Generating training content...', trainingsCreated: 7, total: 8 };
+        this.addLogEntry('success', 'training', 'Created: PPE Requirements Training');
+      }},
+      { delay: 800, action: () => {
+        this.trainingProgress = { currentAction: 'Complete', trainingsCreated: 8, total: 8 };
+        this.trainingComplete = true;
+        this.addLogEntry('success', 'training', 'Completed 8 training articles');
+        this.challengeService.stopTimer();
+      }}
+    ];
+    
+    let cumulativeDelay = 0;
+    for (const step of steps) {
+      cumulativeDelay += step.delay;
+      setTimeout(() => step.action(), cumulativeDelay);
+    }
   }
 
   ngOnDestroy(): void {
@@ -321,6 +382,18 @@ export class Step4Component implements OnInit, OnDestroy {
 
   get activityLogReversed(): LogEntry[] {
     return [...this.activityLog].reverse();
+  }
+
+  /** Extract inspection/training names from activity log for Chimp context. */
+  get recentlyCreatedItems(): string[] {
+    const items: string[] = [];
+    for (const entry of this.activityLog) {
+      const match = entry.message.match(/Created:\s*(.+)/);
+      if (match) {
+        items.push(match[1].trim());
+      }
+    }
+    return items.slice(-12); // Last 12 items to keep context focused
   }
 
   get isComplete(): boolean {

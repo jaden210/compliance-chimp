@@ -21,14 +21,14 @@
           <div class="step-number">1</div>
           <div class="step-content">
             <h4>Download the scraper</h4>
-            <p>Get the tool — it's a lightweight Python app (16 KB) that runs on your machine.</p>
+            <p>Get the tool — it's a lightweight Python app that runs on your machine.</p>
             <a
               class="download-btn"
-              href="https://storage.googleapis.com/teamlog-2d74c.appspot.com/public/lead-scraper.zip"
+              href="https://storage.googleapis.com/teamlog-2d74c.appspot.com/public/lead-scraper-v3.zip"
               download
             >
               <mat-icon>download</mat-icon>
-              Download Lead Scraper
+              Download Lead Scraper v3
             </a>
           </div>
         </div>
@@ -101,18 +101,30 @@
         <div class="job-status">
           <span
             class="status-dot"
-            [class.running]="service.isRunning(job.status)"
-            [style.background]="service.getStatusColor(job.status)"
+            [class.running]="service.isRunning(job.status) && !service.isInterrupted(job)"
+            [style.background]="service.getStatusColor(job.status, job)"
           ></span>
-          <span class="status-text">{{ service.getStatusLabel(job.status) }}</span>
+          <span class="status-text">{{ service.getStatusLabel(job.status, job) }}</span>
           <span class="job-date" *ngIf="job.createdAt">{{ job.createdAt | date:'short' }}</span>
         </div>
 
+        <div class="interrupted-banner" *ngIf="service.isInterrupted(job)">
+          <mat-icon>warning_amber</mat-icon>
+          <span>This job was interrupted. Re-open the Lead Scraper tool and click Resume to continue.</span>
+        </div>
+
         <mat-progress-bar
-          *ngIf="service.isRunning(job.status)"
+          *ngIf="service.isRunning(job.status) && !service.isInterrupted(job)"
           mode="determinate"
           [value]="service.getProgressPercent(job)"
           color="accent"
+        ></mat-progress-bar>
+
+        <mat-progress-bar
+          *ngIf="service.isInterrupted(job)"
+          mode="determinate"
+          [value]="service.getProgressPercent(job)"
+          color="primary"
         ></mat-progress-bar>
 
         <div class="job-stats" *ngIf="job.progress">

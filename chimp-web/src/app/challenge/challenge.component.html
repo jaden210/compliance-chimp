@@ -1,26 +1,18 @@
 <div class="challenge-container">
-  <!-- Timer Card (top right) - hidden during team building -->
-  <div class="timer-card" *ngIf="challengeService.isTimerStarted && !isOnStep3" [class.paused]="isPaused" [class.complete]="isComplete" [class.overtime]="isOvertime">
-    <!-- Progress border SVG -->
-    <svg class="timer-border-svg" viewBox="0 0 172 200" preserveAspectRatio="none">
-      <rect class="timer-border-bg" x="4" y="4" width="164" height="192" rx="14" ry="14" />
-      <rect class="timer-border-progress" x="4" y="4" width="164" height="192" rx="14" ry="14" 
-        [style.stroke-dashoffset]="getRectStrokeDashoffset()" />
-    </svg>
-    <div class="timer-card-content">
-      <!-- Chimp gif while working - changes when overtime or complete -->
-      <img *ngIf="!isComplete && !isOvertime" src="assets/chimpDesk.gif" alt="Chimp working" class="timer-chimp">
-      <img *ngIf="!isComplete && isOvertime" src="assets/chimpOvertime.gif" alt="Chimp overtime" class="timer-chimp">
-      <img *ngIf="isComplete" src="assets/chimpThumbsup.png" alt="Chimp thumbs up" class="timer-chimp">
-      <!-- Timer text -->
-      <div class="timer-content">
-        <span class="timer-value">{{ timerDisplay }}</span>
-        <span class="timer-label" *ngIf="!isPaused && !isComplete">/ 6:00</span>
-        <span class="timer-label paused" *ngIf="isPaused && !isComplete">PAUSED</span>
-        <span class="timer-label complete" *ngIf="isComplete">DONE</span>
-      </div>
+  <!-- Dry run badge - visible when testing without creating real data. Click to exit dry run. -->
+  @if (challengeService.isDryRun) {
+    <button type="button" class="dry-run-badge" (click)="exitDryRun()" title="Click to exit dry run">
+      <mat-icon>science</mat-icon>
+      <span>Dry Run</span>
+    </button>
+  }
+
+  <!-- Timer Card (top right) - hidden during team building; on step4 tablet, shown inside step card instead -->
+  @if (showChallengeTimer) {
+    <div class="timer-wrapper">
+      <challenge-timer></challenge-timer>
     </div>
-  </div>
+  }
 
   <main class="main-content">
     <router-outlet></router-outlet>

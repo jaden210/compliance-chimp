@@ -100,6 +100,8 @@
                   <div class="user-contact">{{ user.email }}</div>
                 } @else if (user.phone) {
                   <div class="user-contact">{{ user.phone }}</div>
+                } @else if (!user.phone && !user.email) {
+                  <div class="user-contact missing">No contact info</div>
                 }
                 @if (getTagsForUser(user.id).length > 0) {
                   <div class="user-tags">
@@ -121,6 +123,13 @@
       }
     </div>
   </div>
+
+  @if (selectedMissingContactCount > 0) {
+    <div class="missing-contact-warning">
+      <mat-icon>warning</mat-icon>
+      <span>{{ selectedMissingContactCount }} of the selected attendee{{ selectedMissingContactCount === 1 ? '' : 's' }} won't be notified — no contact info on file.</span>
+    </div>
+  }
 
   <div class="dialog-footer">
     <button mat-stroked-button (click)="dialogRef.close()">Cancel</button>

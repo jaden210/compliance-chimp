@@ -29,6 +29,7 @@ import { TagInputComponent } from "./tag-input/tag-input.component";
 import { getTagColor } from "../../shared/tag-colors";
 import { WelcomeService } from "../welcome.service";
 import { WelcomeBannerComponent, WelcomeFeature } from "../welcome-banner/welcome-banner.component";
+import { ContactInfoBannerComponent } from "../contact-info-banner/contact-info-banner.component";
 import { Observable, Subscription, forkJoin, combineLatest } from "rxjs";
 import { TeamService } from "./team.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -68,7 +69,8 @@ declare var gtag: Function;
     MatDividerModule,
     MatTooltipModule,
     TagInputComponent,
-    WelcomeBannerComponent
+    WelcomeBannerComponent,
+    ContactInfoBannerComponent
   ]
 })
 export class TeamComponent implements OnDestroy {
@@ -330,7 +332,7 @@ export class TeamComponent implements OnDestroy {
   }
 
   filterByTag(tag: string): void {
-    this.searchQuery = tag;
+    this.searchQuery = this.searchQuery === tag ? '' : tag;
   }
 
   public resendInvite(teamMember: TeamMember): void {
@@ -441,14 +443,8 @@ export class TeamComponent implements OnDestroy {
   }
 
   addNewMember(): void {
-    // Validate based on contact preference
+    // Only name is required; phone/email are optional (can be added later)
     if (!this.newMember.name) {
-      return;
-    }
-    if (this.newMember.preferEmail && !this.newMember.email) {
-      return;
-    }
-    if (!this.newMember.preferEmail && !this.newMember.phone) {
       return;
     }
     
@@ -458,8 +454,8 @@ export class TeamComponent implements OnDestroy {
       return;
     }
     
-    // Validate email format if using email
-    if (this.newMember.preferEmail && !this.isValidEmail(this.newMember.email)) {
+    // Validate email format if provided
+    if (this.newMember.email && !this.isValidEmail(this.newMember.email)) {
       this.newMemberEmailError = true;
       return;
     }

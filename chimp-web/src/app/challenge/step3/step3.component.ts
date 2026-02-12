@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from "@angular/core";
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } from "@angular/core";
 import { trigger, transition, style, animate } from "@angular/animations";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -7,14 +7,16 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { MatSlideToggleModule } from "@angular/material/slide-toggle";
+// MatSlideToggleModule removed - contact fields no longer shown in onboarding
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { ChallengeService } from "../challenge.service";
+import { ChimpFactCardComponent } from "../chimp-fact-card/chimp-fact-card.component";
 import { TagInputComponent } from "../../account/team/tag-input/tag-input.component";
 import { TagsHelpDialog } from "../../account/team/team.component";
 import { getTagColor } from "../../shared/tag-colors";
+import { Auth } from "@angular/fire/auth";
 import { Firestore, collection, collectionData, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, limit } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Subscription } from "rxjs";
@@ -68,29 +70,33 @@ interface CsvImportResult {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatSlideToggleModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatDialogModule,
-    TagInputComponent
+    TagInputComponent,
+    ChimpFactCardComponent
   ]
 })
-export class Step3Component implements OnInit, OnDestroy {
+export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('nameInput') nameInput: ElementRef<HTMLInputElement>;
   
   teamMembers: TeamMember[] = [];
   private teamMembersSub: Subscription | null = null;
   
-  // New member form
+  // New member form (contact info is added later from Team page)
   newMember = {
     name: '',
-    email: '',
-    phone: '',
     jobTitle: '',
-    preferEmail: false,
     tags: [] as string[]
   };
   
+  // Get all job titles for chimp fact context
+  get currentJobTitles(): string[] {
+    return this.teamMembers
+      .filter(m => m.jobTitle?.trim())
+      .map(m => m.jobTitle!.trim());
+  }
+
   // Get all unique tags from team members for autocomplete
   get allTags(): string[] {
     const tagsSet = new Set<string>();
@@ -102,10 +108,6 @@ export class Step3Component implements OnInit, OnDestroy {
   
   // Use shared tag color utility
   getTagColor = getTagColor;
-  
-  // Validation
-  phoneError = false;
-  emailError = false;
   
   // CSV Import
   csvUploading = false;
@@ -121,16 +123,36 @@ export class Step3Component implements OnInit, OnDestroy {
   
   // Track pending changes for each member (to save on blur)
   private pendingChanges: Map<string, Partial<TeamMember>> = new Map();
+
+  // Debounce timers for job-title → tag generation (avoids network call on every keystroke)
+  private static readonly JOB_TITLE_DEBOUNCE_MS = 1100;
+  private jobTitleDebounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private newMemberJobTitleDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Job title that was last used to generate tags for the new-member form, so we re-fetch when it changes. */
+  private newMemberLastTaggedJobTitle: string = '';
+  /** Last saved job title per member, so we can detect real changes when display value is kept in sync */
+  private lastSavedJobTitle: Map<string, string> = new Map();
   
   // Processing state for Continue button
   isProcessing = false;
   processingMessage = '';
   membersBeingTagged: Set<string> = new Set();
 
+  // Mobile: toggle all cards between job title and tags view
+  mobileShowAllTags = false;
+
+  toggleAllMobileTags(): void {
+    this.mobileShowAllTags = !this.mobileShowAllTags;
+  }
+
+  // Dry run: counter for generating local IDs
+  private dryRunIdCounter = 0;
+
   constructor(
     private challengeService: ChallengeService,
     private router: Router,
     private db: Firestore,
+    private auth: Auth,
     private functions: Functions,
     private dialog: MatDialog,
     private analytics: AnalyticsService
@@ -140,6 +162,23 @@ export class Step3Component implements OnInit, OnDestroy {
     // Track step 3 view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_STEP3_VIEW);
     
+    // Dry run: skip Firestore, seed the owner as the first team member
+    if (this.challengeService.isDryRun) {
+      this.teamMembers = [{
+        id: 'dry-run-owner',
+        name: this.challengeService.name,
+        email: this.challengeService.email,
+        jobTitle: 'Owner',
+        teamId: this.challengeService.teamId!,
+        createdAt: new Date(),
+        tags: ['owner'],
+        welcomeSent: true,
+        linkedUserId: 'dry-run-owner-user'
+      } as any];
+      this.lastSavedJobTitle.set('dry-run-owner', 'Owner');
+      return;
+    }
+    
     // Subscribe to team members collection
     if (this.challengeService.teamId) {
       const membersCollection = collection(this.db, 'team-members');
@@ -148,90 +187,66 @@ export class Step3Component implements OnInit, OnDestroy {
           this.teamMembers = members
             .filter(m => m.teamId === this.challengeService.teamId && !m.deleted)
             .sort((a, b) => {
-              // Sort by createdAt so newest members appear at bottom
               const aTime = a.createdAt?.toMillis?.() || a.createdAt?.getTime?.() || 0;
               const bTime = b.createdAt?.toMillis?.() || b.createdAt?.getTime?.() || 0;
               return aTime - bTime;
             });
+          // Seed lastSavedJobTitle so flush can detect real changes (for two-way bound inputs)
+          this.teamMembers.forEach(m => {
+            if (m.id && !this.lastSavedJobTitle.has(m.id)) {
+              this.lastSavedJobTitle.set(m.id, m.jobTitle?.trim() ?? '');
+            }
+          });
         }
       );
     }
+  }
+
+  ngAfterViewInit(): void {
+    // Auto-focus the name input on desktop so the user can start typing immediately
+    setTimeout(() => {
+      if (this.nameInput) {
+        this.nameInput.nativeElement.focus();
+      }
+    }, 0);
   }
 
   ngOnDestroy(): void {
     if (this.teamMembersSub) {
       this.teamMembersSub.unsubscribe();
     }
-  }
-
-  // Form validation
-  isValidPhone(phone: string): boolean {
-    if (!phone) return true;
-    const cleaned = phone.replace(/\D/g, '');
-    return cleaned.length === 10 || cleaned.length === 11;
-  }
-
-  isValidEmail(email: string): boolean {
-    if (!email) return true;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  validatePhone(): void {
-    if (this.newMember.phone && !this.isValidPhone(this.newMember.phone)) {
-      this.phoneError = true;
-    } else {
-      this.phoneError = false;
+    this.jobTitleDebounceTimers.forEach(t => clearTimeout(t));
+    this.jobTitleDebounceTimers.clear();
+    if (this.newMemberJobTitleDebounceTimer) {
+      clearTimeout(this.newMemberJobTitleDebounceTimer);
+      this.newMemberJobTitleDebounceTimer = null;
     }
-  }
-
-  validateEmail(): void {
-    if (this.newMember.email && !this.isValidEmail(this.newMember.email)) {
-      this.emailError = true;
-    } else {
-      this.emailError = false;
-    }
-  }
-
-  formatPhone(phone: string): string {
-    const cleaned = phone.replace(/\D/g, '');
-    const match = cleaned.match(/^1?(\d{3})(\d{3})(\d{4})$/);
-    if (match) {
-      return '(' + match[1] + ') ' + match[2] + '-' + match[3];
-    }
-    return phone;
   }
 
   canAddMember(): boolean {
-    if (!this.newMember.name.trim()) return false;
-    if (this.phoneError || this.emailError) return false;
-    
-    // Must have either phone or email
-    if (this.newMember.preferEmail) {
-      return !!this.newMember.email.trim();
-    } else {
-      return !!this.newMember.phone.trim();
-    }
+    return !!this.newMember.name.trim() && !!this.newMember.jobTitle.trim();
   }
 
   async addMember(): Promise<void> {
     if (!this.canAddMember() || !this.challengeService.teamId) return;
     
-    // Format phone if provided
-    const phone = this.newMember.phone ? this.formatPhone(this.newMember.phone) : null;
+    // Cancel any pending debounce so it doesn't fire after the form resets
+    if (this.newMemberJobTitleDebounceTimer) {
+      clearTimeout(this.newMemberJobTitleDebounceTimer);
+      this.newMemberJobTitleDebounceTimer = null;
+    }
+    
     const jobTitle = this.newMember.jobTitle?.trim() || null;
     const hasTags = this.newMember.tags.length > 0;
     
+    // Contact info is not collected during onboarding - added later from Team page
     const memberData: any = {
       name: this.newMember.name.trim(),
-      phone: phone,
-      email: this.newMember.email ? this.newMember.email.trim().toLowerCase() : null,
-      preferEmail: this.newMember.preferEmail,
       jobTitle: jobTitle,
       tags: this.newMember.tags || [],
       teamId: this.challengeService.teamId,
       createdAt: new Date(),
-      welcomeSent: false  // Don't send welcome during onboarding - will be sent when completing Step 3
+      welcomeSent: false  // Welcome message sent when contact info is added later
     };
     
     // Remove null fields (but keep empty arrays)
@@ -240,31 +255,39 @@ export class Step3Component implements OnInit, OnDestroy {
     });
     
     try {
-      const docRef = await addDoc(collection(this.db, 'team-members'), memberData);
+      let docId: string;
+      
+      if (this.challengeService.isDryRun) {
+        docId = 'dry-run-member-' + (++this.dryRunIdCounter);
+        this.teamMembers.push({ ...memberData, id: docId });
+        this.lastSavedJobTitle.set(docId, memberData.jobTitle?.trim() ?? '');
+        console.log('[DRY RUN] Added member locally:', docId, memberData.name);
+      } else {
+        const docRef = await addDoc(collection(this.db, 'team-members'), memberData);
+        docId = docRef.id;
+      }
       
       // Track team member added
       this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_TEAM_MEMBER_ADDED, {
-        member_count: this.teamMembers.length + 1,
-        has_email: !!memberData.email,
+        member_count: this.teamMembers.length,
         has_tags: hasTags
       });
       
-      // If job title provided but no tags, auto-generate tags
+      // If job title provided but no tags, auto-generate tags (also refreshes owner)
       if (jobTitle && !hasTags) {
-        this.autoTagMember(docRef.id, jobTitle);
+        this.autoTagMember(docId, jobTitle);
+      } else if (hasTags) {
+        // Tags were pre-suggested — sync them to the owner so they stay cross-trained
+        this.refreshOwnerTags();
       }
       
       // Reset form
       this.newMember = {
         name: '',
-        email: '',
-        phone: '',
         jobTitle: '',
-        preferEmail: false,
         tags: []
       };
-      this.phoneError = false;
-      this.emailError = false;
+      this.newMemberLastTaggedJobTitle = '';
       
       // Focus back on name input for next entry
       setTimeout(() => {
@@ -280,6 +303,15 @@ export class Step3Component implements OnInit, OnDestroy {
 
   async removeMember(member: TeamMember): Promise<void> {
     if (!member.id) return;
+    
+    // Dry run: remove from local array
+    if (this.challengeService.isDryRun) {
+      this.teamMembers = this.teamMembers.filter(m => m.id !== member.id);
+      if (member.id) this.lastSavedJobTitle.delete(member.id);
+      this.refreshOwnerTags();
+      console.log('[DRY RUN] Removed member:', member.id);
+      return;
+    }
     
     try {
       // Smart delete: check for related data before deciding
@@ -308,21 +340,11 @@ export class Step3Component implements OnInit, OnDestroy {
         // Hard delete – no related data
         await deleteDoc(doc(this.db, `team-members/${member.id}`));
       }
+      
+      // Refresh owner tags in case removed member had unique tags
+      this.refreshOwnerTags();
     } catch (err) {
       console.error('Error removing team member:', err);
-    }
-  }
-
-  // Toggle contact preference directly from view mode
-  async toggleMemberPreference(member: TeamMember, preferEmail: boolean): Promise<void> {
-    if (!member.id) return;
-    
-    try {
-      await updateDoc(doc(this.db, `team-members/${member.id}`), {
-        preferEmail: preferEmail
-      });
-    } catch (err) {
-      console.error('Error updating member preference:', err);
     }
   }
 
@@ -441,11 +463,6 @@ export class Step3Component implements OnInit, OnDestroy {
               errors.push(`Row ${i + 1}: Name is required`);
             }
             
-            // Must have at least phone or email
-            if (!phone && !email) {
-              errors.push(`Row ${i + 1}: Phone or email is required`);
-            }
-            
             parsedMembers.push({ name, jobTitle, phone, email, preferEmail, errors });
           }
           
@@ -505,7 +522,7 @@ export class Step3Component implements OnInit, OnDestroy {
     const importErrors: string[] = [];
     const membersToTag: { id: string; jobTitle: string }[] = [];
 
-    // First pass: add all members to Firestore
+    // First pass: add all members
     for (const member of validMembers) {
       try {
         const memberData: any = {
@@ -525,12 +542,19 @@ export class Step3Component implements OnInit, OnDestroy {
           if (memberData[key] === '') delete memberData[key];
         });
 
-        const docRef = await addDoc(collection(this.db, 'team-members'), memberData);
+        let docId: string;
+        if (this.challengeService.isDryRun) {
+          docId = 'dry-run-member-' + (++this.dryRunIdCounter);
+          this.teamMembers.push({ ...memberData, id: docId });
+        } else {
+          const docRef = await addDoc(collection(this.db, 'team-members'), memberData);
+          docId = docRef.id;
+        }
         added++;
         
         // Queue for tagging if member has a job title
         if (member.jobTitle?.trim()) {
-          membersToTag.push({ id: docRef.id, jobTitle: member.jobTitle.trim() });
+          membersToTag.push({ id: docId, jobTitle: member.jobTitle.trim() });
         }
       } catch (error) {
         importErrors.push(`Failed to add ${member.name}`);
@@ -561,37 +585,26 @@ export class Step3Component implements OnInit, OnDestroy {
     if (this.teamMembers.length < 1) return false;
     // Block if user has started adding a new member but hasn't clicked Add
     if (this.hasUnsavedNewMember()) return false;
-    // All team members must have a job title AND contact info (phone or email)
-    return this.teamMembers.every(m => 
-      m.jobTitle?.trim() && 
-      (m.phone?.trim() || m.email?.trim())
-    );
+    // All team members must have a job title (contact info can be added later)
+    return this.teamMembers.every(m => m.jobTitle?.trim());
   }
 
   // Check if user has begun entering a new member but hasn't added them yet
   hasUnsavedNewMember(): boolean {
     return !!(
       this.newMember.name.trim() ||
-      this.newMember.email.trim() ||
-      this.newMember.phone.trim() ||
       this.newMember.jobTitle.trim() ||
       this.newMember.tags.length > 0
     );
   }
 
-  // Get team members missing required info
+  // Get team members missing required info (only job title is required during onboarding)
   get membersMissingJobTitle(): TeamMember[] {
     return this.teamMembers.filter(m => !m.jobTitle?.trim());
   }
 
-  get membersMissingContact(): TeamMember[] {
-    return this.teamMembers.filter(m => !m.phone?.trim() && !m.email?.trim());
-  }
-
   get membersWithIssues(): TeamMember[] {
-    return this.teamMembers.filter(m => 
-      !m.jobTitle?.trim() || (!m.phone?.trim() && !m.email?.trim())
-    );
+    return this.teamMembers.filter(m => !m.jobTitle?.trim());
   }
 
   async next(): Promise<void> {
@@ -612,16 +625,21 @@ export class Step3Component implements OnInit, OnDestroy {
         team_member_count: this.teamMembers.length
       });
       
-      // Sync the owner's team member record with all tags from the team
-      await this.syncOwnerTags();
+      // Final sync of owner tags before moving on
+      await this.refreshOwnerTags();
       
-      // Send pending welcome messages to all team members
-      this.processingMessage = 'Sending welcome messages...';
-      if (this.challengeService.teamId) {
+      // Send welcome messages to any members who already have contact info
+      // (e.g. imported via CSV with phone/email). Members without contact info
+      // will receive their welcome automatically when it's added later via the
+      // teamMemberContactUpdated Firestore trigger.
+      const membersWithContact = this.teamMembers.filter(
+        m => (m.phone?.trim() || m.email?.trim()) && !m.welcomeSent
+      );
+      if (membersWithContact.length > 0 && this.challengeService.teamId) {
+        this.processingMessage = 'Sending welcome messages...';
         try {
           const sendWelcomes = httpsCallable(this.functions, 'sendPendingWelcomeMessages');
           await sendWelcomes({ teamId: this.challengeService.teamId });
-          console.log('Welcome messages sent');
         } catch (err) {
           console.error('Error sending welcome messages:', err);
           // Don't block navigation if welcome messages fail
@@ -640,32 +658,48 @@ export class Step3Component implements OnInit, OnDestroy {
   }
 
   /**
-   * Give the owner's linked team-member record all unique tags from the team,
-   * so the owner receives every training the team does.
+   * Keep the owner's tags in sync: always includes 'owner' plus every unique
+   * tag from all other team members, so the owner is cross-trained on everything.
+   * Works in both normal and dry-run modes.
    */
-  private async syncOwnerTags(): Promise<void> {
+  private async refreshOwnerTags(): Promise<void> {
     try {
       // Find the owner's linked team member (has linkedUserId set)
       const ownerMember = this.teamMembers.find(m => (m as any).linkedUserId);
       if (!ownerMember?.id) return;
 
-      // Collect all unique tags from all other team members
-      const allTags = new Set<string>();
+      // Always start with the 'owner' tag
+      const mergedTags = new Set<string>(['owner']);
+
+      // Inherit every tag from all other team members
       this.teamMembers.forEach(m => {
         if (m.id !== ownerMember.id) {
-          (m.tags || []).forEach(tag => allTags.add(tag));
+          (m.tags || []).forEach(tag => mergedTags.add(tag));
         }
       });
 
-      if (allTags.size > 0) {
-        await updateDoc(doc(this.db, `team-members/${ownerMember.id}`), {
-          tags: Array.from(allTags)
-        });
+      const newTags = Array.from(mergedTags);
+
+      // Skip update if tags haven't actually changed
+      const currentTags = new Set(ownerMember.tags || []);
+      if (newTags.length === currentTags.size && newTags.every(t => currentTags.has(t))) {
+        return;
+      }
+
+      if (this.challengeService.isDryRun) {
+        ownerMember.tags = newTags;
+      } else {
+        await updateDoc(doc(this.db, `team-members/${ownerMember.id}`), { tags: newTags });
       }
     } catch (err) {
-      console.error('Error syncing owner tags:', err);
-      // Non-blocking — don't prevent navigation
+      console.error('Error refreshing owner tags:', err);
+      // Non-blocking — don't prevent other operations
     }
+  }
+
+  /** Check if a member is the owner (has linkedUserId) */
+  isOwnerMember(member: TeamMember): boolean {
+    return !!(member as any).linkedUserId;
   }
   
   // Check if a member is currently being tagged
@@ -684,13 +718,39 @@ export class Step3Component implements OnInit, OnDestroy {
     });
   }
 
+  /** Debounced handler for new member job title — fetches tags after user stops typing. */
+  onNewMemberJobTitleChange(): void {
+    if (this.newMemberJobTitleDebounceTimer) {
+      clearTimeout(this.newMemberJobTitleDebounceTimer);
+    }
+    this.newMemberJobTitleDebounceTimer = setTimeout(
+      () => {
+        this.newMemberJobTitleDebounceTimer = null;
+        this.suggestTagsForNewMember();
+      },
+      Step3Component.JOB_TITLE_DEBOUNCE_MS
+    );
+  }
+
+  /** On blur: cancel debounce and fetch tags immediately. */
+  onNewMemberJobTitleBlur(): void {
+    if (this.newMemberJobTitleDebounceTimer) {
+      clearTimeout(this.newMemberJobTitleDebounceTimer);
+      this.newMemberJobTitleDebounceTimer = null;
+    }
+    this.suggestTagsForNewMember();
+  }
+
   // Auto-suggest tags based on job title using AI
   async suggestTagsForNewMember(): Promise<void> {
     const jobTitle = this.newMember.jobTitle?.trim();
     if (!jobTitle || this.isTagging) return;
     
-    // Only suggest if no tags already set
-    if (this.newMember.tags.length > 0) return;
+    // Skip if the job title hasn't changed since we last generated tags
+    if (jobTitle === this.newMemberLastTaggedJobTitle) return;
+    
+    // Skip if user is not authenticated - suggestTagsForJobTitle requires auth
+    if (!this.auth.currentUser) return;
     
     this.isTagging = true;
     try {
@@ -710,9 +770,15 @@ export class Step3Component implements OnInit, OnDestroy {
         teamMembers
       });
       
+      // Guard: if the form was reset or the job title changed while the network
+      // call was in flight, discard the stale response.
+      const currentJobTitle = this.newMember.jobTitle?.trim();
+      if (currentJobTitle !== jobTitle) return;
+
       if (result.data?.tags?.length > 0) {
         this.newMember.tags = result.data.tags;
       }
+      this.newMemberLastTaggedJobTitle = jobTitle;
     } catch (err) {
       console.error('Error suggesting tags:', err);
     } finally {
@@ -729,6 +795,8 @@ export class Step3Component implements OnInit, OnDestroy {
   updateMemberField(member: TeamMember, field: keyof TeamMember, value: any): void {
     if (!member.id) return;
     
+    // With [(ngModel)], the model stays in sync automatically. We only track pending
+    // changes and debounce here.
     // Get or create pending changes for this member
     let changes = this.pendingChanges.get(member.id);
     if (!changes) {
@@ -738,12 +806,63 @@ export class Step3Component implements OnInit, OnDestroy {
     
     // Store the new value
     (changes as any)[field] = value;
+
+    // Debounce job-title changes: after user stops typing, save and auto-generate tags.
+    // Each keystroke resets the timer so it only fires when they've truly stopped.
+    if (field === 'jobTitle') {
+      const existing = this.jobTitleDebounceTimers.get(member.id);
+      if (existing) clearTimeout(existing);
+      this.jobTitleDebounceTimers.set(
+        member.id,
+        setTimeout(() => this.flushJobTitleAndAutoTag(member), Step3Component.JOB_TITLE_DEBOUNCE_MS)
+      );
+    }
+  }
+
+  /**
+   * Flush pending job title change, save to Firestore, and trigger auto-tag.
+   * Called by debounce timer or on blur (blur cancels debounce and runs immediately).
+   */
+  private async flushJobTitleAndAutoTag(member: TeamMember): Promise<void> {
+    if (!member.id) return;
+    this.jobTitleDebounceTimers.delete(member.id);
+    const changes = this.pendingChanges.get(member.id);
+    if (!changes || !('jobTitle' in changes)) return;
+    const value = (changes as any).jobTitle;
+    const jobTitle = value?.trim() || null;
+    const lastSaved = this.lastSavedJobTitle.get(member.id) ?? '';
+    if (!jobTitle || jobTitle === lastSaved) {
+      delete (changes as any).jobTitle;
+      return;
+    }
+    try {
+      const originalMember = this.teamMembers.find(m => m.id === member.id);
+      if (this.challengeService.isDryRun) {
+        if (originalMember) originalMember.jobTitle = jobTitle;
+      } else {
+        await updateDoc(doc(this.db, `team-members/${member.id}`), { jobTitle });
+      }
+      this.lastSavedJobTitle.set(member.id, jobTitle);
+      delete (changes as any).jobTitle;
+      this.autoTagMember(member.id, jobTitle);
+    } catch (err) {
+      console.error('Error updating job title:', err);
+    }
   }
 
   // Save pending changes on blur
   async onMemberFieldBlur(member: TeamMember, field: keyof TeamMember): Promise<void> {
     if (!member.id) return;
-    
+    // Cancel debounce for job title so we don't double-run; handle immediately
+    if (field === 'jobTitle') {
+      const t = this.jobTitleDebounceTimers.get(member.id);
+      if (t) {
+        clearTimeout(t);
+        this.jobTitleDebounceTimers.delete(member.id);
+      }
+      await this.flushJobTitleAndAutoTag(member);
+      return;
+    }
     const changes = this.pendingChanges.get(member.id);
     if (!changes || !(field in changes)) return;
     
@@ -758,26 +877,16 @@ export class Step3Component implements OnInit, OnDestroy {
         if (name) {
           updates.name = name;
         }
-      } else if (field === 'jobTitle') {
-        const jobTitle = value?.trim() || null;
-        const oldJobTitle = originalMember?.jobTitle?.trim() || null;
-        updates.jobTitle = jobTitle;
-        
-        // If job title changed, regenerate tags
-        if (jobTitle && jobTitle !== oldJobTitle) {
-          await updateDoc(doc(this.db, `team-members/${member.id}`), updates);
-          this.autoTagMember(member.id, jobTitle);
-          delete (changes as any)[field];
-          return;
-        }
-      } else if (field === 'phone') {
-        updates.phone = value?.trim() ? this.formatPhone(value.trim()) : null;
-      } else if (field === 'email') {
-        updates.email = value?.trim()?.toLowerCase() || null;
       }
+      // jobTitle handled by flushJobTitleAndAutoTag (debounced or on blur)
       
       if (Object.keys(updates).length > 0) {
-        await updateDoc(doc(this.db, `team-members/${member.id}`), updates);
+        if (this.challengeService.isDryRun) {
+          // Dry run: update local member
+          if (originalMember) Object.assign(originalMember, updates);
+        } else {
+          await updateDoc(doc(this.db, `team-members/${member.id}`), updates);
+        }
       }
       
       // Clear the pending change for this field
@@ -792,7 +901,15 @@ export class Step3Component implements OnInit, OnDestroy {
     if (!member.id) return;
     
     try {
-      await updateDoc(doc(this.db, `team-members/${member.id}`), { tags });
+      if (this.challengeService.isDryRun) {
+        // Dry run: update local member
+        member.tags = tags;
+      } else {
+        await updateDoc(doc(this.db, `team-members/${member.id}`), { tags });
+      }
+      
+      // Refresh owner tags when a non-owner's tags change
+      if (!this.isOwnerMember(member)) this.refreshOwnerTags();
     } catch (err) {
       console.error('Error saving tags:', err);
     }
@@ -801,6 +918,7 @@ export class Step3Component implements OnInit, OnDestroy {
   // Auto-tag an existing member by ID
   // additionalTags: extra tags to consider for consistency (used during bulk import)
   async autoTagMember(memberId: string, jobTitle: string, additionalTags: string[] = []): Promise<string[]> {
+    if (!this.auth.currentUser) return [];
     try {
       // Combine existing tags from Firestore subscription with any additional tags passed in
       const existingTags = [...new Set([...this.allTags, ...additionalTags])];
@@ -823,10 +941,20 @@ export class Step3Component implements OnInit, OnDestroy {
       });
       
       if (result.data?.tags?.length > 0) {
-        await updateDoc(doc(this.db, `team-members/${memberId}`), {
-          tags: result.data.tags
-        });
-        return result.data.tags;
+        const newTags = result.data.tags;
+        
+        // Write to Firestore only in real mode
+        if (!this.challengeService.isDryRun) {
+          await updateDoc(doc(this.db, `team-members/${memberId}`), { tags: newTags });
+        }
+        
+        // Update local member and refresh owner tags
+        const member = this.teamMembers.find(m => m.id === memberId);
+        if (member) {
+          member.tags = newTags;
+          if (!this.isOwnerMember(member)) this.refreshOwnerTags();
+        }
+        return newTags;
       }
       return [];
     } catch (err) {

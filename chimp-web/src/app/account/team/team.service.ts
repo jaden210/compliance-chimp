@@ -215,17 +215,9 @@ export class TeamService {
             const preferSmsRaw = smsIdx >= 0 ? values[smsIdx]?.trim().toLowerCase() || '' : '';
             const preferEmail = preferSmsRaw === 'no' || preferSmsRaw === 'false' || preferSmsRaw === '0';
             
-            // Validation
+            // Validation — only name is required; phone/email are optional
             if (!name) {
               errors.push(`Row ${i + 1}: Name is required`);
-            }
-            
-            if (!preferEmail && !phone) {
-              errors.push(`Row ${i + 1}: Phone is required when Prefer SMS is Yes`);
-            }
-            
-            if (preferEmail && !email) {
-              errors.push(`Row ${i + 1}: Email is required when Prefer SMS is No`);
             }
             
             if (phone && !this.isValidPhone(phone)) {

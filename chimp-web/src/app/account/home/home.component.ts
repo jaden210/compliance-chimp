@@ -24,6 +24,7 @@ import { Router } from "@angular/router";
 import { WelcomeService } from "../welcome.service";
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from "ng2-charts";
 import { ChartConfiguration } from "chart.js";
+import { ContactInfoBannerComponent } from "../contact-info-banner/contact-info-banner.component";
 declare var gtag: Function;
 
 @Component({
@@ -39,7 +40,8 @@ declare var gtag: Function;
     MatIconModule,
     MatDialogModule,
     MatButtonModule,
-    BaseChartDirective
+    BaseChartDirective,
+    ContactInfoBannerComponent
   ]
 })
 export class HomeComponent implements OnDestroy {

@@ -1232,6 +1232,231 @@ function getDefaultTrainingTopics(industry: string): any[] {
   ];
 }
 
+// AI-powered industry description suggestion based on company name and optional website
+// Runs pre-auth (Step 1 of onboarding, before account creation)
+export const suggestIndustryDescription = onCall(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 15,
+    memory: "256MiB"
+  },
+  async (request) => {
+    const { companyName, businessWebsite } = request.data as any;
+
+    if (!companyName || !companyName.trim() || companyName.trim().length < 2) {
+      return { suggestion: null };
+    }
+
+    const websiteContext = businessWebsite?.trim()
+      ? `\nTheir website domain is: ${businessWebsite.trim()}`
+      : '';
+
+    try {
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: [
+            {
+              role: 'system',
+              content: `You are helping a business owner describe their industry for an OSHA workplace safety compliance platform. Based on their company name (and optionally their website domain), generate a concise industry description.
+
+PURPOSE: This description will be used to automatically generate:
+1. OSHA self-inspection checklists with industry-specific safety questions
+2. OSHA-compliant training articles covering the right regulations and hazards
+3. Tag-based role assignments for safety trainings
+
+To produce the BEST results for those downstream uses, your description MUST include:
+- The primary industry sector (e.g., "Residential construction", "Commercial HVAC", "Auto body repair", "Healthcare clinic", "Food manufacturing")
+- Key work activities that imply specific OSHA hazards (e.g., "rooftop unit installation" implies fall protection; "welding and metal fabrication" implies fume exposure and hot work; "patient care" implies bloodborne pathogens)
+- The work environment type when it helps clarify hazards (e.g., "warehouse operations", "outdoor field work", "commercial kitchen")
+
+IMPORTANT GUIDELINES:
+- Keep it to ONE concise sentence, roughly 8-20 words
+- Be specific enough to trigger the right OSHA standards (1910 General Industry or 1926 Construction)
+- Include the most hazard-relevant activities — these keywords directly determine which safety inspections and trainings get generated
+- Do NOT include the company name in the description
+- Do NOT include generic filler like "committed to safety" or "serving customers"
+- If the company name is ambiguous, make your best educated guess at the most likely industry
+- If you truly cannot determine the industry, return null
+
+GOOD EXAMPLES (specific, hazard-relevant):
+- "Residential framing and remodeling construction" (triggers: fall protection, power tools, silica)
+- "Commercial HVAC installation and refrigerant servicing" (triggers: electrical, heights, refrigerant handling)
+- "Auto body collision repair and paint finishing" (triggers: respiratory, hazmat, spray booth safety)
+- "Skilled nursing and long-term patient care facility" (triggers: bloodborne pathogens, patient handling, infection control)
+- "Industrial metal fabrication and structural welding" (triggers: welding fumes, machine guarding, crane safety)
+- "Wholesale warehouse distribution and forklift operations" (triggers: powered industrial trucks, material handling, dock safety)
+
+BAD EXAMPLES (too vague for generating specific compliance content):
+- "Construction company" (what kind? residential, commercial, heavy civil?)
+- "Healthcare" (hospital? dental? home health?)
+- "Manufacturing" (of what? chemicals? food? auto parts?)
+- "General contractor" (what trades?)
+
+Return JSON: { "suggestion": "your description here" } or { "suggestion": null } if truly indeterminate.`
+            },
+            {
+              role: 'user',
+              content: `Company name: "${companyName.trim()}"${websiteContext}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 100
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Grok API error for industry suggestion:', await response.text());
+        return { suggestion: null };
+      }
+
+      const grokResponse: any = await response.json();
+      const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+      try {
+        const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.suggestion && typeof parsed.suggestion === 'string' && parsed.suggestion.trim().length >= 3) {
+            return { suggestion: parsed.suggestion.trim() };
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing AI industry suggestion:', aiMessage);
+      }
+
+      return { suggestion: null };
+    } catch (error: any) {
+      console.error('Error suggesting industry description:', error);
+      return { suggestion: null };
+    }
+  }
+);
+
+// Generate an OSHA-related fact for the chimp mascot during onboarding
+// This is a pre-auth function (used during challenge before account creation)
+export const getChimpFact = onCall(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 15,
+    memory: "256MiB"
+  },
+  async (request) => {
+    const { businessName, businessWebsite, industry, jobTitles, step, contextHint, recentActivity, previousFacts } = request.data as any;
+
+    // Need at least an industry to generate relevant facts
+    if (!industry || !industry.trim()) {
+      return { fact: null };
+    }
+
+    // Build context about what we know
+    let context = `Industry: ${industry.trim()}`;
+    if (businessName?.trim()) {
+      context += `\nBusiness name: ${businessName.trim()}`;
+    }
+    if (businessWebsite?.trim()) {
+      context += `\nWebsite: ${businessWebsite.trim()}`;
+    }
+    if (jobTitles?.length > 0) {
+      context += `\nJob titles on the team: ${jobTitles.join(', ')}`;
+    }
+    if (step) {
+      context += `\nCurrent onboarding step: ${step}`;
+    }
+    if (recentActivity?.length > 0) {
+      context += `\n\nINSPECTIONS AND TRAININGS BEING CREATED RIGHT NOW (reference these specifically when relevant - e.g. why that checklist or training matters for their industry):\n${recentActivity.join('\n')}`;
+    }
+    if (contextHint?.trim()) {
+      context += `\n\nSPECIFIC DIRECTION: ${contextHint.trim()}`;
+    }
+    if (previousFacts?.length > 0) {
+      context += `\n\nDO NOT REPEAT THESE (already shown):\n${previousFacts.map((f: string, i: number) => `${i + 1}. "${f}"`).join('\n')}`;
+    }
+
+    try {
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-fast',
+          messages: [
+            {
+              role: 'system',
+              content: `You are Ulysses, the chimp who runs ComplianceChimp. A business owner is signing up right now and you're dropping a quick OSHA fact in a speech bubble to keep them engaged.
+
+YOUR VOICE (non-negotiable, this is the same voice used across the entire app):
+- You are a chimp. Not a cartoon chimp. You have chimp sensibilities. You can subtly reference it, but don't force it.
+- Concise and direct. No fluff. Say what needs to be said, then stop.
+- Dry, understated wit. A slight smirk in your words. Wry observations, not corny jokes.
+- You genuinely care about workplace safety. Poor compliance genuinely concerns you.
+- You lead with real consequences (injuries, fines, deaths) because they matter. Not fearmongering, just matter-of-fact reality.
+- You NEVER use emojis.
+- You NEVER use em-dashes. Use commas, periods, or restructure.
+- You NEVER use phrases like: "picture this", "imagine", "let's dive in", "here's the thing", "the reality is", "at the end of the day", "did you know"
+
+FORMAT:
+- This is a short quote in a speech bubble. One sentence, two max. Think bumper sticker, not paragraph.
+- Write in first person when it fits ("I've seen...", "Worth noting...") or just state the fact directly.
+- Reference their specific industry. Make it feel like you already know their world.
+- ONLY cite real, plausible OSHA statistics, CFR standards, and fine amounts.
+- Keep it under 160 characters. Absolutely under 200.
+- NEVER repeat a fact you've already given. Each response must be completely different in topic, angle, and wording from any previously shown facts.
+
+GOOD EXAMPLES:
+- "Fall protection violations topped OSHA's list again this year. Over 5,000 citations in construction alone. One serious violation runs $16,131."
+- "Restaurants get hit with about $12,000 per OSHA visit. Burns, slips, chemical exposure. The usual suspects."
+- "85 forklift fatalities a year in warehouses. Most of those operations had zero documented training."
+- "Healthcare workers get injured more per capita than construction workers. That one surprises people."
+- "Repeat violation penalties just jumped to $161,323. Most were preventable with basic training. That's the frustrating part."
+
+Return JSON: { "fact": "your quote here" }`
+            },
+            {
+              role: 'user',
+              content: context
+            }
+          ],
+          temperature: 0.9,
+          max_tokens: 120
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Grok API error for chimp fact:', await response.text());
+        return { fact: null };
+      }
+
+      const grokResponse: any = await response.json();
+      const aiMessage = grokResponse.choices?.[0]?.message?.content || '{}';
+
+      try {
+        const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.fact && typeof parsed.fact === 'string' && parsed.fact.trim().length >= 10) {
+            return { fact: parsed.fact.trim() };
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing chimp fact response:', aiMessage);
+      }
+
+      return { fact: null };
+    } catch (error: any) {
+      console.error('Error generating chimp fact:', error);
+      return { fact: null };
+    }
+  }
+);
+
 // AI-powered tag suggestions based on job title
 export const suggestTagsForJobTitle = onCall(
   { 
@@ -4119,6 +4344,81 @@ export const teamMemberAdded = onDocumentCreated(
   }
 );
 
+/**
+ * When a team member's contact info (phone/email) is added or changed,
+ * automatically send (or re-send) the welcome message.
+ *
+ * This covers two scenarios:
+ * 1. Members created during onboarding without contact info — welcome is sent
+ *    when the admin later adds a phone or email from the Team page.
+ * 2. Contact info is changed to a new value — re-send so the member receives
+ *    the profile link at their updated contact method.
+ */
+export const teamMemberContactUpdated = onDocumentUpdated(
+  {
+    document: "team-members/{teamMemberId}",
+    secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken]
+  },
+  async (event) => {
+    const before = event.data?.before.data() as any;
+    const after = event.data?.after.data() as any;
+
+    if (!before || !after) return null;
+
+    // Skip soft-deleted members and linked managers
+    if (after.deleted || after.linkedUserId) return null;
+
+    const oldPhone = (before.phone || '').trim();
+    const newPhone = (after.phone || '').trim();
+    const oldEmail = (before.email || '').trim();
+    const newEmail = (after.email || '').trim();
+
+    const phoneChanged = oldPhone !== newPhone;
+    const emailChanged = oldEmail !== newEmail;
+
+    // Only proceed if phone or email actually changed
+    if (!phoneChanged && !emailChanged) return null;
+
+    // Must have some contact info now to send a message
+    const hasContactNow = !!(newPhone || newEmail);
+    if (!hasContactNow) return null;
+
+    const neverSent = after.welcomeSent === false || !after.welcomeSent;
+    // Contact info was changed from one value to another (not just cleared)
+    const hadContactBefore = !!(oldPhone || oldEmail);
+    const contactInfoReplaced = hadContactBefore && hasContactNow && (phoneChanged || emailChanged);
+
+    if (!neverSent && !contactInfoReplaced) return null;
+
+    const teamMember = { ...after, id: event.params.teamMemberId };
+    const teamDoc = await admin.firestore().doc(`team/${teamMember.teamId}`).get();
+    const team = teamDoc.data();
+
+    const pageUrl = getUserPageUrl(teamMember);
+
+    let messageBody: string;
+    if (teamMember.preferEmail && newEmail) {
+      const emailHtml = getEmail("add-team-member");
+      messageBody = emailHtml
+        .split("{{recipientName}}")
+        .join(teamMember.name)
+        .split("{{userId}}")
+        .join(teamMember.id);
+    } else {
+      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
+    }
+
+    // Mark as sent and send the message
+    await admin.firestore().doc(`team-members/${event.params.teamMemberId}`).update({
+      welcomeSent: true,
+      welcomeSentAt: new Date()
+    });
+
+    console.log(`Sending welcome message to ${teamMember.name} (contact info ${neverSent ? 'added' : 'changed'})`);
+    return await sendMessage(teamMember, team, messageBody);
+  }
+);
+
 export const resendTeamMemberInvite = onCall(
   { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
   async (request) => {
@@ -4336,6 +4636,16 @@ function getUserPageUrl(member: any): string {
 }
 
 function sendMessage(teamMember: any, team: any, body: string) {
+  // Guard: skip members without the required contact info
+  if (teamMember.preferEmail && !teamMember.email) {
+    console.warn(`Skipping message to ${teamMember.name}: prefers email but no email on file`);
+    return Promise.resolve();
+  }
+  if (!teamMember.preferEmail && !teamMember.phone) {
+    console.warn(`Skipping message to ${teamMember.name}: prefers SMS but no phone on file`);
+    return Promise.resolve();
+  }
+
   if (teamMember.preferEmail) {
       const client = createSendgridClient();
       const mailOptions: any = {
@@ -5916,6 +6226,7 @@ export const scraperApi = onRequest(
             results: [],
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastHeartbeat: admin.firestore.FieldValue.serverTimestamp(),
           };
           await docRef.set(jobData);
           res.status(200).json({ success: true, jobId: docRef.id });
@@ -5930,6 +6241,7 @@ export const scraperApi = onRequest(
           }
           const updateData: any = {
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastHeartbeat: admin.firestore.FieldValue.serverTimestamp(),
           };
           if (data?.status) updateData.status = data.status;
           if (data?.progress) {
@@ -6005,6 +6317,61 @@ export const scraperApi = onRequest(
           });
 
           res.status(200).json({ success: true, csvUrl });
+          return;
+        }
+
+        // List all scrape jobs (used by local scraper to show cloud jobs)
+        case "listJobs": {
+          const jobsSnap = await db
+            .collection(COLLECTION)
+            .orderBy("createdAt", "desc")
+            .limit(50)
+            .get();
+          const jobsList = jobsSnap.docs.map((d) => {
+            const jd = d.data();
+            return {
+              id: d.id,
+              niche: jd.niche || "",
+              region: jd.region || "",
+              status: jd.status || "",
+              progress: jd.progress || {},
+              totalResults: jd.totalResults || 0,
+              csvUrl: jd.csvUrl || "",
+              lastHeartbeat: jd.lastHeartbeat?.toDate?.()?.toISOString() || null,
+              createdAt: jd.createdAt?.toDate?.()?.toISOString() || null,
+              updatedAt: jd.updatedAt?.toDate?.()?.toISOString() || null,
+            };
+          });
+          res.status(200).json({ success: true, jobs: jobsList });
+          return;
+        }
+
+        // Get full job state (used by scraper to resume)
+        case "getJobState": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          const jobDoc = await db.collection(COLLECTION).doc(jobId).get();
+          if (!jobDoc.exists) {
+            res.status(404).json({ error: "Job not found" });
+            return;
+          }
+          const jobState = jobDoc.data();
+          res.status(200).json({
+            success: true,
+            job: {
+              id: jobDoc.id,
+              niche: jobState?.niche || "",
+              region: jobState?.region || "",
+              status: jobState?.status || "",
+              progress: jobState?.progress || {},
+              totalResults: jobState?.totalResults || 0,
+              csvUrl: jobState?.csvUrl || "",
+              lastHeartbeat: jobState?.lastHeartbeat?.toDate?.()?.toISOString() || null,
+              updatedAt: jobState?.updatedAt?.toDate?.()?.toISOString() || null,
+            },
+          });
           return;
         }
 
@@ -6231,7 +6598,7 @@ Return a JSON object with this exact structure:
   "seoDescription": "Under 155 chars meta description"
 }
 
-Use material icon names from: sms, checklist, description, schedule, security, engineering, construction, health_and_safety, verified_user, assignment, fact_check, shield, local_shipping, build, supervisor_account.`;
+Use Material Symbol icon names (snake_case) from https://fonts.google.com/icons. Pick icons that fit each feature (e.g. school, checklist, verified_user, shield, smartphone).`;
 
     const userMessage = `Generate a landing page for: Industry: ${niche}, Region: ${region}`;
 

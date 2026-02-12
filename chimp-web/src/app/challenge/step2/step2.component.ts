@@ -70,6 +70,9 @@ export class Step2Component implements OnInit {
   }
 
   isValid(): boolean {
+    if (this.challengeService.isDryRun) {
+      return !!(this.email?.trim() && this.isValidEmail(this.email) && this.password?.length >= 6);
+    }
     return !!(
       this.name?.trim() &&
       this.email?.trim() &&
@@ -92,6 +95,19 @@ export class Step2Component implements OnInit {
     this.errorMessage = '';
     
     try {
+      // Store user info
+      this.challengeService.setUserInfo(this.name.trim(), this.email.trim().toLowerCase());
+      
+      // Dry run: sign in with dev account so auth-dependent callables (e.g. suggestTagsForJobTitle) work
+      if (this.challengeService.isDryRun) {
+        const { teamId, name } = await this.challengeService.signInForDryRun(this.email, this.password);
+        this.challengeService.setUserInfo(name, this.email.trim().toLowerCase());
+        this.challengeService.setTeamId(teamId);
+        console.log('[DRY RUN] Signed in with dev account, using team:', teamId);
+        this.router.navigate(['/get-started/step3']);
+        return;
+      }
+      
       // Check if user already exists
       const isExisting = await this.appService.checkForExistingUser(this.email);
       if (isExisting) {
@@ -99,9 +115,6 @@ export class Step2Component implements OnInit {
         this.isLoading = false;
         return;
       }
-      
-      // Store user info
-      this.challengeService.setUserInfo(this.name.trim(), this.email.trim().toLowerCase());
       
       // Create Firebase auth user
       const userCredential = await this.challengeService.createAuthUser(this.password);
@@ -141,6 +154,9 @@ export class Step2Component implements OnInit {
     }
     if (error?.code === 'auth/weak-password') {
       return 'Password must be at least 6 characters.';
+    }
+    if (error?.code === 'auth/invalid-credential' || error?.code === 'auth/wrong-password' || error?.code === 'auth/user-not-found') {
+      return 'Invalid email or password.';
     }
     return error?.message || 'An error occurred. Please try again.';
   }

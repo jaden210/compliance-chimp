@@ -912,52 +912,6 @@
   flex-shrink: 0;
 }
 
-/* Mobile Desktop Notice */
-.mobile-desktop-notice {
-  display: none;
-  gap: 16px;
-  padding: 20px;
-  background: linear-gradient(135deg, var(--chimp-primary-container-low) 0%, var(--chimp-primary-container) 100%);
-  border-radius: 16px;
-  border: 1px solid var(--chimp-primary-lighter);
-}
-
-.notice-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: var(--chimp-primary);
-  color: var(--chimp-on-primary);
-  flex-shrink: 0;
-}
-
-.notice-icon mat-icon {
-  font-size: 28px;
-  width: 28px;
-  height: 28px;
-}
-
-.notice-content {
-  flex: 1;
-}
-
-.notice-content h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--chimp-on-primary-container);
-}
-
-.notice-content p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--chimp-primary);
-}
-
 /* Responsive */
 @media screen and (max-width: 768px) {
   .mobile-only {
@@ -970,18 +924,6 @@
 
   .mobile-quick-links {
     display: flex;
-  }
-
-  .mobile-desktop-notice {
-    display: flex;
-    flex-direction: column;
-    text-align: center;
-    align-items: center;
-  }
-
-  .notice-content h3,
-  .notice-content p {
-    text-align: center;
   }
   .content-wrapper {
     padding: 16px;
@@ -1055,10 +997,10 @@
     padding: 16px;
   }
 
-  /* Disable clicking on desktop-clickable cards on mobile */
-  .metric-card.desktop-clickable {
-    pointer-events: none;
-    cursor: default;
+  /* Enable team card navigation on mobile */
+  .metric-card.mobile-team-card {
+    cursor: pointer;
+    pointer-events: auto;
   }
 
   /* Onboarding action buttons - better touch targets */
@@ -1212,29 +1154,5 @@
 
   .mobile-link-desc {
     font-size: 12px;
-  }
-
-  .mobile-desktop-notice {
-    padding: 16px;
-  }
-
-  .notice-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-  }
-
-  .notice-icon mat-icon {
-    font-size: 24px;
-    width: 24px;
-    height: 24px;
-  }
-
-  .notice-content h3 {
-    font-size: 15px;
-  }
-
-  .notice-content p {
-    font-size: 13px;
   }
 }

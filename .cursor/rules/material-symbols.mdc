@@ -1,0 +1,38 @@
+# Material Symbols Icon Management
+
+## How Icons Work
+
+Material Symbols are loaded via Google Fonts with a subset (`icon_names` parameter) in `chimp-web/src/index.html` for performance (~15KB vs ~7.9MB for the full set).
+
+The icon list is **automatically maintained** by `scripts/sync-icons.js`. You do NOT need to manually update `index.html` when adding new icons.
+
+## Adding a New Icon
+
+1. Use `<mat-icon>icon_name</mat-icon>` in your template (icon names use `snake_case`)
+2. That's it. The sync script will detect it automatically on the next `npm start` or `npm build`.
+
+## How Auto-Sync Works
+
+The script runs automatically via `prestart` and `prebuild` hooks. It:
+- Scans all `.html` files for `<mat-icon>` usage (static and dynamic `{{ }}` expressions)
+- Scans all `.ts` files for icon names in `icon:` properties, icon maps, and icon-related functions
+- Updates the `icon_names` parameter in `index.html`
+
+### Manual Run
+
+```bash
+npm run sync-icons         # update index.html
+node scripts/sync-icons.js --check  # CI: exit 1 if out of date
+```
+
+### Edge Cases
+
+- **Outreach landing pages**: The script fetches `outreach-landing-pages` from Firestore (public read) and extracts `features[].icon` from each document. No manual list needed—icons are discovered from live data. Requires Firebase credentials (`gcloud auth application-default login` or `GOOGLE_APPLICATION_CREDENTIALS`). If Firestore is unavailable, falls back to the Cloud Function's instructed icon set.
+- **Other dynamic sources**: If an icon is composed at runtime from server data and not in Firestore, add it to `MANUAL_INCLUDES` in `scripts/sync-icons.js`.
+
+## Icon Reference
+
+- Browse available icons: https://fonts.google.com/icons
+- Icon names use `snake_case` (e.g., `arrow_forward`, `check_circle`)
+- The app uses **Material Symbols Outlined** (not the older Material Icons)
+- Default font set is configured in `main.ts` via `MatIconRegistry.setDefaultFontSetClass('material-symbols-outlined')`

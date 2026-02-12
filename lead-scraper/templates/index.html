@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Scraper</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --text: #212121;
+      --text2: #757575;
+      --accent: #ff9800;
+      --accent-dark: #e68900;
+      --green: #4caf50;
+      --blue: #2196f3;
+      --red: #f44336;
+      --border: #e0e0e0;
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header h1 span {
+      background: var(--accent);
+      color: white;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .gear-btn {
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      transition: background 150ms;
+    }
+
+    .gear-btn:hover { background: var(--bg); }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    /* ---- New Job Form ---- */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--bg);
+      transition: border-color 150ms;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+    .btn-sm {
+      padding: 6px 16px;
+      font-size: 13px;
+    }
+
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover { background: #d32f2f; }
+
+    .btn-outline {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover { background: var(--bg); }
+
+    .btn-resume {
+      background: var(--blue);
+      color: white;
+    }
+
+    .btn-resume:hover { background: #1976d2; }
+
+    /* ---- Settings Modal ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 480px;
+      max-width: 92vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .modal h2 { margin-bottom: 20px; }
+
+    .modal .form-group { margin-bottom: 16px; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    /* ---- Job Cards ---- */
+    .job-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      margin-bottom: 14px;
+      transition: box-shadow 200ms;
+    }
+
+    .job-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+
+    .job-card.resumable {
+      border-left: 4px solid var(--blue);
+    }
+
+    .job-card.cloud-only {
+      border-left: 4px solid #e0e0e0;
+    }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .job-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .job-region {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .job-actions { display: flex; gap: 6px; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.running { animation: pulse 2s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-text { font-size: 13px; color: var(--text2); }
+
+    .resume-info {
+      background: #e3f2fd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #1565c0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .resume-info .resume-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .source-badge.local {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .source-badge.cloud {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .cloud-note {
+      font-size: 11px;
+      color: var(--text2);
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 500ms ease;
+    }
+
+    .progress-fill.interrupted {
+      background: var(--blue);
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* ---- Log Panel ---- */
+    .log-toggle {
+      font-size: 12px;
+      color: var(--blue);
+      cursor: pointer;
+      margin-top: 10px;
+      user-select: none;
+    }
+
+    .log-panel {
+      display: none;
+      background: #1e1e1e;
+      color: #b5cea8;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .log-panel.open { display: block; }
+
+    /* ---- Empty State ---- */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text2);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty p {
+      max-width: 400px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; }
+      .form-group { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Lead Scraper <span>FREE</span></h1>
+    <button class="gear-btn" onclick="openSettings()" title="Settings">&#9881;</button>
+  </header>
+
+  <div class="container">
+    <!-- New Scrape Form -->
+    <div class="card">
+      <h2>New Scrape</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Business Niche</label>
+          <input id="niche" type="text" placeholder="e.g. roofing companies, dentist, plumber" />
+        </div>
+        <div class="form-group">
+          <label>Region</label>
+          <select id="region"></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="startBtn" onclick="startScrape()">
+        &#9654; Start Scraping
+      </button>
+    </div>
+
+    <!-- Jobs List -->
+    <div id="jobsList"></div>
+
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">&#128269;</div>
+      <p>No scrape jobs yet. Enter a business niche above and hit Start.</p>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h2>Settings</h2>
+      <div class="form-group">
+        <label>Google Places API Key</label>
+        <input id="settingsApiKey" type="text" placeholder="AIzaSy..." />
+      </div>
+      <div class="form-group">
+        <label>Firebase Function URL (optional)</label>
+        <input id="settingsFirebaseUrl" type="text" placeholder="https://scraperapi-xxx.cloudfunctions.net" />
+      </div>
+      <p style="font-size:12px; color:#999; margin-top:4px;">
+        If set, progress syncs to your Chimp dashboard in real-time.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeSettings()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let apiKey = '{{ settings.get("api_key", "") }}';
+    let firebaseUrl = '{{ settings.get("firebase_url", "") }}';
+    let jobs = [];
+    let pollTimer = null;
+    let openLogs = {};
+
+    // Load regions
+    async function loadRegions() {
+      const res = await fetch('/api/regions');
+      const data = await res.json();
+      const sel = document.getElementById('region');
+      sel.innerHTML = '';
+
+      const optGroup1 = document.createElement('optgroup');
+      optGroup1.label = 'Regions';
+      data.regions.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.key;
+        opt.textContent = r.name;
+        optGroup1.appendChild(opt);
+      });
+      sel.appendChild(optGroup1);
+
+      const optGroup2 = document.createElement('optgroup');
+      optGroup2.label = 'Individual States';
+      data.states.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+        optGroup2.appendChild(opt);
+      });
+      sel.appendChild(optGroup2);
+    }
+
+    // Settings
+    function openSettings() {
+      document.getElementById('settingsApiKey').value = apiKey;
+      document.getElementById('settingsFirebaseUrl').value = firebaseUrl;
+      document.getElementById('settingsModal').classList.add('open');
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.remove('open');
+    }
+
+    async function saveSettings() {
+      apiKey = document.getElementById('settingsApiKey').value.trim();
+      firebaseUrl = document.getElementById('settingsFirebaseUrl').value.trim();
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, firebase_url: firebaseUrl })
+      });
+      closeSettings();
+    }
+
+    // Start scrape
+    async function startScrape() {
+      const niche = document.getElementById('niche').value.trim();
+      const region = document.getElementById('region').value;
+
+      if (!niche) { alert('Enter a business niche.'); return; }
+      if (!apiKey) { openSettings(); alert('Set your Google Places API key first.'); return; }
+
+      const btn = document.getElementById('startBtn');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
+      try {
+        const res = await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            niche, region,
+            api_key: apiKey,
+            firebase_url: firebaseUrl
+          })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          document.getElementById('niche').value = '';
+          startPolling();
+        }
+      } catch (e) {
+        alert('Failed to start: ' + e.message);
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '&#9654; Start Scraping';
+    }
+
+    // Resume job
+    async function resumeJob(jobId) {
+      try {
+        const res = await fetch(`/api/resume/${jobId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          startPolling();
+        }
+      } catch (e) {
+        alert('Failed to resume: ' + e.message);
+      }
+    }
+
+    // Stop job
+    async function stopJob(jobId) {
+      await fetch(`/api/stop/${jobId}`, { method: 'POST' });
+    }
+
+    // Poll for updates
+    async function pollJobs() {
+      try {
+        const res = await fetch('/api/jobs');
+        jobs = await res.json();
+        renderJobs();
+
+        // Keep polling: fast if something is running locally, medium for cloud, slow otherwise
+        const localRunning = jobs.some(j =>
+          j.source === 'local' && ['created','scanning','scraping','emails','exporting','scan_complete','scrape_complete','emails_complete'].includes(j.status)
+        );
+        const cloudRunning = jobs.some(j =>
+          j.source === 'cloud' && isRunning(j.status)
+        );
+
+        if (localRunning) {
+          pollTimer = setTimeout(pollJobs, 2000);
+        } else if (cloudRunning) {
+          pollTimer = setTimeout(pollJobs, 5000);
+        } else {
+          // Still poll periodically to pick up new cloud jobs
+          pollTimer = setTimeout(pollJobs, 15000);
+        }
+      } catch (e) {
+        pollTimer = setTimeout(pollJobs, 5000);
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollJobs();
+    }
+
+    // Status helpers
+    function statusLabel(s) {
+      const m = {
+        created: 'Starting...',
+        scanning: 'Scanning for businesses...',
+        scanning_interrupted: 'Interrupted during scan',
+        scan_complete: 'Scan complete',
+        scraping: 'Scraping business details...',
+        scraping_interrupted: 'Interrupted during scraping',
+        scrape_complete: 'Details scraped',
+        emails: 'Finding emails...',
+        emails_interrupted: 'Interrupted during email search',
+        emails_complete: 'Emails complete',
+        exporting: 'Exporting...',
+        exporting_interrupted: 'Interrupted during export',
+        complete: 'Complete',
+        error: 'Error',
+        stopped: 'Stopped'
+      };
+      return m[s] || s;
+    }
+
+    function statusColor(s) {
+      if (s === 'complete') return '#4caf50';
+      if (s === 'error') return '#f44336';
+      if (s.includes('interrupted')) return '#2196f3';
+      if (s.includes('complete')) return '#2196f3';
+      return '#ff9800';
+    }
+
+    function isRunning(s) {
+      return ['created','scanning','scraping','emails','exporting'].includes(s);
+    }
+
+    function isInterrupted(s) {
+      return s.includes('interrupted');
+    }
+
+    function progressPct(job) {
+      const p = job.progress;
+      if (!p) return 0;
+      const s = job.status.replace('_interrupted', '');
+      switch (s) {
+        case 'scanning':
+          return p.gridTotal ? (p.gridScanned / p.gridTotal) * 33 : 0;
+        case 'scan_complete': return 33;
+        case 'scraping':
+          return 33 + (p.placesFound ? (p.placesScraped / p.placesFound) * 33 : 0);
+        case 'scrape_complete': return 66;
+        case 'emails':
+          return 66 + (p.totalWithWebsite ? (p.emailsScraped / p.totalWithWebsite) * 27 : 15);
+        case 'emails_complete':
+        case 'exporting': return 95;
+        case 'complete': return 100;
+        default: return 0;
+      }
+    }
+
+    // Toggle log
+    function toggleLog(jobId) {
+      openLogs[jobId] = !openLogs[jobId];
+      const el = document.getElementById(`log-${jobId}`);
+      if (el) {
+        el.classList.toggle('open', openLogs[jobId]);
+        if (openLogs[jobId]) el.scrollTop = el.scrollHeight;
+      }
+    }
+
+    // Render
+    function renderJobs() {
+      const el = document.getElementById('jobsList');
+      const empty = document.getElementById('emptyState');
+
+      if (jobs.length === 0) {
+        el.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+
+      empty.style.display = 'none';
+
+      // Sort: local running first, then local resumable, then cloud running, then everything else
+      const sorted = [...jobs].sort((a, b) => {
+        const aLocal = a.source === 'local' ? 0 : 1;
+        const bLocal = b.source === 'local' ? 0 : 1;
+        if (aLocal !== bLocal) return aLocal - bLocal;
+        const aResumable = a.can_resume ? 0 : 1;
+        const bResumable = b.can_resume ? 0 : 1;
+        if (aResumable !== bResumable) return aResumable - bResumable;
+        const aRunning = isRunning(a.status) ? 0 : 1;
+        const bRunning = isRunning(b.status) ? 0 : 1;
+        if (aRunning !== bRunning) return aRunning - bRunning;
+        // Complete before interrupted
+        const aComplete = a.status === 'complete' ? 0 : 1;
+        const bComplete = b.status === 'complete' ? 0 : 1;
+        return aComplete - bComplete;
+      });
+
+      el.innerHTML = sorted.map(job => {
+        const p = job.progress || {};
+        const pct = progressPct(job).toFixed(0);
+        const running = isRunning(job.status);
+        const interrupted = isInterrupted(job.status) || job.can_resume;
+        const isCloud = job.source === 'cloud';
+        const isLocal = job.source === 'local';
+        const logOpen = openLogs[job.id];
+        const hasDownload = job.csv_path || job.csv_url;
+
+        let cardClass = 'job-card';
+        if (interrupted && !running && isLocal) cardClass += ' resumable';
+        if (isCloud && !running) cardClass += ' cloud-only';
+
+        return `
+          <div class="${cardClass}">
+            <div class="job-header">
+              <div>
+                <div class="job-title">
+                  ${esc(capitalize(job.niche))}
+                  ${isCloud && !isLocal ? '<span class="source-badge cloud">&#9729; Cloud</span>' : ''}
+                  ${isLocal && running ? '<span class="source-badge local">&#9679; Running</span>' : ''}
+                </div>
+                <div class="job-region">${esc(job.region)}</div>
+              </div>
+              <div class="job-actions">
+                ${hasDownload ? `<a href="/download/${job.id}" class="btn btn-sm btn-outline">&#11015; CSV</a>` : ''}
+                ${interrupted && !running && job.can_resume ? `<button class="btn btn-sm btn-resume" onclick="resumeJob('${job.id}')">&#9654; Resume</button>` : ''}
+                ${running && isLocal ? `<button class="btn btn-sm btn-danger" onclick="stopJob('${job.id}')">Stop</button>` : ''}
+              </div>
+            </div>
+
+            ${interrupted && !running && job.resume_step ? `
+              <div class="resume-info">
+                <span class="resume-icon">&#128260;</span>
+                <span>${esc(job.resume_step)}</span>
+              </div>
+            ` : ''}
+
+            ${isCloud && running ? `
+              <div class="cloud-note">Running on another machine &mdash; progress updates in real-time</div>
+            ` : ''}
+
+            ${isCloud && interrupted && !job.can_resume ? `
+              <div class="cloud-note">Interrupted on another machine &mdash; re-open the scraper there to resume</div>
+            ` : ''}
+
+            <div class="status-row">
+              <div class="status-dot ${running && !interrupted ? 'running' : ''}" style="background:${statusColor(job.status)}"></div>
+              <span class="status-text">${statusLabel(job.status)}</span>
+            </div>
+
+            ${running || pct > 0 ? `
+              <div class="progress-bar">
+                <div class="progress-fill ${interrupted && !running ? 'interrupted' : ''}" style="width:${pct}%"></div>
+              </div>
+            ` : ''}
+
+            <div class="stats-row">
+              ${p.placesFound ? `<div class="stat"><div class="stat-value">${p.placesFound}</div><div class="stat-label">Found</div></div>` : ''}
+              ${p.placesScraped ? `<div class="stat"><div class="stat-value">${p.placesScraped}</div><div class="stat-label">Scraped</div></div>` : ''}
+              ${p.totalWithPhone ? `<div class="stat"><div class="stat-value">${p.totalWithPhone}</div><div class="stat-label">Phones</div></div>` : ''}
+              ${p.emailsFound || p.totalWithEmail ? `<div class="stat"><div class="stat-value">${p.totalWithEmail || p.emailsFound}</div><div class="stat-label">Emails</div></div>` : ''}
+              ${job.total_results && job.status === 'complete' ? `<div class="stat"><div class="stat-value">${job.total_results}</div><div class="stat-label">Total</div></div>` : ''}
+            </div>
+
+            ${isLocal && (job.log || []).length > 0 ? `
+              <div class="log-toggle" onclick="toggleLog('${job.id}')">
+                ${logOpen ? '&#9660; Hide log' : '&#9654; Show log'}
+              </div>
+              <div class="log-panel ${logOpen ? 'open' : ''}" id="log-${job.id}">
+                ${(job.log || []).map(l => esc(l)).join('<br/>')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Auto-scroll open logs
+      for (const id of Object.keys(openLogs)) {
+        if (openLogs[id]) {
+          const logEl = document.getElementById(`log-${id}`);
+          if (logEl) logEl.scrollTop = logEl.scrollHeight;
+        }
+      }
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function capitalize(s) {
+      if (!s) return '';
+      return s.replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Init
+    loadRegions();
+    startPolling();
+  </script>
+</body>
+</html>

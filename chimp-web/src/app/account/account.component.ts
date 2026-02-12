@@ -1,4 +1,4 @@
-import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit } from "@angular/core";
+import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit, inject } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
@@ -15,10 +15,12 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AppService } from "../app.service";
-import { Subscription, filter } from "rxjs";
+import { BreakpointObserver } from "@angular/cdk/layout";
+import { Subscription, combineLatest, filter } from "rxjs";
 import { LoadingChimpComponent } from "./loading-chimp/loading-chimp.component";
 import { ChimpChatComponent, ChimpChatMode } from "./chimp-chat/chimp-chat.component";
-import { addDoc, collection, doc, docData, Firestore } from "@angular/fire/firestore";
+import { addDoc, collection, collectionData, doc, docData, Firestore, query, where } from "@angular/fire/firestore";
+import { Functions, httpsCallable } from "@angular/fire/functions";
 import { onAuthStateChanged } from "firebase/auth";
 
 interface NavItem {
@@ -78,10 +80,14 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   showChimpChat: boolean = false; // ChimpChat panel visibility
   chatMode: ChimpChatMode = 'dialog'; // ChimpChat display mode
   pendingChatMessage: string | null = null; // Message to auto-submit when chat opens
+  isMobile: boolean = false; // Responsive breakpoint detection
+  isChatMinimized: boolean = false; // Whether ChimpChat is minimized to bubble on mobile
   private readonly CHAT_MODE_STORAGE_KEY = 'chimp_chat_mode';
+  private breakpointObserver = inject(BreakpointObserver);
   private authUnsubscribe?: () => void;
   private routerSubscription?: Subscription;
   private openChimpChatSubscription?: Subscription;
+  private breakpointSubscription?: Subscription;
   private startTourListener?: () => void;
 
   // Nav items configuration
@@ -110,6 +116,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     public appService: AppService,
     private auth: Auth,
     private db: Firestore,
+    private functions: Functions,
     public router: Router,
     public dialog: MatDialog
   ) {
@@ -132,6 +139,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   ngOnInit() {
     this.loadNavClickData();
     this.loadChatMode();
+    this.prefetchCoverageAnalyses();
     
     // Track route changes to increment clicks
     this.routerSubscription = this.router.events.pipe(
@@ -150,6 +158,17 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     this.openChimpChatSubscription = this.accountService.openChimpChatRequested.subscribe(() => {
       if (!this.showChimpChat) this.showChimpChat = true;
     });
+
+    // Detect mobile breakpoint to auto-switch ChimpChat behavior
+    this.breakpointSubscription = this.breakpointObserver
+      .observe('(max-width: 768px)')
+      .subscribe(result => {
+        this.isMobile = result.matches;
+        // On mobile, force dialog mode so the sidenav drawer never opens
+        if (this.isMobile && this.chatMode === 'sidenav') {
+          this.chatMode = 'dialog';
+        }
+      });
   }
 
   // Load chat mode preference from localStorage
@@ -181,6 +200,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
       this.routerSubscription.unsubscribe();
     }
     this.openChimpChatSubscription?.unsubscribe();
+    this.breakpointSubscription?.unsubscribe();
     if (this.startTourListener) {
       document.removeEventListener('startTour', this.startTourListener);
     }
@@ -291,12 +311,107 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     return avgClicks >= 15 && itemClicks < avgClicks * 0.4;
   }
 
+  /**
+   * Prefetch coverage analyses in the background so they're ready
+   * before the user navigates to inspections or training pages.
+   * The cloud functions save results to the team document, which
+   * child components pick up automatically via aTeamObservable.
+   */
+  private prefetchCoverageAnalyses(): void {
+    combineLatest([
+      this.accountService.aTeamObservable,
+      this.accountService.teamMembersObservable
+    ]).pipe(
+      filter(([team, members]) => !!team?.id && !!members?.length),
+      take(1)
+    ).subscribe(([team, members]) => {
+      if (!team.industry) return; // Can't analyze without an industry
+
+      const needsInspectionAnalysis = !team.coverageAnalysis || team.coverageAnalysisStale || !team.coverageAnalysis.success;
+      const needsTrainingAnalysis = !team.trainingCoverageAnalysis || team.trainingCoverageAnalysisStale || !team.trainingCoverageAnalysis.success;
+
+      if (needsInspectionAnalysis) {
+        this.prefetchInspectionCoverage(team, members);
+      }
+      if (needsTrainingAnalysis) {
+        this.prefetchTrainingCoverage(team, members);
+      }
+    });
+  }
+
+  private prefetchInspectionCoverage(team: any, members: any[]): void {
+    const inspectionsRef = collection(this.db, `team/${team.id}/self-inspection`);
+    collectionData(inspectionsRef, { idField: 'id' }).pipe(take(1)).subscribe((inspections: any[]) => {
+      if (!inspections.length) return;
+
+      const jobTitles = [...new Set(members.map(m => m.jobTitle).filter(Boolean))];
+      const teamMembers = members.map(m => ({
+        name: m.name || 'Team member',
+        jobTitle: m.jobTitle || ''
+      }));
+      const existingInspections = inspections.map(i => ({
+        title: i.title,
+        inspectionExpiration: i.inspectionExpiration,
+        baseQuestions: (i.baseQuestions || []).map(cat => ({
+          subject: cat.subject,
+          questions: (cat.questions || []).map(q => ({ name: q.name }))
+        }))
+      }));
+
+      const analyzeFn = httpsCallable(this.functions, 'analyzeInspectionCoverage');
+      analyzeFn({
+        businessName: team.name || '',
+        businessWebsite: team.website || '',
+        industry: team.industry,
+        teamId: team.id,
+        teamSize: teamMembers.length,
+        jobTitles,
+        teamMembers,
+        existingInspections
+      }).catch(err => console.warn('[Prefetch] Inspection coverage analysis failed:', err));
+    });
+  }
+
+  private prefetchTrainingCoverage(team: any, members: any[]): void {
+    const libraryRef = query(collection(this.db, 'library'), where('teamId', '==', team.id));
+    collectionData(libraryRef, { idField: 'id' }).pipe(take(1)).subscribe((library: any[]) => {
+      if (!library.length) return;
+
+      const jobTitles = [...new Set(members.map(m => m.jobTitle).filter(Boolean))];
+      const allTags = [...new Set(members.flatMap(m => m.tags || []))].sort();
+      const teamMembers = members.map(m => ({
+        name: m.name,
+        jobTitle: m.jobTitle,
+        tags: m.tags || []
+      }));
+      const existingTrainings = library.map(t => ({
+        name: t.name,
+        trainingCadence: t.trainingCadence,
+        assignedTags: t.assignedTags || []
+      }));
+
+      const analyzeFn = httpsCallable(this.functions, 'analyzeTrainingCoverage');
+      analyzeFn({
+        businessName: team.name,
+        businessWebsite: team.website || '',
+        industry: team.industry,
+        teamId: team.id,
+        teamSize: teamMembers.length,
+        jobTitles,
+        teamMembers,
+        existingTrainings,
+        allTags
+      }).catch(err => console.warn('[Prefetch] Training coverage analysis failed:', err));
+    });
+  }
+
   closeHelper() {
     this.accountService.showHelper = false;
   }
 
   toggleChimpChat(): void {
     this.showChimpChat = !this.showChimpChat;
+    this.isChatMinimized = false;
     // Clear pending message if closing
     if (!this.showChimpChat) {
       this.pendingChatMessage = null;
@@ -305,7 +420,19 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
 
   closeChimpChat(): void {
     this.showChimpChat = false;
+    this.isChatMinimized = false;
     this.pendingChatMessage = null;
+  }
+
+  // Minimize ChimpChat to floating bubble (mobile)
+  onChatMinimize(): void {
+    this.isChatMinimized = true;
+  }
+
+  // Open or restore ChimpChat from floating bubble (mobile)
+  restoreChat(): void {
+    this.showChimpChat = true;
+    this.isChatMinimized = false;
   }
 
   // Handle mode change from ChimpChat component

@@ -25,10 +25,23 @@
         </div>
 
         <!-- Trial Info -->
-        <div class="trial-info">
+        <div class="trial-info" *ngIf="!isDryRun">
           <span>Your account is fully set up with <strong>14 days free access</strong></span>
         </div>
+        <div class="trial-info" *ngIf="isDryRun">
+          <span><strong>Dry run complete</strong> — no account or data was created</span>
+        </div>
       </div>
+    </div>
+
+    <!-- Chimp's parting wisdom -->
+    <div class="parting-wisdom">
+      <chimp-fact-card
+        [hideAvatar]="true"
+        animationStyle="crossfade"
+        [cycleInterval]="0"
+        contextHint="They just finished building their compliance program. Give them a forward-looking nudge about why consistent compliance matters, or a congratulatory note with a real stat. Keep it uplifting but grounded."
+      ></chimp-fact-card>
     </div>
 
     <!-- What's Ready -->
@@ -69,8 +82,8 @@
     <!-- Action Button -->
     <div class="action-section">
       <button mat-flat-button color="accent" class="finish-btn" (click)="finish()">
-        <mat-icon>rocket_launch</mat-icon>
-        Go to My Dashboard
+        <mat-icon>{{ isDryRun ? 'replay' : 'rocket_launch' }}</mat-icon>
+        {{ isDryRun ? 'Start Over' : 'Go to My Dashboard' }}
       </button>
     </div>
   </div>

@@ -45,6 +45,9 @@
       </div>
     </div>
 
+    <!-- Missing Contact Info Banner -->
+    <app-contact-info-banner context="dashboard"></app-contact-info-banner>
+
     <!-- Trial / Subscription Banner - Desktop (hidden when tour banner is showing) -->
     <div class="subscription-banner desktop-only" 
          *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
@@ -109,7 +112,7 @@
       <!-- Metrics Grid -->
       <div class="metrics-grid">
         <!-- Team Members -->
-        <div class="metric-card desktop-clickable" routerLink="/account/team">
+        <div class="metric-card desktop-clickable mobile-team-card" routerLink="/account/team">
           <div class="metric-icon info">
             <mat-icon>groups</mat-icon>
           </div>
@@ -172,6 +175,16 @@
 
     <!-- Mobile Quick Links Section -->
     <section class="mobile-quick-links mobile-only">
+      <div class="mobile-link-card" routerLink="/account/team">
+        <div class="mobile-link-icon">
+          <mat-icon>groups</mat-icon>
+        </div>
+        <div class="mobile-link-content">
+          <div class="mobile-link-title">Team</div>
+          <div class="mobile-link-desc">Manage team members, add contacts, assign tags</div>
+        </div>
+        <mat-icon class="mobile-link-arrow">arrow_forward</mat-icon>
+      </div>
       <div class="mobile-link-card" routerLink="/account/account">
         <div class="mobile-link-icon">
           <mat-icon>settings</mat-icon>
@@ -181,17 +194,6 @@
           <div class="mobile-link-desc">Manage your business info and billing</div>
         </div>
         <mat-icon class="mobile-link-arrow">arrow_forward</mat-icon>
-      </div>
-    </section>
-
-    <!-- Mobile Desktop Notice -->
-    <section class="mobile-desktop-notice mobile-only">
-      <div class="notice-icon">
-        <mat-icon>laptop_mac</mat-icon>
-      </div>
-      <div class="notice-content">
-        <h3>Full Features on Desktop</h3>
-        <p>For the complete experience including team management, training delivery, inspections, and detailed reports, visit Compliance Chimp on your computer.</p>
       </div>
     </section>
 

@@ -2,22 +2,22 @@
   <div class="step-card">
     <div class="step-header">
       <div class="step-indicator">Step 2 of 4</div>
-      <h1>{{ accountAlreadyCreated ? 'Account created' : 'Create your account' }}</h1>
+      <h1>{{ accountAlreadyCreated ? 'Signed in' : (challengeService.isDryRun ? 'Sign in with dev account' : 'Create your account') }}</h1>
       <p class="step-subtitle">You're setting up {{ challengeService.businessName }}</p>
     </div>
 
-    <!-- Account Already Created View -->
+    <!-- Account Already Created / Signed In View -->
     <div class="account-created-section" *ngIf="accountAlreadyCreated">
       <div class="success-banner">
         <mat-icon>check_circle</mat-icon>
         <div class="success-content">
-          <strong>Your account is ready!</strong>
+          <strong>{{ challengeService.isDryRun ? 'Signed in!' : 'Your account is ready!' }}</strong>
           <p>Signed in as <strong>{{ challengeService.email }}</strong></p>
         </div>
       </div>
     </div>
 
-    <!-- Create Account Form -->
+    <!-- Create Account / Sign In Form -->
     <ng-container *ngIf="!accountAlreadyCreated">
       <div class="error-message" *ngIf="errorMessage">
         <mat-icon>error</mat-icon>
@@ -25,15 +25,17 @@
       </div>
 
       <div class="form-section">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Your Name</mat-label>
-          <input
-            matInput
-            [(ngModel)]="name"
-            placeholder="John Smith"
-            [disabled]="isLoading"
-          />
-        </mat-form-field>
+        <ng-container *ngIf="!challengeService.isDryRun">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Your Name</mat-label>
+            <input
+              matInput
+              [(ngModel)]="name"
+              placeholder="John Smith"
+              [disabled]="isLoading"
+            />
+          </mat-form-field>
+        </ng-container>
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Email</mat-label>
@@ -41,7 +43,7 @@
             matInput
             type="email"
             [(ngModel)]="email"
-            placeholder="john@example.com"
+            [placeholder]="challengeService.isDryRun ? 'dev@example.com' : 'john@example.com'"
             [disabled]="isLoading"
           />
         </mat-form-field>
@@ -54,43 +56,45 @@
             [(ngModel)]="password"
             placeholder="Minimum 6 characters"
             [disabled]="isLoading"
+            (keyup.enter)="createAccount()"
           />
           <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button" tabindex="-1">
             <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Confirm Password</mat-label>
-          <input
-            matInput
-            [type]="hideConfirmPassword ? 'password' : 'text'"
-            [(ngModel)]="confirmPassword"
-            [disabled]="isLoading"
-            (keyup.enter)="createAccount()"
-          />
-          <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button" tabindex="-1">
-            <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          <mat-error *ngIf="confirmPassword && password !== confirmPassword">
-            Passwords do not match
-          </mat-error>
-        </mat-form-field>
+        <ng-container *ngIf="!challengeService.isDryRun">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Confirm Password</mat-label>
+            <input
+              matInput
+              [type]="hideConfirmPassword ? 'password' : 'text'"
+              [(ngModel)]="confirmPassword"
+              [disabled]="isLoading"
+              (keyup.enter)="createAccount()"
+            />
+            <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button" tabindex="-1">
+              <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="confirmPassword && password !== confirmPassword">
+              Passwords do not match
+            </mat-error>
+          </mat-form-field>
 
-        <div class="terms-checkbox">
-          <mat-checkbox [(ngModel)]="agreedToTerms" [disabled]="isLoading">
-            I agree to the 
-            <a routerLink="/terms-of-service" target="_blank">Terms of Service</a>,
-            <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a>, and
-            <a routerLink="/customer-agreement" target="_blank">Customer Agreement</a>
-          </mat-checkbox>
-        </div>
+          <div class="terms-checkbox">
+            <mat-checkbox [(ngModel)]="agreedToTerms" [disabled]="isLoading">
+              I agree to the 
+              <a routerLink="/terms-of-service" target="_blank">Terms</a> &
+              <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a>
+            </mat-checkbox>
+          </div>
+        </ng-container>
       </div>
     </ng-container>
 
     <div class="step-actions">
       <button
-        mat-stroked-button
+        mat-button
         class="back-btn"
         (click)="goBack()"
         [disabled]="isLoading"
@@ -106,7 +110,7 @@
         [disabled]="!isValid() || isLoading"
         (click)="createAccount()"
       >
-        Next
+        {{ challengeService.isDryRun ? 'Sign in' : 'Next' }}
         <mat-icon iconPositionEnd>arrow_forward</mat-icon>
       </button>
       <button

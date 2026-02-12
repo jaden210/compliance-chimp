@@ -201,6 +201,14 @@ export class BlasterDialog implements OnInit, OnDestroy {
     });
   }
 
+  /** Count of currently selected trainees who have no phone and no email. */
+  get selectedMissingContactCount(): number {
+    return this.srt.filter(id => {
+      const member = this.teamMembers.find(tm => tm.id === id);
+      return member && !member.phone && !member.email;
+    }).length;
+  }
+
   save(): void {
     this._bService.createSurvey(this.data.libraryItem, this.srt).then(() => {
       this.dialogRef.close(this.srt);

@@ -118,7 +118,9 @@
       </div>
       <div class="recipients-grid">
         @for (tm of tmGroup; track $index) {
-          <div class="recipient-chip" [class.responded]="hasResponded(tm.id)">
+          <div class="recipient-chip" 
+               [class.responded]="hasResponded(tm.id)"
+               [class.not-notified]="!hasContactInfo(tm)">
             <div class="recipient-avatar" [style.background]="tm.color + '20'" [style.color]="tm.color">
               <span *ngIf="!tm.profileUrl">{{ tm.name?.charAt(0) }}</span>
               <img *ngIf="tm.profileUrl" [src]="tm.profileUrl" [alt]="tm.name" />
@@ -126,13 +128,17 @@
             <span class="recipient-name">{{ tm.name }}</span>
             <mat-icon class="responded-icon" *ngIf="hasResponded(tm.id)">check_circle</mat-icon>
             <mat-icon 
+              class="not-notified-icon" 
+              *ngIf="!hasResponded(tm.id) && !hasContactInfo(tm)"
+              matTooltip="Not notified — no contact info on file">phone_disabled</mat-icon>
+            <mat-icon 
               class="pending-icon" 
-              *ngIf="!hasResponded(tm.id) && !tm.sending"
+              *ngIf="!hasResponded(tm.id) && hasContactInfo(tm) && !tm.sending"
               (click)="resendNotification(tm); $event.stopPropagation()"
               matTooltip="Click to resend notification">schedule</mat-icon>
             <mat-icon 
               class="pending-icon spinning" 
-              *ngIf="!hasResponded(tm.id) && tm.sending">sync</mat-icon>
+              *ngIf="!hasResponded(tm.id) && hasContactInfo(tm) && tm.sending">sync</mat-icon>
           </div>
         }
       </div>

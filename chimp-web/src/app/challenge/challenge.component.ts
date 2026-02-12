@@ -4,12 +4,8 @@ import { Router, RouterModule, NavigationEnd } from "@angular/router";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
 import { ChallengeService } from "./challenge.service";
+import { ChallengeTimerComponent } from "./challenge-timer/challenge-timer.component";
 import { Subscription, filter } from "rxjs";
-
-const TOTAL_SECONDS = 360; // 6 minutes
-const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 54; // 2πr where r=54
-// Rounded rect perimeter: 2*(w+h) - 8*r + 2*π*r where w=164, h=192, r=14
-const RECT_PERIMETER = 2 * (164 + 192) - 8 * 14 + 2 * Math.PI * 14; // ≈ 688
 
 @Component({
   standalone: true,
@@ -20,18 +16,16 @@ const RECT_PERIMETER = 2 * (164 + 192) - 8 * 14 + 2 * Math.PI * 14; // ≈ 688
     CommonModule,
     RouterModule,
     MatIconModule,
-    MatButtonModule
+    MatButtonModule,
+    ChallengeTimerComponent
   ]
 })
 export class ChallengeComponent implements OnInit, OnDestroy {
-  timerDisplay = "0:00";
-  isPaused = false;
-  isComplete = false;
-  isOvertime = false;
-  timerColor = 'green';
-  progressPercent = 0;
   isOnStep3 = false;
-  
+  isOnStep4 = false;
+  isOnComplete = false;
+  isTabletViewport = false;
+
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -40,8 +34,8 @@ export class ChallengeComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Track current route to hide timer during team building (step3)
     this.checkCurrentRoute(this.router.url);
+    this.updateTabletViewport();
     this.subscriptions.push(
       this.router.events.pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd)
@@ -49,25 +43,29 @@ export class ChallengeComponent implements OnInit, OnDestroy {
         this.checkCurrentRoute(event.urlAfterRedirects);
       })
     );
-    
-    // Subscribe to timer updates
-    this.subscriptions.push(
-      this.challengeService.elapsedSeconds$.subscribe(() => {
-        this.updateTimerDisplay();
-      }),
-      this.challengeService.isPaused$.subscribe(paused => {
-        this.isPaused = paused;
-      }),
-      this.challengeService.isComplete$.subscribe(complete => {
-        this.isComplete = complete;
-      })
-    );
-    
-    this.updateTimerDisplay();
+  }
+
+  private updateTabletViewport(): void {
+    this.isTabletViewport = window.innerWidth >= 600 && window.innerWidth < 1500;
+  }
+
+  get showChallengeTimer(): boolean {
+    if (!this.challengeService.isTimerStarted || this.isOnStep3) return false;
+    // On step4 in tablet viewport, timer is shown inside the step card
+    if (this.isOnStep4 && this.isTabletViewport) return false;
+    // On complete page in tablet viewport (600-1500px), hide the global timer
+    if (this.isOnComplete && this.isTabletViewport) return false;
+    return true;
   }
 
   private checkCurrentRoute(url: string): void {
     this.isOnStep3 = url.includes('/step3');
+    this.isOnStep4 = url.includes('/step4');
+    this.isOnComplete = url.includes('/complete');
+  }
+
+  exitDryRun(): void {
+    this.challengeService.setDryRun(false);
   }
 
   ngOnDestroy(): void {
@@ -76,44 +74,14 @@ export class ChallengeComponent implements OnInit, OnDestroy {
 
   @HostListener('window:beforeunload')
   onBeforeUnload(): void {
-    // Pause timer when user leaves the page
-    if (this.challengeService.isTimerStarted && !this.isComplete) {
+    const isComplete = this.challengeService.isComplete$?.getValue?.() ?? false;
+    if (this.challengeService.isTimerStarted && !isComplete) {
       this.challengeService.pauseTimer();
     }
   }
 
-  private updateTimerDisplay(): void {
-    this.timerDisplay = this.challengeService.getTimerDisplay();
-    
-    const elapsed = this.challengeService.getElapsedSeconds();
-    this.progressPercent = (elapsed / TOTAL_SECONDS) * 100;
-    
-    // Check if overtime (exceeded 6 minutes)
-    this.isOvertime = elapsed >= TOTAL_SECONDS;
-    
-    // Color based on elapsed time: green when plenty of time, yellow getting close, red running out
-    if (elapsed < 180) {
-      this.timerColor = 'green';  // Less than 3 minutes elapsed
-    } else if (elapsed < 300) {
-      this.timerColor = 'yellow'; // 3-5 minutes elapsed
-    } else {
-      this.timerColor = 'red';    // More than 5 minutes elapsed
-    }
-  }
-
-  getStrokeDashoffset(): number {
-    // Empty circle = full circumference offset, full circle = 0 offset
-    // Circle fills as time elapses
-    const elapsed = this.challengeService.getElapsedSeconds();
-    const progress = elapsed / TOTAL_SECONDS;
-    return CIRCLE_CIRCUMFERENCE * (1 - progress);
-  }
-
-  getRectStrokeDashoffset(): number {
-    // Empty rect = full perimeter offset, full rect = 0 offset
-    // Rect fills as time elapses
-    const elapsed = this.challengeService.getElapsedSeconds();
-    const progress = elapsed / TOTAL_SECONDS;
-    return RECT_PERIMETER * (1 - progress);
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateTabletViewport();
   }
 }

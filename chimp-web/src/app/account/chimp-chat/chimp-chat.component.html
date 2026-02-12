@@ -1,8 +1,9 @@
 <div class="chimp-chat-panel" 
   [class.sidenav-mode]="mode === 'sidenav'"
+  [class.mobile-mode]="isMobile"
   cdkDrag
   cdkDragBoundary="body"
-  [cdkDragDisabled]="mode === 'sidenav'"
+  [cdkDragDisabled]="mode === 'sidenav' || isMobile"
   [cdkDragFreeDragPosition]="dragPosition"
   (cdkDragEnded)="onDragEnded($event)">
   <!-- Header -->
@@ -12,10 +13,13 @@
       <span class="header-title">ChimpChat</span>
     </div>
     <div class="header-actions">
-      <button mat-icon-button class="mode-toggle-btn" (click)="toggleMode()" [matTooltip]="mode === 'dialog' ? 'Dock to side' : 'Pop out'">
+      <button *ngIf="!isMobile" mat-icon-button class="mode-toggle-btn" (click)="toggleMode()" [matTooltip]="mode === 'dialog' ? 'Dock to side' : 'Pop out'">
         <mat-icon>{{ mode === 'dialog' ? 'dock_to_right' : 'picture_in_picture_alt' }}</mat-icon>
       </button>
-      <button mat-icon-button class="close-btn" (click)="closePanel()">
+      <button *ngIf="isMobile" mat-icon-button class="minimize-btn" (click)="minimizePanel()" matTooltip="Minimize">
+        <mat-icon>keyboard_arrow_down</mat-icon>
+      </button>
+      <button *ngIf="!isMobile" mat-icon-button class="close-btn" (click)="closePanel()">
         <mat-icon>close</mat-icon>
       </button>
     </div>

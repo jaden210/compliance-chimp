@@ -8,10 +8,11 @@
 
     <!-- Info Banner -->
     <div class="info-banner important">
-      <mat-icon>auto_awesome</mat-icon>
+      <mat-icon class="banner-icon">auto_awesome</mat-icon>
       <div class="info-text">
-        <strong>This is the most important step</strong>
-        <p>Based on your team's job titles, we'll automatically generate:</p>
+        <strong class="desktop-only">This is the most important step</strong>
+        <strong class="mobile-only"><mat-icon class="inline-icon">auto_awesome</mat-icon> Job titles help us build your:</strong>
+        <p class="desktop-only">Based on your team's job titles, we'll automatically generate:</p>
         <ul class="info-list">
           <li><mat-icon>school</mat-icon> Role-specific safety trainings</li>
           <li><mat-icon>checklist</mat-icon> Customized self-inspections</li>
@@ -24,12 +25,12 @@
             Learn more about tags
           </button>
         </div>
-        <p class="info-hint">The more accurate your job titles, the more relevant your content will be.</p>
+        <p class="info-hint desktop-only">The more accurate your job titles, the more relevant your content will be.</p>
       </div>
     </div>
 
-    <!-- CSV Import Section -->
-    <div class="csv-import-section">
+    <!-- CSV Import Section (desktop only) -->
+    <div class="csv-import-section desktop-only">
       <div class="csv-card">
         <div class="csv-icon">
           <mat-icon>upload_file</mat-icon>
@@ -81,16 +82,15 @@
       </div>
     </div>
 
-    <div class="divider">
+    <div class="divider desktop-only">
       <span>or add manually</span>
     </div>
 
-    <!-- Members Table -->
-    <div class="members-table">
+    <!-- Desktop Members Table -->
+    <div class="members-table desktop-only">
       <div class="table-header">
         <div class="col-name">Name</div>
         <div class="col-job">Job Title</div>
-        <div class="col-contact">Contact</div>
         <div class="col-tags">Tags <mat-icon class="help-icon" (click)="openTagsHelpDialog()">help_outline</mat-icon></div>
         <div class="col-actions"></div>
       </div>
@@ -98,7 +98,7 @@
       <!-- Existing Members -->
       @for (member of teamMembers; track member.id) {
         <div class="table-row" 
-             [class.has-issues]="!member.jobTitle?.trim() || (!member.phone?.trim() && !member.email?.trim())">
+             [class.has-issues]="!member.jobTitle?.trim()">
           <div class="col-name">
             <input 
               class="inline-input"
@@ -112,40 +112,10 @@
             <input 
               class="inline-input"
               [ngModel]="member.jobTitle"
-              (ngModelChange)="updateMemberField(member, 'jobTitle', $event)"
+              (ngModelChange)="member.jobTitle=$event; updateMemberField(member, 'jobTitle', $event)"
               (blur)="onMemberFieldBlur(member, 'jobTitle')"
               placeholder="Job title (required)"
             />
-          </div>
-          <div class="col-contact">
-            <div class="contact-fields">
-              <input 
-                class="inline-input"
-                [ngModel]="member.phone"
-                (ngModelChange)="updateMemberField(member, 'phone', $event)"
-                (blur)="onMemberFieldBlur(member, 'phone')"
-                placeholder="Phone"
-                type="tel"
-              />
-              <div class="contact-toggle">
-                <mat-slide-toggle 
-                  [ngModel]="!member.preferEmail"
-                  (ngModelChange)="toggleMemberPreference(member, !$event)"
-                  [matTooltip]="member.preferEmail ? 'Using email' : 'Using SMS'"
-                >
-                  <mat-icon>{{ member.preferEmail ? 'email' : 'sms' }}</mat-icon>
-                </mat-slide-toggle>
-              </div>
-              <input 
-                *ngIf="member.preferEmail"
-                class="inline-input email-input"
-                [ngModel]="member.email"
-                (ngModelChange)="updateMemberField(member, 'email', $event)"
-                (blur)="onMemberFieldBlur(member, 'email')"
-                placeholder="Email"
-                type="email"
-              />
-            </div>
           </div>
           <div class="col-tags" [class.tagging]="isMemberBeingTagged(member.id)">
             <!-- Show spinner when this member is being tagged -->
@@ -169,6 +139,7 @@
               class="remove-btn"
               (click)="removeMember(member)"
               matTooltip="Remove"
+              *ngIf="!isOwnerMember(member)"
             >
               <mat-icon>close</mat-icon>
             </button>
@@ -191,46 +162,12 @@
           <input 
             class="inline-input"
             [(ngModel)]="newMember.jobTitle"
+            (ngModelChange)="onNewMemberJobTitleChange()"
             (keydown.enter)="addMember()"
-            (blur)="suggestTagsForNewMember()"
+            (blur)="onNewMemberJobTitleBlur()"
             placeholder="Job title"
           />
           <mat-spinner *ngIf="isTagging" diameter="16" class="tagging-spinner"></mat-spinner>
-        </div>
-        <div class="col-contact">
-          <div class="contact-fields">
-            <input 
-              class="inline-input"
-              [class.input-error]="phoneError"
-              [(ngModel)]="newMember.phone"
-              (keydown.enter)="addMember()"
-              (blur)="validatePhone()"
-              (input)="phoneError = false"
-              placeholder="Phone"
-              type="tel"
-            />
-            <div class="contact-toggle">
-              <mat-slide-toggle 
-                [ngModel]="!newMember.preferEmail"
-                (ngModelChange)="newMember.preferEmail = !$event"
-                [matTooltip]="newMember.preferEmail ? 'Using email' : 'Using SMS'"
-                tabindex="-1"
-              >
-                <mat-icon>{{ newMember.preferEmail ? 'email' : 'sms' }}</mat-icon>
-              </mat-slide-toggle>
-            </div>
-            <input 
-              *ngIf="newMember.preferEmail"
-              class="inline-input email-input"
-              [class.input-error]="emailError"
-              [(ngModel)]="newMember.email"
-              (keydown.enter)="addMember()"
-              (blur)="validateEmail()"
-              (input)="emailError = false"
-              placeholder="Email"
-              type="email"
-            />
-          </div>
         </div>
         <div class="col-tags">
           <app-tag-input
@@ -244,8 +181,7 @@
         </div>
         <div class="col-actions">
           <button 
-            mat-icon-button 
-            color="accent" 
+            mat-mini-fab 
             (click)="addMember()"
             [disabled]="!canAddMember()"
             class="add-btn"
@@ -258,22 +194,120 @@
       </div>
     </div>
 
+    <!-- Mobile Member Adder -->
+    <div class="mobile-member-adder mobile-only">
+      <div class="divider">
+        <span>Add your team</span>
+      </div>
+      <!-- Add Form -->
+      <div class="mobile-add-form">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Name</mat-label>
+          <input
+            matInput
+            #mobileNameInput
+            [(ngModel)]="newMember.name"
+            (keydown.enter)="mobileJobTitleInput.focus()"
+            placeholder="e.g. John Smith"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Job Title</mat-label>
+          <input
+            matInput
+            #mobileJobTitleInput
+            [(ngModel)]="newMember.jobTitle"
+            (ngModelChange)="onNewMemberJobTitleChange()"
+            (keydown.enter)="addMember()"
+            (blur)="onNewMemberJobTitleBlur()"
+            placeholder="e.g. Warehouse Associate"
+          />
+        </mat-form-field>
+        <button
+          mat-fab
+          class="mobile-add-btn"
+          (click)="addMember()"
+          [disabled]="!canAddMember()"
+          extended
+        >
+          <mat-icon>person_add</mat-icon>
+          Add Member
+        </button>
+      </div>
+
+      <!-- Member Count -->
+      <div class="member-count" *ngIf="teamMembers.length > 0">
+        <mat-icon>group</mat-icon>
+        <span>{{ teamMembers.length }} team member{{ teamMembers.length === 1 ? '' : 's' }} added</span>
+        <button
+          mat-icon-button
+          class="toggle-tags-btn"
+          (click)="toggleAllMobileTags()"
+        >
+          <mat-icon>{{ mobileShowAllTags ? 'badge' : 'sell' }}</mat-icon>
+        </button>
+      </div>
+      <div class="member-count empty" *ngIf="teamMembers.length === 0">
+        <span>No team members yet — add your first one above</span>
+      </div>
+
+      <!-- Member Cards -->
+      <div class="mobile-member-list">
+        @for (member of teamMembers; track member.id) {
+          <div class="mobile-member-card" [class.has-issues]="!member.jobTitle?.trim()" [class.tags-expanded]="mobileShowAllTags">
+            <div class="member-info">
+              <div class="member-name-row">
+                <span class="member-name">{{ member.name }}</span>
+                <button
+                  mat-icon-button
+                  class="remove-btn"
+                  (click)="removeMember(member)"
+                  *ngIf="!isOwnerMember(member)"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+              <!-- Job title view (default) -->
+              <span class="member-job" *ngIf="!mobileShowAllTags && member.jobTitle?.trim()">{{ member.jobTitle }}</span>
+              <span class="member-job missing" *ngIf="!mobileShowAllTags && !member.jobTitle?.trim()">No job title</span>
+              <!-- Tags view (expanded) -->
+              <div class="member-tags-edit" *ngIf="mobileShowAllTags">
+                <div class="member-tags tagging" *ngIf="isMemberBeingTagged(member.id)">
+                  <mat-spinner diameter="12"></mat-spinner>
+                  <span class="tagging-label">Generating tags...</span>
+                </div>
+                <app-tag-input
+                  *ngIf="!isMemberBeingTagged(member.id)"
+                  [tags]="member.tags || []"
+                  [allTags]="allTags"
+                  (tagsChange)="saveMemberTags(member, $event)"
+                  [compact]="true"
+                  placeholder="Add tags...">
+                </app-tag-input>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
     <!-- Warning for missing required info -->
     <div class="validation-warning" *ngIf="teamMembers.length > 0 && membersWithIssues.length > 0">
       <mat-icon>warning</mat-icon>
       <div class="warning-text">
-        <strong>{{ membersWithIssues.length }} team member{{ membersWithIssues.length === 1 ? ' needs' : 's need' }} attention</strong>
-        <ul class="warning-list">
-          <li *ngIf="membersMissingJobTitle.length > 0">
-            {{ membersMissingJobTitle.length }} missing job title{{ membersMissingJobTitle.length === 1 ? '' : 's' }} — required to assign the right trainings
-          </li>
-          <li *ngIf="membersMissingContact.length > 0">
-            {{ membersMissingContact.length }} missing contact info — required to send surveys
-          </li>
-        </ul>
-        <p class="warning-hint">Click on a row to edit and add the missing information.</p>
+        <strong>{{ membersWithIssues.length }} team member{{ membersWithIssues.length === 1 ? ' needs' : 's need' }} a job title</strong>
+        <p class="warning-hint desktop-only">Job titles are required so we can assign the right trainings. Click on a row to edit.</p>
+        <p class="warning-hint mobile-only">Tap a member to edit their job title.</p>
       </div>
     </div>
+
+    <!-- Chimp Fact Card -->
+    <chimp-fact-card
+      animationStyle="crossfade"
+      [cycleInterval]="30000"
+      [jobTitles]="currentJobTitles"
+      contextHint="They're building their team right now. Reference the roles they're adding and why training those specific roles matters for OSHA compliance."
+    ></chimp-fact-card>
 
     <!-- Processing Overlay -->
     <div class="processing-overlay" *ngIf="isProcessing">
@@ -285,7 +319,7 @@
 
     <div class="step-actions">
       <button
-        mat-stroked-button
+        mat-button
         class="back-btn"
         (click)="goBack()"
         [disabled]="isProcessing"
@@ -299,7 +333,7 @@
         class="next-btn"
         [disabled]="!canProceed() || isProcessing"
         (click)="next()"
-        [matTooltip]="hasUnsavedNewMember() ? 'Click the + button to add the new member first' : (!canProceed() && teamMembers.length > 0 ? 'All team members need a job title and contact info' : '')"
+        [matTooltip]="hasUnsavedNewMember() ? 'Click the + button to add the new member first' : (!canProceed() && teamMembers.length > 0 ? 'All team members need a job title' : '')"
       >
         <mat-spinner *ngIf="isProcessing" diameter="20"></mat-spinner>
         <span *ngIf="!isProcessing">Next</span>

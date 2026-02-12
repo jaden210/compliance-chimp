@@ -23,9 +23,17 @@ const SRC_DIR = path.join(__dirname, '..', 'src');
 const INDEX_HTML = path.join(SRC_DIR, 'index.html');
 
 // Icons that can't be detected statically (e.g. composed at runtime from
-// server data). Add entries here if the script misses one.
-const MANUAL_INCLUDES = [
-  // 'some_rare_icon',
+// server data, or used in inline templates in .ts files). Add entries here
+// if the script misses one.
+const MANUAL_INCLUDES = ['contact_phone'];
+
+// Fallback when Firestore outreach-landing-pages can't be reached (no credentials).
+// Matches the Cloud Function's instructed AI icon list. Used only when fetch fails.
+const FIRESTORE_FALLBACK = [
+  'assignment', 'build', 'checklist', 'construction', 'description',
+  'engineering', 'fact_check', 'health_and_safety', 'local_shipping',
+  'schedule', 'security', 'shield', 'sms', 'supervisor_account',
+  'verified_user',
 ];
 
 // Strings that match the icon-name pattern but are definitely not icons.
@@ -161,11 +169,43 @@ function extractFromTs(content) {
   return icons;
 }
 
+/** Fetch icons from outreach-landing-pages in Firestore (public read). */
+async function fetchOutreachLpIcons() {
+  try {
+    const admin = require('firebase-admin');
+    if (!admin.apps.length) {
+      admin.initializeApp({ projectId: 'teamlog-2d74c' });
+    }
+    const snap = await admin.firestore().collection('outreach-landing-pages').get();
+    const icons = new Set();
+    for (const doc of snap.docs) {
+      const features = doc.data().features || [];
+      for (const f of features) {
+        if (f.icon && typeof f.icon === 'string' && isIconName(f.icon)) {
+          icons.add(f.icon);
+        }
+      }
+    }
+    return [...icons];
+  } catch (e) {
+    return null;
+  }
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
-function run() {
+async function run() {
   const checkMode = process.argv.includes('--check');
   const icons = new Set(MANUAL_INCLUDES.filter(isIconName));
+
+  // Fetch icons from outreach landing pages (Firestore, public data)
+  const outreachIcons = await fetchOutreachLpIcons();
+  if (outreachIcons !== null) {
+    outreachIcons.forEach((i) => icons.add(i));
+  } else {
+    // Fallback when Firestore unavailable (no credentials, offline, etc.)
+    FIRESTORE_FALLBACK.filter(isIconName).forEach((i) => icons.add(i));
+  }
 
   // Scan HTML files
   const htmlFiles = walk(SRC_DIR, ['.html']);
@@ -232,4 +272,7 @@ function run() {
   if (removed.length) console.log(`  Removed: ${removed.join(', ')}`);
 }
 
-run();
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

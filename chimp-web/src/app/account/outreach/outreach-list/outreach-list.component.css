@@ -293,3 +293,26 @@ mat-progress-bar {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* ---- Interrupted Banner ---- */
+
+.interrupted-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff3e0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #e65100;
+  line-height: 1.4;
+}
+
+.interrupted-banner mat-icon {
+  font-size: 18px;
+  height: 18px;
+  width: 18px;
+  color: #ff9800;
+  flex-shrink: 0;
+}

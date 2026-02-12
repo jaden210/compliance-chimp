@@ -365,6 +365,22 @@
   }
 }
 
+/* Not notified - no contact info */
+.recipient-chip.not-notified {
+  background: var(--chimp-surface-container-lowest);
+  border-color: var(--chimp-outline-variant);
+  opacity: 0.65;
+}
+
+.not-notified-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  color: #f57c00;
+  flex-shrink: 0;
+}
+
 /* Responses Section */
 .responses-section {
   display: flex;
