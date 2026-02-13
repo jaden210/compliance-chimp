@@ -525,7 +525,8 @@ export const autoBuildCompliance = onCall(
           isAiGenerated: true,
           trainingCadence: topic.cadence || 'Annually',
           scheduledDueDate: scheduledDueDate,
-          assignedTags: topic.assignedTags || []
+          assignedTags: normalizeAssignedTags(topic.assignedTags),
+          isInPerson: topic.isInPerson || false
         };
 
         await db.collection('library').add(libraryItem);
@@ -722,14 +723,14 @@ async function generateTrainingTopicsForAutoBuild(
     : '';
   
   const tagsContext = teamTags.length > 0
-    ? `\n\nTEAM TAGS AVAILABLE FOR ASSIGNMENT: ${teamTags.join(', ')}
+    ? `\n\nTEAM TAGS AVAILABLE FOR ASSIGNMENT: All, ${teamTags.join(', ')}
 
-IMPORTANT - You MUST assign tags to role-specific trainings:
-- For trainings that apply to EVERYONE (harassment prevention, emergency plans, fire safety): use assignedTags: []
-- For role-specific trainings: assign the relevant tags from the list above
-- ONLY use tags from this exact list: ${teamTags.join(', ')}
-- Match trainings to the job roles - e.g., if there's a "Warehouse" tag and you're creating forklift training, assign ["Warehouse"]`
-    : '\n\nNo team tags defined - all trainings will go to all team members.';
+IMPORTANT - You MUST assign tags to every training (trainings can never be untagged):
+- For trainings that apply to EVERYONE (harassment prevention, emergency plans, fire safety): use assignedTags: ["All"]
+- For role-specific trainings: assign the relevant tags from the list above, e.g. ["Warehouse"]
+- ONLY use tags from this exact list: All, ${teamTags.join(', ')}
+- "All" is a reserved tag meaning the entire team - use it for team-wide trainings`
+    : '\n\nNo team tags defined - use assignedTags: ["All"] for all trainings to assign to the whole team.';
 
   try {
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -775,13 +776,34 @@ Return JSON:
       "category": "Category",
       "cadence": "Annually|Quarterly|Upon Hire",
       "regulation": "Relevant OSHA standard or regulation if applicable",
-      "assignedTags": ["tag1", "tag2"] or [] for all team members
+      "assignedTags": ["tag1", "tag2"] or ["All"] for whole team,
+      "isInPerson": true or false
     }
   ]
 }
 
+IN-PERSON TRAINING RULES:
+- Set isInPerson: true for trainings that REQUIRE hands-on, physical presence to be OSHA-defensible:
+  - Equipment operation (forklifts, powered industrial trucks, cranes, heavy machinery)
+  - Lockout/tagout (LOTO) procedures and demonstrations
+  - PPE fit testing and proper use demonstrations
+  - Fire extinguisher hands-on training
+  - CPR/First Aid/AED certification
+  - Confined space entry procedures
+  - Fall protection harness fitting and use
+  - Scaffold erection and use
+  - Any training where OSHA requires physical demonstration of competency
+- Set isInPerson: false for knowledge-based trainings that can be delivered remotely:
+  - Hazard Communication (HazCom/GHS) awareness
+  - Harassment prevention
+  - Emergency action plan awareness
+  - General safety awareness and orientation
+  - Workplace violence prevention
+  - Bloodborne pathogens awareness (unless hands-on component)
+  - Electrical safety awareness
+
 CRITICAL TAG ASSIGNMENT RULES:
-- General safety trainings (harassment, emergency plans, fire safety, emergency action) should have assignedTags: [] to go to everyone
+- General safety trainings (harassment, emergency plans, fire safety, emergency action) should have assignedTags: ["All"] to go to everyone
 - Role-specific trainings MUST be assigned to relevant tags:
   - Forklift/material handling → assign to warehouse/operations tags
   - Driving/vehicle safety/DOT → assign to driver tags
@@ -791,7 +813,7 @@ CRITICAL TAG ASSIGNMENT RULES:
   - Heights/fall protection → assign to construction/field tags
 - You MUST use the exact tags provided in the TEAM TAGS AVAILABLE list
 - Do NOT make up new tags - only use tags from the provided list
-- If no tags are provided, use assignedTags: [] for all trainings
+- If no tags are provided, use assignedTags: ["All"] for all trainings
 - EVERY job title in the team should be covered by at least one role-specific training with appropriate tags
 
 ROLE COVERAGE REQUIREMENT:
@@ -852,7 +874,7 @@ Generate 10-12 training topics that provide COMPLETE compliance coverage. Be tho
           
           return {
             ...topic,
-            assignedTags: matchedTags
+            assignedTags: normalizeAssignedTags(matchedTags)
           };
         });
       }
@@ -1930,8 +1952,8 @@ export const generateArticleFromDescription = onCall(
 
     // Build the tags context for the AI
     const tagsContext = teamTags && teamTags.length > 0
-      ? `\n\nAvailable team role tags: ${teamTags.join(', ')}\nAssign tags to the roles that should receive this training. For example, if this is about equipment operation, assign it to roles like "shop" or "warehouse". If it's about data security, assign it to roles like "office" or "accounting". Only assign tags that are clearly relevant. If the training applies to everyone, return an empty array.`
-      : '';
+      ? `\n\nAvailable team role tags: All, ${teamTags.join(', ')}\nAssign tags to the roles that should receive this training. Use "All" for team-wide trainings. For role-specific trainings, use tags like "shop", "warehouse", "office", etc. Trainings can never be untagged - use ["All"] if it applies to everyone.`
+      : '\n\nUse assignedTags: ["All"] for team-wide trainings.';
 
     try {
       // Call Grok API to generate the article
@@ -1959,13 +1981,14 @@ When generating an article, return a JSON object with this exact structure:
 {
   "title": "Clear, descriptive title for the training article",
   "topic": "Category name like: Fire Safety, Hazard Communication, PPE, Electrical Safety, Fall Protection, Emergency Preparedness, Workplace Safety, etc.",
-  "cadence": "How often this training should be repeated. Options: Once, Monthly, Quarterly, Semi-Annually, Annually. Choose based on the topic - high-risk or frequently changing topics should be more frequent.",
-  "assignedTags": ["array", "of", "relevant", "role", "tags"],
+  "cadence": "How often this training should be repeated. Options: Once, Upon Hire, Monthly, Quarterly, Semi-Annually, Annually. Choose based on the topic - high-risk or frequently changing topics should be more frequent.",
+  "assignedTags": ["All"] for everyone, or ["tag1", "tag2"] for specific roles,
   "content": "Full HTML content of the article with proper formatting"
 }
 
 Cadence Guidelines:
-- "Once" - One-time training for specific events, onboarding, or policy changes
+- "Once" - One-time training for specific events or policy changes
+- "Upon Hire" - Training that every new employee must complete when they join. Automatically assigned to new team members.
 - "Monthly" - High-risk activities, rapidly changing procedures, or critical safety topics
 - "Quarterly" - Important safety topics that need regular reinforcement
 - "Semi-Annually" - Standard compliance topics that change occasionally
@@ -2049,22 +2072,24 @@ Generate a well-structured, easy-to-understand training article that covers the 
       }
       
       // Default cadence if not provided or invalid
-      const validCadences = ['Once', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually'];
+      const validCadences = ['Once', 'Upon Hire', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually'];
       if (!articleData.cadence || !validCadences.includes(articleData.cadence)) {
         articleData.cadence = 'Annually';
       }
       
-      // Ensure assignedTags is an array
-      if (!Array.isArray(articleData.assignedTags)) {
-        articleData.assignedTags = [];
+      // Ensure assignedTags is an array and never empty (use ["All"] for team-wide)
+      let assignedTags = Array.isArray(articleData.assignedTags) ? articleData.assignedTags.filter(Boolean) : [];
+      if (teamTags?.length) {
+        assignedTags = assignedTags.filter((t: string) => t === 'All' || teamTags.includes(t));
       }
+      assignedTags = normalizeAssignedTags(assignedTags);
 
       return {
         success: true,
         title: articleData.title,
         topic: articleData.topic,
         cadence: articleData.cadence,
-        assignedTags: articleData.assignedTags,
+        assignedTags,
         content: articleData.content,
         description: description
       };
@@ -2670,10 +2695,10 @@ CADENCE SELECTION TIPS:
 - Mix cadences appropriately - NOT everything should be annual!
 
 TAG ASSIGNMENT:
-You will receive a list of existing team tags. For each recommended training:
+You will receive a list of existing team tags (including "All" for team-wide). For each recommended training:
+- Use assignedTags: ["All"] if the training should go to the whole team
 - Assign specific tags if the training is only relevant to certain roles
-- Leave assignedTags empty [] if the training should go to the whole team
-- Only use tags that exist in the provided allTags list
+- Only use tags that exist in the provided allTags list - "All" is always available
 
 Return your response as a JSON object:
 {
@@ -2765,7 +2790,7 @@ Analyze their training coverage and provide recommendations to ensure full compl
       const processedRecommendations = (analysisResult.recommendations || []).map((rec: any) => {
         // Validate cadence
         let mappedCadence = rec.cadence;
-        const validCadences = ['Once', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually'];
+        const validCadences = ['Once', 'Upon Hire', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually'];
         if (!validCadences.includes(mappedCadence)) {
           mappedCadence = 'Annually';
         }
@@ -2801,7 +2826,7 @@ Analyze their training coverage and provide recommendations to ensure full compl
           description: rec.description,
           cadence: mappedCadence,
           priority: rec.priority || 'medium',
-          assignedTags: matchedTags,
+          assignedTags: normalizeAssignedTags(matchedTags),
           oshaStandards: rec.oshaStandards || [],
           reason: rec.reason
         };
@@ -3725,37 +3750,114 @@ export const createdSurvey = onDocumentCreated(
       survey.title,
       survey.teamId
     );
-    blastSurvey({...survey, id: event.params.id});
+    await blastSurvey({ ...survey, id: event.params.id });
     await log;
     console.log("created survey complete");
     return null;
   }
 );
 
-function blastSurvey(survey: any): Promise<any> {
-  let teamMember: any[] = [];
-  return admin.firestore().collection(`team-members`).where("teamId", "==", survey.teamId).get().then((users: any) => {
-      users.forEach((userDoc: any) => {
-        const data = userDoc.data();
-        if (!data.deleted) {
-          teamMember.push({...data, id: userDoc.id});
-        }
-      });
-      survey.trainees.forEach((tmId: string) => {
-        let member = teamMember.find(tm => tm.id == tmId);
-        if (member) {
-          console.log('sending');
-          const body = `Hi ${member.name}. A new survey is waiting for you. Click the link to answer. Please answer right away to help your employer maintain current records. Thank you! - The Compliancechimp team.\n
-          ${getUserPageUrl(member)}`;
-          return sendMessage(member, null, body).then(() => {
-            return;
-          });
-        } else {
-          console.log('no team member found');
-          return null;
-        }
-      });
+async function blastSurvey(survey: any): Promise<any> {
+  // If this is an in-person training, notify managers only instead of all trainees
+  if (survey.isInPerson) {
+    return blastInPersonSurveyToManagers(survey);
+  }
+
+  const db = admin.firestore();
+  const usersSnapshot = await db.collection('team-members').where('teamId', '==', survey.teamId).get();
+  const teamMember: any[] = [];
+  usersSnapshot.forEach((userDoc: any) => {
+    const data = userDoc.data();
+    if (!data.deleted) {
+      teamMember.push({ ...data, id: userDoc.id });
+    }
   });
+
+  const teamDoc = await db.doc(`team/${survey.teamId}`).get();
+  const team = teamDoc.data();
+  const teamName = team?.name || 'your company';
+  const surveyTitle = survey.title || 'a survey';
+
+  const sendPromises: Promise<any>[] = [];
+  for (const tmId of survey.trainees) {
+    const member = teamMember.find((tm) => tm.id === tmId);
+    if (!member) {
+      console.log('no team member found');
+      continue;
+    }
+    console.log('sending');
+    let body: string;
+    if (member.preferEmail && member.email) {
+      body = getEmail('survey-reminder')
+        .split('{{recipientName}}').join(member.name || 'there')
+        .split('{{teamName}}').join(teamName)
+        .split('{{surveyTitle}}').join(surveyTitle)
+        .split('{{pageUrl}}').join(getUserPageUrl(member));
+    } else {
+      body = `Hi ${member.name}. A new survey is waiting for you. Click the link to answer. Please answer right away to help your employer maintain current records. Thank you! - The Compliancechimp team.\n${getUserPageUrl(member)}`;
+    }
+    sendPromises.push(sendMessage(member, team, body));
+  }
+  return Promise.all(sendPromises);
+}
+
+/**
+ * Send in-person training notification to team managers instead of all trainees.
+ * Managers receive a message telling them to conduct the training in person
+ * and collect signatures from their device.
+ */
+async function blastInPersonSurveyToManagers(survey: any): Promise<void> {
+  try {
+    // Get managers (users) for this team
+    const managersSnapshot = await admin.firestore()
+      .collection('user')
+      .where('teamId', '==', survey.teamId)
+      .get();
+    
+    if (managersSnapshot.empty) {
+      console.log(`No managers found for team ${survey.teamId} - skipping in-person notification`);
+      return;
+    }
+    
+    const trainingTitle = survey.title?.replace('Training Attendance: ', '') || 'Untitled Training';
+    const surveyUrl = `https://app.compliancechimp.com/account/survey/${survey.id}`;
+    
+    for (const managerDoc of managersSnapshot.docs) {
+      const manager = { ...managerDoc.data(), id: managerDoc.id } as any;
+      
+      const smsBody = `Hi ${manager.name || 'Manager'}. An in-person training is due today: "${trainingTitle}". Please conduct this training with your team and collect signatures from your device. ${surveyUrl} - The Compliancechimp team.`;
+      
+      // For email, we use the in-person training email template
+      if (manager.preferEmail && manager.email) {
+        try {
+          const templatePath = path.resolve('src/email-templates/user/in-person-training-due.html');
+          let html = fs.readFileSync(templatePath, 'utf8');
+          html = html.replace(/{{recipientName}}/g, manager.name || 'Manager');
+          html = html.replace(/{{teamName}}/g, survey.teamName || 'your team');
+          html = html.replace(/{{trainingTitle}}/g, trainingTitle);
+          html = html.replace(/{{pageUrl}}/g, surveyUrl);
+          
+          const client = createSendgridClient();
+          await client.sendMail({
+            from: '"Compliancechimp" <notifications@compliancechimp.com>',
+            to: manager.email,
+            subject: `In-Person Training Due: ${trainingTitle}`,
+            html: html
+          });
+          console.log(`Sent in-person training email to manager ${manager.name}`);
+        } catch (emailErr) {
+          console.error(`Error sending in-person email to ${manager.email}:`, emailErr);
+          // Fall back to SMS
+          await sendMessage(manager, null, smsBody);
+        }
+      } else if (manager.phone) {
+        await sendMessage(manager, null, smsBody);
+        console.log(`Sent in-person training SMS to manager ${manager.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error blasting in-person survey to managers:', error);
+  }
 }
 
 export const modifiedSurvey = onDocumentUpdated(
@@ -3807,21 +3909,73 @@ export const createdSurveyResponse = onDocumentCreated(
     
     if (!surveyResponse) return null;
     
+    // Build description with in-person context if applicable
+    let description = surveyResponse.shortAnswer?.toString() ||
+      "" + " " + surveyResponse.longAnswer ||
+      "";
+    
+    if (surveyResponse.isInPerson && surveyResponse.collectedBy) {
+      // Look up the manager name for a more readable event description
+      let collectorName = surveyResponse.collectedBy;
+      try {
+        const collectorDoc = await admin.firestore().doc(`user/${surveyResponse.collectedBy}`).get();
+        if (collectorDoc.exists) {
+          collectorName = collectorDoc.data()?.name || collectorName;
+        }
+      } catch (e) {
+        // Fall back to ID if lookup fails
+      }
+      description += ` (in-person, collected by ${collectorName})`;
+    } else if (surveyResponse.isInPerson) {
+      description += ` (in-person)`;
+    }
+    
     await logAsEvent(
       EventType.surveyResponse,
       EventAction.respond,
       surveyResponse.surveyId,
       surveyResponse.teamMemberId,
-      surveyResponse.shortAnswer?.toString() ||
-        "" + " " + surveyResponse.longAnswer ||
-        "",
+      description,
       surveyResponse.teamId
     );
+
+    // Auto-deactivate in-person surveys once all trainees have responded
+    if (surveyResponse.isInPerson && surveyResponse.surveyId) {
+      try {
+        await deactivateSurveyIfComplete(surveyResponse.surveyId);
+      } catch (e) {
+        console.error('Error checking survey completion:', e);
+      }
+    }
 
     console.log("created survey response complete");
     return null;
   }
 );
+
+/**
+ * Check if all trainees in a survey have responded; if so, set active = false.
+ */
+async function deactivateSurveyIfComplete(surveyId: string): Promise<void> {
+  const db = admin.firestore();
+  const surveyDoc = await db.doc(`survey/${surveyId}`).get();
+  if (!surveyDoc.exists) return;
+
+  const survey = surveyDoc.data();
+  if (!survey || !survey.active || !survey.trainees?.length) return;
+
+  const responsesSnap = await db.collection('survey-response')
+    .where('surveyId', '==', surveyId)
+    .get();
+
+  const respondedIds = new Set(responsesSnap.docs.map(d => d.data().teamMemberId));
+  const allResponded = survey.trainees.every((id: string) => respondedIds.has(id));
+
+  if (allResponded) {
+    await surveyDoc.ref.update({ active: false });
+    console.log(`Survey ${surveyId} auto-deactivated: all ${survey.trainees.length} trainees responded`);
+  }
+}
 
 /* ----- CUSTOM ARTICLE ----- */
 
@@ -3947,37 +4101,14 @@ async function autoStartDueTrainings() {
         }
         
         // Get trainees based on assigned tags
-        const trainees = expandTagsToMembers(libraryItem.assignedTags || [], teamMembers);
+        const trainees = expandTagsToMembers(normalizeAssignedTags(libraryItem.assignedTags), teamMembers);
         
         if (trainees.length === 0) {
           console.log(`No trainees for ${libraryItem.name} in team ${team.id} - skipping`);
           continue;
         }
         
-        // Create survey to start the training
-        const survey = {
-          libraryId: libraryItem.id,
-          title: `Training Attendance: ${libraryItem.name}`,
-          trainees: trainees,
-          userId: creatorUserId,
-          teamId: team.id,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          runDate: admin.firestore.FieldValue.serverTimestamp(),
-          active: true,
-          autoStarted: true  // Flag to indicate this was auto-started
-        };
-        
-        await db.collection('survey').add(survey);
-        
-        // Update library item with lastTrainedAt
-        const now = new Date().toISOString();
-        const updates: { [key: string]: any } = {
-          lastTrainedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-        trainees.forEach((traineeId: string) => {
-          updates[`shouldReceiveTraining.${traineeId}`] = now;
-        });
-        await db.doc(`library/${libraryItem.id}`).update(updates);
+        await createTrainingSurvey(db, libraryItem, trainees, team.id, creatorUserId);
         
         trainingsStarted++;
         console.log(`Auto-started training "${libraryItem.name}" for team ${team.id} with ${trainees.length} trainees`);
@@ -3991,10 +4122,56 @@ async function autoStartDueTrainings() {
 }
 
 /**
+ * Create a training survey for a library item and update the library item's tracking fields.
+ * Shared between autoStartDueTrainings and teamMemberAdded (upon-hire trainings).
+ */
+async function createTrainingSurvey(
+  db: admin.firestore.Firestore,
+  libraryItem: any,
+  trainees: string[],
+  teamId: string,
+  creatorUserId: string
+): Promise<void> {
+  const survey: any = {
+    libraryId: libraryItem.id,
+    title: `Training Attendance: ${libraryItem.name}`,
+    trainees: trainees,
+    userId: creatorUserId,
+    teamId: teamId,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runDate: admin.firestore.FieldValue.serverTimestamp(),
+    active: true,
+    autoStarted: true
+  };
+
+  // Propagate in-person flag if set on the library item
+  if (libraryItem.isInPerson) {
+    survey.isInPerson = true;
+  }
+
+  await db.collection('survey').add(survey);
+
+  // Update library item with lastTrainedAt and per-trainee tracking
+  const now = new Date().toISOString();
+  const updates: { [key: string]: any } = {
+    lastTrainedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+  trainees.forEach((traineeId: string) => {
+    updates[`shouldReceiveTraining.${traineeId}`] = now;
+  });
+  await db.doc(`library/${libraryItem.id}`).update(updates);
+}
+
+/**
  * Check if a library item's training is due based on cadence and last trained date.
  */
 function isTrainingDue(libraryItem: any, today: moment.Moment): boolean {
   const cadence = libraryItem.trainingCadence || 'Annually';
+  
+  // "Upon Hire" trainings are never schedule-due; they are triggered by new member addition
+  if (cadence === 'Upon Hire') {
+    return false;
+  }
   
   // For "Once" trainings - only due if never trained
   if (cadence === 'Once') {
@@ -4033,6 +4210,8 @@ function isTrainingDue(libraryItem: any, today: moment.Moment): boolean {
 function addCadenceInterval(date: moment.Moment, cadence: string): moment.Moment {
   const result = date.clone();
   switch (cadence) {
+    case 'Upon Hire':
+      return result; // No interval - triggered by member addition, not schedule
     case 'Monthly':
       return result.add(1, 'month');
     case 'Quarterly':
@@ -4045,18 +4224,30 @@ function addCadenceInterval(date: moment.Moment, cadence: string): moment.Moment
   }
 }
 
+/** Reserved tag meaning "everyone on the team". Trainings must never be untagged. */
+const ALL_TEAM_TAG = 'All';
+
+/**
+ * Normalize assigned tags - empty becomes [ALL_TEAM_TAG] so trainings are never untagged.
+ */
+function normalizeAssignedTags(assignedTags?: string[]): string[] {
+  const tags = assignedTags?.filter(Boolean) || [];
+  return tags.length > 0 ? tags : [ALL_TEAM_TAG];
+}
+
 /**
  * Expand assigned tags to member IDs.
  * Returns an array of team member IDs that have any of the assigned tags.
+ * The reserved "All" tag means everyone on the team.
  */
 function expandTagsToMembers(assignedTags: string[], teamMembers: any[]): string[] {
-  if (!assignedTags || assignedTags.length === 0) {
-    // If no tags assigned, return all team members
+  const tags = normalizeAssignedTags(assignedTags);
+  if (tags.includes(ALL_TEAM_TAG)) {
     return teamMembers.map(tm => tm.id).filter((id: string) => id);
   }
   
   const memberIds = new Set<string>();
-  for (const tag of assignedTags) {
+  for (const tag of tags) {
     teamMembers
       .filter(tm => tm.tags?.includes(tag))
       .forEach(tm => {
@@ -4299,48 +4490,81 @@ export const teamMemberAdded = onDocumentCreated(
     const data = event.data?.data() as any;
     
     if (!data) return null;
-    
-    // Skip sending welcome message if welcomeSent is explicitly false
-    // This happens during onboarding or CSV import when admin is still curating the list
-    if (data.welcomeSent === false) {
-      console.log(`Skipping welcome message for ${data.name} - welcomeSent is false (pending)`);
-      return null;
-    }
-    
-    // Skip welcome for linked managers (owner/manager who is also a team member)
-    // They already have their own access and don't need an invitation
-    if (data.linkedUserId) {
-      console.log(`Skipping welcome message for ${data.name} - linked manager (${data.linkedUserId})`);
-      return null;
-    }
-    
+
+    const db = admin.firestore();
     const teamMember = { ...data, id: event.params.teamMemberId };
-    const teamDoc = await admin.firestore().doc(`team/${teamMember.teamId}`).get();
+    const teamDoc = await db.doc(`team/${teamMember.teamId}`).get();
     const team = teamDoc.data();
-    
-    const pageUrl = getUserPageUrl(teamMember);
-    
-    let messageBody: string;
-    if (teamMember.preferEmail) {
-      // Use HTML email template for email
-      const emailHtml = getEmail("add-team-member");
-      messageBody = emailHtml
-        .split("{{recipientName}}")
-        .join(teamMember.name)
-        .split("{{userId}}")
-        .join(teamMember.id);
+
+    // --- Welcome message ---
+    const skipWelcome = data.welcomeSent === false || data.linkedUserId;
+
+    if (!skipWelcome) {
+      const pageUrl = getUserPageUrl(teamMember);
+      
+      let messageBody: string;
+      if (teamMember.preferEmail) {
+        const emailHtml = getEmail("add-team-member");
+        messageBody = emailHtml
+          .split("{{recipientName}}")
+          .join(teamMember.name)
+          .split("{{userId}}")
+          .join(teamMember.id);
+      } else {
+        messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Open your BananaHandbook for training, incident reporting, and more: ${pageUrl}`;
+      }
+      
+      await db.doc(`team-members/${event.params.teamMemberId}`).update({
+        welcomeSent: true,
+        welcomeSentAt: new Date()
+      });
+      
+      await sendMessage(teamMember, team, messageBody);
     } else {
-      // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
+      console.log(`Skipping welcome message for ${data.name} - ${data.welcomeSent === false ? 'welcomeSent is false (pending)' : 'linked manager'}`);
     }
-    
-    // Mark as sent and send the message
-    await admin.firestore().doc(`team-members/${event.params.teamMemberId}`).update({
-      welcomeSent: true,
-      welcomeSentAt: new Date()
-    });
-    
-    return await sendMessage(teamMember, team, messageBody);
+
+    // --- Assign "Upon Hire" trainings ---
+    try {
+      const librarySnapshot = await db
+        .collection('library')
+        .where('teamId', '==', teamMember.teamId)
+        .where('trainingCadence', '==', 'Upon Hire')
+        .get();
+
+      if (!librarySnapshot.empty) {
+        // Get a manager userId to attribute the survey to
+        const managersSnapshot = await db
+          .collection('user')
+          .where('teamId', '==', teamMember.teamId)
+          .limit(1)
+          .get();
+        const creatorUserId = managersSnapshot.docs.length > 0
+          ? managersSnapshot.docs[0].id
+          : 'system';
+
+        for (const libraryDoc of librarySnapshot.docs) {
+          const libraryItem = { ...libraryDoc.data(), id: libraryDoc.id } as any;
+
+          // Check if the new member's tags match the training's assigned tags
+          const trainees = expandTagsToMembers(
+            normalizeAssignedTags(libraryItem.assignedTags),
+            [teamMember]
+          );
+
+          if (trainees.length === 0) {
+            continue; // New member's tags don't match this training
+          }
+
+          await createTrainingSurvey(db, libraryItem, trainees, teamMember.teamId, creatorUserId);
+          console.log(`Assigned upon-hire training "${libraryItem.name}" to new member ${teamMember.name}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error assigning upon-hire trainings for ${teamMember.name}:`, error);
+    }
+
+    return null;
   }
 );
 
@@ -4405,7 +4629,7 @@ export const teamMemberContactUpdated = onDocumentUpdated(
         .split("{{userId}}")
         .join(teamMember.id);
     } else {
-      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
+      messageBody = `Hi ${teamMember.name}! You've been added to ${team?.name || 'your company'}'s Compliancechimp account. Open your BananaHandbook for training, incident reporting, and more: ${pageUrl}`;
     }
 
     // Mark as sent and send the message
@@ -4447,7 +4671,7 @@ export const resendTeamMemberInvite = onCall(
       }
     } else {
       // Use plain text for SMS
-      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Visit your Compliancechimp profile for training, surveys, and more: ${pageUrl}`;
+      messageBody = `Hi ${teamMember.name}! This is a reminder from ${team?.name || 'your company'}. Open your Compliancechimp BananaHandbook for training, surveys, and more: ${pageUrl}`;
     }
     
     return await sendMessage(teamMember, team, messageBody);
@@ -4560,7 +4784,7 @@ export const sendPendingWelcomeMessages = onCall(
             .split("{{userId}}")
             .join(teamMember.id);
         } else {
-          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Visit your profile for training, incident reporting, and more: ${pageUrl}`;
+          messageBody = `Hi ${teamMember.name}! You've been added to ${team.name || 'your company'}'s Compliancechimp account. Open your BananaHandbook for training, incident reporting, and more: ${pageUrl}`;
         }
         
         await sendMessage(teamMember, team, messageBody);
@@ -6009,7 +6233,7 @@ ACTION TYPES:
   - "/account/incident-reports" - Incident reports
   - "/account/dashboard" - Dashboard
   - "/account/files" - Files
-- "smartBuilder": Opens Smart Builder with prefilled data. Include smartBuilderData: { name, description, cadence }. Cadence should be "Annually", "Semi-Annually", "Quarterly", "Monthly", or "Once".
+- "smartBuilder": Opens Smart Builder with prefilled data. Include smartBuilderData: { name, description, cadence }. Cadence should be "Annually", "Semi-Annually", "Quarterly", "Monthly", "Upon Hire", or "Once".
 - "search": Navigate with search query. Use queryParams: { "search": "term" }
 
 IMPORTANT: When the user asks about a specific training or inspection that exists in the library, ALWAYS link directly to that item using its ID in the route (e.g., "/account/training/library/abc123"). Do NOT just link to the general library page.

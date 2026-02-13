@@ -9,9 +9,9 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AccountService, Team, TeamMember, User } from "../account.service";
 import { Observable, Subscription, combineLatest, of } from "rxjs";
-import { ActivatedRoute, Router, ParamMap } from "@angular/router";
+import { ActivatedRoute, Router, ParamMap, RouterModule } from "@angular/router";
 import { Location } from "@angular/common";
-import { map, groupBy, flatMap, toArray, share, tap } from "rxjs/operators";
+import { map, groupBy, flatMap, toArray, share, tap, switchMap, filter } from "rxjs/operators";
 import { CreateSurveyDialogComponent } from "../surveys/create-survey-dialog/create-survey-dialog.component";
 import { Survey, SurveyResponse } from "src/app/app.service";
 import { Functions, httpsCallable } from "@angular/fire/functions";
@@ -43,6 +43,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
   public responses: SurveyResponse[] = [];
 
   private subscription: Subscription;
+  private innerSubscriptions: Subscription[] = [];
   private todaysDatePiped: string;
   public title: string;
   public surveyResponseList: Observable<any[]>;
@@ -81,10 +82,21 @@ export class SurveyComponent implements OnInit, OnDestroy {
     return !!(tm.phone || tm.email);
   }
 
+  public getCollectorName(userId: string): string {
+    const user = this.users?.find(u => u.id === userId);
+    return user?.name || 'Manager';
+  }
+
   public formatDate(date: any): string {
     if (!date) return '';
     const jsDate = date.toDate ? date.toDate() : date;
     return this.datePipe.transform(jsDate, 'MMM d, y · h:mm a') || '';
+  }
+
+  public navigateToInPersonAttendance(): void {
+    if (this.survey?.id) {
+      this.router.navigate(['/account/training/in-person-attendance', this.survey.id]);
+    }
   }
 
   public resendNotification(teamMember: any): void {
@@ -122,6 +134,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
     private snackbar: MatSnackBar,
     private accountService: AccountService,
     private route: ActivatedRoute,
+    private router: Router,
     private dialog: MatDialog,
     private location: Location,
     private datePipe: DatePipe,
@@ -138,25 +151,27 @@ export class SurveyComponent implements OnInit, OnDestroy {
       this.accountService.aTeamObservable,
       this.accountService.teamMembersObservable,
       this.accountService.teamManagersObservable,
-    ]).subscribe(results => {
-      const [team, teamMembers, users] = results;
+      this.route.paramMap,
+    ]).subscribe(([team, teamMembers, users, params]) => {
+      // Clean up previous inner subscriptions
+      this.innerSubscriptions.forEach(s => s.unsubscribe());
+      this.innerSubscriptions = [];
+
       if (team && teamMembers) {
         this.team = team;
         this.teamMembers = teamMembers;
         this.users = users;
-        this.route.paramMap.subscribe((params: ParamMap) => {
-          let surveyId = params.get("surveyId");
-          if (surveyId) {
-            this.getSurvey(surveyId);
-            this.getSurveyResponses(surveyId);
-          }
-        });
+        const surveyId = (params as ParamMap).get("surveyId");
+        if (surveyId) {
+          this.getSurvey(surveyId);
+          this.getSurveyResponses(surveyId);
+        }
       }
     });
   }
 
   private getSurvey(surveyId): void {
-    this.service.getSurvey(surveyId).subscribe(survey => {
+    this.innerSubscriptions.push(this.service.getSurvey(surveyId).subscribe(survey => {
       if (survey) {
         this.title = "/ " + survey.title;
         this.getGroup(survey.trainees);
@@ -166,7 +181,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
       } else {
         this.survey = null;
       }
-    });
+    }));
   }
 
   /* Builds all contacts of the survey and colors them */
@@ -193,7 +208,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
 
   /* Grouping by date to show group date in template */
   private getSurveyResponses(surveyId): void {
-   this.service.getSurveyResponses(surveyId).subscribe(responses => {
+   this.innerSubscriptions.push(this.service.getSurveyResponses(surveyId).subscribe(responses => {
      responses.map(r => {
        let tIndex = this.survey.trainees.findIndex(t => t == r.teamMemberId);
        r['color'] = this.colors[tIndex];
@@ -201,7 +216,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
        return r;
      });
      this.responses = responses;
-   })
+   }))
       // .pipe(
       //   map(responses =>
       //     responses.map(response => {
@@ -342,13 +357,27 @@ export class SurveyComponent implements OnInit, OnDestroy {
     const yesPercent = totalResponses > 0 ? Math.round((yesResponses / totalResponses) * 100) : 0;
 
     // ===== HEADER SECTION =====
-    drawRoundedRect(margin, y - 0.15, contentWidth, 0.9, 0.08, primaryColor);
+    const teamName = this.team?.name || this.accountService.aTeam?.name;
+    const senderName = this.sender?.name;
+    const headerHeight = 0.9 + (teamName ? 0.2 : 0) + (senderName ? 0.2 : 0);
+    drawRoundedRect(margin, y - 0.15, contentWidth, headerHeight, 0.08, primaryColor);
     
     // Title
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.setTextColor("#ffffff");
     doc.text("Survey Results", margin + 0.2, y + 0.15);
+    
+    // In-Person badge in header
+    if (this.survey.isInPerson) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#ffffff");
+      const badgeText = "IN-PERSON TRAINING";
+      const badgeWidth = doc.getTextWidth(badgeText) + 0.2;
+      drawRoundedRect(margin + contentWidth - badgeWidth - 0.15, y - 0.02, badgeWidth, 0.24, 0.04, "#ff9100");
+      doc.text(badgeText, margin + contentWidth - badgeWidth - 0.05, y + 0.14);
+    }
     
     // Survey name
     doc.setFontSize(12);
@@ -359,8 +388,22 @@ export class SurveyComponent implements OnInit, OnDestroy {
     // Date
     doc.setFontSize(10);
     doc.text(`Created: ${formattedDate}`, margin + 0.2, y + 0.6);
+
+    let headerOffset = 0.6;
+
+    // Team name
+    if (teamName) {
+      headerOffset += 0.2;
+      doc.text(`Team: ${teamName}`, margin + 0.2, y + headerOffset);
+    }
+
+    // Sent by
+    if (senderName) {
+      headerOffset += 0.2;
+      doc.text(`Sent By: ${senderName}`, margin + 0.2, y + headerOffset);
+    }
     
-    y += 1.0;
+    y += headerHeight + 0.25;
 
     // ===== SUMMARY CARDS =====
     const cardWidth = (contentWidth - 0.2) / 3;
@@ -469,6 +512,18 @@ export class SurveyComponent implements OnInit, OnDestroy {
         }
       }
       
+      // Collected By info for in-person responses
+      if (response.collectedBy) {
+        checkPageBreak(0.3);
+        const collectorUser = this.users?.find(u => u.id === response.collectedBy);
+        const collectorName = collectorUser?.name || response.collectedBy;
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(textSecondary);
+        doc.text(`Collected by: ${collectorName} (in-person)`, margin + 0.15, y);
+        y += 0.2;
+      }
+      
       // Separator line
       y += 0.1;
       doc.setDrawColor(borderColor);
@@ -505,6 +560,7 @@ export class SurveyComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
+    this.innerSubscriptions.forEach(s => s.unsubscribe());
   }
 }
 

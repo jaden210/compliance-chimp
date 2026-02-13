@@ -39,7 +39,7 @@ import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Firestore, addDoc, collection, collectionData, deleteDoc, doc, updateDoc } from "@angular/fire/firestore";
 import { ParsedCsvMember, CsvImportResult } from "./team.service";
 import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage";
-import { map } from "rxjs/operators";
+import { map, take } from "rxjs/operators";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 declare var gtag: Function;
 
@@ -75,6 +75,7 @@ declare var gtag: Function;
 })
 export class TeamComponent implements OnDestroy {
   private subscription: Subscription;
+  private managersSubscription: Subscription;
   files: Observable<any>;
   teamMembers:TeamMember[] = [];
   managers: User[] = [];
@@ -223,13 +224,13 @@ export class TeamComponent implements OnDestroy {
     {
       icon: 'folder',
       title: 'Team Files',
-      description: 'Upload safety manuals, certificates, and documents for team-wide access from their user pages.',
+      description: 'Upload safety manuals, certificates, and documents for team-wide access from their BananaHandbooks.',
       action: 'teamFiles'
     },
     {
       icon: 'person',
-      title: 'User Pages',
-      description: 'Each team member has their own compliance dashboard showing training status, inspections, and more.',
+      title: 'BananaHandbooks',
+      description: 'Each team member has their own BananaHandbook showing training status, inspections, and more.',
       action: 'scrollToMembers'
     }
   ];
@@ -258,22 +259,13 @@ export class TeamComponent implements OnDestroy {
     
     this.subscription = this.accountService.teamMembersObservable.subscribe(teamMembers => {
         if (teamMembers) {
-          teamMembers.forEach(tm => {
-            this.teamService.getSurveysByTeamMember(tm.id).subscribe(([surveys, surveyResponses]) => {
-              tm['surveyCount'] = `${surveyResponses.length || 0} | ${surveys.length || 0}`;
-              tm['surveys'] = surveys.map(s => {
-                s.response = surveyResponses.find(sr => sr.surveyId == s.id);
-                return s;
-              });
-            });
-          });
           this.files = this.teamService.getFiles();
           this.teamMembers = teamMembers;
           this.showTable = true;
         }
       }
     );
-    this.accountService.teamManagersObservable.subscribe(managers => this.managers = managers);
+    this.managersSubscription = this.accountService.teamManagersObservable.subscribe(managers => this.managers = managers);
   }
 
   /**
@@ -352,9 +344,18 @@ export class TeamComponent implements OnDestroy {
   }
 
   public openUserSurveyDialog(user: TeamMember): void {
-    this.dialog.open(SurveysDialog, {
-      data: user
-    })
+    // Load survey data on-demand (not eagerly) to avoid subscription leaks
+    this.teamService.getSurveysByTeamMember(user.id).pipe(take(1)).subscribe(([surveys, surveyResponses]) => {
+      const userData = { ...user };
+      userData['surveyCount'] = `${surveyResponses.length || 0} | ${surveys.length || 0}`;
+      userData['surveys'] = surveys.map(s => {
+        s.response = surveyResponses.find(sr => sr.surveyId == s.id);
+        return s;
+      });
+      this.dialog.open(SurveysDialog, {
+        data: userData
+      });
+    });
   }
 
   public saveTeamMember(teamMember: TeamMember) {
@@ -485,7 +486,15 @@ export class TeamComponent implements OnDestroy {
       Object.entries(newMember).filter(([_, v]) => v !== undefined && v !== null)
     );
     
-    addDoc(collection(this.accountService.db, "team-members"), cleanedMember);
+    const jobTitle = this.newMember.jobTitle?.trim() || null;
+    const hasTags = (this.newMember.tags || []).length > 0;
+
+    addDoc(collection(this.accountService.db, "team-members"), cleanedMember).then(docRef => {
+      // If job title provided but no tags, auto-generate tags
+      if (jobTitle && !hasTags) {
+        this.autoTagMember(docRef.id, jobTitle);
+      }
+    });
     
     // Reset the new member form and validation state
     this.newMember = new TeamMember();
@@ -503,6 +512,47 @@ export class TeamComponent implements OnDestroy {
         this.emptyStateNameInput.nativeElement.focus();
       }
     }, 0);
+  }
+
+  /**
+   * Auto-generate tags for a team member based on their job title using AI.
+   * Mirrors the onboarding flow's auto-tag behavior.
+   */
+  async autoTagMember(memberId: string, jobTitle: string): Promise<void> {
+    try {
+      const existingTags = this.allTags;
+
+      // Build team context for consistent tagging
+      const teamMembers = this.teamMembers
+        .filter(m => m.id !== memberId && m.jobTitle?.trim())
+        .map(m => ({
+          jobTitle: m.jobTitle,
+          tags: m.tags || []
+        }));
+
+      const suggestTags = httpsCallable(this.functions, 'suggestTagsForJobTitle');
+      const result: any = await suggestTags({
+        jobTitle,
+        existingTags,
+        industry: this.accountService.aTeam?.industry || null,
+        teamMembers
+      });
+
+      if (result.data?.tags?.length > 0) {
+        const newTags = result.data.tags;
+        await updateDoc(doc(this.accountService.db, `team-members/${memberId}`), { tags: newTags });
+
+        // Update local member reference and sync owner tags
+        const member = this.teamMembers.find(m => m.id === memberId);
+        if (member) {
+          member.tags = newTags;
+          this.teamMembers = [...this.teamMembers];
+          this.syncOwnerTags();
+        }
+      }
+    } catch (err) {
+      console.error('Error auto-tagging member:', err);
+    }
   }
 
   confirmDeleteMember(member: TeamMember): void {
@@ -597,6 +647,7 @@ export class TeamComponent implements OnDestroy {
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
+    this.managersSubscription?.unsubscribe();
   }
 }
 

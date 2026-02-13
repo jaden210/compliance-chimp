@@ -241,15 +241,8 @@ export class UserComponent implements AfterViewInit {
           // Check auth state (non-blocking)
           this.userService.checkAuthState();
           
-          // If manager has a linked member record, load surveys for that member ID
-          const linkedMemberId = manager.linkedMemberId;
-          if (linkedMemberId) {
-            this.loadSurveys(team.id, linkedMemberId);
-          } else {
-            // No linked member - no surveys
-            this.userService.surveys = [];
-            this.userService.surveysLoaded.next(true);
-          }
+          // Managers see ALL team surveys, not just ones they were assigned to
+          this.loadAllTeamSurveys(team.id);
           
           // Load files (in parallel)
           this.loadFiles(manager.teamId);
@@ -336,6 +329,40 @@ export class UserComponent implements AfterViewInit {
         this.userService.surveys = surveysWithResponses;
         this.userService.surveysLoaded.next(true);
         this.cacheData(`cc_surveys_${memberId}`, surveysWithResponses);
+      });
+  }
+
+  /**
+   * Load ALL surveys for a team (used for manager view).
+   * Managers see every survey sent to the team, not just ones they were assigned to.
+   */
+  private loadAllTeamSurveys(teamId: string): void {
+    this.userService.getAllTeamSurveys(teamId)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(e => { console.error('[UserComponent] Error fetching all team surveys:', e); return of([]); }),
+        tap(surveys => {
+          if (surveys.length > 0) {
+            const surveysWithEmptyResponses = surveys.map(s => ({ ...s, responses: [] }));
+            this.userService.surveys = surveysWithEmptyResponses;
+          }
+        }),
+        switchMap(surveys => {
+          if (surveys.length === 0) {
+            return of([]);
+          }
+          return combineLatest(surveys.map(s =>
+            this.userService.getSurveyResponses(s.id).pipe(
+              take(1),
+              map(r => ({ ...s, responses: r })),
+              catchError(() => of({ ...s, responses: [] }))
+            )
+          ));
+        })
+      )
+      .subscribe(surveysWithResponses => {
+        this.userService.surveys = surveysWithResponses;
+        this.userService.surveysLoaded.next(true);
       });
   }
 

@@ -567,6 +567,53 @@
   border: 1px solid var(--chimp-outline-variant);
 }
 
+/* In-Person Header Badge */
+.in-person-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  background: rgba(5, 77, 138, 0.08);
+  border: 1px solid rgba(5, 77, 138, 0.2);
+  border-radius: 12px;
+  padding: 2px 10px 2px 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.in-person-header-badge mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Collected By */
+.collected-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px 16px;
+  font-size: 12px;
+  color: var(--chimp-outline);
+}
+
+.collected-by mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.in-person-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  background: rgba(5, 77, 138, 0.08);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
 .signature-container img {
   max-width: 200px;
   max-height: 80px;

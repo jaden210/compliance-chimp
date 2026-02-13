@@ -172,6 +172,22 @@
           <p class="tags-hint">Team members with matching tags will be assigned this training.</p>
         </div>
       </div>
+
+      <div class="config-row">
+        <div class="in-person-field">
+          <div class="in-person-toggle">
+            <mat-icon>groups</mat-icon>
+            <div class="in-person-info">
+              <span class="in-person-label">In-Person Required</span>
+              <span class="in-person-hint">When enabled, notifications go to managers only and signatures are collected on the manager's device.</span>
+            </div>
+            <mat-slide-toggle
+              [(ngModel)]="isInPerson"
+              color="primary">
+            </mat-slide-toggle>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Rich Text Editor -->

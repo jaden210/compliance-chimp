@@ -55,8 +55,11 @@ export class SurveyComponent implements OnInit, OnDestroy {
   errorIcon: boolean;
   loading: boolean = true;
   public article: LibraryItem;
+  isManager: boolean = false;
 
   ngOnInit() {
+    this.isManager = this.userService.isViewingAsManager;
+
     // Load survey when route params are available
     this.route.paramMap
       .pipe(

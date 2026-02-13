@@ -10,7 +10,9 @@ import { Survey, SurveyResponse } from "src/app/app.service";
 
 interface CompletedSurvey {
   survey: Survey;
-  response: SurveyResponse;
+  response?: SurveyResponse;
+  responseCount?: number;
+  latestResponseDate?: Date;
 }
 
 @Component({
@@ -53,6 +55,10 @@ export class SurveyHistoryComponent implements OnInit {
       });
   }
 
+  get isManager(): boolean {
+    return this.userService.isViewingAsManager;
+  }
+
   private updateCompletedSurveys(surveys: Survey[] | null): void {
     const teamMemberId = this.userService.teamMember?.id;
     if (!teamMemberId || !surveys) {
@@ -60,26 +66,57 @@ export class SurveyHistoryComponent implements OnInit {
       return;
     }
 
-    this.completedSurveys = surveys
-      .map(s => {
-        const responses = (s as any)['responses'] || [];
-        const myResponse = responses.find((r: SurveyResponse) => r.teamMemberId === teamMemberId);
-        if (myResponse) {
-          return { survey: s, response: myResponse } as CompletedSurvey;
-        }
-        return null;
-      })
-      .filter((item): item is CompletedSurvey => item !== null)
-      .sort((a, b) => {
-        // Sort by response date, most recent first
-        const dateA = a.response.createdAt instanceof Date
-          ? a.response.createdAt
-          : (a.response.createdAt as any)?.toDate?.() || new Date(0);
-        const dateB = b.response.createdAt instanceof Date
-          ? b.response.createdAt
-          : (b.response.createdAt as any)?.toDate?.() || new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      });
+    if (this.userService.isViewingAsManager) {
+      // Managers see ALL surveys that have at least one response
+      this.completedSurveys = surveys
+        .map(s => {
+          const responses: SurveyResponse[] = (s as any)['responses'] || [];
+          if (responses.length === 0) return null;
+
+          // Find most recent response date
+          let latestDate = new Date(0);
+          for (const r of responses) {
+            const d = r.createdAt instanceof Date
+              ? r.createdAt
+              : (r.createdAt as any)?.toDate?.() || new Date(0);
+            if (d.getTime() > latestDate.getTime()) latestDate = d;
+          }
+
+          return {
+            survey: s,
+            response: responses[0], // use first response for display fallback
+            responseCount: responses.length,
+            latestResponseDate: latestDate
+          } as CompletedSurvey;
+        })
+        .filter((item): item is CompletedSurvey => item !== null)
+        .sort((a, b) => {
+          const dateA = a.latestResponseDate || new Date(0);
+          const dateB = b.latestResponseDate || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+    } else {
+      // Regular team members only see surveys they personally responded to
+      this.completedSurveys = surveys
+        .map(s => {
+          const responses = (s as any)['responses'] || [];
+          const myResponse = responses.find((r: SurveyResponse) => r.teamMemberId === teamMemberId);
+          if (myResponse) {
+            return { survey: s, response: myResponse } as CompletedSurvey;
+          }
+          return null;
+        })
+        .filter((item): item is CompletedSurvey => item !== null)
+        .sort((a, b) => {
+          const dateA = a.response!.createdAt instanceof Date
+            ? a.response!.createdAt
+            : (a.response!.createdAt as any)?.toDate?.() || new Date(0);
+          const dateB = b.response!.createdAt instanceof Date
+            ? b.response!.createdAt
+            : (b.response!.createdAt as any)?.toDate?.() || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+    }
 
     this.cdr.detectChanges();
   }

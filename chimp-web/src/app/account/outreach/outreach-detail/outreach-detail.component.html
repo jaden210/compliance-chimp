@@ -7,6 +7,15 @@
     <div class="flex"></div>
     <button
       mat-icon-button
+      *ngIf="job.results?.length"
+      (click)="sanitizeEmails()"
+      [disabled]="sanitizing"
+      matTooltip="Sanitize emails"
+    >
+      <mat-icon>{{ sanitizing ? 'hourglass_empty' : 'cleaning_services' }}</mat-icon>
+    </button>
+    <button
+      mat-icon-button
       *ngIf="job.status === 'complete'"
       (click)="downloadCsv()"
       matTooltip="Download CSV"

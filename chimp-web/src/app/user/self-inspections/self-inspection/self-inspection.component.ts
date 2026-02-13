@@ -133,6 +133,16 @@ export class SelfInspectionComponent {
     doc.text(this.selfInspection.title, margin, y);
     y += lineHeight * 1.5;
 
+    // Team name
+    const teamName = this.userService.aTeam?.name;
+    if (teamName) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#333333");
+      doc.text(teamName, margin, y);
+      y += lineHeight * 1.5;
+    }
+
     // Completion date
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
@@ -141,7 +151,19 @@ export class SelfInspectionComponent {
       ? si.completedAt.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
       : new Date(si.completedAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     doc.text(`Completed: ${completedDate}`, margin, y);
-    y += lineHeight * 2;
+    y += lineHeight;
+
+    // Completed by
+    const completedByUser = si.completedBy
+      ? (this.userService.teamMembers?.find(m => m.id === si.completedBy) 
+        || this.userService.teamManagers?.find(u => u.id === si.completedBy))
+      : null;
+    const completedByName = completedByUser?.name || this.userService.loggedInUser?.name;
+    if (completedByName) {
+      doc.text(`Completed By: ${completedByName}`, margin, y);
+      y += lineHeight;
+    }
+    y += lineHeight;
 
     // Divider line
     doc.setDrawColor("#cccccc");

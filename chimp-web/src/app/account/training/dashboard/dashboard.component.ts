@@ -33,7 +33,7 @@ import { ContactInfoBannerComponent } from "../../contact-info-banner/contact-in
 import { SurveyService } from "../../survey/survey.service";
 
 export type ViewMode = 'schedule' | 'history';
-export type FilterType = 'all' | 'overdue' | 'dueSoon' | 'current' | 'neverTrained';
+export type FilterType = 'all' | 'overdue' | 'dueSoon' | 'current' | 'neverTrained' | 'inPerson';
 export type SortColumn = 'status' | 'name' | 'lastTrained' | 'nextDue' | 'cadence' | 'compliance' | null;
 export type SortDirection = 'asc' | 'desc';
 export type LibrarySortColumn = 'name' | 'industry' | 'topic' | null;
@@ -99,6 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loading = true;
   trainingsSubscription: Subscription;
   autoBuildSubscription: Subscription | null = null;
+  private innerSubscriptions: Subscription[] = [];
   
   // View mode
   viewMode$ = new BehaviorSubject<ViewMode>('schedule');
@@ -132,6 +133,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Training cadence options
   cadenceOptions = [
     { value: TrainingCadence.Once, label: 'Once (one-time training)' },
+    { value: TrainingCadence.UponHire, label: 'Upon Hire (new employees)' },
     { value: TrainingCadence.Monthly, label: 'Monthly' },
     { value: TrainingCadence.Quarterly, label: 'Quarterly' },
     { value: TrainingCadence.SemiAnnually, label: 'Semi-Annually' },
@@ -284,6 +286,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     ]).subscribe(
       data => {
         if (data[0] && data[1]) {
+          // Clean up previous inner subscriptions to prevent leaks
+          this.innerSubscriptions.forEach(s => s.unsubscribe());
+          this.innerSubscriptions = [];
+          if (this.trainingsSubscription) {
+            this.trainingsSubscription.unsubscribe();
+            this.trainingsSubscription = null;
+          }
+
           this.team = data[0];
           this.teamMembers = data[1] || [];
           this.teamManagers = data[2] || [];
@@ -306,13 +316,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
 
     // Cache library items and handle openFirst if pending
-    this.libraryContent$.subscribe(items => {
+    this.innerSubscriptions.push(this.libraryContent$.subscribe(items => {
       this.libraryItemsCache = items;
       if (this.pendingOpenFirst && items && items.length > 0) {
         this.pendingOpenFirst = false;
         this.router.navigate(['/account/training/library', items[0].id], { replaceUrl: true });
       }
-    });
+    }));
 
     // Filtered content based on search and sort
     this.libraryFilteredContent$ = combineLatest([
@@ -357,13 +367,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
     
     // Update loading state and trigger coverage analysis
-    this.library$.subscribe(library => {
+    this.innerSubscriptions.push(this.library$.subscribe(library => {
       this.loading = false;
       // Trigger coverage analysis if there are trainings
       if (library.length > 0 && this.canAnalyzeCoverage()) {
         this.checkAndTriggerAnalysis();
       }
-    });
+    }));
   }
 
   private enrichLibraryItem(item: LibraryItem, teamMemberIds: string[], teamMembers: { id?: string; tags?: string[] }[]): LibraryItemWithStatus {
@@ -416,6 +426,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         break;
       case 'neverTrained':
         filtered = filtered.filter(i => i.status === 'neverTrained');
+        break;
+      case 'inPerson':
+        filtered = filtered.filter(i => i.isInPerson === true);
         break;
     }
 
@@ -489,9 +502,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           return (a.nextDueDate.getTime() - b.nextDueDate.getTime()) * dir;
         
         case 'cadence':
-          const cadenceOrder = { 'Once': 0, 'Monthly': 1, 'Quarterly': 2, 'Semi-Annually': 3, 'Annually': 4 };
-          const aCad = cadenceOrder[a.trainingCadence || 'Annually'] ?? 4;
-          const bCad = cadenceOrder[b.trainingCadence || 'Annually'] ?? 4;
+          const cadenceOrder = { 'Once': 0, 'Upon Hire': 1, 'Monthly': 2, 'Quarterly': 3, 'Semi-Annually': 4, 'Annually': 5 };
+          const aCad = cadenceOrder[a.trainingCadence || 'Annually'] ?? 5;
+          const bCad = cadenceOrder[b.trainingCadence || 'Annually'] ?? 5;
           return (aCad - bCad) * dir;
         
         case 'compliance':
@@ -1050,6 +1063,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.trainingsSubscription) this.trainingsSubscription.unsubscribe();
     if (this.autoBuildSubscription) this.autoBuildSubscription.unsubscribe();
     if (this.autoBuildCancel) this.autoBuildCancel();
+    this.innerSubscriptions.forEach(s => s.unsubscribe());
   }
 }
 

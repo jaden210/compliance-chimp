@@ -737,19 +737,19 @@
 }
 
 .bar-segment.overdue {
-  background: var(--chimp-error);
+  background: #c62828;
 }
 
 .bar-segment.due-soon {
-  background: var(--chimp-warning);
+  background: #ff9100;
 }
 
 .bar-segment.on-track {
-  background: var(--chimp-success);
+  background: #054d8a;
 }
 
 .bar-segment.never-run {
-  background: var(--chimp-outline-variant);
+  background: #90a4ae;
 }
 
 /* Legend */
@@ -773,19 +773,19 @@
 }
 
 .legend-dot.overdue {
-  background: var(--chimp-error);
+  background: #c62828;
 }
 
 .legend-dot.due-soon {
-  background: var(--chimp-warning);
+  background: #ff9100;
 }
 
 .legend-dot.on-track {
-  background: var(--chimp-success);
+  background: #054d8a;
 }
 
 .legend-dot.never-run {
-  background: var(--chimp-outline-variant);
+  background: #90a4ae;
 }
 
 .legend-count {
@@ -910,6 +910,25 @@
 .mobile-link-arrow {
   color: var(--chimp-outline);
   flex-shrink: 0;
+}
+
+/* My BananaHandbook card - slightly more prominent */
+.mobile-user-page-card {
+  background: var(--chimp-primary-container);
+  border-color: var(--chimp-primary);
+}
+
+.mobile-user-page-card .mobile-link-title {
+  color: var(--chimp-primary);
+}
+
+.mobile-user-page-card .mobile-link-arrow {
+  color: var(--chimp-primary);
+}
+
+.mobile-user-page-icon {
+  background: var(--chimp-primary) !important;
+  color: var(--chimp-on-primary) !important;
 }
 
 /* Responsive */

@@ -6,6 +6,12 @@
   <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" />
   <div class="toolbar-title">Training Survey</div>
   <div class="flex"></div>
+  @if (survey?.isInPerson) {
+    <button mat-button class="toolbar-button" (click)="navigateToInPersonAttendance()">
+      <mat-icon>draw</mat-icon>
+      Collect Signatures
+    </button>
+  }
   <button mat-button class="toolbar-button" (click)="export()">
     <mat-icon>download</mat-icon>
     Export PDF
@@ -25,7 +31,15 @@
             <mat-icon>poll</mat-icon>
             <span>{{ survey.category || 'Training Survey' }}</span>
           </div>
-          <h1 class="header-title">{{ survey.title }}</h1>
+          <h1 class="header-title">
+            {{ survey.title }}
+            @if (survey.isInPerson) {
+              <span class="in-person-header-badge">
+                <mat-icon>groups</mat-icon>
+                In-Person
+              </span>
+            }
+          </h1>
           <div class="header-meta">
             <div class="meta-item">
               <mat-icon>calendar_today</mat-icon>
@@ -190,6 +204,12 @@
               <div class="signature-container">
                 <img [src]="response.signatureUrl" alt="Signature" />
               </div>
+            </div>
+            
+            <div class="collected-by" *ngIf="response.collectedBy">
+              <mat-icon>person</mat-icon>
+              <span>Collected by: {{ getCollectorName(response.collectedBy) }}</span>
+              <span class="in-person-tag">In-Person</span>
             </div>
           </div>
         }

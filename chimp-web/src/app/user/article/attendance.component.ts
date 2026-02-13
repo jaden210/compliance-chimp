@@ -7,6 +7,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { UserService } from "../user.service";
 import { getTagColor } from "src/app/shared/tag-colors";
+import { ALL_TEAM_TAG } from "../../account/training/training.service";
 
 interface TeamMemberWithSelection {
   id: string;
@@ -579,9 +580,12 @@ export class AttendanceComponent implements OnInit {
   getTagColor = getTagColor;
 
   ngOnInit() {
-    // Pre-select tags from article if available
-    if (this.data?.assignedTags?.length > 0) {
-      this.selectedTags = [...this.data.assignedTags];
+    // Pre-select tags from article (empty = All for team-wide)
+    const tags = this.data?.assignedTags?.filter(Boolean) || [];
+    if (tags.length > 0) {
+      this.selectedTags = [...tags];
+    } else {
+      this.selectedTags = [ALL_TEAM_TAG];
     }
 
     this.userService.teamMembersObservable
@@ -607,18 +611,22 @@ export class AttendanceComponent implements OnInit {
 
   private applyPreselectedTags(): void {
     this.selectedTags.forEach(tag => {
-      this.users.forEach(user => {
-        if (user.tags?.includes(tag)) {
-          user.isSelected = true;
-        }
-      });
+      if (tag === ALL_TEAM_TAG) {
+        this.users.forEach(user => { user.isSelected = true; });
+      } else {
+        this.users.forEach(user => {
+          if (user.tags?.includes(tag)) {
+            user.isSelected = true;
+          }
+        });
+      }
     });
     // Update filtered users to reflect selection
     this.filteredUsers = [...this.users];
   }
 
   get allTags(): string[] {
-    const tagsSet = new Set<string>();
+    const tagsSet = new Set<string>([ALL_TEAM_TAG]);
     this.users.forEach(u => {
       (u.tags || []).forEach(tag => tagsSet.add(tag));
     });
@@ -635,6 +643,7 @@ export class AttendanceComponent implements OnInit {
   }
 
   getMemberCountForTag(tag: string): number {
+    if (tag === ALL_TEAM_TAG) return this.users.length;
     return this.users.filter(u => u.tags?.includes(tag)).length;
   }
 
@@ -643,12 +652,21 @@ export class AttendanceComponent implements OnInit {
   }
 
   toggleTag(tag: string): void {
+    if (tag === ALL_TEAM_TAG) {
+      if (this.isTagSelected(tag)) {
+        this.selectedTags = this.selectedTags.filter(t => t !== tag);
+        this.users.forEach(u => { u.isSelected = false; });
+      } else {
+        this.selectedTags.push(tag);
+        this.users.forEach(u => { u.isSelected = true; });
+      }
+      return;
+    }
     if (this.isTagSelected(tag)) {
       this.selectedTags = this.selectedTags.filter(t => t !== tag);
-      // Deselect users with this tag (unless they have another selected tag)
       this.users.forEach(user => {
         if (user.tags?.includes(tag)) {
-          const hasOtherSelectedTag = this.selectedTags.some(t => user.tags?.includes(t));
+          const hasOtherSelectedTag = this.selectedTags.some(t => t === ALL_TEAM_TAG || user.tags?.includes(t));
           if (!hasOtherSelectedTag) {
             user.isSelected = false;
           }
@@ -656,7 +674,6 @@ export class AttendanceComponent implements OnInit {
       });
     } else {
       this.selectedTags.push(tag);
-      // Select all users with this tag
       this.users.forEach(user => {
         if (user.tags?.includes(tag)) {
           user.isSelected = true;

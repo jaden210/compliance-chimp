@@ -7,8 +7,13 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { UserService } from "../user.service";
 import { Survey, SurveyResponse, User } from "src/app/app.service";
 import { LibraryItem } from "src/app/account/training/training.service";
+import { TeamMember } from "src/app/account/account.service";
 import { Subject, switchMap, filter } from "rxjs";
 import { takeUntil } from "rxjs/operators";
+
+interface ResponseWithMember extends SurveyResponse {
+  memberName?: string;
+}
 
 @Component({
   standalone: true,
@@ -33,9 +38,22 @@ export class SurveyReviewComponent implements OnInit, OnDestroy {
 
   survey: Survey;
   response: SurveyResponse;
+  allResponses: ResponseWithMember[] = [];
   article: LibraryItem;
   sender: User;
   loading = true;
+
+  get isManager(): boolean {
+    return this.userService.isViewingAsManager;
+  }
+
+  get yesCount(): number {
+    return this.allResponses.filter(r => r.shortAnswer === 'Yes').length;
+  }
+
+  get noCount(): number {
+    return this.allResponses.filter(r => r.shortAnswer === 'No').length;
+  }
 
   ngOnInit(): void {
     this.route.paramMap
@@ -53,8 +71,11 @@ export class SurveyReviewComponent implements OnInit, OnDestroy {
           survey.createdAt = survey.createdAt?.toDate ? survey.createdAt.toDate() : survey.createdAt;
           this.survey = survey;
 
-          // Find this team member's response from the already-loaded surveys data
-          this.findMyResponse(survey.id);
+          if (this.isManager) {
+            this.loadAllResponses(survey.id);
+          } else {
+            this.findMyResponse(survey.id);
+          }
 
           // Load article content
           if (survey.libraryId) {
@@ -91,11 +112,68 @@ export class SurveyReviewComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         }
       });
+
+    // When team members load, enrich response names
+    if (this.isManager) {
+      this.userService.teamMembersObservable
+        .pipe(
+          takeUntil(this.destroy$),
+          filter(members => members != null && members.length > 0)
+        )
+        .subscribe(members => {
+          this.enrichResponseNames(members!);
+        });
+    }
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Manager view: load all responses for this survey and enrich with member names.
+   */
+  private loadAllResponses(surveyId: string): void {
+    // Try from already-loaded surveys data first
+    const surveys = this.userService.surveys || [];
+    const matchingSurvey = surveys.find(s => s.id === surveyId);
+    if (matchingSurvey) {
+      const responses: SurveyResponse[] = (matchingSurvey as any)['responses'] || [];
+      if (responses.length > 0) {
+        this.allResponses = responses.map(r => ({ ...r } as ResponseWithMember));
+        this.enrichResponseNames(this.userService.teamMembers || []);
+        this.cdr.detectChanges();
+        return;
+      }
+    }
+
+    // Fallback: fetch from database
+    this.userService.getSurveyResponses(surveyId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(responses => {
+        this.allResponses = responses.map(r => ({ ...r } as ResponseWithMember));
+        this.enrichResponseNames(this.userService.teamMembers || []);
+        this.cdr.detectChanges();
+      });
+  }
+
+  /**
+   * Enrich responses with team member names for display.
+   */
+  private enrichResponseNames(members: TeamMember[]): void {
+    if (!members.length || !this.allResponses.length) return;
+    let changed = false;
+    for (const r of this.allResponses) {
+      if (!r.memberName) {
+        const member = members.find(m => m.id === r.teamMemberId);
+        if (member) {
+          r.memberName = member.name;
+          changed = true;
+        }
+      }
+    }
+    if (changed) this.cdr.detectChanges();
   }
 
   private findMyResponse(surveyId: string): void {
@@ -131,6 +209,12 @@ export class SurveyReviewComponent implements OnInit, OnDestroy {
     if (!this.response?.createdAt) return null;
     if (this.response.createdAt instanceof Date) return this.response.createdAt;
     return (this.response.createdAt as any)?.toDate?.() || null;
+  }
+
+  getDate(createdAt: any): Date | null {
+    if (!createdAt) return null;
+    if (createdAt instanceof Date) return createdAt;
+    return createdAt?.toDate?.() || null;
   }
 
   goBack(): void {

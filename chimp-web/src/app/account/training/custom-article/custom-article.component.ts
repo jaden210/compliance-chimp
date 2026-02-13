@@ -141,6 +141,7 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     if (!art?.trainingCadence) return 'Annually';
     const labels: Record<string, string> = {
       [TrainingCadence.Once]: 'One-time',
+      [TrainingCadence.UponHire]: 'Upon Hire',
       [TrainingCadence.Monthly]: 'Monthly',
       [TrainingCadence.Quarterly]: 'Quarterly',
       [TrainingCadence.SemiAnnually]: 'Semi-Annually',
@@ -368,16 +369,22 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     const article = this.article();
     const date = this.formatDate(session.createdAt);
     const attendees = Object.keys(session.userSurvey || {});
+    const isInPerson = (session as any).isInPerson || false;
     
     let csv = 'Training Attendance Export\n';
     csv += `Article: ${article?.name || 'Unknown'}\n`;
     csv += `Date: ${date}\n`;
-    csv += `Total Attendees: ${attendees.length}\n\n`;
-    csv += 'Attendee ID,Status\n';
+    csv += `Total Attendees: ${attendees.length}\n`;
+    if (isInPerson) {
+      csv += `Training Type: In-Person\n`;
+    }
+    csv += '\n';
+    csv += 'Attendee ID,Status,In Person,Collected By\n';
     
     attendees.forEach(id => {
       const status = session.userSurvey[id] > 0 ? 'Completed' : 'Pending';
-      csv += `${id},${status}\n`;
+      const inPersonCol = isInPerson ? 'Yes' : 'No';
+      csv += `${id},${status},${inPersonCol},\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -441,7 +448,138 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     }
   }
 
+  openInPersonInfo(): void {
+    this.dialog.open(InPersonInfoDialog, { width: '480px' });
+  }
+
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
   }
 }
+
+@Component({
+  standalone: true,
+  selector: 'in-person-info-dialog',
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatIconModule
+  ],
+  template: `
+    <div class="in-person-dialog">
+      <div class="dialog-header">
+        <mat-icon class="header-icon">groups</mat-icon>
+        <h2>In-Person Training</h2>
+      </div>
+      
+      <div class="dialog-body">
+        <p>This training is marked as <strong>in-person required</strong>, meaning it must be conducted face-to-face to be OSHA-defensible.</p>
+        
+        <div class="info-section">
+          <h3>How it works</h3>
+          <div class="info-item">
+            <mat-icon>notifications</mat-icon>
+            <span>When this training is due, <strong>only managers</strong> are notified — team members are not sent individual links.</span>
+          </div>
+          <div class="info-item">
+            <mat-icon>phone_android</mat-icon>
+            <span>A manager conducts the training in person, then opens the signature collection page on their device.</span>
+          </div>
+          <div class="info-item">
+            <mat-icon>draw</mat-icon>
+            <span>Each attendee signs on the manager's device to confirm they attended in person.</span>
+          </div>
+          <div class="info-item">
+            <mat-icon>verified</mat-icon>
+            <span>Signatures are recorded with the manager's name attached, creating an OSHA-defensible proof of attendance.</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>Why in-person?</h3>
+          <p>OSHA requires certain trainings — like equipment operation, lockout/tagout, PPE fit testing, and hands-on skill demonstrations — to be conducted in person with documented proof of physical attendance.</p>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button mat-flat-button color="primary" mat-dialog-close>Got it</button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .in-person-dialog {
+      padding: 24px;
+    }
+    
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .header-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      color: var(--chimp-primary, #054d8a);
+    }
+    
+    .dialog-header h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--chimp-on-surface, #1a1a1a);
+    }
+    
+    .dialog-body p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--chimp-on-surface-variant, #555);
+      margin: 0 0 16px;
+    }
+    
+    .info-section {
+      margin-bottom: 20px;
+    }
+    
+    .info-section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--chimp-on-surface, #1a1a1a);
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    
+    .info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .info-item mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--chimp-primary, #054d8a);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    
+    .info-item span {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--chimp-on-surface-variant, #555);
+    }
+    
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+  `]
+})
+export class InPersonInfoDialog {}

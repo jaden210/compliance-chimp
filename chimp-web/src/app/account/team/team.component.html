@@ -405,11 +405,11 @@
                 <mat-menu #memberMenu="matMenu">
                   <button mat-menu-item (click)="routeToUserPage(member)">
                     <mat-icon>open_in_new</mat-icon>
-                    <span>View User Page</span>
+                    <span>View BananaHandbook</span>
                   </button>
                   <button mat-menu-item (click)="resendInvite(member)" [disabled]="$any(member).sending" *ngIf="!isLinkedManager(member)">
                     <mat-icon>send</mat-icon>
-                    <span>{{ $any(member).sending ? 'Sending...' : 'Send Access Link' }}</span>
+                    <span>{{ $any(member).sending ? 'Delivering...' : 'Deliver BananaHandbook' }}</span>
                   </button>
                   <mat-divider *ngIf="!isLinkedManager(member)"></mat-divider>
                   <button mat-menu-item class="delete-action" (click)="confirmDeleteMember(member)" *ngIf="!isLinkedManager(member)">

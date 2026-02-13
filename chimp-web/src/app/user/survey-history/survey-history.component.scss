@@ -112,6 +112,10 @@ $radius-lg: 16px;
     &.no {
       background: linear-gradient(135deg, $danger, color.adjust($danger, $lightness: 10%));
     }
+
+    &.responses-badge {
+      background: linear-gradient(135deg, $primary, $primary-light);
+    }
   }
 
   .card-info {

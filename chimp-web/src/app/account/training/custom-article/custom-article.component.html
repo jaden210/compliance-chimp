@@ -60,19 +60,28 @@
               </span>
             </div>
 
-            <!-- Assigned Tags -->
-            @if (article.assignedTags?.length) {
+            <!-- Tags & In-Person Indicator -->
+            @if (article.isInPerson || article.assignedTags?.length) {
               <div class="article-tags">
-                <span class="tags-label">Assigned to:</span>
-                @for (tag of article.assignedTags; track tag) {
-                  <span 
-                    class="tag-chip"
-                    [style.backgroundColor]="getTagColor(tag).bg"
-                    [style.color]="getTagColor(tag).text"
-                    [style.borderColor]="getTagColor(tag).border">
-                    <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
-                    <span class="tag-name">{{ tag }}</span>
+                @if (article.isInPerson) {
+                  <span class="in-person-indicator" (click)="openInPersonInfo()" matTooltip="Click to learn how in-person training works">
+                    <mat-icon>groups</mat-icon>
+                    <span>In-Person Required</span>
+                    <mat-icon class="info-icon">info_outline</mat-icon>
                   </span>
+                }
+                @if (article.assignedTags?.length) {
+                  <span class="tags-label">Assigned to:</span>
+                  @for (tag of article.assignedTags; track tag) {
+                    <span 
+                      class="tag-chip"
+                      [style.backgroundColor]="getTagColor(tag).bg"
+                      [style.color]="getTagColor(tag).text"
+                      [style.borderColor]="getTagColor(tag).border">
+                      <span class="tag-dot" [style.backgroundColor]="getTagColor(tag).text"></span>
+                      <span class="tag-name">{{ tag }}</span>
+                    </span>
+                  }
                 }
               </div>
             }

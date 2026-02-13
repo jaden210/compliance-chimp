@@ -1,10 +1,9 @@
-import { Component, HostListener } from "@angular/core";
+import { Component, HostListener, Inject } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule } from "@angular/router";
 import { SelfInspectionsService, Question, Categories, DeleteInspectionDialog, SelfInspection, Inspection } from "../self-inspections.service";
 import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from "@angular/material/dialog";
-import { Inject } from "@angular/core";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
@@ -16,7 +15,7 @@ import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { TextFieldModule } from "@angular/cdk/text-field";
 import { ActivatedRoute, Router, ParamMap } from "@angular/router";
 import { Location } from "@angular/common";
-import { Subscription } from "rxjs";
+import { Subscription, combineLatest } from "rxjs";
 import { AccountService } from "../../account.service";
 import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage";
 
@@ -45,6 +44,7 @@ import { Storage, ref, uploadBytes, getDownloadURL } from "@angular/fire/storage
 export class TakeSelfInspectionComponent {
 
   subscription: Subscription;
+  private innerSubscriptions: Subscription[] = [];
   selfInspection: SelfInspection = new SelfInspection();
   inspection: Inspection = new Inspection();
   aCategory: Categories;
@@ -118,12 +118,21 @@ export class TakeSelfInspectionComponent {
     public dialog: MatDialog,
     private storage: Storage
   ) {
-    this.subscription = this.accountService.aTeamObservable.subscribe(team => {
+    this.subscription = combineLatest([
+      this.accountService.aTeamObservable,
+      this.route.paramMap
+    ]).subscribe(([team, params]) => {
+      // Clean up previous inner subscriptions
+      this.innerSubscriptions.forEach(s => s.unsubscribe());
+      this.innerSubscriptions = [];
+
       if (team) {
-        this.route.paramMap.subscribe((params: ParamMap) => {
-          let selfInspectionId = params.get("selfInspectionId");
-          let inspectionId = params.get("inspectionId");
-          this.selfInspectionsService.getSelfInspection(selfInspectionId, team.id).subscribe(si => this.selfInspection = si);
+        const selfInspectionId = (params as ParamMap).get("selfInspectionId");
+        const inspectionId = (params as ParamMap).get("inspectionId");
+        this.innerSubscriptions.push(
+          this.selfInspectionsService.getSelfInspection(selfInspectionId, team.id).subscribe(si => this.selfInspection = si)
+        );
+        this.innerSubscriptions.push(
           this.selfInspectionsService.getSelfInspectionInspection(selfInspectionId, inspectionId, team.id).subscribe(inspection => {
             if (!this.inspection.id) {
               this.inspection = inspection;
@@ -132,8 +141,8 @@ export class TakeSelfInspectionComponent {
               this.aQuestion = this.aCategory.questions[0];
               this.getCount();
             }
-          });
-        });
+          })
+        );
       }
     });
   }
@@ -197,10 +206,12 @@ export class TakeSelfInspectionComponent {
 
   routeBack() {
     this.subscription.unsubscribe();
+    this.innerSubscriptions.forEach(s => s.unsubscribe());
     this.router.navigate([`/account/self-inspections/${this.selfInspection.id}`]);
   }
 
   answerQuestion(value) {
+    const wasComplete = this.inspection.completedPercent === 100;
     this.aCategory.questions.find(question => question == this.aQuestion).answer = value;
     let unanswered: boolean = false;
     this.aCategory.questions.forEach(aquestion => {
@@ -208,6 +219,22 @@ export class TakeSelfInspectionComponent {
     });
     if (!unanswered) this.aCategory.finished = true; 
     this.getCount();
+    if (!wasComplete && this.inspection.completedPercent === 100) {
+      this.showCompletionDialog();
+    }
+  }
+
+  showCompletionDialog() {
+    const dialogRef = this.dialog.open(CompletionDialog, {
+      width: '400px',
+      disableClose: false,
+      autoFocus: false
+    });
+    dialogRef.afterClosed().subscribe(submit => {
+      if (submit) {
+        this.finishAndLeave();
+      }
+    });
   }
 
   clearAnswer() {
@@ -351,4 +378,68 @@ export class ImageViewerDialog {
   close() {
     this.dialogRef.close();
   }
+}
+
+@Component({
+  standalone: true,
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div class="completion-dialog">
+      <img src="/assets/chimpNice.png" alt="Congratulations!" class="chimp-image">
+      <h2>All Done!</h2>
+      <p>You've answered every question. Ready to submit your self-inspection?</p>
+      <div class="dialog-actions">
+        <button mat-stroked-button (click)="dialogRef.close(false)">Close</button>
+        <button mat-flat-button color="accent" (click)="dialogRef.close(true)">
+          <mat-icon>check</mat-icon>
+          Submit Inspection
+        </button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .completion-dialog {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 24px 16px;
+    }
+    .chimp-image {
+      width: auto;
+      max-width: 180px;
+      max-height: 220px;
+      object-fit: contain;
+      margin-bottom: 20px;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #054d8a;
+    }
+    p {
+      margin: 0 0 24px;
+      font-size: 15px;
+      color: #5f6368;
+      line-height: 1.5;
+    }
+    .dialog-actions {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .dialog-actions button {
+      min-width: 140px;
+      height: 44px;
+      border-radius: 22px;
+      font-weight: 600;
+    }
+  `]
+})
+export class CompletionDialog {
+  constructor(
+    public dialogRef: MatDialogRef<CompletionDialog>
+  ) {}
 }

@@ -8,6 +8,9 @@
           <img class="team-logo" [src]="Team.logoUrl" [alt]="Team.name">
         </div>
       }
+      <div class="handbook-title">
+        <span class="handbook-banana">Banana</span><span class="handbook-word">Handbook</span>
+      </div>
       <h1 class="greeting">Hey, {{ TeamMember?.name?.split(' ')[0] || 'there' }}! 👋</h1>
       <p class="team-name">{{ Team?.name }}</p>
     </div>

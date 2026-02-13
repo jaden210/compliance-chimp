@@ -46,6 +46,7 @@ declare var gtag: Function;
 })
 export class HomeComponent implements OnDestroy {
   private subscription: Subscription;
+  private innerSubscriptions: Subscription[] = [];
   invitedUsers: InviteToTeam[];
   files: Observable<any>;
   users:TeamMember[] = [];
@@ -150,6 +151,9 @@ export class HomeComponent implements OnDestroy {
     this.subscription = this.accountService.teamMembersObservable.subscribe(
       TeamMember => {
         if (TeamMember) {
+          // Clean up previous inner subscriptions to prevent memory/connection leaks
+          this.cleanupInnerSubscriptions();
+          
           if (TeamMember.length == 0) this.accountService.showHelper = true;
           this.hasTeamMembers = TeamMember.length > 0;
           this.getSelfInspectionStats();
@@ -308,8 +312,17 @@ export class HomeComponent implements OnDestroy {
   }
 
 
+  private cleanupInnerSubscriptions(): void {
+    this.innerSubscriptions.forEach(sub => sub.unsubscribe());
+    this.innerSubscriptions = [];
+  }
+
+  private trackSubscription(sub: Subscription): void {
+    this.innerSubscriptions.push(sub);
+  }
+
   getSelfInspectionStats(): void {
-    this.homeService.getSelfInspections().subscribe(selfInspections => {
+    this.trackSubscription(this.homeService.getSelfInspections().subscribe(selfInspections => {
       // Reset all counts on each emission so they don't accumulate
       this.selfInspection = { overdue: 0, dueSoon: 0, onTrack: 0, neverRun: 0, total: 0 };
       this.hasSelfInspections = selfInspections && selfInspections.length > 0;
@@ -325,7 +338,7 @@ export class HomeComponent implements OnDestroy {
           default: this.selfInspection.onTrack++; break;
         }
       });
-    });
+    }));
   }
 
   private getInspectionStatus(inspection: SelfInspection): 'overdue' | 'dueSoon' | 'ok' | 'neverRun' {
@@ -369,28 +382,28 @@ export class HomeComponent implements OnDestroy {
   }
 
   getIncidentReportsCount(): void {
-    this.homeService.getIncidentReports().subscribe(reports => {
+    this.trackSubscription(this.homeService.getIncidentReports().subscribe(reports => {
       this.incidentReportsCount = reports?.length || 0;
-    });
+    }));
   }
 
   getSurveyStats(): void {
-    this.homeService.getSurveys().subscribe(surveys => {
+    this.trackSubscription(this.homeService.getSurveys().subscribe(surveys => {
       this.surveysGivenCount = surveys?.length || 0;
-    });
-    this.homeService.getSurveyResponses().subscribe(responses => {
+    }));
+    this.trackSubscription(this.homeService.getSurveyResponses().subscribe(responses => {
       this.surveyResponsesCount = responses?.length || 0;
-    });
+    }));
   }
 
   getTeamFilesCount(): void {
-    this.homeService.getFiles().subscribe((files: any[]) => {
+    this.trackSubscription(this.homeService.getFiles().subscribe((files: any[]) => {
       this.teamFilesCount = files?.length || 0;
-    });
+    }));
   }
 
   getActivityChart(): void {
-    this.homeService.getEvents(30).subscribe(events => {
+    this.trackSubscription(this.homeService.getEvents(30).subscribe(events => {
       this.hasEvents = events && events.length > 0;
       this.totalEventsCount = events?.length || 0;
 
@@ -429,14 +442,14 @@ export class HomeComponent implements OnDestroy {
         labels,
         datasets: [{
           data,
-          backgroundColor: 'rgba(5, 77, 138, 0.7)',
-          hoverBackgroundColor: 'rgba(255, 145, 0, 0.85)',
+          backgroundColor: '#054d8a',
+          hoverBackgroundColor: '#ff9100',
           borderRadius: 4,
           barPercentage: 0.7,
           categoryPercentage: 0.8
         }]
       };
-    });
+    }));
   }
 
   // Tour methods
@@ -454,5 +467,6 @@ export class HomeComponent implements OnDestroy {
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
+    this.cleanupInnerSubscriptions();
   }
 }

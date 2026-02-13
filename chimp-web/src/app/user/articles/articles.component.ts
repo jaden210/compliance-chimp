@@ -69,8 +69,8 @@ export class ArticlesComponent implements OnInit {
   private enrichWithStatus(item: LibraryItemWithStatus): void {
     const cadence = item.trainingCadence || TrainingCadence.Annually;
     
-    // For "Once" trainings that have been completed, no next due
-    if (cadence === TrainingCadence.Once && item.lastTrainedAt) {
+    // For "Once" and "Upon Hire" trainings that have been completed, no next due
+    if ((cadence === TrainingCadence.Once || cadence === TrainingCadence.UponHire) && item.lastTrainedAt) {
       item.status = 'current';
       item.nextDueDate = undefined;
       return;
@@ -102,7 +102,7 @@ export class ArticlesComponent implements OnInit {
   }
 
   private calculateNextDueDate(lastTrainedAt: any, cadence: TrainingCadence, scheduledDueDate?: any): Date | undefined {
-    if (cadence === TrainingCadence.Once) {
+    if (cadence === TrainingCadence.Once || cadence === TrainingCadence.UponHire) {
       if (lastTrainedAt) return undefined;
       if (scheduledDueDate) {
         return scheduledDueDate?.toDate ? scheduledDueDate.toDate() : new Date(scheduledDueDate);
@@ -125,6 +125,8 @@ export class ArticlesComponent implements OnInit {
   private addCadenceInterval(date: Date, cadence: TrainingCadence): Date {
     const result = new Date(date);
     switch (cadence) {
+      case TrainingCadence.UponHire:
+        break; // No interval - triggered by member addition, not schedule
       case TrainingCadence.Monthly:
         result.setMonth(result.getMonth() + 1);
         break;

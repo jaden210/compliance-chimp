@@ -11,11 +11,9 @@ import { AccountService, TeamMember } from "../account.service";
   template: `
     @if (missingCount > 0) {
       <div class="contact-info-banner">
-        <div class="banner-title-row">
-          <mat-icon class="banner-icon">contact_phone</mat-icon>
+        <mat-icon class="banner-icon">contact_phone</mat-icon>
+        <div class="banner-body">
           <strong>{{ missingCount }} team member{{ missingCount === 1 ? ' is' : 's are' }} missing contact info</strong>
-        </div>
-        <div class="banner-text">
           <p *ngIf="context === 'team'">
             Surveys and messages can't be sent until you add a phone number or email. Click on a member's row to edit.
           </p>
@@ -43,20 +41,13 @@ import { AccountService, TeamMember } from "../account.service";
 
     .contact-info-banner {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 14px;
       background: rgba(255, 145, 0, 0.1);
       border: 1px solid rgba(255, 145, 0, 0.35);
       border-radius: 12px;
       padding: 14px 18px;
       margin-bottom: 16px;
-    }
-
-    .banner-title-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
     }
 
     .banner-icon {
@@ -67,19 +58,20 @@ import { AccountService, TeamMember } from "../account.service";
       flex-shrink: 0;
     }
 
-    .banner-title-row strong {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--chimp-text-primary);
-    }
-
-    .banner-text {
+    .banner-body {
       flex: 1;
       min-width: 0;
 
+      strong {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--chimp-on-surface);
+        line-height: 1.4;
+      }
+
       p {
         font-size: 13px;
-        color: var(--chimp-text-secondary);
+        color: var(--chimp-on-surface-variant);
         margin: 4px 0 0 0;
         line-height: 1.4;
       }
@@ -109,10 +101,6 @@ import { AccountService, TeamMember } from "../account.service";
         align-items: stretch;
         gap: 10px;
         padding: 12px 14px;
-      }
-
-      .banner-title-row strong {
-        white-space: normal;
       }
 
       .banner-action {

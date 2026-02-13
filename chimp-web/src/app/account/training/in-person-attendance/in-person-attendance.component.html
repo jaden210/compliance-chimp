@@ -1,0 +1,178 @@
+@if (loading) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
+  </div>
+} @else if (!survey) {
+  <div class="error-container">
+    <mat-icon>error_outline</mat-icon>
+    <p>Survey not found</p>
+    <button mat-raised-button color="primary" (click)="goBack()">Go Back</button>
+  </div>
+} @else {
+  <div class="page-layout">
+  <mat-toolbar>
+    <button mat-icon-button (click)="goBack()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp">
+    <div class="toolbar-title">In-Person Attendance</div>
+    <div class="flex"></div>
+  </mat-toolbar>
+
+  <div class="page-content">
+  <div class="page-inner">
+    <!-- Header -->
+    <section class="attendance-header">
+      <div class="header-badge">
+        <mat-icon>groups</mat-icon>
+        <span>In-Person Training</span>
+      </div>
+      <h1 class="header-title">{{ survey.title?.replace('Training Attendance: ', '') }}</h1>
+      <div class="header-meta">
+        <span class="meta-item">
+          <mat-icon>calendar_today</mat-icon>
+          {{ formatDate(survey.createdAt) }}
+        </span>
+        <span class="meta-item">
+          <mat-icon>people</mat-icon>
+          {{ totalCount }} attendees
+        </span>
+      </div>
+    </section>
+
+    <!-- Progress -->
+    <section class="progress-section">
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" [style.width.%]="totalCount > 0 ? (signedCount / totalCount) * 100 : 0"></div>
+      </div>
+      <div class="progress-label">
+        <span class="progress-count">{{ signedCount }} of {{ totalCount }} signed</span>
+        @if (allSigned) {
+          <span class="progress-complete">
+            <mat-icon>check_circle</mat-icon>
+            All signatures collected
+          </span>
+        }
+      </div>
+    </section>
+
+    <!-- Instructions -->
+    <section class="instructions">
+      <mat-icon>info</mat-icon>
+      <p>Hand your device to each attendee to collect their signature. Each person should sign to confirm they attended this in-person training.</p>
+    </section>
+
+    <!-- Attendee List -->
+    <section class="attendee-list">
+      @for (attendee of attendees; track attendee.teamMember.id) {
+        <div class="attendee-card" [class.signed]="attendee.signed" [class.signing]="attendee.signing" [class.responding]="attendee.responding">
+          <div class="attendee-row">
+            <div class="attendee-avatar" [style.background]="attendee.color + '20'" [style.color]="attendee.color">
+              @if (attendee.teamMember.profileUrl) {
+                <img [src]="attendee.teamMember.profileUrl" [alt]="attendee.teamMember.name" />
+              } @else {
+                <span>{{ attendee.teamMember.name?.charAt(0) }}</span>
+              }
+            </div>
+
+            <div class="attendee-info">
+              <div class="attendee-name">{{ attendee.teamMember.name }}</div>
+              @if (attendee.teamMember.jobTitle) {
+                <div class="attendee-role">{{ attendee.teamMember.jobTitle }}</div>
+              }
+            </div>
+
+            <div class="attendee-status">
+              @if (attendee.signing) {
+                <mat-spinner diameter="24"></mat-spinner>
+              } @else if (attendee.signed) {
+                <div class="signed-badge">
+                  <mat-icon>check_circle</mat-icon>
+                  Signed
+                </div>
+              } @else if (!attendee.responding) {
+                <button mat-flat-button color="primary" class="collect-btn" (click)="collectSignature(attendee)">
+                  <mat-icon>draw</mat-icon>
+                  Collect
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Inline response form (shown when collecting) -->
+          @if (attendee.responding && !attendee.signed) {
+            <div class="response-form">
+              <div class="form-prompt">
+                Hand your device to <strong>{{ attendee.teamMember.name?.split(' ')[0] }}</strong> to complete:
+              </div>
+
+              <div class="attendance-question">
+                <span class="question-label">Did you attend this training in person?</span>
+                <div class="answer-buttons">
+                  <button
+                    mat-stroked-button
+                    class="answer-btn yes-btn"
+                    [class.selected]="attendee.shortAnswer === true"
+                    (click)="setAnswer(attendee, true)">
+                    <mat-icon>check_circle</mat-icon>
+                    Yes
+                  </button>
+                  <button
+                    mat-stroked-button
+                    class="answer-btn no-btn"
+                    [class.selected]="attendee.shortAnswer === false"
+                    (click)="setAnswer(attendee, false)">
+                    <mat-icon>cancel</mat-icon>
+                    No
+                  </button>
+                </div>
+              </div>
+
+              @if (attendee.shortAnswer === false) {
+                <div class="no-reason">
+                  <textarea
+                    [(ngModel)]="attendee.longAnswer"
+                    placeholder="Please explain why you did not attend..."
+                    rows="2"></textarea>
+                </div>
+              }
+
+              <div class="form-actions">
+                <button mat-button class="cancel-btn" (click)="cancelResponse(attendee)">Cancel</button>
+                <button
+                  mat-flat-button
+                  color="primary"
+                  class="sign-btn"
+                  [disabled]="attendee.shortAnswer === null"
+                  (click)="submitResponse(attendee)">
+                  <mat-icon>draw</mat-icon>
+                  Sign
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Show signature if collected -->
+        @if (attendee.signed && attendee.response?.signatureUrl) {
+          <div class="signature-preview">
+            <div class="signature-label">Signature</div>
+            <img [src]="attendee.response.signatureUrl" alt="Signature" class="signature-img" />
+          </div>
+        }
+      }
+    </section>
+
+    @if (allSigned) {
+      <section class="complete-section">
+        <h2>All Signatures Collected</h2>
+        <p>This in-person training session is complete. All attendees have signed to confirm their attendance.</p>
+        <button mat-flat-button color="primary" (click)="goBack()">
+          {{ backButtonLabel }}
+        </button>
+      </section>
+    }
+  </div>
+  </div>
+  </div>
+}

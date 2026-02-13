@@ -11,6 +11,12 @@
       </button>
       <div class="header-content">
         <h1 class="review-title">{{ survey.title }}</h1>
+        @if (survey.isInPerson) {
+          <div class="in-person-label">
+            <mat-icon>groups</mat-icon>
+            <span>In-Person Training</span>
+          </div>
+        }
         <p class="review-meta">
           @if (sender?.name) {
             From {{ sender.name }} · {{ survey?.createdAt | date: 'MMM d, y' }}
@@ -34,50 +40,99 @@
       }
 
       <!-- Response Summary -->
-      <div class="response-summary">
-        <div class="summary-header">
-          <mat-icon class="summary-icon">fact_check</mat-icon>
-          <span class="summary-label">Your Response</span>
-          @if (getResponseDate()) {
-            <span class="summary-date">{{ getResponseDate() | date: 'MMM d, y' }}</span>
-          }
-        </div>
+      @if (isManager) {
+        <!-- Manager view: show all responses -->
+        <div class="response-summary">
+          <div class="summary-header">
+            <mat-icon class="summary-icon">groups</mat-icon>
+            <span class="summary-label">All Responses</span>
+            <span class="summary-date">{{ allResponses.length }} total</span>
+          </div>
 
-        @if (response) {
-          <div class="response-details">
-            <!-- Attendance Answer -->
-            <div class="response-row">
-              <span class="response-question">Did you attend this training?</span>
-              <div class="answer-chip" [class.yes]="response.shortAnswer === 'Yes'" [class.no]="response.shortAnswer === 'No'">
-                <mat-icon>{{ response.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
-                <span>{{ response.shortAnswer }}</span>
+          @if (allResponses.length) {
+            <div class="response-stats">
+              <div class="stat yes">
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ yesCount }} Yes</span>
+              </div>
+              <div class="stat no">
+                <mat-icon>cancel</mat-icon>
+                <span>{{ noCount }} No</span>
               </div>
             </div>
 
-            <!-- Comment -->
-            @if (response.longAnswer) {
-              <div class="response-row comment-row">
-                <span class="response-question">Your comment</span>
-                <p class="response-comment">{{ response.longAnswer }}</p>
-              </div>
+            <div class="all-responses-list">
+              @for (r of allResponses; track r.id) {
+                <div class="response-item">
+                  <div class="response-item-header">
+                    <div class="answer-chip" [class.yes]="r.shortAnswer === 'Yes'" [class.no]="r.shortAnswer === 'No'">
+                      <mat-icon>{{ r.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
+                      <span>{{ r.shortAnswer }}</span>
+                    </div>
+                    <span class="response-member-name">{{ r.memberName || 'Team member' }}</span>
+                    @if (getDate(r.createdAt)) {
+                      <span class="response-item-date">{{ getDate(r.createdAt) | date: 'MMM d, y' }}</span>
+                    }
+                  </div>
+                  @if (r.longAnswer) {
+                    <p class="response-comment">"{{ r.longAnswer }}"</p>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="no-response">
+              <p>No responses yet.</p>
+            </div>
+          }
+        </div>
+      } @else {
+        <!-- Regular user view: show own response -->
+        <div class="response-summary">
+          <div class="summary-header">
+            <mat-icon class="summary-icon">fact_check</mat-icon>
+            <span class="summary-label">Your Response</span>
+            @if (getResponseDate()) {
+              <span class="summary-date">{{ getResponseDate() | date: 'MMM d, y' }}</span>
             }
+          </div>
 
-            <!-- Signature -->
-            @if (response.signatureUrl) {
-              <div class="response-row signature-row">
-                <span class="response-question">Your signature</span>
-                <div class="signature-display">
-                  <img [src]="response.signatureUrl" alt="Your signature">
+          @if (response) {
+            <div class="response-details">
+              <!-- Attendance Answer -->
+              <div class="response-row">
+                <span class="response-question">Did you attend this training?</span>
+                <div class="answer-chip" [class.yes]="response.shortAnswer === 'Yes'" [class.no]="response.shortAnswer === 'No'">
+                  <mat-icon>{{ response.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
+                  <span>{{ response.shortAnswer }}</span>
                 </div>
               </div>
-            }
-          </div>
-        } @else {
-          <div class="no-response">
-            <p>Response details not found.</p>
-          </div>
-        }
-      </div>
+
+              <!-- Comment -->
+              @if (response.longAnswer) {
+                <div class="response-row comment-row">
+                  <span class="response-question">Your comment</span>
+                  <p class="response-comment">{{ response.longAnswer }}</p>
+                </div>
+              }
+
+              <!-- Signature -->
+              @if (response.signatureUrl) {
+                <div class="response-row signature-row">
+                  <span class="response-question">Your signature</span>
+                  <div class="signature-display">
+                    <img [src]="response.signatureUrl" alt="Your signature">
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="no-response">
+              <p>Response details not found.</p>
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 } @else {

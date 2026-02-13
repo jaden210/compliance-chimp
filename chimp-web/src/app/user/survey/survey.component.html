@@ -33,63 +33,87 @@
       }
     </main>
 
-    <!-- Response Panel -->
-    <div class="response-panel">
-      <div class="attendance-question">
-        <span class="question-text">Did you attend this training?</span>
-        <div class="answer-buttons">
-          <button 
-            mat-stroked-button 
-            (click)="yes()" 
-            [class.selected]="shortAnswer === true"
-            class="answer-btn yes-btn"
+    <!-- In-Person Notice (shown instead of response form for in-person trainings) -->
+    @if (survey?.isInPerson && !isManager) {
+      <div class="in-person-notice">
+        <div class="notice-icon">
+          <mat-icon>groups</mat-icon>
+        </div>
+        <h3>In-Person Training</h3>
+        <p>This training is conducted in person. Your manager will collect your signature during the session using their device.</p>
+        <p class="notice-hint">If you believe this is an error, please contact your manager.</p>
+      </div>
+    } @else if (survey?.isInPerson && isManager) {
+      <div class="in-person-notice manager-notice">
+        <div class="notice-icon">
+          <mat-icon>groups</mat-icon>
+        </div>
+        <h3>In-Person Training</h3>
+        <p>This training requires in-person attendance. Conduct the training, then collect signatures from your team on your device.</p>
+        <a class="collect-btn" [routerLink]="['/user/collect-signatures', survey.id]">
+          <mat-icon>draw</mat-icon>
+          Collect Signatures
+        </a>
+      </div>
+    } @else {
+      <!-- Response Panel -->
+      <div class="response-panel">
+        <div class="attendance-question">
+          <span class="question-text">Did you attend this training?</span>
+          <div class="answer-buttons">
+            <button 
+              mat-stroked-button 
+              (click)="yes()" 
+              [class.selected]="shortAnswer === true"
+              class="answer-btn yes-btn"
+            >
+              <mat-icon>check_circle</mat-icon>
+              Yes
+            </button>
+            <button 
+              mat-stroked-button 
+              (click)="no()" 
+              [class.selected]="shortAnswer === false"
+              class="answer-btn no-btn"
+            >
+              <mat-icon>cancel</mat-icon>
+              No
+            </button>
+          </div>
+        </div>
+
+        @if (responseText) {
+          <div class="response-bubble">
+            <p>{{ responseText }}</p>
+            @if (errorIcon) {
+              <mat-icon class="error-icon" (click)="createResponse()">error</mat-icon>
+            }
+          </div>
+        }
+
+        @if (sending) {
+          <div class="sending-indicator">Sending...</div>
+        }
+
+        <div class="comment-box">
+          <textarea
+            #myInput
+            [(ngModel)]="longAnswer"
+            placeholder="Any comments about this training? (optional)"
+            rows="2"
+          ></textarea>
+          <button
+            mat-fab
+            color="primary"
+            class="send-btn"
+            (click)="createResponse()"
+            [disabled]="(survey?.articleId && shortAnswer === undefined) || (!longAnswer && shortAnswer === undefined)"
           >
-            <mat-icon>check_circle</mat-icon>
-            Yes
-          </button>
-          <button 
-            mat-stroked-button 
-            (click)="no()" 
-            [class.selected]="shortAnswer === false"
-            class="answer-btn no-btn"
-          >
-            <mat-icon>cancel</mat-icon>
-            No
+            <mat-icon>send</mat-icon>
           </button>
         </div>
       </div>
-
-      @if (responseText) {
-        <div class="response-bubble">
-          <p>{{ responseText }}</p>
-          @if (errorIcon) {
-            <mat-icon class="error-icon" (click)="createResponse()">error</mat-icon>
-          }
-        </div>
-      }
-
-      @if (sending) {
-        <div class="sending-indicator">Sending...</div>
-      }
-
-      <div class="comment-box">
-        <textarea
-          #myInput
-          [(ngModel)]="longAnswer"
-          placeholder="Any comments about this training? (optional)"
-          rows="2"
-        ></textarea>
-        <button
-          mat-fab
-          color="primary"
-          class="send-btn"
-          (click)="createResponse()"
-          [disabled]="(survey?.articleId && shortAnswer === undefined) || (!longAnswer && shortAnswer === undefined)"
-        >
-          <mat-icon>send</mat-icon>
-        </button>
-      </div>
-    </div>
+    }
   </div>
 } @else {
   <div class="error-container">

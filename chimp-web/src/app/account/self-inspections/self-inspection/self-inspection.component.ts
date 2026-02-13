@@ -11,7 +11,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { ActivatedRoute, Router, ParamMap } from "@angular/router";
 import { jsPDF } from "jspdf";
 import { Location } from "@angular/common";
-import { Subscription } from "rxjs";
+import { Subscription, combineLatest } from "rxjs";
 import { AccountService } from "../../account.service";
 
 @Component({
@@ -34,6 +34,7 @@ import { AccountService } from "../../account.service";
 export class SelfInspectionComponent {
 
   subscription: Subscription;
+  private innerSubscriptions: Subscription[] = [];
   inProgressInspections: Inspection[] = [];
   completedInspections: Inspection[] = [];
   selfInspection: SelfInspection;
@@ -55,29 +56,37 @@ export class SelfInspectionComponent {
     public dialog: MatDialog,
     private datePipe: DatePipe
   ) {
-    this.subscription = this.accountService.aTeamObservable.subscribe(team => {
+    this.subscription = combineLatest([
+      this.accountService.aTeamObservable,
+      this.route.paramMap
+    ]).subscribe(([team, params]) => {
+      // Clean up previous inner subscriptions
+      this.innerSubscriptions.forEach(s => s.unsubscribe());
+      this.innerSubscriptions = [];
+
       if (team) {
-        this.route.paramMap.subscribe((params: ParamMap) => {
-          let selfInspectionId = params.get("selfInspectionId");
+        const selfInspectionId = (params as ParamMap).get("selfInspectionId");
+        this.innerSubscriptions.push(
           this.selfInspectionsService.getSelfInspection(selfInspectionId, team.id).subscribe(selfInspection => {
             this.selfInspection = selfInspection;
             this.calculateDashboardMetrics();
-            
-            this.selfInspectionsService.getInspections(selfInspectionId).subscribe(inspections => {
-              this.selfInspectionInspections = inspections;
-              this.inProgressInspections = [];
-              this.completedInspections = [];
-              inspections.forEach(inspection => {
-                if (inspection.completedAt) {
-                  this.completedInspections.push(inspection);
-                } else {
-                  this.inProgressInspections.push(inspection);
-                }
-              });
-              this.calculateAverageCompliance();
+          })
+        );
+        this.innerSubscriptions.push(
+          this.selfInspectionsService.getInspections(selfInspectionId).subscribe(inspections => {
+            this.selfInspectionInspections = inspections;
+            this.inProgressInspections = [];
+            this.completedInspections = [];
+            inspections.forEach(inspection => {
+              if (inspection.completedAt) {
+                this.completedInspections.push(inspection);
+              } else {
+                this.inProgressInspections.push(inspection);
+              }
             });
-          });
-        });
+            this.calculateAverageCompliance();
+          })
+        );
       }
     });
   }
@@ -253,6 +262,7 @@ export class SelfInspectionComponent {
 
   leave() {
     this.subscription.unsubscribe();
+    this.innerSubscriptions.forEach(s => s.unsubscribe());
     this.router.navigate([`/account/self-inspections`]);
   }
 
@@ -340,8 +350,17 @@ export class SelfInspectionComponent {
     const complianceRate = answeredQuestions > 0 ? Math.round((compliantAnswers / answeredQuestions) * 100) : 0;
 
     // ===== HEADER SECTION =====
+    // Look up who completed this inspection
+    const completedByUser = si.completedBy
+      ? (this.accountService.teamMembers?.find(m => m.id === si.completedBy) 
+        || this.accountService.teamManagers?.find(u => u.id === si.completedBy))
+      : null;
+    const completedByName = completedByUser?.name;
+    const teamName = this.accountService.aTeam?.name;
+
     // Header background
-    drawRoundedRect(margin, y - 0.15, contentWidth, 0.9, 0.08, primaryColor);
+    const headerHeight = 0.9 + (teamName ? 0.2 : 0) + (completedByName ? 0.2 : 0);
+    drawRoundedRect(margin, y - 0.15, contentWidth, headerHeight, 0.08, primaryColor);
     
     // Title
     doc.setFontSize(20);
@@ -357,8 +376,22 @@ export class SelfInspectionComponent {
     // Date
     doc.setFontSize(10);
     doc.text(`Completed: ${formattedDate}`, margin + 0.2, y + 0.6);
+
+    let headerOffset = 0.6;
     
-    y += 1.0;
+    // Team name
+    if (teamName) {
+      headerOffset += 0.2;
+      doc.text(`Team: ${teamName}`, margin + 0.2, y + headerOffset);
+    }
+
+    // Completed by
+    if (completedByName) {
+      headerOffset += 0.2;
+      doc.text(`Completed By: ${completedByName}`, margin + 0.2, y + headerOffset);
+    }
+    
+    y += headerHeight + 0.25;
 
     // ===== SUMMARY CARDS =====
     const cardWidth = (contentWidth - 0.2) / 3;

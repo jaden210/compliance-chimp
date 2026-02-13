@@ -9,6 +9,7 @@ import { SurveyComponent } from "./survey/survey.component";
 import { FilesComponent } from "./files/files.component";
 import { SurveyHistoryComponent } from "./survey-history/survey-history.component";
 import { SurveyReviewComponent } from "./survey-history/survey-review.component";
+import { UserInPersonAttendanceComponent } from "./in-person-attendance/in-person-attendance.component";
 
 export const userRoutes: Routes = [
   {
@@ -17,6 +18,7 @@ export const userRoutes: Routes = [
     children: [
       { path: "", component: UserPageComponent },
       { path: "survey/:surveyId", component: SurveyComponent },
+      { path: "collect-signatures/:surveyId", component: UserInPersonAttendanceComponent },
       { path: "survey-history", component: SurveyHistoryComponent },
       { path: "survey-history/:surveyId", component: SurveyReviewComponent },
       { path: "no-user", component: NoUserComponent },

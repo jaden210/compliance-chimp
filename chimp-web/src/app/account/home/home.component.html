@@ -175,6 +175,16 @@
 
     <!-- Mobile Quick Links Section -->
     <section class="mobile-quick-links mobile-only">
+      <div class="mobile-link-card mobile-user-page-card" (click)="routeToUserPage(accountService.user?.id)">
+        <div class="mobile-link-icon mobile-user-page-icon">
+          <mat-icon>smartphone</mat-icon>
+        </div>
+        <div class="mobile-link-content">
+          <div class="mobile-link-title">My BananaHandbook</div>
+          <div class="mobile-link-desc">Open your BananaHandbook to start trainings, run self-inspections, and sign documents</div>
+        </div>
+        <mat-icon class="mobile-link-arrow">arrow_forward</mat-icon>
+      </div>
       <div class="mobile-link-card" routerLink="/account/team">
         <div class="mobile-link-icon">
           <mat-icon>groups</mat-icon>

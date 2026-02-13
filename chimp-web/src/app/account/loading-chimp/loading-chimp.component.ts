@@ -27,7 +27,7 @@ import { AccountService } from '../account.service';
 })
 export class LoadingChimpComponent implements OnInit {
   hints = [
-    "Team members access their trainings through the SMS/email that was sent to them. If they lost their message, resend it from the Team page."
+    "Team members access their trainings through their BananaHandbook. If they lost their link, deliver it again from the Team page."
   ];
   hint;
 

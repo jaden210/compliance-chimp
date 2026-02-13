@@ -4,7 +4,7 @@ import { FormsModule } from "@angular/forms";
 import { RouterModule, Router, ActivatedRoute, ParamMap } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { SelfInspectionsService, Question, Categories, SelfInspection, Inspection } from "../self-inspections.service";
-import { MatDialog, MatDialogModule } from "@angular/material/dialog";
+import { MatDialog, MatDialogModule, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
@@ -126,6 +126,7 @@ export class TakeSelfInspectionComponent {
   }
 
   answerQuestion(value: boolean) {
+    const wasComplete = this.inspection.completedPercent === 100;
     const question = this.aCategory.questions.find(q => q === this.aQuestion);
     if (question) question.answer = value;
     let unanswered = false;
@@ -134,6 +135,22 @@ export class TakeSelfInspectionComponent {
     });
     if (!unanswered) this.aCategory.finished = true;
     this.getCount();
+    if (!wasComplete && this.inspection.completedPercent === 100) {
+      this.showCompletionDialog();
+    }
+  }
+
+  showCompletionDialog() {
+    const dialogRef = this.dialog.open(CompletionDialog, {
+      width: '400px',
+      disableClose: false,
+      autoFocus: false
+    });
+    dialogRef.afterClosed().subscribe(submit => {
+      if (submit) {
+        this.finishAndLeave();
+      }
+    });
   }
 
   selectQuestion(question: Question) {
@@ -213,4 +230,68 @@ export class TakeSelfInspectionComponent {
     this.aQuestion.images.splice(this.aQuestion.images.indexOf(image), 1);
     this.selfInspectionsService.saveSelfInspection(this.inspection, this.selfInspection);
   }
+}
+
+@Component({
+  standalone: true,
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div class="completion-dialog">
+      <img src="/assets/chimpNice.png" alt="Congratulations!" class="chimp-image">
+      <h2>All Done!</h2>
+      <p>You've answered every question. Ready to submit your self-inspection?</p>
+      <div class="dialog-actions">
+        <button mat-stroked-button (click)="dialogRef.close(false)">Close</button>
+        <button mat-flat-button color="accent" (click)="dialogRef.close(true)">
+          <mat-icon>check</mat-icon>
+          Submit Inspection
+        </button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .completion-dialog {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 24px 16px;
+    }
+    .chimp-image {
+      width: auto;
+      max-width: 180px;
+      max-height: 220px;
+      object-fit: contain;
+      margin-bottom: 20px;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #054d8a;
+    }
+    p {
+      margin: 0 0 24px;
+      font-size: 15px;
+      color: #5f6368;
+      line-height: 1.5;
+    }
+    .dialog-actions {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .dialog-actions button {
+      min-width: 140px;
+      height: 44px;
+      border-radius: 22px;
+      font-weight: 600;
+    }
+  `]
+})
+export class CompletionDialog {
+  constructor(
+    public dialogRef: MatDialogRef<CompletionDialog>
+  ) {}
 }

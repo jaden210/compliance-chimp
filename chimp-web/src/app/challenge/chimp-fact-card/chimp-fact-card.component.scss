@@ -34,7 +34,13 @@
   flex: 1;
   min-width: 0;
   min-height: 60px;
-  position: relative;
+  display: grid;
+  align-items: center;
+
+  // All direct children stack in the same grid cell for crossfade overlap
+  > * {
+    grid-area: 1 / 1;
+  }
 }
 
 .fact-text {
@@ -44,11 +50,6 @@
   color: var(--chimp-text-secondary, #546e7a);
   font-style: italic;
   font-weight: 400;
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
 
   .cursor {
     font-style: normal;

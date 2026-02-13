@@ -48,6 +48,9 @@ export interface TrainingRecommendation {
 // Re-export Industry for backwards compatibility
 export type { Industry } from "../../shared/industries";
 
+/** Reserved tag meaning "everyone on the team". Trainings must never be untagged - use this for team-wide trainings. */
+export const ALL_TEAM_TAG = 'All';
+
 @Injectable({
   providedIn: "root"
 })
@@ -324,7 +327,11 @@ export class TrainingService {
     const { id, ...itemWithoutId } = item;
     const cleanedItem = Object.fromEntries(
       Object.entries(itemWithoutId).filter(([_, value]) => value !== undefined)
-    );
+    ) as any;
+    // Trainings must never be untagged - normalize to ["All"] if empty
+    if ('assignedTags' in cleanedItem) {
+      cleanedItem.assignedTags = this.normalizeAssignedTags(cleanedItem.assignedTags);
+    }
     return addDoc(collection(this.db, "library"), cleanedItem);
   }
 
@@ -333,15 +340,19 @@ export class TrainingService {
   }
 
   public updateLibraryItem(itemId: string, updates: Partial<LibraryItem>): Promise<void> {
-    return updateDoc(doc(this.db, `library/${itemId}`), updates);
+    const normalizedUpdates = { ...updates };
+    if ('assignedTags' in normalizedUpdates && normalizedUpdates.assignedTags !== undefined) {
+      (normalizedUpdates as any).assignedTags = this.normalizeAssignedTags(normalizedUpdates.assignedTags);
+    }
+    return updateDoc(doc(this.db, `library/${itemId}`), normalizedUpdates);
   }
 
   /**
    * Calculate the next due date based on last trained date, scheduled date, and cadence
    */
   public calculateNextDueDate(lastTrainedAt: Date | any, cadence: TrainingCadence, scheduledDueDate?: Date | any): Date | null {
-    if (cadence === TrainingCadence.Once) {
-      // For "Once" trainings, if never trained use scheduled date, otherwise no next due
+    if (cadence === TrainingCadence.Once || cadence === TrainingCadence.UponHire) {
+      // For "Once" and "Upon Hire" trainings, if never trained use scheduled date, otherwise no next due
       if (lastTrainedAt) return null;
       if (scheduledDueDate) {
         return scheduledDueDate?.toDate ? scheduledDueDate.toDate() : new Date(scheduledDueDate);
@@ -393,6 +404,7 @@ export class TrainingService {
   public getCadenceIntervalDays(cadence: TrainingCadence): number {
     switch (cadence) {
       case TrainingCadence.Once: return 0;
+      case TrainingCadence.UponHire: return 0;
       case TrainingCadence.Monthly: return 30;
       case TrainingCadence.Quarterly: return 90;
       case TrainingCadence.SemiAnnually: return 180;
@@ -429,6 +441,11 @@ export class TrainingService {
       const date = new Date();
       date.setDate(date.getDate() + 7);
       return date;
+    }
+
+    // Upon Hire trainings don't need scheduling - due immediately when member is added
+    if (cadence === TrainingCadence.UponHire) {
+      return new Date();
     }
 
     // For one-time trainings, use a shorter window (4 weeks) to find a good slot
@@ -495,7 +512,10 @@ export class TrainingService {
       const cadence = item.cadence;
       const intervalDays = this.getCadenceIntervalDays(cadence);
       
-      if (cadence === TrainingCadence.Once) {
+      if (cadence === TrainingCadence.UponHire) {
+        // Upon Hire trainings are due immediately when member is added
+        scheduledDates.push(new Date());
+      } else if (cadence === TrainingCadence.Once) {
         // Spread one-time trainings over the next 30 days
         const offset = 7 + (index * 3); // Start 7 days out, space 3 days apart
         const date = new Date();
@@ -524,8 +544,8 @@ export class TrainingService {
    * Calculate training status for a library item
    */
   public getTrainingStatus(item: LibraryItem): TrainingStatus {
-    if (item.trainingCadence === TrainingCadence.Once) {
-      // For "Once" trainings, check if any training has been completed
+    if (item.trainingCadence === TrainingCadence.Once || item.trainingCadence === TrainingCadence.UponHire) {
+      // For "Once" and "Upon Hire" trainings, check if any training has been completed
       if (item.lastTrainedAt) {
         return 'completed';
       }
@@ -570,7 +590,7 @@ export class TrainingService {
    */
   public getComplianceStats(item: LibraryItem, teamMemberIds: string[], teamMembers?: { id?: string; tags?: string[] }[]): ComplianceStats {
     const shouldReceive = item.shouldReceiveTraining || {};
-    const assignedTags = item.assignedTags || [];
+    const assignedTags = this.normalizeAssignedTags(item.assignedTags);
     
     // Determine the effective set of members who should receive this training:
     // 1. If assignedTags exist, expand them to matching team member IDs
@@ -584,11 +604,13 @@ export class TrainingService {
       const directMembers = Object.keys(shouldReceive);
       // Union of tag-based and direct assignments
       effectiveMemberIds = Array.from(new Set([...tagMembers, ...directMembers]));
+    } else if (assignedTags.includes(ALL_TEAM_TAG)) {
+      // "All" tag but no team member details - applies to everyone
+      effectiveMemberIds = teamMemberIds;
     } else if (Object.keys(shouldReceive).length > 0) {
-      // No tags but has direct assignments - use those
+      // Legacy: direct assignments only (should not occur with normalized tags)
       effectiveMemberIds = Object.keys(shouldReceive);
     } else {
-      // No tags and no direct assignments - applies to everyone
       effectiveMemberIds = teamMemberIds;
     }
 
@@ -630,10 +652,19 @@ export class TrainingService {
   }
 
   /**
-   * Get all unique tags from team members
+   * Normalize assigned tags - empty or undefined becomes [ALL_TEAM_TAG] so trainings are never untagged.
+   */
+  public normalizeAssignedTags(assignedTags?: string[]): string[] {
+    const tags = assignedTags?.filter(Boolean) || [];
+    return tags.length > 0 ? tags : [ALL_TEAM_TAG];
+  }
+
+  /**
+   * Get all unique tags from team members, plus the reserved "All" tag for team-wide assignments
    */
   public getAllTags(teamMembers: { tags?: string[] }[]): string[] {
     const tagsSet = new Set<string>();
+    tagsSet.add(ALL_TEAM_TAG); // Always include reserved "All" option
     teamMembers.forEach(tm => {
       (tm.tags || []).forEach(tag => tagsSet.add(tag));
     });
@@ -642,16 +673,17 @@ export class TrainingService {
 
   /**
    * Expand assigned tags to member IDs
-   * Used for dynamic tag-based training assignment
+   * Used for dynamic tag-based training assignment.
+   * The reserved "All" tag means everyone on the team.
    */
   public expandTagsToMembers(assignedTags: string[], teamMembers: { id?: string; tags?: string[] }[]): string[] {
-    if (!assignedTags || assignedTags.length === 0) {
-      // If no tags assigned, return all team members (matches cloud function behavior)
+    const tags = this.normalizeAssignedTags(assignedTags);
+    if (tags.includes(ALL_TEAM_TAG)) {
       return teamMembers.map(tm => tm.id).filter((id): id is string => !!id);
     }
     
     const memberIds = new Set<string>();
-    for (const tag of assignedTags) {
+    for (const tag of tags) {
       teamMembers
         .filter(tm => tm.tags?.includes(tag))
         .forEach(tm => {
@@ -669,7 +701,7 @@ export class TrainingService {
    */
   public getEffectiveTrainees(item: LibraryItem, teamMembers: { id?: string; tags?: string[] }[]): string[] {
     const directAssignees = Object.keys(item.shouldReceiveTraining || {});
-    const tagAssignees = this.expandTagsToMembers(item.assignedTags || [], teamMembers);
+    const tagAssignees = this.expandTagsToMembers(this.normalizeAssignedTags(item.assignedTags), teamMembers);
     
     // Combine and dedupe
     const allAssignees = new Set([...directAssignees, ...tagAssignees]);
@@ -704,7 +736,8 @@ export class TrainingService {
       existingTrainings: existingTrainings.map(t => ({
         name: t.name,
         trainingCadence: t.trainingCadence,
-        assignedTags: t.assignedTags || []
+        assignedTags: t.assignedTags || [],
+        isInPerson: t.isInPerson || false
       })),
       allTags: allTags
     })).pipe(
@@ -985,7 +1018,7 @@ export class TrainingService {
             libraryItem.teamId = team.id;
             libraryItem.addedBy = this.accountService.user?.id || '';
             libraryItem.trainingCadence = rec.cadence as TrainingCadence || TrainingCadence.Annually;
-            libraryItem.assignedTags = rec.assignedTags || [];
+            libraryItem.assignedTags = this.normalizeAssignedTags(rec.assignedTags);
             libraryItem.scheduledDueDate = this.calculateOptimalScheduledDate(
               libraryItem.trainingCadence,
               currentTrainings
@@ -1004,7 +1037,7 @@ export class TrainingService {
               currentAction: `Created: ${libraryItem.name}`,
               log: [...afterCreate.log, {
                 type: 'created',
-                message: `Created training: ${libraryItem.name} (${rec.cadence}, ${rec.assignedTags?.length ? rec.assignedTags.join(', ') : 'all team'})`,
+                message: `Created training: ${libraryItem.name} (${rec.cadence}, ${libraryItem.assignedTags.join(', ')})`,
                 timestamp: new Date()
               }]
             });
@@ -1151,10 +1184,15 @@ export class LibraryItem {
   
   // Auto-start override - undefined inherits from team, true/false overrides
   autoStart?: boolean;
+  
+  // In-person training flag - true means training must be conducted in person
+  // When true, notifications go to managers only and signatures are collected on manager's device
+  isInPerson?: boolean;
 }
 
 export enum TrainingCadence {
   Once = "Once",
+  UponHire = "Upon Hire",
   Monthly = "Monthly",
   Quarterly = "Quarterly",
   SemiAnnually = "Semi-Annually",

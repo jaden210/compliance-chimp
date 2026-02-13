@@ -98,7 +98,7 @@ export class Survey {
   createdAt: any = new Date();
   trainees: any[] = [];
   teamId: string;
-
+  isInPerson?: boolean;
 
   user?;
   author?;
@@ -117,6 +117,8 @@ export class SurveyResponse {
   signatureUrl: any;
   color?: string;
   user?: any;
+  isInPerson?: boolean;
+  collectedBy?: string; // manager userId who collected the signature on their device
 }
 
 export enum ShortAnswer {

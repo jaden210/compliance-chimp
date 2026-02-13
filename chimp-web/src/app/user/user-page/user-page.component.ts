@@ -96,14 +96,37 @@ export class UserPageComponent implements OnInit {
 
     const allSurveys = surveys || [];
 
-    let completedCount = 0;
-    this.filteredSurveys = allSurveys.filter(s => {
-      const responses = (s as any)['responses'] || [];
-      const hasResponded = responses.some((sr: any) => sr.teamMemberId == teamMemberId);
-      if (hasResponded) completedCount++;
-      return !hasResponded;
-    });
-    this.completedSurveyCount = completedCount;
+    if (this.userService.isViewingAsManager) {
+      // Managers see all team surveys. "Completed" means has at least one response.
+      let completedCount = 0;
+      this.filteredSurveys = allSurveys.filter(s => {
+        if (s.active === false) {
+          completedCount++;
+          return false;
+        }
+        const responses = (s as any)['responses'] || [];
+        if (responses.length > 0) {
+          completedCount++;
+          return false; // Already has responses, show in history
+        }
+        return true; // No responses yet, show as pending
+      });
+      this.completedSurveyCount = completedCount;
+    } else {
+      // Regular team members: filter by their own responses
+      let completedCount = 0;
+      this.filteredSurveys = allSurveys.filter(s => {
+        if (s.active === false) {
+          completedCount++;
+          return false;
+        }
+        const responses = (s as any)['responses'] || [];
+        const hasResponded = responses.some((sr: any) => sr.teamMemberId == teamMemberId);
+        if (hasResponded) completedCount++;
+        return !hasResponded;
+      });
+      this.completedSurveyCount = completedCount;
+    }
     
     // Force change detection since Firebase callbacks happen outside Angular's zone
     this.cdr.detectChanges();

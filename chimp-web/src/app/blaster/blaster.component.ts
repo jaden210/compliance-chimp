@@ -6,7 +6,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { User } from "src/app/app.service";
 import { AccountService, TeamMember } from "../account/account.service";
-import { LibraryItem } from "../account/training/training.service";
+import { LibraryItem, ALL_TEAM_TAG } from "../account/training/training.service";
 import { BlasterService } from "./blaster.service";
 import { getTagColor } from "../shared/tag-colors";
 import { Subscription } from "rxjs";
@@ -44,10 +44,9 @@ export class BlasterDialog implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Pre-select tags from the library item
-    if (this.data?.libraryItem?.assignedTags?.length > 0) {
-      this.selectedTags = [...this.data.libraryItem.assignedTags];
-    }
+    // Pre-select tags from the library item (empty = All for team-wide)
+    const tags = this.data?.libraryItem?.assignedTags?.filter(Boolean) || [];
+    this.selectedTags = tags.length > 0 ? [...tags] : [ALL_TEAM_TAG];
     
     this.teamMembersSub = this.accountService.teamMembersObservable.subscribe(users => {
       this.users = users || [];
@@ -77,9 +76,9 @@ export class BlasterDialog implements OnInit, OnDestroy {
     });
   }
   
-  // Get all unique tags from team members
+  // Get all unique tags from team members (includes reserved "All" for team-wide)
   get allTags(): string[] {
-    const tagsSet = new Set<string>();
+    const tagsSet = new Set<string>([ALL_TEAM_TAG]);
     this.teamMembers.forEach(tm => {
       (tm.tags || []).forEach(tag => tagsSet.add(tag));
     });
@@ -90,13 +89,17 @@ export class BlasterDialog implements OnInit, OnDestroy {
   getTagColor = getTagColor;
   
   getMemberCountForTag(tag: string): number {
+    if (tag === ALL_TEAM_TAG) return this.teamMembers.length;
     return this.teamMembers.filter(tm => tm.tags?.includes(tag)).length;
   }
   
   getMemberIdsForTag(tag: string): string[] {
+    if (tag === ALL_TEAM_TAG) {
+      return this.teamMembers.filter(tm => tm.id).map(tm => tm.id!);
+    }
     return this.teamMembers
       .filter(tm => tm.tags?.includes(tag) && tm.id)
-      .map(tm => tm.id);
+      .map(tm => tm.id!);
   }
   
   isTagSelected(tag: string): boolean {

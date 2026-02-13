@@ -63,7 +63,7 @@ export class HelperService {
     files: {
       name: "Team Files",
       description:
-        "Upload and manage important documents for your team. Store safety manuals, certificates, training materials, and any other files your team needs access to. Files can be made public to allow team members to view them from their user page, or kept private for managers only."
+        "Upload and manage important documents for your team. Store safety manuals, certificates, training materials, and any other files your team needs access to. Files can be made public to allow team members to view them from their BananaHandbook, or kept private for managers only."
     }
   };
 

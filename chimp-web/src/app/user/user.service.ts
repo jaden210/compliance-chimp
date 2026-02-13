@@ -360,6 +360,18 @@ export class UserService implements OnDestroy {
     return collectionData(surveysQuery, { idField: "id" }) as Observable<Survey[]>;
   }
 
+  /**
+   * Get ALL surveys for a team, regardless of who is in the trainees list.
+   * Used by managers to see the full survey history.
+   */
+  public getAllTeamSurveys(teamId: string): Observable<Survey[]> {
+    const surveysQuery = query(
+      collection(this.db, "survey"),
+      where("teamId", "==", teamId)
+    );
+    return collectionData(surveysQuery, { idField: "id" }) as Observable<Survey[]>;
+  }
+
   public cache(): void {
     sessionStorage.setItem("complianceAuth", 'true');
   }

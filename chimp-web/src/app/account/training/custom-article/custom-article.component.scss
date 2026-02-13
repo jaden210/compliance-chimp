@@ -125,6 +125,42 @@
   }
 }
 
+// In-Person Indicator (inline with tags row, clickable)
+.in-person-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chimp-primary, #054d8a);
+  background: rgba(5, 77, 138, 0.06);
+  border: 1px solid rgba(5, 77, 138, 0.18);
+  border-radius: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: rgba(5, 77, 138, 0.12);
+    box-shadow: 0 2px 8px -2px rgba(5, 77, 138, 0.2);
+  }
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .info-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    opacity: 0.6;
+    margin-left: 2px;
+  }
+}
+
 // Action Bar
 .action-bar {
   display: flex;

@@ -120,6 +120,9 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
   
   // Auto-tagging
   isTagging = false;
+  /** Generation counter — incremented each time a new suggestion request starts or the form resets.
+   *  Stale responses whose generation doesn't match are silently discarded. */
+  private suggestionGeneration = 0;
   
   // Track pending changes for each member (to save on blur)
   private pendingChanges: Map<string, Partial<TeamMember>> = new Map();
@@ -281,6 +284,11 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
         this.refreshOwnerTags();
       }
       
+      // Invalidate any in-flight suggestTagsForNewMember call so its stale
+      // response is discarded and isTagging is freed for the next member.
+      this.suggestionGeneration++;
+      this.isTagging = false;
+
       // Reset form
       this.newMember = {
         name: '',
@@ -744,7 +752,7 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
   // Auto-suggest tags based on job title using AI
   async suggestTagsForNewMember(): Promise<void> {
     const jobTitle = this.newMember.jobTitle?.trim();
-    if (!jobTitle || this.isTagging) return;
+    if (!jobTitle) return;
     
     // Skip if the job title hasn't changed since we last generated tags
     if (jobTitle === this.newMemberLastTaggedJobTitle) return;
@@ -752,6 +760,9 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
     // Skip if user is not authenticated - suggestTagsForJobTitle requires auth
     if (!this.auth.currentUser) return;
     
+    // Capture generation so we can detect if a newer request (or form reset)
+    // has superseded this one while the network call was in-flight.
+    const myGeneration = ++this.suggestionGeneration;
     this.isTagging = true;
     try {
       // Build team context - other members' job titles and their tags
@@ -770,8 +781,10 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
         teamMembers
       });
       
-      // Guard: if the form was reset or the job title changed while the network
-      // call was in flight, discard the stale response.
+      // Guard: discard stale response if a newer request started or the form was reset.
+      if (myGeneration !== this.suggestionGeneration) return;
+      
+      // Double-check the form still matches (e.g. user kept typing)
       const currentJobTitle = this.newMember.jobTitle?.trim();
       if (currentJobTitle !== jobTitle) return;
 
@@ -782,7 +795,10 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
     } catch (err) {
       console.error('Error suggesting tags:', err);
     } finally {
-      this.isTagging = false;
+      // Only clear the spinner if this is still the latest request
+      if (myGeneration === this.suggestionGeneration) {
+        this.isTagging = false;
+      }
     }
   }
 

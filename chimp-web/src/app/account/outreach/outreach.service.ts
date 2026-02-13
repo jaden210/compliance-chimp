@@ -198,6 +198,67 @@ export class OutreachService {
     }
   }
 
+  /** Sanitize all email fields in a job's results and save back to Firestore. */
+  async sanitizeEmails(job: ScrapeJob): Promise<number> {
+    if (!job?.results?.length) return 0;
+    let changed = 0;
+    const cleaned = job.results.map((r) => {
+      const sanitized = this.cleanEmailField(r.email || "");
+      if (sanitized !== (r.email || "")) {
+        changed++;
+        return { ...r, email: sanitized };
+      }
+      return r;
+    });
+    if (changed > 0) {
+      await this.updateResult(job.id, cleaned);
+    }
+    return changed;
+  }
+
+  private cleanEmailField(raw: string): string {
+    const candidates = this.extractEmails(raw);
+    for (const candidate of candidates) {
+      if (this.isValidEmail(candidate)) {
+        return candidate;
+      }
+    }
+    return "";
+  }
+
+  private extractEmails(raw: string): string[] {
+    if (!raw || typeof raw !== "string") return [];
+    const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    const matches = raw.match(emailRegex) || [];
+    const seen = new Set<string>();
+    const results: string[] = [];
+    for (const m of matches) {
+      const normalized = m.trim().toLowerCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        results.push(normalized);
+      }
+    }
+    return results;
+  }
+
+  private isValidEmail(email: string): boolean {
+    if (!email || typeof email !== "string") return false;
+    const trimmed = email.trim().toLowerCase();
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!re.test(trimmed)) return false;
+    const junk = [
+      "noemail",
+      "no-email",
+      "n/a",
+      "none",
+      "test@test",
+      "info@info",
+    ];
+    if (junk.some((j) => trimmed.includes(j))) return false;
+    return true;
+  }
+
   downloadCsv(job: ScrapeJob): void {
     if (job.csvUrl) {
       window.open(job.csvUrl, "_blank");

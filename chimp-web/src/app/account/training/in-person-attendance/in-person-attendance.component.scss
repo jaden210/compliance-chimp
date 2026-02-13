@@ -1,0 +1,419 @@
+.loading-container, .error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 16px;
+  color: var(--chimp-outline);
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+  }
+}
+
+
+.page-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.attendance-header {
+  margin-bottom: 24px;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chimp-primary);
+  background: rgba(5, 77, 138, 0.08);
+  border: 1px solid rgba(5, 77, 138, 0.2);
+  border-radius: 16px;
+  padding: 4px 12px;
+  margin-bottom: 12px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.header-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--chimp-on-surface);
+  margin: 0 0 8px;
+}
+
+.header-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--chimp-outline);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.progress-section {
+  margin-bottom: 24px;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: var(--chimp-surface-container);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--chimp-primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chimp-on-surface);
+}
+
+.progress-complete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2e7d32;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.instructions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(5, 77, 138, 0.04);
+  border: 1px solid rgba(5, 77, 138, 0.12);
+  border-radius: 12px;
+  margin-bottom: 24px;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--chimp-primary);
+    margin-top: 2px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--chimp-on-surface-variant);
+  }
+}
+
+.attendee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attendee-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 16px;
+  background: var(--chimp-surface);
+  border: 1px solid var(--chimp-outline-variant);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+
+  &.signed {
+    background: rgba(46, 125, 50, 0.04);
+    border-color: rgba(46, 125, 50, 0.2);
+  }
+
+  &.signing {
+    opacity: 0.7;
+  }
+
+  &.responding {
+    border-color: var(--chimp-primary, #054d8a);
+    box-shadow: 0 0 0 1px var(--chimp-primary, #054d8a);
+  }
+}
+
+.attendee-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.attendee-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
+
+.attendee-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.attendee-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chimp-on-surface);
+}
+
+.attendee-role {
+  font-size: 12px;
+  color: var(--chimp-outline);
+  margin-top: 2px;
+}
+
+.attendee-status {
+  flex-shrink: 0;
+}
+
+.signed-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2e7d32;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.collect-btn {
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// Inline response form
+.response-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--chimp-outline-variant, rgba(0, 0, 0, 0.08));
+}
+
+.form-prompt {
+  font-size: 13px;
+  color: var(--chimp-outline, #666);
+  margin-bottom: 14px;
+
+  strong {
+    color: var(--chimp-on-surface, #1a1a1a);
+  }
+}
+
+.attendance-question {
+  margin-bottom: 14px;
+}
+
+.question-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chimp-on-surface, #1a1a1a);
+  margin-bottom: 10px;
+}
+
+.answer-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.answer-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &.yes-btn {
+    border-color: #10B981;
+    color: #10B981;
+
+    &.selected {
+      background: #10B981;
+      color: #fff;
+      border-color: #10B981;
+    }
+  }
+
+  &.no-btn {
+    border-color: #EF4444;
+    color: #EF4444;
+
+    &.selected {
+      background: #EF4444;
+      color: #fff;
+      border-color: #EF4444;
+    }
+  }
+}
+
+.no-reason {
+  margin-bottom: 14px;
+
+  textarea {
+    width: 100%;
+    border: 1px solid var(--chimp-outline-variant, rgba(0, 0, 0, 0.12));
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--chimp-on-surface, #1a1a1a);
+    resize: none;
+    outline: none;
+    background: var(--chimp-surface-container, #f8f9fa);
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: var(--chimp-primary, #054d8a);
+    }
+
+    &::placeholder {
+      color: var(--chimp-outline, #999);
+    }
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-btn {
+  color: var(--chimp-outline, #666);
+}
+
+.sign-btn {
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.signature-preview {
+  padding: 8px 16px 16px 72px;
+
+  .signature-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--chimp-outline);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .signature-img {
+    max-width: 200px;
+    height: 60px;
+    object-fit: contain;
+    border: 1px solid var(--chimp-outline-variant);
+    border-radius: 8px;
+    background: white;
+  }
+}
+
+.complete-section {
+  text-align: center;
+  padding: 32px 24px;
+  margin-top: 24px;
+  background: rgba(46, 125, 50, 0.04);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+  border-radius: 16px;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #2e7d32;
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--chimp-on-surface);
+    margin: 0 0 8px;
+  }
+
+  p {
+    font-size: 14px;
+    color: var(--chimp-outline);
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+}

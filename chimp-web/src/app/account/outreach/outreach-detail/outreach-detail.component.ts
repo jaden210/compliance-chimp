@@ -10,6 +10,7 @@ import { MatSortModule, MatSort } from "@angular/material/sort";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
+import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { AccountService } from "../../account.service";
 import {
   OutreachService,
@@ -35,6 +36,7 @@ import { Subscription } from "rxjs";
     MatTooltipModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSnackBarModule,
   ],
   providers: [DatePipe, OutreachService],
 })
@@ -52,6 +54,7 @@ export class OutreachDetailComponent implements OnInit, OnDestroy {
 
   editingCell: { row: number; col: string } | null = null;
   editValue: string = "";
+  sanitizing: boolean = false;
 
   @ViewChild(MatSort) sort: MatSort;
 
@@ -61,7 +64,8 @@ export class OutreachDetailComponent implements OnInit, OnDestroy {
     public accountService: AccountService,
     public service: OutreachService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit() {
@@ -162,5 +166,25 @@ export class OutreachDetailComponent implements OnInit, OnDestroy {
 
   cancelEdit(): void {
     this.editingCell = null;
+  }
+
+  async sanitizeEmails(): Promise<void> {
+    if (!this.job?.results?.length || this.sanitizing) return;
+    this.sanitizing = true;
+    try {
+      const changed = await this.service.sanitizeEmails(this.job);
+      this.snackBar.open(
+        changed > 0
+          ? `Sanitized ${changed} email${changed > 1 ? "s" : ""}`
+          : "All emails are already clean",
+        "OK",
+        { duration: 3000 }
+      );
+    } catch (err) {
+      console.error("Error sanitizing emails:", err);
+      this.snackBar.open("Error sanitizing emails", "OK", { duration: 3000 });
+    } finally {
+      this.sanitizing = false;
+    }
   }
 }

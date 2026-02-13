@@ -62,11 +62,11 @@
         <mat-menu #youMenu="matMenu">
           <button mat-menu-item (click)="viewYourUserPage()">
             <mat-icon>open_in_new</mat-icon>
-            View Your User Page
+            View Your BananaHandbook
           </button>
           <button mat-menu-item (click)="sendAccessLink()" [disabled]="sendingAccessLink">
             <mat-icon>email</mat-icon>
-            {{ sendingAccessLink ? 'Sending...' : 'Send Access Link' }}
+            {{ sendingAccessLink ? 'Delivering...' : 'Deliver BananaHandbook' }}
           </button>
         </mat-menu>
         <!-- Menu for other managers (not owner, not yourself) -->

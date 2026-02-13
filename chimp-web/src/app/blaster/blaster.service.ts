@@ -32,6 +32,9 @@ export class BlasterService {
     survey.trainees = trainees;
     survey.userId = userId;
     survey.teamId = teamId;
+    if (item.isInPerson) {
+      survey.isInPerson = true;
+    }
     // Filter out undefined values since Firestore doesn't accept them
     const cleanedSurvey = Object.fromEntries(
       Object.entries(survey).filter(([_, value]) => value !== undefined)

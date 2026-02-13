@@ -15,6 +15,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSelectModule } from "@angular/material/select";
 import { MatChipsModule } from "@angular/material/chips";
+import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { NgxEditorModule, Editor, Toolbar } from "ngx-editor";
 import { Subscription } from "rxjs";
 import { take } from "rxjs/operators";
@@ -119,7 +120,8 @@ interface SpeechRecognition extends EventTarget {
     MatChipsModule,
     NgxEditorModule,
     TagInputComponent,
-    MatDialogModule
+    MatDialogModule,
+    MatSlideToggleModule
   ]
 })
 export class SmartBuilderComponent implements OnInit, OnDestroy {
@@ -140,6 +142,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
   title: string = '';
   selectedCadence: TrainingCadence = TrainingCadence.Annually;
   assignedTags: string[] = [];
+  isInPerson: boolean = false;
   
   // UI state
   isRecording: boolean = false;
@@ -171,6 +174,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
   // Cadence options
   cadenceOptions = [
     { value: TrainingCadence.Once, label: 'Once (one-time training)' },
+    { value: TrainingCadence.UponHire, label: 'Upon Hire (new employees)' },
     { value: TrainingCadence.Monthly, label: 'Monthly' },
     { value: TrainingCadence.Quarterly, label: 'Quarterly' },
     { value: TrainingCadence.SemiAnnually, label: 'Semi-Annually' },
@@ -228,6 +232,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
           // Map cadence string to enum
           const cadenceMap: { [key: string]: TrainingCadence } = {
             'Once': TrainingCadence.Once,
+            'Upon Hire': TrainingCadence.UponHire,
             'Monthly': TrainingCadence.Monthly,
             'Quarterly': TrainingCadence.Quarterly,
             'Semi-Annually': TrainingCadence.SemiAnnually,
@@ -267,6 +272,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     this.generatedTopic = article.topic || '';
     this.selectedCadence = article.trainingCadence || TrainingCadence.Annually;
     this.assignedTags = article.assignedTags || [];
+    this.isInPerson = article.isInPerson || false;
   }
 
   ngOnDestroy(): void {
@@ -379,6 +385,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
         if (result.data.cadence) {
           const cadenceMap: { [key: string]: TrainingCadence } = {
             'Once': TrainingCadence.Once,
+            'Upon Hire': TrainingCadence.UponHire,
             'Monthly': TrainingCadence.Monthly,
             'Quarterly': TrainingCadence.Quarterly,
             'Semi-Annually': TrainingCadence.SemiAnnually,
@@ -429,7 +436,8 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
           content: this.generatedContent,
           topic: this.generatedTopic || this.editingArticle.topic || 'General Safety',
           trainingCadence: this.selectedCadence,
-          assignedTags: this.assignedTags
+          assignedTags: this.assignedTags,
+          isInPerson: this.isInPerson
         };
 
         await this.trainingService.updateLibraryItem(this.editingArticle.id, updates);
@@ -452,6 +460,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
         newItem.addedBy = this.accountService.user?.id || '';
         newItem.trainingCadence = this.selectedCadence;
         newItem.assignedTags = this.assignedTags;
+        newItem.isInPerson = this.isInPerson;
         newItem.scheduledDueDate = this.trainingService.calculateOptimalScheduledDate(
           this.selectedCadence,
           this.libraryItems

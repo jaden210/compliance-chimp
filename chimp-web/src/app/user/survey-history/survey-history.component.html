@@ -6,7 +6,7 @@
     </button>
     <div class="header-content">
       <h1 class="header-title">Survey History</h1>
-      <p class="header-subtitle">Your completed surveys</p>
+      <p class="header-subtitle">{{ isManager ? 'All team surveys' : 'Your completed surveys' }}</p>
     </div>
   </header>
 
@@ -21,17 +21,29 @@
         @for (item of completedSurveys; track item.survey.id) {
           <div class="history-card" [routerLink]="item.survey.id" queryParamsHandling="preserve">
             <div class="card-left">
-              <div class="answer-badge" [class.yes]="item.response.shortAnswer === 'Yes'" [class.no]="item.response.shortAnswer === 'No'">
-                <mat-icon>{{ item.response.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
-              </div>
+              @if (isManager) {
+                <div class="answer-badge responses-badge">
+                  <mat-icon>groups</mat-icon>
+                </div>
+              } @else {
+                <div class="answer-badge" [class.yes]="item.response?.shortAnswer === 'Yes'" [class.no]="item.response?.shortAnswer === 'No'">
+                  <mat-icon>{{ item.response?.shortAnswer === 'Yes' ? 'check_circle' : 'cancel' }}</mat-icon>
+                </div>
+              }
             </div>
             <div class="card-info">
               <span class="card-title">{{ item.survey.title }}</span>
-              <span class="card-meta">
-                Completed {{ getResponseDate(item.response) | date:'MMM d, y' }}
-              </span>
-              @if (item.response.longAnswer) {
-                <span class="card-comment">"{{ item.response.longAnswer }}"</span>
+              @if (isManager) {
+                <span class="card-meta">
+                  {{ item.responseCount }} {{ item.responseCount === 1 ? 'response' : 'responses' }} · Last {{ item.latestResponseDate | date:'MMM d, y' }}
+                </span>
+              } @else {
+                <span class="card-meta">
+                  Completed {{ getResponseDate(item.response!) | date:'MMM d, y' }}
+                </span>
+                @if (item.response?.longAnswer) {
+                  <span class="card-comment">"{{ item.response.longAnswer }}"</span>
+                }
               }
             </div>
             <div class="card-arrow">

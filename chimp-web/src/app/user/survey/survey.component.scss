@@ -28,6 +28,10 @@ $radius-lg: 16px;
   align-items: flex-start;
   gap: 8px;
 
+  @media (min-width: 769px) {
+    padding: 24px 32px;
+  }
+
   .back-btn {
     color: #fff;
     margin-top: -4px;
@@ -60,6 +64,11 @@ $radius-lg: 16px;
   padding-bottom: 280px;
   overflow: auto;
   background: #fff;
+
+  @media (min-width: 769px) {
+    background: $gray-50;
+    padding: 32px 24px 280px;
+  }
 }
 
 .article-body {
@@ -67,6 +76,15 @@ $radius-lg: 16px;
   font-size: 15px;
   line-height: 1.7;
   color: $gray-800;
+
+  @media (min-width: 769px) {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 48px;
+    background: #fff;
+    border-radius: $radius-lg;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  }
 
   h1, h2, h3, h4, h5, h6 {
     color: $gray-800;
@@ -105,6 +123,11 @@ $radius-lg: 16px;
   text-align: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 
+  @media (min-width: 769px) {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
   mat-icon {
     font-size: 48px;
     width: 48px;
@@ -120,6 +143,81 @@ $radius-lg: 16px;
 }
 
 // Response Panel
+.in-person-notice {
+  text-align: center;
+  padding: 32px 24px;
+  margin: 16px;
+  background: rgba(5, 77, 138, 0.04);
+  border: 1px solid rgba(5, 77, 138, 0.15);
+  border-radius: 16px;
+
+  @media (min-width: 769px) {
+    max-width: 760px;
+    margin: 0 auto 24px;
+  }
+
+  .notice-icon {
+    margin-bottom: 12px;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: var(--chimp-primary, #054d8a);
+    }
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--chimp-on-surface, #1a1a1a);
+    margin: 0 0 8px;
+  }
+
+  p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--chimp-on-surface-variant, #666);
+    margin: 0 0 8px;
+  }
+
+  .notice-hint {
+    font-size: 12px;
+    color: var(--chimp-outline, #999);
+  }
+
+  &.manager-notice {
+    background: rgba(255, 145, 0, 0.06);
+    border-color: rgba(255, 145, 0, 0.25);
+  }
+
+  .collect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 12px 24px;
+    background: var(--chimp-primary, #054d8a);
+    color: #fff;
+    border-radius: 24px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: var(--chimp-primary-dark, #043a6a);
+      box-shadow: 0 4px 12px -2px rgba(5, 77, 138, 0.3);
+    }
+  }
+}
+
 .response-panel {
   position: fixed;
   bottom: 0;
@@ -132,6 +230,14 @@ $radius-lg: 16px;
   padding: 20px 16px;
   padding-bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 100;
+
+  @media (min-width: 769px) {
+    max-width: 760px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-left-radius: $radius-lg;
+    border-top-right-radius: $radius-lg;
+  }
 }
 
 .attendance-question {

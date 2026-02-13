@@ -7,6 +7,7 @@ import { PendingChangesGuard } from "./library/create-edit-article/pending-chang
 import { DashboardComponent } from "./dashboard/dashboard.component";
 import { CustomArticleComponent } from "./custom-article/custom-article.component";
 import { SmartBuilderComponent } from "./smart-builder/smart-builder.component";
+import { InPersonAttendanceComponent } from "./in-person-attendance/in-person-attendance.component";
 
 export const trainingRoutes: Routes = [
   {
@@ -28,7 +29,8 @@ export const trainingRoutes: Routes = [
         component: CreateEditArticleComponent,
         canDeactivate: [PendingChangesGuard]
       },
-      { path: "article/:article", component: ArticleComponent }
+      { path: "article/:article", component: ArticleComponent },
+      { path: "in-person-attendance/:surveyId", component: InPersonAttendanceComponent }
     ]
   }
 ];

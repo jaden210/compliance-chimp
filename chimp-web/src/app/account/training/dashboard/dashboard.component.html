@@ -539,6 +539,14 @@
                       <mat-icon>check_circle</mat-icon>
                       Current
                     </button>
+                    <button 
+                      mat-stroked-button 
+                      class="filter-chip in-person-chip" 
+                      [class.active]="(activeFilter$ | async) === 'inPerson'"
+                      (click)="setFilter('inPerson')">
+                      <mat-icon>groups</mat-icon>
+                      In Person
+                    </button>
                 </div>
 
                 @if (filteredLibrary$ | async; as trainings) {
@@ -617,7 +625,15 @@
                           </div>
 
                           <div class="col-name">
-                            <span class="training-title">{{ item.name }}</span>
+                            <span class="training-title">
+                              {{ item.name }}
+                              @if (item.isInPerson) {
+                                <span class="in-person-badge" matTooltip="This training must be conducted in person">
+                                  <mat-icon>groups</mat-icon>
+                                  In Person
+                                </span>
+                              }
+                            </span>
                             @if (item.topic) {
                               <span class="training-topic">{{ item.topic }}</span>
                             }
