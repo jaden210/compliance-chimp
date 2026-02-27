@@ -15,6 +15,7 @@ const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
 const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const xaiApiKey = defineSecret("XAI_API_KEY");
 const slackWebhookUrl = defineSecret("SLACK_WEBHOOK_URL");
+const bouncerApiKey = defineSecret("BOUNCER_API_KEY");
 
 const nodemailer = require("nodemailer");
 const sendgridTransport = require("nodemailer-sendgrid-transport");
@@ -63,11 +64,15 @@ async function requireTeamOwner(
   teamId: string
 ): Promise<string> {
   const uid = requireAuth(request);
-  const teamDoc = await admin.firestore().doc(`team/${teamId}`).get();
+  const [teamDoc, userDoc] = await Promise.all([
+    admin.firestore().doc(`team/${teamId}`).get(),
+    admin.firestore().doc(`user/${uid}`).get(),
+  ]);
   if (!teamDoc.exists) {
     throw new HttpsError("not-found", "Team not found");
   }
-  if (teamDoc.data()?.ownerId !== uid) {
+  const isDev = userDoc.exists && userDoc.data()?.isDev === true;
+  if (!isDev && teamDoc.data()?.ownerId !== uid) {
     throw new HttpsError(
       "permission-denied",
       "You do not have permission to access this team."
@@ -1935,11 +1940,142 @@ Based on this industry and team roles, what self-inspections should they be regu
   }
 );
 
+/**
+ * Detects whether a description references specific equipment, machinery, or model numbers.
+ * Returns true if we should do a targeted web research step.
+ */
+function descriptionMentionsSpecificEquipment(description: string): boolean {
+  // Model number patterns: alphanumeric combos like "XJ-200", "CR300", "Cat 320", "JD 5045E"
+  const modelNumberPattern = /\b([A-Z]{1,5}[-\s]?\d{2,6}[A-Za-z]{0,3}|\d{2,6}[-\s]?[A-Z]{1,5})\b/;
+  // Common equipment/machine keywords
+  const equipmentKeywords = /\b(model|machine|equipment|forklift|excavator|loader|crane|lift|skid.?steer|telehandler|scissor.?lift|boom.?lift|aerial|backhoe|bulldozer|grader|compactor|paver|drill|lathe|mill|press|grinder|saw|shear|punch|welder|compressor|generator|pump|conveyor|mixer|hoist|winch|band\s?saw|table\s?saw|mig|tig|plasma)\b/i;
+  return modelNumberPattern.test(description) || equipmentKeywords.test(description);
+}
+
+interface EquipmentResearch {
+  summary: string;
+  youtubeEmbedUrl: string | null;
+}
+
+/**
+ * Extracts and validates a YouTube video ID from any YouTube URL format.
+ * Returns a safe embed URL, or null if the URL is not a valid YouTube link.
+ */
+function extractYouTubeEmbedUrl(url: string): string | null {
+  try {
+    // Match standard watch URLs, short youtu.be links, and existing embed URLs
+    const patterns = [
+      /youtube\.com\/watch\?(?:.*&)?v=([A-Za-z0-9_-]{11})/,
+      /youtu\.be\/([A-Za-z0-9_-]{11})/,
+      /youtube\.com\/embed\/([A-Za-z0-9_-]{11})/,
+      /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        return `https://www.youtube.com/embed/${match[1]}`;
+      }
+    }
+  } catch (_) { /* ignore */ }
+  return null;
+}
+
+/**
+ * Scans a block of text for any YouTube URL and returns a validated embed URL.
+ */
+function findYouTubeEmbedInText(text: string): string | null {
+  const urlPattern = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?[^\s"')]*v=|embed\/|shorts\/)|youtu\.be\/)[A-Za-z0-9_\-?=&]+/g;
+  const matches = text.match(urlPattern) || [];
+  for (const url of matches) {
+    const embedUrl = extractYouTubeEmbedUrl(url);
+    if (embedUrl) return embedUrl;
+  }
+  return null;
+}
+
+/**
+ * Uses Grok with live web search to research a specific piece of equipment.
+ * Returns a summary and an optional YouTube embed URL, or null if skipped/failed.
+ */
+async function researchEquipmentFromDescription(description: string): Promise<EquipmentResearch | null> {
+  if (!descriptionMentionsSpecificEquipment(description)) return null;
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-3-fast',
+        input: [
+          {
+            role: 'user',
+            content: `I need to create a workplace safety training article for the following equipment. Please research it and provide a detailed safety summary.
+
+Equipment description: "${description}"
+
+Search for and summarize:
+1. What this specific machine/model is, what it does, and its key specifications
+2. The primary safety hazards and risks operators and nearby workers face
+3. Required PPE and any manufacturer-specified safety procedures
+4. Applicable OSHA standards, 29 CFR regulations, or ANSI standards (cite specific numbers)
+5. Common operator errors, accidents, and how to prevent them
+6. Pre-operation inspection checklist items specific to this machine
+7. Any required certifications or training requirements for operators
+
+Also search YouTube for an official or highly reputable training/setup/operation video for this exact machine model (manufacturer channel preferred). If you find one, include the full YouTube URL on its own line at the very end of your response in this exact format:
+YOUTUBE_VIDEO_URL: https://www.youtube.com/watch?v=XXXXXXXXXX
+
+If no relevant YouTube video is found, omit that line entirely.
+
+Be as specific as possible to this exact model/equipment. Return a factual, structured research summary.`
+          }
+        ],
+        tools: [{ type: 'web_search' }]
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('Equipment research API call failed:', response.status);
+      return null;
+    }
+
+    const data: any = await response.json();
+    // Extract text output from the Responses API format
+    const outputItems: any[] = data.output || [];
+    const messageItem = outputItems.find((o: any) => o.type === 'message');
+    const textContent: string = messageItem?.content?.find((c: any) => c.type === 'output_text')?.text || '';
+
+    if (!textContent) return null;
+
+    // Extract YouTube URL from the structured tag first, then fall back to scanning text
+    let youtubeEmbedUrl: string | null = null;
+    const tagMatch = textContent.match(/YOUTUBE_VIDEO_URL:\s*(https?:\/\/[^\s]+)/);
+    if (tagMatch) {
+      youtubeEmbedUrl = extractYouTubeEmbedUrl(tagMatch[1]);
+    }
+    if (!youtubeEmbedUrl) {
+      youtubeEmbedUrl = findYouTubeEmbedInText(textContent);
+    }
+
+    // Strip the YouTube tag line from the summary so it's not included in the article prose
+    const summary = textContent.replace(/YOUTUBE_VIDEO_URL:\s*https?:\/\/[^\n]*/g, '').trim();
+
+    console.log('Equipment research completed, length:', summary.length, 'YouTube found:', !!youtubeEmbedUrl);
+    return { summary, youtubeEmbedUrl };
+  } catch (err) {
+    console.warn('Equipment research step failed (non-fatal):', err);
+    return null;
+  }
+}
+
 // AI-powered article generation from voice description
 export const generateArticleFromDescription = onCall(
   { 
     secrets: [xaiApiKey],
-    timeoutSeconds: 180,
+    timeoutSeconds: 240,
     memory: "1GiB"
   },
   async (request) => {
@@ -1950,10 +2086,33 @@ export const generateArticleFromDescription = onCall(
       throw new HttpsError('invalid-argument', 'Article description is required');
     }
 
-    // Build the tags context for the AI
-    const tagsContext = teamTags && teamTags.length > 0
-      ? `\n\nAvailable team role tags: All, ${teamTags.join(', ')}\nAssign tags to the roles that should receive this training. Use "All" for team-wide trainings. For role-specific trainings, use tags like "shop", "warehouse", "office", etc. Trainings can never be untagged - use ["All"] if it applies to everyone.`
-      : '\n\nUse assignedTags: ["All"] for team-wide trainings.';
+    // Run equipment research in parallel with building tags context (research may be null)
+    const [equipmentResearch, tagsContext] = await Promise.all([
+      researchEquipmentFromDescription(description),
+      Promise.resolve(teamTags && teamTags.length > 0
+        ? `\n\nAvailable team role tags: All, ${teamTags.join(', ')}\nAssign tags to the roles that should receive this training. Use "All" for team-wide trainings. For role-specific trainings, use tags like "shop", "warehouse", "office", etc. Trainings can never be untagged - use ["All"] if it applies to everyone.`
+        : '\n\nUse assignedTags: ["All"] for team-wide trainings.')
+    ]);
+
+    const hasResearch = !!(equipmentResearch?.summary);
+    const youtubeEmbedUrl = equipmentResearch?.youtubeEmbedUrl || null;
+
+    const specificityGuideline = hasResearch
+      ? `7. **Specific**: You have real research data about the exact equipment. Use it to write content specific to this machine — include its actual hazards, applicable OSHA standard numbers, and specific procedures. Do not be generic when you have specific information.`
+      : `7. **Universal**: Write content that applies broadly - do NOT mention or reference the specific business, company name, or industry type in the content itself`;
+
+    const researchSection = hasResearch
+      ? `\n\n--- EQUIPMENT RESEARCH (use this to write a specific, accurate article) ---\n${equipmentResearch!.summary}\n--- END RESEARCH ---`
+      : '';
+
+    // If a YouTube video was found, instruct the AI to leave a placeholder we'll replace after
+    const videoInstruction = youtubeEmbedUrl
+      ? `\n\nA manufacturer/supplier video was found for this equipment. Include the following exact placeholder string on its own line near the top of the article, right after the introductory paragraph: %%YOUTUBE_EMBED%%`
+      : '';
+
+    const userPromptClosing = hasResearch
+      ? `Use the research above to write a highly specific training article for this exact equipment. Cite specific OSHA standards, include model-specific hazards, and provide procedures tailored to this machine. The article should feel like it was written by someone who knows this equipment inside and out.`
+      : `Generate a well-structured, easy-to-understand training article that covers the essential information employees need to know. Include relevant standards and practical guidance where applicable. Write the content generically so it applies to any workplace. Choose an appropriate training cadence based on the topic's importance and risk level.`;
 
     try {
       // Call Grok API to generate the article
@@ -1975,7 +2134,8 @@ export const generateArticleFromDescription = onCall(
 3. **Actionable**: Include clear, practical steps employees can follow
 4. **Well-Structured**: Use headings, bullet points, and numbered lists for easy scanning
 5. **Engaging**: Keep employees interested while delivering important information
-6. **Universal**: Write content that applies broadly - do NOT mention or reference the specific business, company name, or industry type in the content itself
+6. **Accurate**: Only include factual information — never invent standards or specifications
+${specificityGuideline}
 
 When generating an article, return a JSON object with this exact structure:
 {
@@ -2004,17 +2164,16 @@ HTML Formatting Guidelines:
 - Use <blockquote> for regulation or standard references
 - Keep paragraphs short (2-3 sentences max)
 - Include a brief introduction explaining why this topic matters
-- End with a summary or key takeaways section
-- Write generically - the content should work for any workplace, not just a specific industry`
+- End with a summary or key takeaways section`
             },
             {
               role: 'user',
               content: `Please create a comprehensive, compliance-focused training article based on this description:
 
 "${description}"
-${tagsContext}
+${tagsContext}${researchSection}${videoInstruction}
 
-Generate a well-structured, easy-to-understand training article that covers the essential information employees need to know. Include relevant standards and practical guidance where applicable. Write the content generically so it applies to any workplace. Choose an appropriate training cadence based on the topic's importance and risk level.`
+${userPromptClosing}`
             }
           ],
           temperature: 0.7
@@ -2084,13 +2243,38 @@ Generate a well-structured, easy-to-understand training article that covers the 
       }
       assignedTags = normalizeAssignedTags(assignedTags);
 
+      // Replace the YouTube placeholder with a real responsive embed if a video was found
+      let finalContent = articleData.content || '';
+      if (youtubeEmbedUrl && finalContent.includes('%%YOUTUBE_EMBED%%')) {
+        const embedHtml = `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:16px 0;border-radius:8px;">` +
+          `<iframe src="${youtubeEmbedUrl}" ` +
+          `style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" ` +
+          `allowfullscreen loading="lazy" title="Equipment Training Video"></iframe></div>`;
+        finalContent = finalContent.replace(/%%YOUTUBE_EMBED%%/g, embedHtml);
+      } else if (youtubeEmbedUrl) {
+        // AI didn't use the placeholder — append the video at the end before any summary section
+        const embedHtml = `<h2>Training Video</h2>` +
+          `<p>Watch the following video to see this equipment in action before operating it.</p>` +
+          `<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:16px 0;border-radius:8px;">` +
+          `<iframe src="${youtubeEmbedUrl}" ` +
+          `style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" ` +
+          `allowfullscreen loading="lazy" title="Equipment Training Video"></iframe></div>`;
+        // Insert before the last <h2> (typically the summary/key takeaways section)
+        const lastH2Index = finalContent.lastIndexOf('<h2>');
+        if (lastH2Index > 0) {
+          finalContent = finalContent.slice(0, lastH2Index) + embedHtml + finalContent.slice(lastH2Index);
+        } else {
+          finalContent += embedHtml;
+        }
+      }
+
       return {
         success: true,
         title: articleData.title,
         topic: articleData.topic,
         cadence: articleData.cadence,
         assignedTags,
-        content: articleData.content,
+        content: finalContent,
         description: description
       };
     } catch (error: any) {
@@ -6599,6 +6783,41 @@ export const scraperApi = onRequest(
           return;
         }
 
+        // Re-run a scrape job: reset progress & results but keep the doc ID
+        case "rerunJob": {
+          if (!jobId) {
+            res.status(400).json({ error: "Missing jobId" });
+            return;
+          }
+          const rerunRef = db.collection(COLLECTION).doc(jobId);
+          const rerunSnap = await rerunRef.get();
+          if (!rerunSnap.exists) {
+            res.status(404).json({ error: "Job not found" });
+            return;
+          }
+          await rerunRef.update({
+            status: "created",
+            progress: {
+              gridTotal: 0,
+              gridScanned: 0,
+              placesFound: 0,
+              placesScraped: 0,
+              emailsScraped: 0,
+              emailsFound: 0,
+              totalWithPhone: 0,
+              totalWithEmail: 0,
+              totalWithWebsite: 0,
+            },
+            results: [],
+            totalResults: 0,
+            csvUrl: "",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastHeartbeat: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          res.status(200).json({ success: true });
+          return;
+        }
+
         // Delete a scrape job
         case "deleteJob": {
           if (!jobId) {
@@ -6685,6 +6904,149 @@ function generateHmacToken(recipientId: string, campaignId: string): string {
   return crypto.createHmac("sha256", secret).update(`${recipientId}:${campaignId}`).digest("hex");
 }
 
+// ── verifyOutreachEmails ──
+export const verifyOutreachEmails = onCall(
+  { secrets: [bouncerApiKey], timeoutSeconds: 540 },
+  async (request) => {
+    requireAuth(request);
+    const { jobId } = request.data;
+    if (!jobId) throw new HttpsError("invalid-argument", "Missing jobId");
+
+    const db = admin.firestore();
+    const jobRef = db.collection("scrape-jobs").doc(jobId);
+    const jobSnap = await jobRef.get();
+    if (!jobSnap.exists) throw new HttpsError("not-found", "Job not found");
+
+    const jobData = jobSnap.data()!;
+    const results: any[] = jobData.results || [];
+    console.log(`[verifyOutreachEmails] Job ${jobId}: ${results.length} total results`);
+
+    const emailsToVerify: string[] = [];
+    const indexMap: Map<string, number[]> = new Map();
+
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      const email = (r.email || "").trim().toLowerCase();
+      if (!email) continue;
+      if (r.emailVerification) continue;
+
+      if (!indexMap.has(email)) {
+        indexMap.set(email, []);
+        emailsToVerify.push(email);
+      }
+      indexMap.get(email)!.push(i);
+    }
+
+    console.log(`[verifyOutreachEmails] Found ${emailsToVerify.length} emails to verify, ${results.length - emailsToVerify.length} skipped`);
+
+    if (emailsToVerify.length === 0) {
+      return { verified: 0, skipped: results.length, results: { deliverable: 0, risky: 0, undeliverable: 0, unknown: 0 } };
+    }
+
+    const apiKey = process.env.BOUNCER_API_KEY;
+    if (!apiKey) throw new HttpsError("failed-precondition", "Bouncer API key not configured");
+
+    const POLL_INTERVAL_MS = 10_000;
+    const MAX_POLL_TIME_MS = 480_000;
+    const pollStart = Date.now();
+    const verifiedEmails = new Set<string>();
+    let allBouncerResults: any[] = [];
+
+    console.log(`[verifyOutreachEmails] Submitting ${emailsToVerify.length} emails to Bouncer batch/sync queue`);
+
+    let attempt = 0;
+    while (verifiedEmails.size < emailsToVerify.length) {
+      attempt++;
+      const elapsed = Date.now() - pollStart;
+      if (elapsed > MAX_POLL_TIME_MS) {
+        console.log(`[verifyOutreachEmails] Polling timeout reached after ${Math.round(elapsed / 1000)}s. Got ${verifiedEmails.size}/${emailsToVerify.length} results.`);
+        break;
+      }
+
+      const remaining = emailsToVerify.filter((e) => !verifiedEmails.has(e));
+      console.log(`[verifyOutreachEmails] Poll attempt ${attempt}: requesting ${remaining.length} remaining emails`);
+
+      const response = await fetch("https://api.usebouncer.com/v1.1/email/verify/batch/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify(remaining),
+      });
+
+      if (response.status === 402) {
+        throw new HttpsError("resource-exhausted", "Bouncer account has insufficient credits");
+      }
+      if (response.status === 429) {
+        console.log(`[verifyOutreachEmails] Rate limited, waiting 30s before retry`);
+        await new Promise((r) => setTimeout(r, 30_000));
+        continue;
+      }
+      if (!response.ok) {
+        const errBody = await response.text();
+        console.error(`[verifyOutreachEmails] Bouncer error: ${response.status} ${errBody}`);
+        throw new HttpsError("internal", `Bouncer API error (${response.status}): ${errBody}`);
+      }
+
+      const batch: any[] = await response.json() as any[];
+      console.log(`[verifyOutreachEmails] Poll ${attempt}: Bouncer returned ${batch.length} results`);
+
+      for (const br of batch) {
+        const email = (br.email || "").trim().toLowerCase();
+        if (!verifiedEmails.has(email)) {
+          verifiedEmails.add(email);
+          allBouncerResults.push(br);
+        }
+      }
+
+      console.log(`[verifyOutreachEmails] Progress: ${verifiedEmails.size}/${emailsToVerify.length} emails verified`);
+
+      if (verifiedEmails.size >= emailsToVerify.length) break;
+
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    }
+
+    const now = new Date().toISOString();
+    const summary = { deliverable: 0, risky: 0, undeliverable: 0, unknown: 0 };
+    let matched = 0;
+
+    for (const br of allBouncerResults) {
+      const email = (br.email || "").trim().toLowerCase();
+      const indices = indexMap.get(email);
+      if (!indices) continue;
+      matched++;
+
+      const verification = {
+        status: br.status || "unknown",
+        reason: br.reason || "unknown",
+        score: br.score ?? null,
+        verifiedAt: now,
+      };
+
+      const statusKey = verification.status as keyof typeof summary;
+      if (statusKey in summary) {
+        summary[statusKey]++;
+      }
+
+      for (const idx of indices) {
+        results[idx].emailVerification = verification;
+      }
+    }
+
+    console.log(`[verifyOutreachEmails] Matched ${matched}/${allBouncerResults.length} results. Summary: ${JSON.stringify(summary)}`);
+
+    await jobRef.update({ results });
+    console.log(`[verifyOutreachEmails] Saved updated results to Firestore`);
+
+    return {
+      verified: verifiedEmails.size,
+      skipped: results.length - emailsToVerify.length,
+      results: summary,
+    };
+  }
+);
+
 // ── generateOutreachEmail ──
 export const generateOutreachEmail = onCall(
   { secrets: [xaiApiKey] },
@@ -6707,21 +7069,20 @@ YOUR VOICE (this is non-negotiable):
 
 FORMATTING RULES:
 - Use <strong> tags for key stats and important lines
-- Use arrow bullets (→) for feature lists, regular bullets (•) for stat lists
 - Keep paragraphs short (2-3 sentences max)
 - Include a clear CTA link using the placeholder {{ctaUrl}} (this gets replaced at send time). IMPORTANT: Always show the full URL as the visible link text so recipients can see where the link goes. For example: <a href="{{ctaUrl}}">{{ctaUrl}}</a>. Do NOT hide the URL behind generic text like "Click here" or "Get started" — showing the full URL builds trust and avoids looking like a phishing email.
 - Sign off with: — Ulysses 🐵<br>ComplianceChimp
-- Include a P.S. that is self-aware about being a chimp (playful, not forced)
 - Use {companyName} as a template variable for the recipient's business name
 - Do NOT include an unsubscribe link; that is appended automatically by the system
+- You may use arrow bullets (→), regular bullets (•), numbered lists, or no lists at all. Vary the formatting between emails.
 
 CONTENT RULES:
 - ONLY cite real OSHA statistics, real CFR standards, and real fine amounts. If you are not confident a stat is accurate, do not include it.
 - Reference OSHA's actual top violations list for the industry when relevant.
-- Mention specific features: SMS-delivered training, auto-generated inspection checklists, 6-minute setup, $99/month, 14-day free trial, no credit card.
 - Tailor every email to the specific industry/niche provided.
+- You do NOT need to mention every feature in every email. Pick 1-2 that are most relevant to the angle you're taking.
 
-ABOUT COMPLIANCECHIMP (use these facts accurately):
+ABOUT COMPLIANCECHIMP (use these facts accurately, pick what fits):
 - Generates complete safety training programs automatically
 - SMS-delivered safety training that crews actually complete
 - Auto-generated inspection checklists
@@ -6731,14 +7092,22 @@ ABOUT COMPLIANCECHIMP (use these facts accurately):
 - 14-day free trial, no credit card required
 - 200+ contractors already use the platform
 
-SEQUENCE STEP GUIDANCE:
-- Email 1 (intro): Lead with a compelling, specific industry stat (deaths, fines, violation frequency). Introduce yourself briefly. Present the problem and the solution. This is the longest email.
-- Email 2 (follow-up): Shorter. Reference that you reached out before. Add a new angle, a different stat, or address a common objection.
-- Email 3+ (final push): Very short. Create gentle urgency. Maybe reference a recent OSHA enforcement action. Keep it to 4-6 sentences.
+CREATIVE DIRECTION:
+Be unpredictable. Every email should feel like it was written by a real person (well, a real chimp), not a template engine. Vary your approach dramatically between sequence steps. Here are angle ideas, but surprise us:
 
-EXAMPLE (roofing industry, email 1 style):
-Subject: "110 roofing workers died last year, 90% from preventable falls"
-Body: Hey {companyName}, Quick question - are you prepared for an OSHA fall protection inspection? [continues with stats, features, CTA, P.S.]`;
+- Open with a question that makes them think
+- Tell a very short story about a real type of OSHA incident in their industry
+- Lead with a surprising or counterintuitive stat
+- Reference something seasonal or timely (summer heat, winter hazards, OSHA's annual focus areas)
+- Call out a specific pain point unique to their niche (e.g. subcontractor compliance, multi-site headaches, language barriers on crews)
+- Use a P.S. only when it feels natural, not every email needs one
+- Subject lines should be genuinely curiosity-inducing or startling, never generic ("Quick question" and "Following up" are banned)
+- Try different tones across the sequence: one email might be more serious and stat-heavy, the next could be conversational and short, another could be a quick story
+
+SEQUENCE STEP GUIDANCE:
+- Email 1 (intro): Make a strong first impression. You have one shot to stand out in their inbox. Be bold. This is the longest email but still keep it scannable.
+- Email 2 (follow-up): Do NOT say "I reached out" or "just following up." Come at it from an entirely different angle. A new stat, a different pain point, a story. Make it feel like its own standalone email that happens to be from the same chimp.
+- Email 3+ (closing): Short and punchy. Create gentle urgency without being pushy. Could be just 3-5 sentences. Maybe a question, maybe a one-liner that sticks.`;
 
     const userMessage = `Generate outreach email step ${stepNumber} of ${totalSteps} for:
 - Industry/niche: ${niche}
@@ -6760,6 +7129,7 @@ The bodyHtml should be valid HTML (use <p>, <strong>, <br>, <a> tags).`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
+        temperature: 0.8,
       }),
     });
 
@@ -6784,7 +7154,7 @@ export const generateOutreachLandingPage = onCall(
   { secrets: [xaiApiKey] },
   async (request) => {
     requireAuth(request);
-    const { campaignId } = request.data;
+    const { campaignId, prompt } = request.data;
     if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
 
     const db = admin.firestore();
@@ -6824,7 +7194,10 @@ Return a JSON object with this exact structure:
 
 Use Material Symbol icon names (snake_case) from https://fonts.google.com/icons. Pick icons that fit each feature (e.g. school, checklist, verified_user, shield, smartphone).`;
 
-    const userMessage = `Generate a landing page for: Industry: ${niche}, Region: ${region}`;
+    let userMessage = `Generate a landing page for: Industry: ${niche}, Region: ${region}`;
+    if (prompt) {
+      userMessage += `\n\nAdditional instructions: ${prompt}`;
+    }
 
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
@@ -6853,6 +7226,13 @@ Use Material Symbol icon names (snake_case) from https://fonts.google.com/icons.
     }
 
     const industryFormatted = niche.replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const existingDoc = await db.collection("outreach-landing-pages").doc(slug).get();
+    const timestamps: Record<string, any> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (!existingDoc.exists) {
+      timestamps.createdAt = admin.firestore.FieldValue.serverTimestamp();
+    }
     await db.collection("outreach-landing-pages").doc(slug).set({
       ...lpData,
       slug,
@@ -6860,9 +7240,8 @@ Use Material Symbol icon names (snake_case) from https://fonts.google.com/icons.
       niche,
       region,
       getStartedParams: { industry: industryFormatted, source: "outreach" },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      ...timestamps,
+    }, { merge: true });
 
     await db.collection("outreach-campaigns").doc(campaignId).update({
       landingPageSlug: slug,
@@ -6872,6 +7251,79 @@ Use Material Symbol icon names (snake_case) from https://fonts.google.com/icons.
     return { slug, url: `https://compliancechimp.com/lp/o/${slug}` };
   }
 );
+
+// ── populateOutreachRecipients ──
+export const populateOutreachRecipients = onCall(async (request) => {
+  requireAuth(request);
+  const { campaignId } = request.data;
+  if (!campaignId) throw new HttpsError("invalid-argument", "Missing campaignId");
+
+  const db = admin.firestore();
+  const campaignDoc = await db.collection("outreach-campaigns").doc(campaignId).get();
+  if (!campaignDoc.exists) throw new HttpsError("not-found", "Campaign not found");
+
+  const campaign = campaignDoc.data()!;
+  const jobDoc = await db.collection("scrape-jobs").doc(campaign.jobId).get();
+  if (!jobDoc.exists) throw new HttpsError("not-found", "Scrape job not found");
+
+  const results: any[] = jobDoc.data()!.results || [];
+  const existingRecipients = await db.collection(`outreach-campaigns/${campaignId}/recipients`).get();
+  const existingEmails = new Set(existingRecipients.docs.map((d) => d.data().email?.toLowerCase()));
+  const existingPlaceIds = new Set(existingRecipients.docs.map((d) => d.data().placeId).filter(Boolean));
+
+  let recipientCount = existingRecipients.size;
+  let skippedInvalid = 0;
+  let skippedUnverified = 0;
+
+  const batch = db.batch();
+  for (const result of results) {
+    const email = cleanEmailField(result.email || "");
+    const placeId = result.placeId || "";
+    if (!email || existingEmails.has(email)) continue;
+    if (placeId && existingPlaceIds.has(placeId)) continue;
+    if (!isValidEmail(email)) {
+      skippedInvalid++;
+      continue;
+    }
+
+    const vStatus = result.emailVerification?.status;
+    if (vStatus && vStatus !== "deliverable" && vStatus !== "custom") {
+      skippedUnverified++;
+      continue;
+    }
+
+    const suppressionDoc = await db.collection("outreach-suppression").doc(emailHash(email)).get();
+    if (suppressionDoc.exists) continue;
+
+    const recipientRef = db.collection(`outreach-campaigns/${campaignId}/recipients`).doc();
+    const recipientData: any = {
+      email,
+      placeId,
+      companyName: result.name || "",
+      website: result.website || "",
+      currentStep: 0,
+      status: "queued",
+      nextSendAt: admin.firestore.FieldValue.serverTimestamp(),
+      history: [],
+    };
+    if (result.emailVerification) {
+      recipientData.emailVerification = result.emailVerification;
+    }
+    batch.set(recipientRef, recipientData);
+    existingEmails.add(email);
+    if (placeId) existingPlaceIds.add(placeId);
+    recipientCount++;
+  }
+
+  await batch.commit();
+  await db.collection("outreach-campaigns").doc(campaignId).update({
+    recipientCount,
+    "stats.totalRecipients": recipientCount,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { recipientCount, skippedInvalid, skippedUnverified };
+});
 
 // ── startOutreachCampaign ──
 export const startOutreachCampaign = onCall(async (request) => {
@@ -6888,53 +7340,17 @@ export const startOutreachCampaign = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "Campaign must have at least one sequence step");
   }
 
-  const jobDoc = await db.collection("scrape-jobs").doc(campaign.jobId).get();
-  if (!jobDoc.exists) throw new HttpsError("not-found", "Scrape job not found");
-
-  const results: any[] = jobDoc.data()!.results || [];
-  const existingRecipients = await db.collection(`outreach-campaigns/${campaignId}/recipients`).get();
-  const existingEmails = new Set(existingRecipients.docs.map((d) => d.data().email?.toLowerCase()));
-
-  let recipientCount = existingRecipients.size;
-  let skippedInvalid = 0;
-
-  const batch = db.batch();
-  for (const result of results) {
-    // Clean the email field in case it wasn't cleaned at ingestion
-    const email = cleanEmailField(result.email || "");
-    if (!email || existingEmails.has(email)) continue;
-    if (!isValidEmail(email)) {
-      skippedInvalid++;
-      continue;
-    }
-
-    // Check suppression list
-    const suppressionDoc = await db.collection("outreach-suppression").doc(emailHash(email)).get();
-    if (suppressionDoc.exists) continue;
-
-    const recipientRef = db.collection(`outreach-campaigns/${campaignId}/recipients`).doc();
-    batch.set(recipientRef, {
-      email,
-      companyName: result.name || "",
-      website: result.website || "",
-      currentStep: 0,
-      status: "queued",
-      nextSendAt: admin.firestore.FieldValue.serverTimestamp(),
-      history: [],
-    });
-    existingEmails.add(email);
-    recipientCount++;
+  const recipientSnap = await db.collection(`outreach-campaigns/${campaignId}/recipients`).limit(1).get();
+  if (recipientSnap.empty) {
+    throw new HttpsError("failed-precondition", "Populate recipients before starting the campaign");
   }
 
-  await batch.commit();
   await db.collection("outreach-campaigns").doc(campaignId).update({
     status: "active",
-    recipientCount,
-    "stats.totalRecipients": recipientCount,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  return { recipientCount, skippedInvalid };
+  return { status: "active" };
 });
 
 // ── pauseOutreachCampaign ──
@@ -6967,17 +7383,26 @@ export const syncOutreachRecipients = onCall(async (request) => {
   const results: any[] = jobDoc.data()!.results || [];
   const existingRecipients = await db.collection(`outreach-campaigns/${campaignId}/recipients`).get();
   const existingEmails = new Set(existingRecipients.docs.map((d) => d.data().email?.toLowerCase()));
+  const existingPlaceIds = new Set(existingRecipients.docs.map((d) => d.data().placeId).filter(Boolean));
 
   let added = 0;
   let skippedInvalid = 0;
+  let skippedUnverified = 0;
   const batch = db.batch();
 
   for (const result of results) {
-    // Clean the email field in case it wasn't cleaned at ingestion
     const email = cleanEmailField(result.email || "");
+    const placeId = result.placeId || "";
     if (!email || existingEmails.has(email)) continue;
+    if (placeId && existingPlaceIds.has(placeId)) continue;
     if (!isValidEmail(email)) {
       skippedInvalid++;
+      continue;
+    }
+
+    const vStatus = result.emailVerification?.status;
+    if (vStatus && vStatus !== "deliverable" && vStatus !== "custom") {
+      skippedUnverified++;
       continue;
     }
 
@@ -6985,16 +7410,22 @@ export const syncOutreachRecipients = onCall(async (request) => {
     if (suppressionDoc.exists) continue;
 
     const recipientRef = db.collection(`outreach-campaigns/${campaignId}/recipients`).doc();
-    batch.set(recipientRef, {
+    const recipientData: any = {
       email,
+      placeId,
       companyName: result.name || "",
       website: result.website || "",
       currentStep: 0,
       status: "queued",
       nextSendAt: admin.firestore.FieldValue.serverTimestamp(),
       history: [],
-    });
+    };
+    if (result.emailVerification) {
+      recipientData.emailVerification = result.emailVerification;
+    }
+    batch.set(recipientRef, recipientData);
     existingEmails.add(email);
+    if (placeId) existingPlaceIds.add(placeId);
     added++;
   }
 
@@ -7007,7 +7438,7 @@ export const syncOutreachRecipients = onCall(async (request) => {
     });
   }
 
-  return { added, skippedInvalid };
+  return { added, skippedInvalid, skippedUnverified };
 });
 
 // ── processOutreachQueue (scheduled every 15 minutes) ──
@@ -7017,6 +7448,8 @@ export const processOutreachQueue = onSchedule(
     const db = admin.firestore();
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
+
+    console.log(`processOutreachQueue started at ${now.toISOString()}`);
 
     // Load global settings
     const settingsRef = db.collection("outreach-settings").doc("global");
@@ -7048,10 +7481,20 @@ export const processOutreachQueue = onSchedule(
       .collection("outreach-campaigns")
       .where("status", "==", "active")
       .get();
-    if (campaignsSnap.empty) return;
+    if (campaignsSnap.empty) {
+      console.log("No active campaigns found");
+      return;
+    }
+
+    console.log(`Found ${campaignsSnap.size} active campaign(s), daily limit: ${dailyLimit}, remaining: ${remaining}`);
 
     const client = createSendgridClient();
     let totalSentThisRun = 0;
+
+    const OUTREACH_SENDERS = [
+      '"ComplianceChimp" <support@compliancechimp.app>',
+      '"ComplianceChimp" <support@compliancechimp.org>',
+    ];
 
     for (const campaignDoc of campaignsSnap.docs) {
       if (totalSentThisRun >= remaining) break;
@@ -7064,13 +7507,22 @@ export const processOutreachQueue = onSchedule(
       const share = Math.ceil(remaining / campaignsSnap.size);
       const limit = Math.min(share, remaining - totalSentThisRun);
 
-      const recipientsSnap = await db
-        .collection(`outreach-campaigns/${campaignId}/recipients`)
-        .where("status", "==", "queued")
-        .where("nextSendAt", "<=", now)
-        .orderBy("nextSendAt")
-        .limit(limit)
-        .get();
+      let recipientsSnap;
+      try {
+        recipientsSnap = await db
+          .collection(`outreach-campaigns/${campaignId}/recipients`)
+          .where("status", "==", "queued")
+          .where("nextSendAt", "<=", now)
+          .orderBy("nextSendAt")
+          .limit(limit)
+          .get();
+      } catch (queryErr: any) {
+        console.error(`Failed to query recipients for campaign ${campaignId}:`, queryErr.message);
+        console.error("This may require a composite index. Check the error details above for a Firestore index creation link.");
+        continue;
+      }
+
+      console.log(`Campaign ${campaignId}: found ${recipientsSnap.size} recipients ready to send (limit: ${limit})`);
 
       for (const recipientDoc of recipientsSnap.docs) {
         if (totalSentThisRun >= remaining) break;
@@ -7125,8 +7577,9 @@ export const processOutreachQueue = onSchedule(
         body += `<p style="font-size:11px;color:#999;margin-top:32px;border-top:1px solid #eee;padding-top:12px;">ComplianceChimp, Inc.<br><a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a> from this email sequence.</p>`;
 
         try {
+          const fromAddress = OUTREACH_SENDERS[totalSentThisRun % OUTREACH_SENDERS.length];
           const info = await client.sendMail({
-            from: '"ComplianceChimp" <support@compliancechimp.app>',
+            from: fromAddress,
             to: email,
             subject,
             html: body,
@@ -7144,7 +7597,7 @@ export const processOutreachQueue = onSchedule(
             nextSendAt: isLastStep ? null : nextSendAt,
             history: admin.firestore.FieldValue.arrayUnion({
               stepIndex,
-              sentAt: admin.firestore.FieldValue.serverTimestamp(),
+              sentAt: new Date(),
               messageId,
             }),
           });
@@ -7227,7 +7680,7 @@ export const handleOutreachWebhook = onRequest(
 );
 
 // ── unsubscribeOutreach ──
-export const unsubscribeOutreach = onRequest(async (req, res) => {
+export const unsubscribeOutreach = onRequest({ secrets: [sendgridApiKey] }, async (req, res) => {
   const { rid, cid, token } = req.query as { rid: string; cid: string; token: string };
 
   if (!rid || !cid || !token) {
@@ -7267,10 +7720,62 @@ export const unsubscribeOutreach = onRequest(async (req, res) => {
     <!DOCTYPE html>
     <html>
     <head><title>Unsubscribed</title><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;color:#333;}
-    .card{background:#fff;padding:40px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:400px;}h1{font-size:20px;margin:0 0 8px;}p{color:#666;}</style></head>
-    <body><div class="card"><h1>You've been unsubscribed</h1><p>You won't receive further emails from this campaign.</p></div></body>
+    .card{background:#fff;padding:40px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:400px;}
+    .card img{width:120px;margin-bottom:16px;}
+    h1{font-size:20px;margin:0 0 8px;}p{color:#666;}</style></head>
+    <body><div class="card"><img src="https://firebasestorage.googleapis.com/v0/b/teamlog-2d74c.appspot.com/o/public%2FchimpSad.png?alt=media&token=2b66224f-776d-4bc0-8fa5-67fef37dac30" alt="Sad chimp" /><h1>You've been unsubscribed</h1><p>You won't receive further emails from this campaign.</p></div></body>
     </html>
   `);
+});
+
+// ── trackOutreachVisit ──
+export const trackOutreachVisit = onCall(async (request) => {
+  const { slug } = request.data;
+  if (!slug) throw new HttpsError("invalid-argument", "Missing slug");
+
+  const db = admin.firestore();
+  const lpRef = db.collection("outreach-landing-pages").doc(slug);
+  const lpDoc = await lpRef.get();
+  if (!lpDoc.exists) return { ok: false };
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const rawReq = request.rawRequest;
+  const ip = rawReq?.headers?.["x-forwarded-for"] || rawReq?.ip || "unknown";
+  const ua = rawReq?.headers?.["user-agent"] || "unknown";
+  const visitorHash = crypto
+    .createHash("sha256")
+    .update(`${ip}|${ua}`)
+    .digest("hex")
+    .substring(0, 16);
+
+  const visitorRef = lpRef.collection("visitors").doc(visitorHash);
+  const visitorDoc = await visitorRef.get();
+  const isNewVisitor = !visitorDoc.exists;
+
+  const updates: Record<string, any> = {
+    totalVisits: admin.firestore.FieldValue.increment(1),
+    [`visitsByDay.${today}`]: admin.firestore.FieldValue.increment(1),
+  };
+  if (isNewVisitor) {
+    updates.uniqueVisitors = admin.firestore.FieldValue.increment(1);
+  }
+  await lpRef.update(updates);
+
+  if (isNewVisitor) {
+    await visitorRef.set({
+      firstVisit: admin.firestore.FieldValue.serverTimestamp(),
+      lastVisit: admin.firestore.FieldValue.serverTimestamp(),
+      visits: 1,
+    });
+  } else {
+    await visitorRef.update({
+      lastVisit: admin.firestore.FieldValue.serverTimestamp(),
+      visits: admin.firestore.FieldValue.increment(1),
+    });
+  }
+
+  return { ok: true };
 });
 
 // ── sendTestOutreachEmail ──
@@ -7300,13 +7805,18 @@ export const sendTestOutreachEmail = onCall(
       ctaUrl = `https://compliancechimp.com/lp/o/${campaign.landingPageSlug}`;
     }
 
+    // Build a working unsubscribe URL so test emails show the real flow
+    const testRecipientId = "test";
+    const token = generateHmacToken(testRecipientId, campaignId);
+    const unsubscribeUrl = `https://us-central1-teamlog-2d74c.cloudfunctions.net/unsubscribeOutreach?rid=${testRecipientId}&cid=${campaignId}&token=${token}`;
+
     let subject = (step.subject || "").replace(/\{companyName\}/g, "Acme Roofing");
     let body = (step.bodyHtml || "")
       .replace(/\{companyName\}/g, "Acme Roofing")
       .replace(/\{\{ctaUrl\}\}/g, ctaUrl)
-      .replace(/\{\{unsubscribeUrl\}\}/g, "#");
+      .replace(/\{\{unsubscribeUrl\}\}/g, unsubscribeUrl);
 
-    body += `<p style="font-size:11px;color:#999;margin-top:32px;border-top:1px solid #eee;padding-top:12px;"><em>This is a test email. Unsubscribe link is disabled.</em></p>`;
+    body += `<p style="font-size:11px;color:#999;margin-top:32px;border-top:1px solid #eee;padding-top:12px;">ComplianceChimp, Inc.<br><a href="${unsubscribeUrl}" style="color:#999;">Unsubscribe</a> from this email sequence.</p>`;
 
     const client = createSendgridClient();
     await client.sendMail({
@@ -7317,3 +7827,4 @@ export const sendTestOutreachEmail = onCall(
     });
   }
 );
+

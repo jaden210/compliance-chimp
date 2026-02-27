@@ -1,35 +1,49 @@
 <div class="trial-expired-dialog">
-  <div class="dialog-icon">
-    <mat-icon>hourglass_empty</mat-icon>
-  </div>
-  
-  <h2 mat-dialog-title>Your free trial has ended</h2>
-  
-  <mat-dialog-content>
-    <p class="dialog-message">
-      Your 14-day free trial has expired. Subscribe now to continue creating and editing content, or continue in read-only mode to view your existing data.
-    </p>
-    
-    <div class="subscription-info">
+  <div class="dialog-layout">
+    <div class="dialog-image">
+      <img src="assets/chimpLate.png" alt="Chimp mascot" />
+    </div>
+
+    <div class="dialog-content">
       <div class="price-tag">
         <span class="price">$99</span>
         <span class="period">/month</span>
       </div>
+
+      <h2 mat-dialog-title>Your 14-day free trial has expired</h2>
+
+      <p class="dialog-message">
+        Subscribe now to continue creating and editing content, or continue in read-only mode to view your existing data.
+      </p>
+
       <div class="benefits">
-        <div class="benefit"><mat-icon>check</mat-icon> Unlimited team members</div>
-        <div class="benefit"><mat-icon>check</mat-icon> Full access to all features</div>
-        <div class="benefit"><mat-icon>check</mat-icon> Cancel anytime</div>
+        <div class="benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Cancel anytime — no commitments</span>
+        </div>
+        <div class="benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Full access to all features &amp; unlimited team members</span>
+        </div>
+        <div class="benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Autonomous OSHA compliance monitoring</span>
+        </div>
+        <div class="benefit">
+          <mat-icon>check_circle</mat-icon>
+          <span>Customized training &amp; onboarding for your crew</span>
+        </div>
       </div>
+
+      <mat-dialog-actions>
+        <button mat-flat-button color="accent" (click)="subscribe()">
+          <mat-icon>credit_card</mat-icon>
+          Subscribe Now
+        </button>
+        <button mat-button class="read-only-btn" (click)="continueReadOnly()">
+          Continue in Read-Only Mode
+        </button>
+      </mat-dialog-actions>
     </div>
-  </mat-dialog-content>
-  
-  <mat-dialog-actions align="center">
-    <button mat-button color="primary" (click)="continueReadOnly()">
-      Continue in Read-Only Mode
-    </button>
-    <button mat-flat-button color="accent" (click)="subscribe()">
-      <mat-icon>credit_card</mat-icon>
-      Subscribe Now
-    </button>
-  </mat-dialog-actions>
+  </div>
 </div>

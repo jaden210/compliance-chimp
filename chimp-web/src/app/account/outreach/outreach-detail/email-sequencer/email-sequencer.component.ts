@@ -79,6 +79,8 @@ export class EmailSequencerComponent implements OnInit, OnDestroy {
   syncResult: { added: number; skippedInvalid: number } | null = null;
 
   // Campaign controls
+  populating: boolean = false;
+  populateResult: { recipientCount: number; skippedInvalid: number; skippedUnverified: number } | null = null;
   starting: boolean = false;
   pausing: boolean = false;
 
@@ -87,9 +89,13 @@ export class EmailSequencerComponent implements OnInit, OnDestroy {
   sendingTest: boolean = false;
   testSent: boolean = false;
 
+
   // Landing page
   landingPage: OutreachLandingPage | null = null;
   generatingLP: boolean = false;
+  lpPrompt: string = "";
+  lpGeneratedUrl: string = "";
+  lpUrlCopied: boolean = false;
 
   private subs: Subscription[] = [];
 
@@ -303,7 +309,33 @@ export class EmailSequencerComponent implements OnInit, OnDestroy {
     }
   }
 
+  async removeRecipient(recipient: Recipient): Promise<void> {
+    if (!this.campaign) return;
+    try {
+      await this.campaignService.deleteRecipient(
+        this.campaign.id,
+        recipient.id
+      );
+    } catch (err) {
+      console.error("Error removing recipient:", err);
+    }
+  }
+
   // ── Campaign controls ──
+
+  async populateRecipients(): Promise<void> {
+    if (!this.campaign) return;
+    this.populating = true;
+    this.populateResult = null;
+    try {
+      this.populateResult = await this.campaignService.populateRecipients(this.campaign.id);
+      this.activeTab = "recipients";
+    } catch (err) {
+      console.error("Error populating recipients:", err);
+    } finally {
+      this.populating = false;
+    }
+  }
 
   async startCampaign(): Promise<void> {
     if (!this.campaign) return;
@@ -366,12 +398,39 @@ export class EmailSequencerComponent implements OnInit, OnDestroy {
     if (!this.campaign) return;
     this.generatingLP = true;
     try {
-      await this.campaignService.generateLandingPage(this.campaign.id);
+      const result = await this.campaignService.generateLandingPage(this.campaign.id);
+      this.lpGeneratedUrl = result.url;
     } catch (err) {
       console.error("Error generating landing page:", err);
     } finally {
       this.generatingLP = false;
     }
+  }
+
+  async regenerateLP(): Promise<void> {
+    if (!this.campaign) return;
+    this.generatingLP = true;
+    try {
+      const result = await this.campaignService.generateLandingPage(
+        this.campaign.id,
+        this.lpPrompt.trim() || undefined
+      );
+      this.lpGeneratedUrl = result.url;
+      this.lpPrompt = "";
+    } catch (err) {
+      console.error("Error regenerating landing page:", err);
+    } finally {
+      this.generatingLP = false;
+    }
+  }
+
+  copyLandingPageUrl(): void {
+    const url = this.landingPageUrl;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      this.lpUrlCopied = true;
+      setTimeout(() => (this.lpUrlCopied = false), 2500);
+    });
   }
 
   get landingPageUrl(): string {
@@ -381,6 +440,37 @@ export class EmailSequencerComponent implements OnInit, OnDestroy {
 
   openLandingPage(): void {
     if (this.landingPageUrl) window.open(this.landingPageUrl, "_blank");
+  }
+
+  get clickThroughRate(): string {
+    const sent = this.campaign?.stats?.totalSent || 0;
+    const visitors = this.landingPage?.uniqueVisitors || 0;
+    if (!sent) return "0";
+    return Math.min((visitors / sent) * 100, 100).toFixed(1);
+  }
+
+  get recentDailyVisits(): { date: string; label: string; count: number; pct: number }[] {
+    const byDay = this.landingPage?.visitsByDay;
+    if (!byDay) return [];
+
+    const days: { date: string; label: string; count: number; pct: number }[] = [];
+    const today = new Date();
+
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const count = byDay[key] || 0;
+      const month = d.toLocaleDateString("en-US", { month: "short" });
+      const day = d.getDate();
+      days.push({ date: key, label: `${month} ${day}`, count, pct: 0 });
+    }
+
+    const max = Math.max(...days.map((d) => d.count), 1);
+    for (const d of days) {
+      d.pct = (d.count / max) * 100;
+    }
+    return days;
   }
 
   // ── Helpers ──

@@ -50,7 +50,7 @@ export class ContactComponent implements OnInit {
     // Set custom SEO for contact page with structured data
     this.seoService.setCustomSeo({
       title: 'Contact Us | Compliance Chimp - OSHA Compliance Support',
-      description: 'Get in touch with the Compliance Chimp team. Call (801) 624-8640 or email support@compliancechimp.com for help with OSHA compliance and safety training.',
+      description: 'Get in touch with the Compliance Chimp team. Call (801) 477-5113 or email support@compliancechimp.com for help with OSHA compliance and safety training.',
       keywords: 'contact compliance chimp, OSHA compliance support, safety software help, compliance chimp phone number, compliance chimp email',
       url: 'https://compliancechimp.com/contact'
     });

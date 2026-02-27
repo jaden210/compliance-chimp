@@ -145,7 +145,7 @@
       <chimp-fact-card
         animationStyle="typewriter"
         [cycleInterval]="30000"
-        [recentActivity]="recentlyCreatedItems"
+        [recentActivity]="recentActivityItems"
         contextHint="Their compliance program is being built in real time. Inspections and trainings are being created and added to their account. Reference the specific checklists and trainings when possible — why that particular inspection or training matters for their industry. NEVER say 'in your log' or 'in the log' — that's just a progress display, not their actual content. Their stuff goes to their self-inspections and training library. Mix in occasional quips. Keep it distinct from team-building step."
       ></chimp-fact-card>
 
@@ -156,7 +156,7 @@
           <span>Activity Log</span>
         </div>
         <div class="log-entries">
-          @for (entry of activityLogReversed; track $index) {
+          @for (entry of activityLog; track entry.id) {
             <div 
               class="log-entry" 
               [ngClass]="entry.type"

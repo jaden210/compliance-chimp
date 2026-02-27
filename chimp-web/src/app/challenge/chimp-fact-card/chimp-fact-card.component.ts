@@ -55,8 +55,9 @@ export class ChimpFactCardComponent implements OnInit, OnDestroy, OnChanges {
   isLoading = false;
   isTyping = false;
 
-  private cycleTimer: any = null;
-  private typewriterTimer: any = null;
+  private cycleTimer: ReturnType<typeof setInterval> | null = null;
+  private typewriterTimer: ReturnType<typeof setInterval> | null = null;
+  private crossfadeTimer: ReturnType<typeof setTimeout> | null = null;
   private getChimpFactFn: ReturnType<typeof httpsCallable>;
   private previousFacts: string[] = [];
   private cycleCount = 0;
@@ -99,6 +100,7 @@ export class ChimpFactCardComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy(): void {
     if (this.cycleTimer) clearInterval(this.cycleTimer);
     if (this.typewriterTimer) clearInterval(this.typewriterTimer);
+    if (this.crossfadeTimer) clearTimeout(this.crossfadeTimer);
   }
 
   private async loadFact(): Promise<void> {
@@ -150,7 +152,9 @@ export class ChimpFactCardComponent implements OnInit, OnDestroy, OnChanges {
       } else {
         // Subsequent loads — fade out, swap text, fade in
         this.showText = false;
-        setTimeout(() => {
+        if (this.crossfadeTimer) clearTimeout(this.crossfadeTimer);
+        this.crossfadeTimer = setTimeout(() => {
+          this.crossfadeTimer = null;
           this.fact = text;
           this.displayedText = text;
           this.showText = true;

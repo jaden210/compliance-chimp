@@ -64,23 +64,6 @@
         </mat-form-field>
 
         <ng-container *ngIf="!challengeService.isDryRun">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Confirm Password</mat-label>
-            <input
-              matInput
-              [type]="hideConfirmPassword ? 'password' : 'text'"
-              [(ngModel)]="confirmPassword"
-              [disabled]="isLoading"
-              (keyup.enter)="createAccount()"
-            />
-            <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button" tabindex="-1">
-              <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-            </button>
-            <mat-error *ngIf="confirmPassword && password !== confirmPassword">
-              Passwords do not match
-            </mat-error>
-          </mat-form-field>
-
           <div class="terms-checkbox">
             <mat-checkbox [(ngModel)]="agreedToTerms" [disabled]="isLoading">
               I agree to the 

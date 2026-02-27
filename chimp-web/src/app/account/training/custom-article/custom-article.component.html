@@ -123,6 +123,21 @@
           <!-- Article Content -->
           <section class="article-content" [innerHTML]="article.content"></section>
 
+          <!-- Attached Videos -->
+          @if (article.videoUrls?.length) {
+            <section class="article-videos">
+              <h2 class="videos-heading">
+                <mat-icon>videocam</mat-icon>
+                Training Videos
+              </h2>
+              @for (url of article.videoUrls; track url) {
+                <div class="video-wrapper">
+                  <video [src]="url" controls class="article-video"></video>
+                </div>
+              }
+            </section>
+          }
+
           <!-- Print Footer - only visible when printing -->
           <div class="print-footer">
             <img class="print-logo" src="/assets/chimp.png" alt="Compliance Chimp">

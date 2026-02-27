@@ -9,6 +9,8 @@ import {
   doc,
   docData,
 } from "@angular/fire/firestore";
+import { Functions, httpsCallable } from "@angular/fire/functions";
+import { Auth } from "@angular/fire/auth";
 import { SeoService } from "../../shared/seo.service";
 import { Subscription } from "rxjs";
 
@@ -48,10 +50,13 @@ export class OutreachLandingPageComponent implements OnInit, OnDestroy {
   loading = true;
   private sub: Subscription;
   private injectedScripts: HTMLScriptElement[] = [];
+  private visitTracked = false;
 
   constructor(
     private route: ActivatedRoute,
     private db: Firestore,
+    private fns: Functions,
+    private auth: Auth,
     private seo: SeoService,
     @Inject(DOCUMENT) private document: Document
   ) {}
@@ -73,6 +78,7 @@ export class OutreachLandingPageComponent implements OnInit, OnDestroy {
             url: `https://compliancechimp.com/lp/o/${slug}`,
           });
           this.injectStructuredData();
+          this.trackVisit(slug!);
         }
         this.loading = false;
       },
@@ -86,6 +92,18 @@ export class OutreachLandingPageComponent implements OnInit, OnDestroy {
     if (this.sub) this.sub.unsubscribe();
     for (const script of this.injectedScripts) {
       script.remove();
+    }
+  }
+
+  private trackVisit(slug: string): void {
+    if (this.visitTracked) return;
+    this.visitTracked = true;
+    if (this.auth.currentUser) return;
+    try {
+      const fn = httpsCallable(this.fns, "trackOutreachVisit");
+      fn({ slug }).catch(() => {});
+    } catch {
+      // Analytics should never break the page
     }
   }
 

@@ -49,7 +49,8 @@
       >{{ getStatusLabel(campaign.status) }}</span>
       <div class="top-stats">
         <span><strong>{{ campaign.stats?.totalSent || 0 }}</strong> sent</span>
-        <span><strong>{{ campaign.recipientCount || 0 }}</strong> recipients</span>
+        <span><strong>{{ recipients.length }}</strong> recipients</span>
+        <span *ngIf="landingPage?.totalVisits"><strong>{{ landingPage.totalVisits }}</strong> visits</span>
       </div>
     </div>
   </div>
@@ -113,13 +114,31 @@
       <!-- Campaign controls -->
       <div class="controls-card">
         <button
+          class="control-btn populate"
+          *ngIf="campaign.status === 'draft' && !recipients.length"
+          (click)="populateRecipients()"
+          [disabled]="populating || !campaign.sequence?.length"
+        >
+          <mat-icon>{{ populating ? 'hourglass_empty' : 'group_add' }}</mat-icon>
+          {{ populating ? 'Gathering Recipients...' : 'Gather Recipients' }}
+        </button>
+        <button
           class="control-btn start"
-          *ngIf="campaign.status === 'draft' || campaign.status === 'paused'"
+          *ngIf="campaign.status === 'draft' && recipients.length"
           (click)="startCampaign()"
           [disabled]="starting || !campaign.sequence?.length"
         >
           <mat-icon>play_arrow</mat-icon>
-          {{ starting ? 'Starting...' : campaign.status === 'paused' ? 'Resume' : 'Start Campaign' }}
+          {{ starting ? 'Starting...' : 'Start Campaign' }}
+        </button>
+        <button
+          class="control-btn start"
+          *ngIf="campaign.status === 'paused'"
+          (click)="startCampaign()"
+          [disabled]="starting"
+        >
+          <mat-icon>play_arrow</mat-icon>
+          {{ starting ? 'Resuming...' : 'Resume' }}
         </button>
         <button
           class="control-btn pause"
@@ -269,6 +288,17 @@
         >Unsub ({{ recipientStatusCounts['unsubscribed'] || 0 }})</button>
       </div>
 
+      <div class="sync-section" *ngIf="campaign.status === 'draft' && recipients.length">
+        <button class="sync-btn" (click)="populateRecipients()" [disabled]="populating">
+          <mat-icon>sync</mat-icon>
+          {{ populating ? 'Refreshing...' : 'Refresh Recipients' }}
+        </button>
+        <span class="sync-result" *ngIf="populateResult">
+          {{ populateResult.recipientCount }} total
+          <span *ngIf="populateResult.skippedInvalid">, {{ populateResult.skippedInvalid }} invalid</span>
+          <span *ngIf="populateResult.skippedUnverified">, {{ populateResult.skippedUnverified }} unverified skipped</span>
+        </span>
+      </div>
       <div class="sync-section" *ngIf="campaign.status === 'active' || campaign.status === 'paused'">
         <button class="sync-btn" (click)="syncNewContacts()" [disabled]="syncing">
           <mat-icon>sync</mat-icon>
@@ -289,6 +319,14 @@
             <div class="recipient-name">{{ r.companyName || 'Unknown' }}</div>
             <div class="recipient-email">{{ r.email }}</div>
           </div>
+          <span
+            *ngIf="r.emailVerification"
+            class="deliverability-badge deliverability-{{ r.emailVerification.status }}"
+            [matTooltip]="r.emailVerification.reason"
+          >
+            {{ r.emailVerification.status }}
+            <span class="deliverability-score" *ngIf="r.emailVerification.score != null">{{ r.emailVerification.score }}</span>
+          </span>
           <div class="recipient-progress">
             <span class="step-indicator">
               Step {{ r.currentStep + 1 }}/{{ campaign.sequence?.length || 0 }}
@@ -298,14 +336,34 @@
             class="recipient-badge"
             [style.background]="getStatusColor(r.status)"
           >{{ getStatusLabel(r.status) }}</span>
+          <button
+            class="remove-recipient-btn"
+            (click)="removeRecipient(r)"
+            matTooltip="Remove recipient"
+            *ngIf="r.status === 'queued'"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
       }
     </div>
 
     <div class="recipients-empty" *ngIf="!filteredRecipients.length">
       <mat-icon>group_off</mat-icon>
-      <p *ngIf="campaign.status === 'draft'">Start the campaign to populate recipients from your scrape results.</p>
-      <p *ngIf="campaign.status !== 'draft'">No recipients match this filter.</p>
+      <p *ngIf="campaign.status === 'draft' && !recipients.length">
+        Gather recipients from your scrape results to review before starting the campaign.
+      </p>
+      <button
+        class="control-btn populate"
+        *ngIf="campaign.status === 'draft' && !recipients.length"
+        (click)="populateRecipients()"
+        [disabled]="populating || !campaign.sequence?.length"
+        style="margin-top: 12px;"
+      >
+        <mat-icon>{{ populating ? 'hourglass_empty' : 'group_add' }}</mat-icon>
+        {{ populating ? 'Gathering Recipients...' : 'Gather Recipients' }}
+      </button>
+      <p *ngIf="campaign.status !== 'draft' || recipients.length">No recipients match this filter.</p>
     </div>
   </div>
 
@@ -324,7 +382,7 @@
     </div>
 
     <!-- Generating -->
-    <div class="lp-generating-state" *ngIf="generatingLP">
+    <div class="lp-generating-state" *ngIf="generatingLP && !landingPage">
       <mat-spinner diameter="36"></mat-spinner>
       <p>Generating your landing page with AI...</p>
     </div>
@@ -335,11 +393,89 @@
         <div class="lp-url-row">
           <mat-icon>link</mat-icon>
           <span class="lp-url-text">{{ landingPageUrl }}</span>
-          <button mat-icon-button (click)="openLandingPage()" matTooltip="Open in new tab">
+          <button mat-icon-button (click)="copyLandingPageUrl()" [matTooltip]="lpUrlCopied ? 'Copied!' : 'Copy URL'">
+            <mat-icon>{{ lpUrlCopied ? 'check' : 'content_copy' }}</mat-icon>
+          </button>
+          <button mat-icon-button (click)="openLandingPage()" matTooltip="View landing page">
             <mat-icon>open_in_new</mat-icon>
           </button>
         </div>
         <p class="lp-url-note">All outreach emails now link to this page instead of the default signup.</p>
+      </div>
+
+      <!-- Landing Page Analytics -->
+      <div class="lp-analytics-card">
+        <div class="lp-analytics-header">
+          <mat-icon>analytics</mat-icon>
+          <span>Landing Page Traffic</span>
+        </div>
+        <div class="lp-analytics-stats">
+          <div class="lp-stat-item">
+            <span class="lp-stat-value">{{ landingPage.totalVisits || 0 }}</span>
+            <span class="lp-stat-label">Total Visits</span>
+          </div>
+          <div class="lp-stat-divider"></div>
+          <div class="lp-stat-item">
+            <span class="lp-stat-value">{{ landingPage.uniqueVisitors || 0 }}</span>
+            <span class="lp-stat-label">Unique Visitors</span>
+          </div>
+          <div class="lp-stat-divider"></div>
+          <div class="lp-stat-item">
+            <span class="lp-stat-value">{{ campaign.stats?.totalSent || 0 }}</span>
+            <span class="lp-stat-label">Emails Sent</span>
+          </div>
+          <div class="lp-stat-divider"></div>
+          <div class="lp-stat-item">
+            <span class="lp-stat-value">{{ clickThroughRate }}%</span>
+            <span class="lp-stat-label">Click-Through Rate</span>
+          </div>
+        </div>
+        <div class="lp-daily-visits" *ngIf="recentDailyVisits.length">
+          <div class="lp-daily-header">
+            <span>Recent Daily Traffic</span>
+          </div>
+          <div class="lp-daily-bars">
+            @for (day of recentDailyVisits; track day.date) {
+              <div class="lp-daily-bar-col" [matTooltip]="day.date + ': ' + day.count + ' visits'">
+                <div class="lp-daily-bar" [style.height.%]="day.pct"></div>
+                <span class="lp-daily-count">{{ day.count }}</span>
+                <span class="lp-daily-date">{{ day.label }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="lp-regen-card">
+        <div class="lp-regen-header">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>Regenerate Content</span>
+        </div>
+        <div class="lp-regen-row">
+          <input
+            class="lp-regen-input"
+            [(ngModel)]="lpPrompt"
+            placeholder="Describe changes, e.g. 'Focus more on penalty costs' or 'Make it shorter and punchier'..."
+            (keydown.enter)="regenerateLP()"
+          />
+          <button
+            class="lp-regen-btn prompt"
+            (click)="regenerateLP()"
+            [disabled]="generatingLP || !lpPrompt.trim()"
+            matTooltip="Regenerate with prompt"
+          >
+            <mat-icon>send</mat-icon>
+          </button>
+          <button
+            class="lp-regen-btn auto"
+            (click)="regenerateLP()"
+            [disabled]="generatingLP"
+            matTooltip="Regenerate from scratch"
+          >
+            <mat-icon>refresh</mat-icon>
+            Regenerate
+          </button>
+        </div>
       </div>
 
       <div class="lp-preview">

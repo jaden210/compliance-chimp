@@ -33,13 +33,11 @@ export class Step2Component implements OnInit {
   name = '';
   email = '';
   password = '';
-  confirmPassword = '';
   agreedToTerms = false;
   
   isLoading = false;
   errorMessage = '';
   hidePassword = true;
-  hideConfirmPassword = true;
   
   // Check if account is already created
   accountAlreadyCreated = false;
@@ -78,7 +76,6 @@ export class Step2Component implements OnInit {
       this.email?.trim() &&
       this.isValidEmail(this.email) &&
       this.password?.length >= 6 &&
-      this.password === this.confirmPassword &&
       this.agreedToTerms
     );
   }

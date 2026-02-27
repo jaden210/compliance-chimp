@@ -386,99 +386,140 @@ a:hover {
 
 /* Trial Expired Dialog */
 .trial-expired-dialog {
-  text-align: center;
-  padding: 16px;
+  padding: 0;
 }
 
-.trial-expired-dialog .dialog-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--chimp-accent) 0%, #ff8a50 100%);
+.trial-expired-dialog .dialog-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.trial-expired-dialog .dialog-image {
+  flex: 0 0 200px;
+  background: linear-gradient(160deg, #e8f0fe 0%, #d4e4f7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 24px;
+  border-radius: 4px 0 0 4px;
+  padding: 24px 16px;
 }
 
-.trial-expired-dialog .dialog-icon mat-icon {
-  font-size: 40px;
-  width: 40px;
-  height: 40px;
-  color: white;
+.trial-expired-dialog .dialog-image img {
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  object-fit: contain;
 }
 
-.trial-expired-dialog h2 {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: var(--chimp-text-primary);
-}
-
-.trial-expired-dialog .dialog-message {
-  font-size: 15px;
-  color: var(--chimp-text-secondary);
-  line-height: 1.5;
-  margin-bottom: 24px;
-}
-
-.trial-expired-dialog .subscription-info {
-  background: var(--chimp-bg-secondary, #f8f9fa);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+.trial-expired-dialog .dialog-content {
+  flex: 1;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
 }
 
 .trial-expired-dialog .price-tag {
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
 .trial-expired-dialog .price {
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--chimp-primary);
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--chimp-primary, #054d8a);
+  letter-spacing: -1px;
 }
 
 .trial-expired-dialog .period {
-  font-size: 16px;
-  color: var(--chimp-text-secondary);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--chimp-text-secondary, #666);
+}
+
+.trial-expired-dialog h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--chimp-text-primary, #222);
+  padding: 0;
+}
+
+.trial-expired-dialog .dialog-message {
+  font-size: 14px;
+  color: var(--chimp-text-secondary, #666);
+  line-height: 1.5;
+  margin-bottom: 20px;
 }
 
 .trial-expired-dialog .benefits {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  text-align: left;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .trial-expired-dialog .benefit {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 14px;
-  color: var(--chimp-text-primary);
+  line-height: 1.4;
+  color: var(--chimp-text-primary, #333);
 }
 
 .trial-expired-dialog .benefit mat-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  color: #4caf50;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--chimp-accent, #ff9100);
+  margin-top: 1px;
 }
 
 .trial-expired-dialog mat-dialog-actions {
-  padding: 16px 0 0 0;
-  gap: 12px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: unset;
 }
 
-.trial-expired-dialog mat-dialog-actions button {
-  padding: 0 24px;
-  height: 44px;
-  border-radius: 22px;
+.trial-expired-dialog mat-dialog-actions button[mat-flat-button] {
+  width: 100%;
+  height: 46px;
+  border-radius: 23px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.trial-expired-dialog mat-dialog-actions button mat-icon {
+.trial-expired-dialog mat-dialog-actions button[mat-flat-button] mat-icon {
   margin-right: 8px;
+}
+
+.trial-expired-dialog mat-dialog-actions .read-only-btn {
+  font-size: 13px;
+  color: var(--chimp-text-secondary, #888);
+}
+
+@media (max-width: 600px) {
+  .trial-expired-dialog .dialog-layout {
+    flex-direction: column;
+  }
+
+  .trial-expired-dialog .dialog-image {
+    flex: 0 0 auto;
+    border-radius: 4px 4px 0 0;
+    padding: 20px 16px;
+  }
+
+  .trial-expired-dialog .dialog-image img {
+    max-width: 120px;
+  }
+
+  .trial-expired-dialog .dialog-content {
+    padding: 20px 24px;
+  }
 }
 
 /* ChimpChat Sidenav */

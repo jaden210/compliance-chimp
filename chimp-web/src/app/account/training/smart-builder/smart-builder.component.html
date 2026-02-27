@@ -190,12 +190,41 @@
       </div>
     </div>
 
+    <!-- Hidden file inputs for media upload -->
+    <input #imageFileInput type="file" accept="image/*" style="display:none" (change)="onImageFileSelected($event)">
+    <input #videoFileInput type="file" accept="video/*" style="display:none" (change)="onVideoFileSelected($event)">
+
     <!-- Rich Text Editor -->
     <div class="editor-wrapper">
       <div class="editor-label">
         <mat-icon>article</mat-icon>
         <span>Training Content</span>
+        <div class="editor-label-spacer"></div>
+        <div class="media-buttons">
+          <button mat-button class="media-btn"
+                  (click)="triggerImageUpload()"
+                  [disabled]="mediaUploadProgress !== null"
+                  matTooltip="Insert an image into the article">
+            <mat-icon>add_photo_alternate</mat-icon>
+            <span>Image</span>
+          </button>
+          <button mat-button class="media-btn"
+                  (click)="triggerVideoUpload()"
+                  [disabled]="mediaUploadProgress !== null"
+                  matTooltip="Insert a video into the article">
+            <mat-icon>video_file</mat-icon>
+            <span>Video</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Upload progress bar -->
+      <div class="upload-progress" *ngIf="mediaUploadProgress !== null">
+        <mat-icon>{{ mediaUploadType === 'image' ? 'add_photo_alternate' : 'video_file' }}</mat-icon>
+        <span>Uploading {{ mediaUploadType }}... {{ mediaUploadProgress }}%</span>
+        <mat-progress-bar mode="determinate" [value]="mediaUploadProgress" class="upload-bar"></mat-progress-bar>
+      </div>
+
       <div class="ngx-editor-wrapper">
         <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
         <ngx-editor
@@ -203,6 +232,27 @@
           [(ngModel)]="generatedContent"
           [placeholder]="'Start writing your training content...'"
         ></ngx-editor>
+      </div>
+    </div>
+
+    <!-- Attached Videos -->
+    <div class="video-panel" *ngIf="videoUrls.length > 0">
+      <div class="video-panel-header">
+        <mat-icon>videocam</mat-icon>
+        <span>Attached Videos</span>
+        <span class="video-count">{{ videoUrls.length }}</span>
+      </div>
+      <div class="video-list">
+        @for (url of videoUrls; track url; let i = $index) {
+          <div class="video-card">
+            <video [src]="url" controls class="video-preview"></video>
+            <button mat-icon-button class="remove-video-btn"
+                    (click)="removeVideo(i)"
+                    matTooltip="Remove video">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
       </div>
     </div>
 

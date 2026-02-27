@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable, of } from "rxjs";
+import { Observable, of, firstValueFrom } from "rxjs";
 import {
   Firestore,
   collection,
@@ -11,8 +11,11 @@ import {
   orderBy,
   addDoc,
   updateDoc,
+  deleteDoc,
   setDoc,
+  getDocs,
   serverTimestamp,
+  increment,
 } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { map, catchError } from "rxjs/operators";
@@ -62,6 +65,13 @@ export interface RecipientHistory {
   messageId: string;
 }
 
+export interface RecipientEmailVerification {
+  status: string;
+  reason: string;
+  score?: number;
+  verifiedAt: string;
+}
+
 export interface Recipient {
   id: string;
   email: string;
@@ -72,6 +82,7 @@ export interface Recipient {
   nextSendAt: Date;
   history: RecipientHistory[];
   unsubscribedAt?: Date;
+  emailVerification?: RecipientEmailVerification;
 }
 
 // ── Global settings ──
@@ -128,6 +139,9 @@ export interface OutreachLandingPage {
   getStartedParams: { industry: string; source: string };
   seoTitle: string;
   seoDescription: string;
+  totalVisits?: number;
+  uniqueVisitors?: number;
+  visitsByDay?: Record<string, number>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -139,6 +153,22 @@ export class CampaignService {
   constructor(private db: Firestore, private fns: Functions) {}
 
   // ── Campaign CRUD ──
+
+  getCampaigns(): Observable<Campaign[]> {
+    return collectionData(
+      query(
+        collection(this.db, "outreach-campaigns"),
+        orderBy("createdAt", "desc")
+      ),
+      { idField: "id" }
+    ).pipe(
+      map((docs: any[]) => docs.map((d) => this.mapCampaign(d))),
+      catchError((err) => {
+        console.error("Error loading campaigns:", err);
+        return of([]);
+      })
+    );
+  }
 
   getCampaignForJob(jobId: string): Observable<Campaign | null> {
     return collectionData(
@@ -249,14 +279,82 @@ export class CampaignService {
     );
   }
 
+  async deleteRecipient(
+    campaignId: string,
+    recipientId: string
+  ): Promise<void> {
+    await deleteDoc(
+      doc(this.db, `outreach-campaigns/${campaignId}/recipients/${recipientId}`)
+    );
+    await updateDoc(doc(this.db, `outreach-campaigns/${campaignId}`), {
+      recipientCount: increment(-1),
+      "stats.totalRecipients": increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  /**
+   * Called when a contact in the scrape results is manually verified.
+   * Finds the campaign for the given job and adds the contact as a queued
+   * recipient at step 0, skipping if they're already present.
+   * Returns true if added, false if skipped (no campaign or already exists).
+   */
+  async addVerifiedContactToCampaign(
+    jobId: string,
+    contact: { email: string; companyName: string; website: string }
+  ): Promise<boolean> {
+    const campaign = await firstValueFrom(this.getCampaignForJob(jobId));
+    if (!campaign || campaign.status === "draft") return false;
+
+    const email = contact.email.trim().toLowerCase();
+    const existing = await getDocs(
+      query(
+        collection(this.db, `outreach-campaigns/${campaign.id}/recipients`),
+        where("email", "==", email)
+      )
+    );
+    if (!existing.empty) return false;
+
+    await addDoc(
+      collection(this.db, `outreach-campaigns/${campaign.id}/recipients`),
+      {
+        email,
+        companyName: contact.companyName.trim(),
+        website: contact.website.trim(),
+        currentStep: 0,
+        status: "queued",
+        nextSendAt: serverTimestamp(),
+        history: [],
+        addedManually: true,
+      }
+    );
+    await updateDoc(doc(this.db, `outreach-campaigns/${campaign.id}`), {
+      recipientCount: increment(1),
+      "stats.totalRecipients": increment(1),
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  }
+
   // ── Cloud Function calls ──
+
+  async populateRecipients(
+    campaignId: string
+  ): Promise<{ recipientCount: number; skippedInvalid: number; skippedUnverified: number }> {
+    const fn = httpsCallable<
+      { campaignId: string },
+      { recipientCount: number; skippedInvalid: number; skippedUnverified: number }
+    >(this.fns, "populateOutreachRecipients");
+    const result = await fn({ campaignId });
+    return result.data;
+  }
 
   async startCampaign(
     campaignId: string
-  ): Promise<{ recipientCount: number; skippedInvalid: number }> {
+  ): Promise<{ status: string }> {
     const fn = httpsCallable<
       { campaignId: string },
-      { recipientCount: number; skippedInvalid: number }
+      { status: string }
     >(this.fns, "startOutreachCampaign");
     const result = await fn({ campaignId });
     return result.data;
@@ -311,13 +409,14 @@ export class CampaignService {
   // ── Landing page ──
 
   async generateLandingPage(
-    campaignId: string
+    campaignId: string,
+    prompt?: string
   ): Promise<{ slug: string; url: string }> {
     const fn = httpsCallable<
-      { campaignId: string },
+      { campaignId: string; prompt?: string },
       { slug: string; url: string }
     >(this.fns, "generateOutreachLandingPage");
-    const result = await fn({ campaignId });
+    const result = await fn({ campaignId, prompt: prompt || undefined });
     return result.data;
   }
 

@@ -20,6 +20,7 @@ interface ProgressInfo {
 }
 
 interface LogEntry {
+  id: number;
   type: 'info' | 'success' | 'working';
   source: 'inspection' | 'training';
   message: string;
@@ -66,13 +67,19 @@ export class Step4Component implements OnInit, OnDestroy {
   inspectionComplete = false;
   trainingComplete = false;
   
-  // Activity log
+  // Activity log — stored newest-first so no reversal getter is needed in the template
   activityLog: LogEntry[] = [];
+  // Maintained list of recently created item names for the chimp fact card context
+  recentActivityItems: string[] = [];
   
   // Track processed log queue entries to avoid duplicates
   private processedLogMessages = new Set<string>();
   private logQueueBuffer: QueuedLogEntry[] = [];
   private isProcessingLogQueue = false;
+  private drainTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private dryRunTimeoutIds: ReturnType<typeof setTimeout>[] = [];
+  private destroyed = false;
+  private logEntryIdCounter = 0;
   
   // Firestore unsubscribe functions
   private unsubscribeProgress: (() => void) | null = null;
@@ -207,15 +214,25 @@ export class Step4Component implements OnInit, OnDestroy {
     let cumulativeDelay = 0;
     for (const step of steps) {
       cumulativeDelay += step.delay;
-      setTimeout(() => step.action(), cumulativeDelay);
+      this.dryRunTimeoutIds.push(setTimeout(() => {
+        if (!this.destroyed) step.action();
+      }, cumulativeDelay));
     }
   }
 
   ngOnDestroy(): void {
-    // Clean up Firestore listener
+    this.destroyed = true;
     if (this.unsubscribeProgress) {
       this.unsubscribeProgress();
     }
+    if (this.drainTimeoutId !== null) {
+      clearTimeout(this.drainTimeoutId);
+      this.drainTimeoutId = null;
+    }
+    this.dryRunTimeoutIds.forEach(id => clearTimeout(id));
+    this.dryRunTimeoutIds = [];
+    this.logQueueBuffer = [];
+    this.isProcessingLogQueue = false;
   }
 
   private startAutoBuild(): void {
@@ -337,7 +354,9 @@ export class Step4Component implements OnInit, OnDestroy {
   
   // Drain the log buffer with staggered timing for natural feel
   private drainLogBuffer(): void {
-    if (this.logQueueBuffer.length === 0) {
+    this.drainTimeoutId = null;
+
+    if (this.destroyed || this.logQueueBuffer.length === 0) {
       this.isProcessingLogQueue = false;
       return;
     }
@@ -347,16 +366,22 @@ export class Step4Component implements OnInit, OnDestroy {
     // Take next entry from buffer
     const entry = this.logQueueBuffer.shift()!;
     
-    // Add to activity log
-    this.activityLog.push({
+    // Add to activity log newest-first
+    const logEntry: LogEntry = {
+      id: ++this.logEntryIdCounter,
       type: entry.type,
       source: entry.source,
       message: entry.message,
       timestamp: new Date(entry.timestamp)
-    });
+    };
+    this.activityLog.unshift(logEntry);
+    const createdMatch = entry.message.match(/Created:\s*(.+)/);
+    if (createdMatch) {
+      this.recentActivityItems = [...this.recentActivityItems, createdMatch[1].trim()].slice(-12);
+    }
     
     // Stagger next entry with 500ms delay for readable pacing
-    setTimeout(() => this.drainLogBuffer(), 500);
+    this.drainTimeoutId = setTimeout(() => this.drainLogBuffer(), 500);
   }
   
   // Determine log entry type based on action text
@@ -372,29 +397,19 @@ export class Step4Component implements OnInit, OnDestroy {
   }
 
   private addLogEntry(type: 'info' | 'success' | 'working', source: 'inspection' | 'training', message: string): void {
-    this.activityLog.push({
+    this.activityLog.unshift({
+      id: ++this.logEntryIdCounter,
       type,
       source,
       message,
       timestamp: new Date()
     });
-  }
-
-  get activityLogReversed(): LogEntry[] {
-    return [...this.activityLog].reverse();
-  }
-
-  /** Extract inspection/training names from activity log for Chimp context. */
-  get recentlyCreatedItems(): string[] {
-    const items: string[] = [];
-    for (const entry of this.activityLog) {
-      const match = entry.message.match(/Created:\s*(.+)/);
-      if (match) {
-        items.push(match[1].trim());
-      }
+    const createdMatch = message.match(/Created:\s*(.+)/);
+    if (createdMatch) {
+      this.recentActivityItems = [...this.recentActivityItems, createdMatch[1].trim()].slice(-12);
     }
-    return items.slice(-12); // Last 12 items to keep context focused
   }
+
 
   get isComplete(): boolean {
     return this.inspectionComplete && this.trainingComplete;

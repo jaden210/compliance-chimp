@@ -129,12 +129,25 @@
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
 }
 
 .results-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.results-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-filter {
+  width: 150px;
+  font-size: 13px;
 }
 
 .search-box {
@@ -172,23 +185,27 @@ table {
 }
 
 .mat-column-name {
-  width: 22%;
-}
-
-.mat-column-phone {
-  width: 14%;
-}
-
-.mat-column-email {
-  width: 22%;
-}
-
-.mat-column-website {
   width: 18%;
 }
 
+.mat-column-phone {
+  width: 12%;
+}
+
+.mat-column-email {
+  width: 20%;
+}
+
+.mat-column-status {
+  width: 14%;
+}
+
+.mat-column-website {
+  width: 16%;
+}
+
 .mat-column-address {
-  width: 24%;
+  width: 20%;
 }
 
 th.mat-header-cell {
@@ -273,6 +290,151 @@ td.mat-cell {
 
 .add-value:hover {
   color: var(--chimp-primary, #054d8a);
+}
+
+.no-email-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skip-btn {
+  font-size: 14px !important;
+  height: 14px !important;
+  width: 14px !important;
+  color: #d0d0d0;
+  cursor: pointer;
+  transition: color 150ms ease;
+  flex-shrink: 0;
+}
+
+.skip-btn:hover,
+.skip-btn.skipped {
+  color: #bdbdbd;
+}
+
+.row-skipped td {
+  opacity: 0.45;
+}
+
+/* ---- Email verification status ---- */
+
+.email-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.email-status {
+  font-size: 14px !important;
+  height: 14px !important;
+  width: 14px !important;
+  flex-shrink: 0;
+}
+
+.status-deliverable {
+  color: #4caf50;
+}
+
+.status-risky {
+  color: #ff9800;
+}
+
+.status-undeliverable {
+  color: #f44336;
+}
+
+.status-custom {
+  color: #2196f3;
+}
+
+.status-unknown {
+  color: #9e9e9e;
+}
+
+.mark-custom-btn {
+  color: #bdbdbd;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.mark-custom-btn:hover {
+  color: #2196f3;
+}
+
+/* ---- Verification badge (Status column) ---- */
+
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.badge-icon {
+  font-size: 14px !important;
+  height: 14px !important;
+  width: 14px !important;
+}
+
+.badge-label {
+  line-height: 1;
+}
+
+.badge-score {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badge-deliverable {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge-custom {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.badge-risky {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.badge-undeliverable {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.badge-unknown {
+  background: #f5f5f5;
+  color: #757575;
+}
+
+.badge-pending {
+  background: #f5f5f5;
+  color: #9e9e9e;
+}
+
+.badge-none {
+  background: #fafafa;
+  color: #bdbdbd;
+}
+
+.badge-skipped {
+  background: #f5f5f5;
+  color: #bdbdbd;
 }
 
 /* ---- Interrupted Banner ---- */

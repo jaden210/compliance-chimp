@@ -1188,6 +1188,10 @@ export class LibraryItem {
   // In-person training flag - true means training must be conducted in person
   // When true, notifications go to managers only and signatures are collected on manager's device
   isInPerson?: boolean;
+
+  // Media attachments stored separately from the rich text content
+  // (video elements can't be embedded in ProseMirror's schema)
+  videoUrls?: string[];
 }
 
 export enum TrainingCadence {

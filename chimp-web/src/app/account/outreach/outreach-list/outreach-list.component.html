@@ -24,11 +24,11 @@
             <p>Get the tool — it's a lightweight Python app that runs on your machine.</p>
             <a
               class="download-btn"
-              href="https://storage.googleapis.com/teamlog-2d74c.appspot.com/public/lead-scraper-v3.zip"
+              href="https://storage.googleapis.com/teamlog-2d74c.appspot.com/public/lead-scraper-v4.zip"
               download
             >
               <mat-icon>download</mat-icon>
-              Download Lead Scraper v3
+              Download Lead Scraper v4
             </a>
           </div>
         </div>
@@ -144,10 +144,29 @@
             <span class="stat-value">{{ job.progress.totalWithEmail || job.progress.emailsFound }}</span>
             <span class="stat-label">Emails</span>
           </div>
+          <div class="stat" *ngIf="getDeliverableCount(job)">
+            <span class="stat-value">{{ getDeliverableCount(job) }}</span>
+            <span class="stat-label">Deliverable</span>
+          </div>
           <div class="stat" *ngIf="job.totalResults">
             <span class="stat-value">{{ job.totalResults }}</span>
             <span class="stat-label">Total</span>
           </div>
+        </div>
+
+        <div class="campaign-stats" *ngIf="campaignByJobId[job.id] as campaign">
+          <div class="stat">
+            <span class="stat-value">{{ campaign.stats?.totalSent || 0 }}</span>
+            <span class="stat-label">Delivered</span>
+          </div>
+          <div class="stat" *ngIf="campaign.createdAt">
+            <span class="stat-value date">{{ campaign.createdAt | date:'shortDate' }}</span>
+            <span class="stat-label">Campaign Start</span>
+          </div>
+          <span
+            class="campaign-status-badge"
+            [style.background]="campaign.status === 'active' ? '#4caf50' : campaign.status === 'paused' ? '#ff9800' : campaign.status === 'completed' ? '#2196f3' : '#9e9e9e'"
+          >{{ campaign.status | titlecase }}</span>
         </div>
       </div>
     }

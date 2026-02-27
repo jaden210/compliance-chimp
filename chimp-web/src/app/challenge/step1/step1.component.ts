@@ -73,8 +73,9 @@ export class Step1Component implements OnInit, OnDestroy {
   showOverlay = false;
   overlayFact: string | null = null;
   overlayProgress = 0;
-  private overlayTimer: any = null;
-  private progressTimer: any = null;
+  private overlayTimer: ReturnType<typeof setTimeout> | null = null;
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
+  private factPollInterval: ReturnType<typeof setInterval> | null = null;
 
   // Pre-fetched chimp fact
   private prefetchedFact: string | null = null;
@@ -128,6 +129,7 @@ export class Step1Component implements OnInit, OnDestroy {
     this.factTriggerSub?.unsubscribe();
     if (this.overlayTimer) clearTimeout(this.overlayTimer);
     if (this.progressTimer) clearInterval(this.progressTimer);
+    if (this.factPollInterval) clearInterval(this.factPollInterval);
   }
 
   onBusinessNameChange(): void {
@@ -284,9 +286,10 @@ export class Step1Component implements OnInit, OnDestroy {
       });
     } else if (!this.overlayFact && this.isFetchingFact) {
       // Wait for the in-flight fetch to finish
-      const pollInterval = setInterval(() => {
+      this.factPollInterval = setInterval(() => {
         if (!this.isFetchingFact) {
-          clearInterval(pollInterval);
+          if (this.factPollInterval) clearInterval(this.factPollInterval);
+          this.factPollInterval = null;
           if (this.prefetchedFact) {
             this.overlayFact = this.prefetchedFact;
           }
@@ -312,6 +315,8 @@ export class Step1Component implements OnInit, OnDestroy {
   dismissOverlay(): void {
     if (this.progressTimer) clearInterval(this.progressTimer);
     if (this.overlayTimer) clearTimeout(this.overlayTimer);
+    if (this.factPollInterval) clearInterval(this.factPollInterval);
+    this.factPollInterval = null;
     this.showOverlay = false;
     this.router.navigate(['/get-started/step2']);
   }

@@ -345,3 +345,13 @@ agm-map {
 .mat-mdc-bottom-sheet-container.signature-sheet-panel {
   max-height: 90vh;
 }
+
+/* Trial expired dialog - remove default container padding for custom layout */
+.trial-expired-panel .mat-mdc-dialog-container .mdc-dialog__surface {
+  overflow: hidden;
+}
+
+.trial-expired-panel .mat-mdc-dialog-content {
+  padding: 0;
+  max-height: unset;
+}

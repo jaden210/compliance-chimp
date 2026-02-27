@@ -11,6 +11,7 @@ import {
   deleteDoc,
   updateDoc,
 } from "@angular/fire/firestore";
+import { Functions, httpsCallable } from "@angular/fire/functions";
 import { map, catchError } from "rxjs/operators";
 
 export interface ScrapeJobProgress {
@@ -25,6 +26,13 @@ export interface ScrapeJobProgress {
   totalWithWebsite: number;
 }
 
+export interface EmailVerification {
+  status: "deliverable" | "risky" | "undeliverable" | "unknown" | "custom";
+  reason: string;
+  score?: number;
+  verifiedAt: string;
+}
+
 export interface ScrapeJobResult {
   name: string;
   phone: string;
@@ -32,6 +40,8 @@ export interface ScrapeJobResult {
   website: string;
   address: string;
   googleMapsUrl: string;
+  emailVerification?: EmailVerification;
+  skipped?: boolean;
 }
 
 export interface ScrapeJob {
@@ -48,9 +58,20 @@ export interface ScrapeJob {
   lastHeartbeat: Date;
 }
 
+export interface VerifyEmailsResult {
+  verified: number;
+  skipped: number;
+  results: {
+    deliverable: number;
+    risky: number;
+    undeliverable: number;
+    unknown: number;
+  };
+}
+
 @Injectable()
 export class OutreachService {
-  constructor(private db: Firestore) {}
+  constructor(private db: Firestore, private fns: Functions) {}
 
   getJobs(): Observable<ScrapeJob[]> {
     return collectionData(
@@ -214,6 +235,16 @@ export class OutreachService {
       await this.updateResult(job.id, cleaned);
     }
     return changed;
+  }
+
+  async verifyEmails(jobId: string): Promise<VerifyEmailsResult> {
+    const fn = httpsCallable<{ jobId: string }, VerifyEmailsResult>(
+      this.fns,
+      "verifyOutreachEmails",
+      { timeout: 600_000 }
+    );
+    const result = await fn({ jobId });
+    return result.data;
   }
 
   private cleanEmailField(raw: string): string {

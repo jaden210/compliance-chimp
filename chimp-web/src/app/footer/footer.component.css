@@ -57,6 +57,7 @@
 .footer-chimp {
   height: 120px;
   width: auto;
+  cursor: pointer;
 }
 
 .footer-links {

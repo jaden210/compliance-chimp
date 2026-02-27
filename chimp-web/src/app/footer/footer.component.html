@@ -1,7 +1,7 @@
 <div class="footer">
   <div class="footer-content">
     <div class="footer-mascot">
-      <img src="/assets/chimp.png" alt="Chimp mascot" class="footer-chimp" />
+      <img [src]="currentChimp" alt="Chimp mascot" class="footer-chimp" (click)="cycleChimp()" />
     </div>
 
     <div class="footer-brand">

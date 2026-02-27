@@ -8,8 +8,9 @@ import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AccountService } from "../../account.service";
 import { OutreachService, ScrapeJob } from "../outreach.service";
-import { Observable, Subscription } from "rxjs";
-import { tap } from "rxjs/operators";
+import { CampaignService, Campaign } from "../campaign.service";
+import { Observable, Subscription, combineLatest } from "rxjs";
+import { tap, map } from "rxjs/operators";
 
 @Component({
   standalone: true,
@@ -25,29 +26,48 @@ import { tap } from "rxjs/operators";
     MatProgressBarModule,
     MatTooltipModule,
   ],
-  providers: [DatePipe, OutreachService],
+  providers: [DatePipe, OutreachService, CampaignService],
 })
 export class OutreachListComponent implements OnInit, OnDestroy {
   jobs$: Observable<ScrapeJob[]>;
   hasJobs: boolean = false;
   setupCollapsed: boolean = false;
+  campaignByJobId: Record<string, Campaign> = {};
   private sub: Subscription;
 
   constructor(
     public accountService: AccountService,
     public service: OutreachService,
+    private campaignService: CampaignService,
     private router: Router
   ) {}
 
   ngOnInit() {
-    this.jobs$ = this.service.getJobs().pipe(
-      tap((jobs) => {
+    this.jobs$ = combineLatest([
+      this.service.getJobs(),
+      this.campaignService.getCampaigns(),
+    ]).pipe(
+      tap(([jobs, campaigns]) => {
         this.hasJobs = jobs.length > 0;
         if (this.hasJobs && !this.setupCollapsed) {
           this.setupCollapsed = true;
         }
-      })
+        this.campaignByJobId = {};
+        for (const c of campaigns) {
+          this.campaignByJobId[c.jobId] = c;
+        }
+      }),
+      map(([jobs]) => jobs)
     );
+  }
+
+  getDeliverableCount(job: ScrapeJob): number {
+    if (!job.results?.length) return 0;
+    return job.results.filter(
+      (r) =>
+        r.emailVerification?.status === "deliverable" ||
+        r.emailVerification?.status === "custom"
+    ).length;
   }
 
   ngOnDestroy() {

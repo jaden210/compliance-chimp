@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, NgZone, inject } from "@angular/core";
+import { Component, OnInit, OnDestroy, NgZone, inject, ViewChild, ElementRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { RouterModule, Router, ActivatedRoute } from "@angular/router";
@@ -16,12 +16,14 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSelectModule } from "@angular/material/select";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
+import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { NgxEditorModule, Editor, Toolbar } from "ngx-editor";
 import { Subscription } from "rxjs";
 import { take } from "rxjs/operators";
 import { AccountService } from "../../account.service";
 import { TrainingService, TrainingCadence, LibraryItem, TrainingRecommendation } from "../training.service";
 import { Functions, httpsCallable } from "@angular/fire/functions";
+import { Storage, ref, uploadBytesResumable, getDownloadURL } from "@angular/fire/storage";
 import { TagInputComponent } from "../../team/tag-input/tag-input.component";
 
 // Confirmation dialog for leaving without saving
@@ -121,7 +123,8 @@ interface SpeechRecognition extends EventTarget {
     NgxEditorModule,
     TagInputComponent,
     MatDialogModule,
-    MatSlideToggleModule
+    MatSlideToggleModule,
+    MatProgressBarModule
   ]
 })
 export class SmartBuilderComponent implements OnInit, OnDestroy {
@@ -186,6 +189,15 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     return this.trainingService.getAllTags(this.accountService.teamMembers || []);
   }
 
+  // Media upload state
+  @ViewChild('imageFileInput') imageFileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('videoFileInput') videoFileInput!: ElementRef<HTMLInputElement>;
+  mediaUploadProgress: number | null = null;
+  mediaUploadType: 'image' | 'video' | null = null;
+
+  // Videos stored separately from rich text (ProseMirror can't handle <video> nodes)
+  videoUrls: string[] = [];
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
@@ -194,7 +206,8 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     private snackbar: MatSnackBar,
     private functions: Functions,
     private ngZone: NgZone,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private storage: Storage
   ) {
     this.initSpeechRecognition();
   }
@@ -273,6 +286,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     this.selectedCadence = article.trainingCadence || TrainingCadence.Annually;
     this.assignedTags = article.assignedTags || [];
     this.isInPerson = article.isInPerson || false;
+    this.videoUrls = article.videoUrls ? [...article.videoUrls] : [];
   }
 
   ngOnDestroy(): void {
@@ -437,7 +451,8 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
           topic: this.generatedTopic || this.editingArticle.topic || 'General Safety',
           trainingCadence: this.selectedCadence,
           assignedTags: this.assignedTags,
-          isInPerson: this.isInPerson
+          isInPerson: this.isInPerson,
+          videoUrls: this.videoUrls.length > 0 ? this.videoUrls : []
         };
 
         await this.trainingService.updateLibraryItem(this.editingArticle.id, updates);
@@ -461,6 +476,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
         newItem.trainingCadence = this.selectedCadence;
         newItem.assignedTags = this.assignedTags;
         newItem.isInPerson = this.isInPerson;
+        newItem.videoUrls = this.videoUrls.length > 0 ? this.videoUrls : [];
         newItem.scheduledDueDate = this.trainingService.calculateOptimalScheduledDate(
           this.selectedCadence,
           this.libraryItems
@@ -482,6 +498,103 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     } finally {
       this.isCreating = false;
     }
+  }
+
+  triggerImageUpload(): void {
+    this.imageFileInput.nativeElement.click();
+  }
+
+  triggerVideoUpload(): void {
+    this.videoFileInput.nativeElement.click();
+  }
+
+  onImageFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.snackbar.open('Please select an image file.', 'OK', { duration: 3000 });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      this.snackbar.open('Image must be under 10 MB.', 'OK', { duration: 3000 });
+      return;
+    }
+    this.uploadMediaFile(file, 'image');
+    // Reset input so the same file can be re-selected
+    (event.target as HTMLInputElement).value = '';
+  }
+
+  onVideoFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      this.snackbar.open('Please select a video file.', 'OK', { duration: 3000 });
+      return;
+    }
+    if (file.size > 200 * 1024 * 1024) {
+      this.snackbar.open('Video must be under 200 MB.', 'OK', { duration: 3000 });
+      return;
+    }
+    this.uploadMediaFile(file, 'video');
+    (event.target as HTMLInputElement).value = '';
+  }
+
+  private uploadMediaFile(file: File, type: 'image' | 'video'): void {
+    const teamId = this.accountService.aTeam?.id || 'general';
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `training-media/${teamId}/${timestamp}-${safeName}`;
+    const storageRef = ref(this.storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    this.mediaUploadType = type;
+    this.mediaUploadProgress = 0;
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        this.mediaUploadProgress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+      },
+      (error) => {
+        console.error('Media upload error:', error);
+        this.mediaUploadProgress = null;
+        this.mediaUploadType = null;
+        this.snackbar.open('Upload failed. Please try again.', 'OK', { duration: 3000 });
+      },
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        this.insertMediaIntoContent(url, type, file.type);
+        this.mediaUploadProgress = null;
+        this.mediaUploadType = null;
+        this.snackbar.open(`${type === 'image' ? 'Image' : 'Video'} inserted into article.`, 'OK', { duration: 2500 });
+      }
+    );
+  }
+
+  private insertMediaIntoContent(url: string, type: 'image' | 'video', _mimeType: string): void {
+    if (type === 'image') {
+      // Use ProseMirror's schema to insert an image node at the current cursor position
+      const view = this.editor.view;
+      const { state } = view;
+      const schema = state.schema;
+      if (schema.nodes['image']) {
+        const imgNode = schema.nodes['image'].create({ src: url, alt: '', title: '' });
+        const tr = state.tr.replaceSelectionWith(imgNode);
+        view.dispatch(tr);
+        view.focus();
+        return;
+      }
+      // Fallback: append img HTML to content
+      this.generatedContent = (this.generatedContent || '') +
+        `<p><img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;"></p>`;
+      return;
+    }
+
+    // Videos are stored separately — ProseMirror strips <video> elements from its schema
+    this.videoUrls = [...this.videoUrls, url];
+  }
+
+  removeVideo(index: number): void {
+    this.videoUrls = this.videoUrls.filter((_, i) => i !== index);
   }
 
   goBack(): void {
@@ -511,6 +624,7 @@ export class SmartBuilderComponent implements OnInit, OnDestroy {
     this.title = '';
     this.assignedTags = [];
     this.selectedCadence = TrainingCadence.Annually;
+    this.videoUrls = [];
   }
 
   // Check if we should show the editor (scratch mode or content generated)

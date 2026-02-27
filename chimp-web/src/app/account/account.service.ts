@@ -193,6 +193,9 @@ export class AccountService {
   showTrialExpiredDialog(team: Team): void {
     const dialog = this.dialog.open(TrialExpiredDialog, {
       disableClose: true,
+      width: '620px',
+      maxWidth: '95vw',
+      panelClass: 'trial-expired-panel',
       data: {
         teamId: team.id,
         teamEmail: team.email || this.user?.email

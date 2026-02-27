@@ -7,6 +7,14 @@
         { "fieldPath": "status", "mode": "ASCENDING" },
         { "fieldPath": "createdAt", "mode": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "recipients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "mode": "ASCENDING" },
+        { "fieldPath": "nextSendAt", "mode": "ASCENDING" }
+      ]
     }
   ]
 }
