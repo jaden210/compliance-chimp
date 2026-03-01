@@ -263,6 +263,7 @@ export const getLeadStats = onCall({}, async (request) => {
     if (d.state) byState[d.state] = (byState[d.state] || 0) + 1;
   }
 
+  // Daily counts for the lookback window
   const dailyMap: Record<string, { inserted: number; source: Record<string, number> }> = {};
   let newLast24h = 0;
   let newLast7d = 0;
@@ -359,6 +360,7 @@ export const exportLeads = onRequest(
       rows.push(row);
     }
 
+    // Optionally mark exported leads as queued
     if (markQueued && snap.docs.length > 0) {
       const now = admin.firestore.FieldValue.serverTimestamp();
       for (const batch of chunk(snap.docs, 500)) {
@@ -530,7 +532,7 @@ export const enrichLeads = onCall(
 async function runDedup(): Promise<{ duplicatesFound: number; removed: number }> {
   const snap = await db().collection("lead").orderBy("createdAt", "asc").get();
 
-  const seen = new Map<string, string>();
+  const seen = new Map<string, string>(); // email -> first doc ID
   const toDelete: admin.firestore.DocumentReference[] = [];
 
   for (const doc of snap.docs) {
