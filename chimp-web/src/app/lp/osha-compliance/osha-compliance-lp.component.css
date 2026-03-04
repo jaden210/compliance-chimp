@@ -50,7 +50,7 @@
 
 .hero-subheadline {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.5;
   margin: 0 0 32px 0;
 }
@@ -379,6 +379,13 @@
   color: var(--chimp-on-surface-variant);
   font-size: 14px;
   margin: 0;
+}
+
+.pricing-comparison {
+  color: var(--chimp-accent);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 0;
 }
 
 .pricing-features {

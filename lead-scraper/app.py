@@ -15,6 +15,7 @@ Usage:
 
 import asyncio
 import json
+import subprocess
 import threading
 import uuid
 import webbrowser
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 
 from flask import Flask, render_template, request, jsonify, send_file, redirect
 
-from scraper import ScrapeJob, FirebaseAPI, REGIONS, STATE_BOUNDS
+from scraper import ScrapeJob, FirebaseAPI, REGIONS, STATE_BOUNDS, PLACE_TYPES, EXCLUDED_PRIMARY_TYPES
 
 app = Flask(__name__)
 
@@ -101,6 +102,99 @@ def index():
     return render_template('index.html', settings=settings)
 
 
+@app.route('/api/estimate')
+def api_estimate():
+    """Return estimated API cost for a region scan."""
+    region_key = request.args.get('region', 'utah')
+    result = ScrapeJob.estimate_scan_cost(region_key)
+    result['cost_per_request'] = ScrapeJob.COST_PER_REQUEST
+    return jsonify(result)
+
+
+@app.route('/api/billing')
+def api_billing():
+    """Return current-month Google Places API usage and cost via Cloud Monitoring."""
+    settings = load_settings()
+    project_id = settings.get('gcp_project_id', '').strip()
+
+    if not project_id:
+        return jsonify({'error': 'no_project', 'message': 'Set your GCP Project ID in Settings to see billing.'})
+
+    # Get a gcloud access token from the locally authenticated user.
+    try:
+        result = subprocess.run(
+            ['gcloud', 'auth', 'print-access-token'],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            return jsonify({'error': 'no_auth', 'message': 'gcloud not authenticated. Run: gcloud auth login'})
+        token = result.stdout.strip()
+    except FileNotFoundError:
+        return jsonify({'error': 'no_gcloud', 'message': 'gcloud CLI not found. Install the Google Cloud SDK.'})
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'timeout', 'message': 'gcloud timed out.'})
+
+    # Query Cloud Monitoring for Places API request count this calendar month.
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    url = f'https://monitoring.googleapis.com/v3/projects/{project_id}/timeSeries'
+    params = {
+        # serviceruntime tracks all API Gateway request counts per service
+        'filter': (
+            'metric.type="serviceruntime.googleapis.com/api/request_count"'
+            ' AND resource.labels.service="places.googleapis.com"'
+        ),
+        'interval.startTime': month_start.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'interval.endTime': now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'aggregation.alignmentPeriod': '2678400s',   # 31 days — one bucket
+        'aggregation.perSeriesAligner': 'ALIGN_SUM',
+        'aggregation.crossSeriesReducer': 'REDUCE_SUM',
+        'aggregation.groupByFields': 'resource.labels.service',
+    }
+    headers = {'Authorization': f'Bearer {token}'}
+
+    try:
+        import requests as req_lib
+        r = req_lib.get(url, params=params, headers=headers, timeout=15)
+    except Exception as e:
+        return jsonify({'error': 'request_failed', 'message': str(e)})
+
+    if r.status_code == 403:
+        return jsonify({'error': 'permission', 'message': f'No Monitoring access for project {project_id}. Grant roles/monitoring.viewer to your gcloud account.'})
+    if r.status_code != 200:
+        return jsonify({'error': 'api_error', 'message': f'Monitoring API returned {r.status_code}: {r.text[:200]}'})
+
+    data = r.json()
+    total_requests = 0
+    for ts in data.get('timeSeries', []):
+        for point in ts.get('points', []):
+            val = point.get('value', {})
+            total_requests += int(val.get('int64Value', val.get('doubleValue', 0)))
+
+    cost_per_req = ScrapeJob.COST_PER_REQUEST
+    total_cost = round(total_requests * cost_per_req, 2)
+    free_credit = 200.0
+    remaining_free = max(0.0, round(free_credit - total_cost, 2))
+    over_budget = total_cost > free_credit
+
+    return jsonify({
+        'month': now.strftime('%B %Y'),
+        'total_requests': total_requests,
+        'total_cost_usd': total_cost,
+        'free_credit_usd': free_credit,
+        'remaining_free_usd': remaining_free,
+        'over_budget': over_budget,
+        'project_id': project_id,
+    })
+
+
+@app.route('/api/niches')
+def api_niches():
+    """Return valid Google Places types grouped by category for the niche dropdown."""
+    return jsonify(PLACE_TYPES)
+
+
 @app.route('/api/regions')
 def api_regions():
     """Return available regions for the dropdown."""
@@ -118,6 +212,7 @@ def api_save_settings():
     save_settings({
         'api_key': data.get('api_key', ''),
         'firebase_url': data.get('firebase_url', ''),
+        'gcp_project_id': data.get('gcp_project_id', ''),
     })
     return jsonify({'success': True})
 
@@ -127,6 +222,7 @@ def api_start():
     """Start a new scrape job."""
     data = request.json
     niche = data.get('niche', '').strip()
+    niche_type = data.get('niche_type', '').strip()
     region_key = data.get('region', 'utah')
     api_key = data.get('api_key', '').strip()
     firebase_url = data.get('firebase_url', '').strip()
@@ -149,6 +245,7 @@ def api_start():
     job = ScrapeJob(
         job_id=job_id,
         niche=niche,
+        niche_type=niche_type,
         region=region_name,
         region_key=region_key,
         api_key=api_key,
@@ -208,6 +305,98 @@ def api_resume(job_id):
             loop.close()
 
     t = threading.Thread(target=run_resume, daemon=True)
+    JOB_THREADS[job_id] = t
+    t.start()
+
+    return jsonify({'success': True, 'jobId': job_id})
+
+
+@app.route('/api/expand/<job_id>', methods=['POST'])
+def api_expand(job_id):
+    """Expand the geographic region of an existing scrape job and resume it.
+
+    Preserves all existing checkpoint data (scanned grid points, place IDs,
+    scraped details, emails).  Only the new grid cells introduced by the
+    larger region will be scanned.
+    """
+    job = JOBS.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    thread = JOB_THREADS.get(job_id)
+    if thread and thread.is_alive():
+        return jsonify({'error': 'Job is currently running'}), 400
+
+    data = request.json or {}
+    new_region_key = data.get('region_key', '').strip()
+    if not new_region_key:
+        return jsonify({'error': 'region_key is required'}), 400
+
+    if new_region_key == job.region_key:
+        return jsonify({'error': 'New region is the same as the current region'}), 400
+
+    settings = load_settings()
+    job.api_key = settings.get('api_key', job.api_key)
+    job.fb = FirebaseAPI(settings.get('firebase_url', ''))
+    job.should_stop = False
+
+    if not job.expand_region(new_region_key):
+        return jsonify({'error': f'Unknown region: {new_region_key}'}), 400
+
+    def run_expanded():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(job.resume())
+        except Exception as e:
+            job.log(f"Error: {e}")
+            job.status = 'error'
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=run_expanded, daemon=True)
+    JOB_THREADS[job_id] = t
+    t.start()
+
+    return jsonify({'success': True, 'jobId': job_id, 'new_region': job.region})
+
+
+@app.route('/api/rerun/<job_id>', methods=['POST'])
+def api_rerun(job_id):
+    """Re-run a completed or interrupted scrape job from scratch.
+
+    Clears all local checkpoint data and resets the Firebase job doc
+    (results wiped, progress zeroed). Contacts in outreach campaigns
+    are NOT deleted -- the existing dedup logic prevents duplicates
+    when results are synced back.
+    """
+    job = JOBS.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    # Don't re-run a job that's actively running
+    thread = JOB_THREADS.get(job_id)
+    if thread and thread.is_alive():
+        return jsonify({'error': 'Job is currently running'}), 400
+
+    # Refresh credentials from current settings
+    settings = load_settings()
+    job.api_key = settings.get('api_key', job.api_key)
+    job.fb = FirebaseAPI(settings.get('firebase_url', ''))
+    job.should_stop = False
+
+    def run_rerun():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(job.clear_and_rerun())
+        except Exception as e:
+            job.log(f"Error: {e}")
+            job.status = 'error'
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=run_rerun, daemon=True)
     JOB_THREADS[job_id] = t
     t.start()
 
@@ -336,19 +525,27 @@ def api_stop(job_id):
 @app.route('/download/<job_id>')
 def download_csv(job_id):
     """Download the CSV for a job (local file or redirect to cloud URL)."""
-    # Try local first
     job = JOBS.get(job_id)
     if job and job.csv_file.exists():
         return send_file(job.csv_file, as_attachment=True,
                          download_name=job.csv_file.name)
 
-    # Try cloud CSV URL
     with CLOUD_JOBS_LOCK:
         cloud_match = next((c for c in CLOUD_JOBS_CACHE if c.get('id') == job_id), None)
     if cloud_match and cloud_match.get('csvUrl'):
         return redirect(cloud_match['csvUrl'])
 
     return 'CSV not available', 404
+
+
+@app.route('/download-excluded/<job_id>')
+def download_excluded_csv(job_id):
+    """Download the excluded/filtered places CSV for a job."""
+    job = JOBS.get(job_id)
+    if job and job.excluded_csv_file.exists():
+        return send_file(job.excluded_csv_file, as_attachment=True,
+                         download_name=job.excluded_csv_file.name)
+    return 'Excluded CSV not available', 404
 
 
 # =========================================================================

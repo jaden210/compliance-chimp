@@ -400,6 +400,142 @@
       line-height: 1.5;
     }
 
+    .btn-expand {
+      background: #054d8a;
+      color: white;
+    }
+
+    .btn-expand:hover { background: #043d6e; }
+
+    /* ---- Billing Widget ---- */
+    .billing-widget {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      transition: background 150ms;
+      white-space: nowrap;
+    }
+
+    .billing-widget:hover { background: #eee; }
+
+    .billing-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #ccc;
+    }
+
+    .billing-dot.green  { background: #4caf50; }
+    .billing-dot.yellow { background: #ff9800; }
+    .billing-dot.red    { background: #f44336; }
+    .billing-dot.grey   { background: #bdbdbd; }
+
+    /* ---- Cost Estimate ---- */
+    .cost-estimate {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .cost-estimate.cheap {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .cost-estimate.moderate {
+      background: #fff8e1;
+      color: #e65100;
+    }
+
+    .cost-estimate.expensive {
+      background: #fce4ec;
+      color: #b71c1c;
+      font-weight: 600;
+    }
+
+    .cost-estimate .cost-icon { font-size: 16px; flex-shrink: 0; }
+
+    /* ---- Niche Combo Box ---- */
+    .niche-combo {
+      position: relative;
+    }
+
+    .niche-combo input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--bg);
+      transition: border-color 150ms;
+      outline: none;
+    }
+
+    .niche-combo input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .niche-combo input[type="text"].has-selection {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .niche-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 300;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .niche-dropdown.open { display: block; }
+
+    .niche-category {
+      padding: 8px 12px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text2);
+      border-top: 1px solid var(--border);
+    }
+
+    .niche-category:first-child { border-top: none; }
+
+    .niche-option {
+      padding: 9px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .niche-option:hover, .niche-option.active { background: #fff3e0; }
+
+    .niche-no-results {
+      padding: 16px;
+      text-align: center;
+      color: var(--text2);
+      font-size: 13px;
+    }
+
     /* ---- Responsive ---- */
     @media (max-width: 600px) {
       .form-row { flex-direction: column; }
@@ -410,7 +546,13 @@
 <body>
   <header>
     <h1>Lead Scraper <span>FREE</span></h1>
-    <button class="gear-btn" onclick="openSettings()" title="Settings">&#9881;</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="billingWidget" class="billing-widget" title="Google Places API usage this month" onclick="openSettings()" style="cursor:pointer;">
+        <span id="billingDot" class="billing-dot"></span>
+        <span id="billingLabel">Loading billing…</span>
+      </div>
+      <button class="gear-btn" onclick="openSettings()" title="Settings">&#9881;</button>
+    </div>
   </header>
 
   <div class="container">
@@ -420,13 +562,24 @@
       <div class="form-row">
         <div class="form-group">
           <label>Business Niche</label>
-          <input id="niche" type="text" placeholder="e.g. roofing companies, dentist, plumber" />
+          <input id="nicheText" type="text" placeholder="e.g. fire protection service, HVAC contractor, roofing" autocomplete="off" />
         </div>
         <div class="form-group">
           <label>Region</label>
           <select id="region"></select>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;min-width:200px;">
+          <label>Google Type Filter <span style="font-weight:400;text-transform:none;font-size:11px;color:#bbb;">&mdash; optional, improves precision</span></label>
+          <div class="niche-combo" id="nicheCombo">
+            <input type="text" id="nicheSearch" placeholder="Search Google types (e.g. plumber, dentist)&hellip;" autocomplete="off" />
+            <input type="hidden" id="nicheType" />
+            <div class="niche-dropdown" id="nicheDropdown"></div>
+          </div>
+        </div>
+      </div>
+      <div id="costEstimate" class="cost-estimate" style="display:none;"></div>
       <button class="btn btn-primary" id="startBtn" onclick="startScrape()">
         &#9654; Start Scraping
       </button>
@@ -450,6 +603,13 @@
         <input id="settingsApiKey" type="text" placeholder="AIzaSy..." />
       </div>
       <div class="form-group">
+        <label>GCP Project ID <span style="font-weight:400;text-transform:none;">(for billing display)</span></label>
+        <input id="settingsProjectId" type="text" placeholder="e.g. my-project-123456" />
+        <p style="font-size:11px;color:#999;margin-top:4px;">
+          Found in <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent)">console.cloud.google.com</a> — top of the page next to your project name.
+        </p>
+      </div>
+      <div class="form-group">
         <label>Firebase Function URL (optional)</label>
         <input id="settingsFirebaseUrl" type="text" placeholder="https://scraperapi-xxx.cloudfunctions.net" />
       </div>
@@ -463,6 +623,29 @@
     </div>
   </div>
 
+  <!-- Expand Region Modal -->
+  <div class="modal-overlay" id="expandModal">
+    <div class="modal">
+      <h2>Expand Region</h2>
+      <p style="font-size:13px;color:#757575;margin-bottom:20px;">
+        Select a larger region to add to this scrape. All existing data is preserved
+        &mdash; only the new territory will be scanned.
+      </p>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Current Region</label>
+        <div id="expandCurrentRegion" style="padding:10px 14px;background:#f5f5f5;border-radius:8px;font-size:14px;color:#757575;"></div>
+      </div>
+      <div class="form-group">
+        <label>Expand To</label>
+        <select id="expandRegionSelect"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeExpand()">Cancel</button>
+        <button class="btn btn-expand" onclick="confirmExpand()">Expand &amp; Resume</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // State
     let apiKey = '{{ settings.get("api_key", "") }}';
@@ -470,17 +653,190 @@
     let jobs = [];
     let pollTimer = null;
     let openLogs = {};
+    let allRegions = { regions: [], states: [] };
+    let allNiches = [];       // [{category, types:[{type,label}]}]
+    let expandTargetJobId = null;
+
+    // ---- Niche combo-box ----
+    let nicheActiveIndex = -1;
+    let nicheFilteredItems = []; // flat list of {type, label, category}
+
+    async function loadNiches() {
+      const res = await fetch('/api/niches');
+      allNiches = await res.json();
+      buildNicheDropdown('');
+    }
+
+    function buildNicheDropdown(query) {
+      const dd = document.getElementById('nicheDropdown');
+      const q = query.trim().toLowerCase();
+      nicheFilteredItems = [];
+      dd.innerHTML = '';
+
+      for (const cat of allNiches) {
+        const matched = cat.types.filter(t =>
+          !q || t.label.toLowerCase().includes(q) || t.type.includes(q)
+        );
+        if (!matched.length) continue;
+
+        const catEl = document.createElement('div');
+        catEl.className = 'niche-category';
+        catEl.textContent = cat.category;
+        dd.appendChild(catEl);
+
+        for (const t of matched) {
+          const idx = nicheFilteredItems.length;
+          nicheFilteredItems.push({ ...t, category: cat.category });
+
+          const optEl = document.createElement('div');
+          optEl.className = 'niche-option';
+          optEl.textContent = t.label;
+          optEl.dataset.idx = idx;
+          optEl.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            selectNiche(idx);
+          });
+          dd.appendChild(optEl);
+        }
+      }
+
+      if (!nicheFilteredItems.length) {
+        dd.innerHTML = '<div class="niche-no-results">No matching types found</div>';
+      }
+
+      nicheActiveIndex = -1;
+    }
+
+    function selectNiche(idx) {
+      const item = nicheFilteredItems[idx];
+      if (!item) return;
+      document.getElementById('nicheSearch').value = item.label;
+      document.getElementById('nicheSearch').classList.add('has-selection');
+      document.getElementById('nicheType').value = item.type;
+      closeNicheDropdown();
+    }
+
+    function openNicheDropdown() {
+      document.getElementById('nicheDropdown').classList.add('open');
+    }
+
+    function closeNicheDropdown() {
+      document.getElementById('nicheDropdown').classList.remove('open');
+      nicheActiveIndex = -1;
+    }
+
+    function highlightNicheOption(idx) {
+      document.querySelectorAll('.niche-option').forEach(el => el.classList.remove('active'));
+      const items = document.querySelectorAll('.niche-option');
+      if (items[idx]) {
+        items[idx].classList.add('active');
+        items[idx].scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    function initNicheCombo() {
+      const input = document.getElementById('nicheSearch');
+
+      input.addEventListener('focus', () => {
+        buildNicheDropdown(input.value);
+        openNicheDropdown();
+      });
+
+      input.addEventListener('input', () => {
+        // Clear the selected type whenever the user edits the filter field manually
+        document.getElementById('nicheType').value = '';
+        input.classList.remove('has-selection');
+        buildNicheDropdown(input.value);
+        // Only open dropdown if there's some text; empty = show all when focused
+        openNicheDropdown();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        const dd = document.getElementById('nicheDropdown');
+        const opts = dd.querySelectorAll('.niche-option');
+        if (!dd.classList.contains('open')) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          nicheActiveIndex = Math.min(nicheActiveIndex + 1, opts.length - 1);
+          highlightNicheOption(nicheActiveIndex);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          nicheActiveIndex = Math.max(nicheActiveIndex - 1, 0);
+          highlightNicheOption(nicheActiveIndex);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (nicheActiveIndex >= 0) {
+            selectNiche(parseInt(opts[nicheActiveIndex].dataset.idx));
+          }
+        } else if (e.key === 'Escape') {
+          closeNicheDropdown();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(closeNicheDropdown, 150);
+      });
+    }
+
+    // ---- Cost estimator ----
+    let costData = null;
+
+    async function updateCostEstimate() {
+      const region = document.getElementById('region').value;
+      if (!region) return;
+      try {
+        const res = await fetch(`/api/estimate?region=${encodeURIComponent(region)}`);
+        costData = await res.json();
+        renderCostEstimate();
+      } catch (e) {
+        document.getElementById('costEstimate').style.display = 'none';
+      }
+    }
+
+    function renderCostEstimate() {
+      const el = document.getElementById('costEstimate');
+      if (!costData || costData.error) { el.style.display = 'none'; return; }
+
+      const cost = costData.estimated_cost_usd;
+      const points = costData.grid_points;
+      const freeCredits = 200; // Google's monthly free credit
+
+      let cls, icon, msg;
+      if (cost < 5) {
+        cls = 'cheap'; icon = '✅';
+        msg = `~${points} grid cells · est. <strong>$${cost.toFixed(2)}</strong> — well within Google's free tier`;
+      } else if (cost < freeCredits) {
+        cls = 'moderate'; icon = '⚠️';
+        msg = `~${points} grid cells · est. <strong>$${cost.toFixed(2)}</strong> — may use most of your $200/mo free credit`;
+      } else {
+        cls = 'expensive'; icon = '🔴';
+        msg = `~${points} grid cells · est. <strong>$${cost.toFixed(2)}</strong> — exceeds Google's $200/mo free credit. You will be billed.`;
+      }
+
+      el.className = `cost-estimate ${cls}`;
+      el.innerHTML = `<span class="cost-icon">${icon}</span><span>${msg}</span>`;
+      el.style.display = 'flex';
+    }
 
     // Load regions
     async function loadRegions() {
       const res = await fetch('/api/regions');
       const data = await res.json();
+      allRegions = data;
       const sel = document.getElementById('region');
+      populateRegionSelect(sel, data, null);
+      sel.addEventListener('change', updateCostEstimate);
+      updateCostEstimate();
+    }
+
+    function populateRegionSelect(sel, data, excludeKey) {
       sel.innerHTML = '';
 
       const optGroup1 = document.createElement('optgroup');
       optGroup1.label = 'Regions';
       data.regions.forEach(r => {
+        if (r.key === excludeKey) return;
         const opt = document.createElement('option');
         opt.value = r.key;
         opt.textContent = r.name;
@@ -491,6 +847,7 @@
       const optGroup2 = document.createElement('optgroup');
       optGroup2.label = 'Individual States';
       data.states.forEach(s => {
+        if (s === excludeKey) return;
         const opt = document.createElement('option');
         opt.value = s;
         opt.textContent = s.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
@@ -499,10 +856,61 @@
       sel.appendChild(optGroup2);
     }
 
+    // ---- Billing widget ----
+    let billingPollTimer = null;
+
+    async function fetchBilling() {
+      try {
+        const res = await fetch('/api/billing');
+        const data = await res.json();
+        renderBilling(data);
+      } catch (e) {
+        renderBilling({ error: 'fetch_failed', message: 'Could not load billing' });
+      }
+    }
+
+    function renderBilling(data) {
+      const dot   = document.getElementById('billingDot');
+      const label = document.getElementById('billingLabel');
+
+      if (data.error === 'no_project') {
+        dot.className = 'billing-dot grey';
+        label.textContent = 'Set GCP Project ID →';
+        return;
+      }
+      if (data.error) {
+        dot.className = 'billing-dot grey';
+        label.textContent = data.message || 'Billing unavailable';
+        return;
+      }
+
+      const cost      = data.total_cost_usd;
+      const remaining = data.remaining_free_usd;
+      const over      = data.over_budget;
+
+      if (over) {
+        dot.className = 'billing-dot red';
+        label.textContent = `$${cost.toFixed(2)} this month — $${(cost - 200).toFixed(2)} over free tier`;
+      } else if (cost >= 150) {
+        dot.className = 'billing-dot yellow';
+        label.textContent = `$${cost.toFixed(2)} used · $${remaining.toFixed(2)} free left`;
+      } else {
+        dot.className = 'billing-dot green';
+        label.textContent = `$${cost.toFixed(2)} used · $${remaining.toFixed(2)} free left`;
+      }
+    }
+
+    function startBillingPoll() {
+      fetchBilling();
+      clearInterval(billingPollTimer);
+      billingPollTimer = setInterval(fetchBilling, 60000); // refresh every minute
+    }
+
     // Settings
     function openSettings() {
       document.getElementById('settingsApiKey').value = apiKey;
       document.getElementById('settingsFirebaseUrl').value = firebaseUrl;
+      document.getElementById('settingsProjectId').value = '{{ settings.get("gcp_project_id", "") }}';
       document.getElementById('settingsModal').classList.add('open');
     }
 
@@ -511,23 +919,37 @@
     }
 
     async function saveSettings() {
-      apiKey = document.getElementById('settingsApiKey').value.trim();
+      apiKey      = document.getElementById('settingsApiKey').value.trim();
       firebaseUrl = document.getElementById('settingsFirebaseUrl').value.trim();
+      const projectId = document.getElementById('settingsProjectId').value.trim();
       await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey, firebase_url: firebaseUrl })
+        body: JSON.stringify({ api_key: apiKey, firebase_url: firebaseUrl, gcp_project_id: projectId })
       });
       closeSettings();
+      fetchBilling(); // refresh immediately after saving
     }
 
     // Start scrape
     async function startScrape() {
-      const niche = document.getElementById('niche').value.trim();
-      const region = document.getElementById('region').value;
+      const niche     = document.getElementById('nicheText').value.trim();
+      const nicheType = document.getElementById('nicheType').value.trim();  // optional
+      const region    = document.getElementById('region').value;
 
-      if (!niche) { alert('Enter a business niche.'); return; }
+      if (!niche) { alert('Enter a business niche.'); document.getElementById('nicheText').focus(); return; }
       if (!apiKey) { openSettings(); alert('Set your Google Places API key first.'); return; }
+
+      // Warn before running scans that exceed Google's free tier
+      if (costData && costData.estimated_cost_usd >= 200) {
+        const ok = confirm(
+          `⚠️ Cost Warning\n\n` +
+          `This scan covers ~${costData.grid_points} grid cells and is estimated to cost $${costData.estimated_cost_usd.toFixed(2)} in Google Places API credits.\n\n` +
+          `Google gives $200/month free — this scan will likely exceed that and result in a real charge to your account.\n\n` +
+          `Continue anyway?`
+        );
+        if (!ok) return;
+      }
 
       const btn = document.getElementById('startBtn');
       btn.disabled = true;
@@ -538,7 +960,9 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            niche, region,
+            niche,
+            niche_type: nicheType,   // empty string if not selected — backend treats as optional
+            region,
             api_key: apiKey,
             firebase_url: firebaseUrl
           })
@@ -547,7 +971,10 @@
         if (data.error) {
           alert(data.error);
         } else {
-          document.getElementById('niche').value = '';
+          document.getElementById('nicheText').value = '';
+          document.getElementById('nicheSearch').value = '';
+          document.getElementById('nicheSearch').classList.remove('has-selection');
+          document.getElementById('nicheType').value = '';
           startPolling();
         }
       } catch (e) {
@@ -576,6 +1003,65 @@
     // Stop job
     async function stopJob(jobId) {
       await fetch(`/api/stop/${jobId}`, { method: 'POST' });
+    }
+
+    // Re-run job
+    async function rerunJob(jobId) {
+      if (!confirm('Re-run this scrape from scratch?\n\nThis will clear all local data and reset results in the cloud. Contacts already added to outreach campaigns will NOT be deleted.')) return;
+      try {
+        const res = await fetch(`/api/rerun/${jobId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          startPolling();
+        }
+      } catch (e) {
+        alert('Failed to re-run: ' + e.message);
+      }
+    }
+
+    // Expand region
+    function openExpand(jobId, currentRegionKey, currentRegionName) {
+      expandTargetJobId = jobId;
+      document.getElementById('expandCurrentRegion').textContent = currentRegionName || currentRegionKey;
+      const sel = document.getElementById('expandRegionSelect');
+      populateRegionSelect(sel, allRegions, currentRegionKey);
+      // Default to 'us' (nationwide) when available
+      const usOpt = sel.querySelector('option[value="us"]');
+      if (usOpt) usOpt.selected = true;
+      document.getElementById('expandModal').classList.add('open');
+    }
+
+    function closeExpand() {
+      document.getElementById('expandModal').classList.remove('open');
+      expandTargetJobId = null;
+    }
+
+    async function confirmExpand() {
+      if (!expandTargetJobId) return;
+      const regionKey = document.getElementById('expandRegionSelect').value;
+      const btn = document.querySelector('#expandModal .btn-expand');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+      try {
+        const res = await fetch(`/api/expand/${expandTargetJobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ region_key: regionKey })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+        } else {
+          closeExpand();
+          startPolling();
+        }
+      } catch (e) {
+        alert('Failed to expand: ' + e.message);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Expand & Resume';
     }
 
     // Poll for updates
@@ -718,6 +1204,7 @@
         const isLocal = job.source === 'local';
         const logOpen = openLogs[job.id];
         const hasDownload = job.csv_path || job.csv_url;
+        const hasExcluded = job.excluded_csv_path;
 
         let cardClass = 'job-card';
         if (interrupted && !running && isLocal) cardClass += ' resumable';
@@ -736,6 +1223,9 @@
               </div>
               <div class="job-actions">
                 ${hasDownload ? `<a href="/download/${job.id}" class="btn btn-sm btn-outline">&#11015; CSV</a>` : ''}
+                ${hasExcluded ? `<a href="/download-excluded/${job.id}" class="btn btn-sm btn-outline" title="Download places that were filtered out by the exclusion list" style="color:var(--text2)">&#11015; Filtered</a>` : ''}
+                ${!running && isLocal ? `<button class="btn btn-sm btn-expand" onclick="openExpand('${job.id}', '${esc(job.region_key || '')}', '${esc(job.region)}')" title="Expand the geographic region and resume scraping">&#8594; Expand</button>` : ''}
+                ${!running && isLocal ? `<button class="btn btn-sm btn-outline" onclick="rerunJob('${job.id}')" title="Clear results and scrape again from scratch">&#8635; Re-run</button>` : ''}
                 ${interrupted && !running && job.can_resume ? `<button class="btn btn-sm btn-resume" onclick="resumeJob('${job.id}')">&#9654; Resume</button>` : ''}
                 ${running && isLocal ? `<button class="btn btn-sm btn-danger" onclick="stopJob('${job.id}')">Stop</button>` : ''}
               </div>
@@ -769,6 +1259,7 @@
 
             <div class="stats-row">
               ${p.placesFound ? `<div class="stat"><div class="stat-value">${p.placesFound}</div><div class="stat-label">Found</div></div>` : ''}
+              ${p.placesExcluded ? `<div class="stat"><div class="stat-value" style="color:var(--text2)">${p.placesExcluded}</div><div class="stat-label" style="color:var(--text2)">Filtered</div></div>` : ''}
               ${p.placesScraped ? `<div class="stat"><div class="stat-value">${p.placesScraped}</div><div class="stat-label">Scraped</div></div>` : ''}
               ${p.totalWithPhone ? `<div class="stat"><div class="stat-value">${p.totalWithPhone}</div><div class="stat-label">Phones</div></div>` : ''}
               ${p.emailsFound || p.totalWithEmail ? `<div class="stat"><div class="stat-value">${p.totalWithEmail || p.emailsFound}</div><div class="stat-label">Emails</div></div>` : ''}
@@ -808,7 +1299,10 @@
 
     // Init
     loadRegions();
+    loadNiches();
+    initNicheCombo();
     startPolling();
+    startBillingPoll();
   </script>
 </body>
 </html>

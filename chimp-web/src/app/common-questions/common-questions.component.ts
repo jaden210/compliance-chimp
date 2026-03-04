@@ -21,11 +21,11 @@ export class CommonQuestionsComponent implements OnInit, OnDestroy {
     },
     {
       question: "How much does Compliance Chimp cost?",
-      answer: "Just $99/month after a 14-day free trial. That includes unlimited team members, all features, and no hidden fees. No credit card required to start."
+      answer: "Just $199/month after a 14-day free trial. That includes unlimited team members, all features, and no hidden fees. No credit card required to start."
     },
     {
       question: "How does the free trial work?",
-      answer: "Your first 14 days are completely free with no credit card required. You'll have full access to all features during your trial to see how we can help simplify your compliance journey. After your trial ends, you'll be billed $99/month."
+      answer: "Your first 14 days are completely free with no credit card required. You'll have full access to all features during your trial to see how we can help simplify your compliance journey. After your trial ends, you'll be billed $199/month."
     },
     {
       question: "What is OSHA compliance?",

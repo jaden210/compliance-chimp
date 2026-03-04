@@ -153,7 +153,7 @@ export class BlogIndexComponent implements OnInit, OnDestroy {
         "datePublished": post.publishedDate,
         "author": {
           "@type": "Person",
-          "name": post.author || "The Chimp"
+          "name": post.author || "Ulysses"
         },
         "keywords": post.keywords?.join(', ') || post.category
       }))

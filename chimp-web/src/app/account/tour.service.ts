@@ -16,7 +16,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'chimp-chat',
     title: 'ChimpChat',
-    content: "I'm Ulysses, your compliance assistant. I can help you navigate the app, answer questions about OSHA requirements, create custom trainings in seconds, and find information about your team's compliance status.<br><br>Just type what you need. You can open this chat anytime by clicking the chimp icon in the bottom corner.<br><br>Let's swing through the basics.",
+    content: "Hi, I'm Ulysses — your AI safety manager. I know OSHA inside and out, and I'm here to keep your team safe.<br><br>I can answer questions about OSHA requirements, create custom trainings in seconds, and give you a full picture of your team's compliance status. Just type what you need.<br><br>You can open this chat anytime by clicking the chimp icon in the bottom corner.<br><br>Let's swing through the basics.",
     navigationAction: {
       type: 'navigate',
       label: 'Go to Dashboard',

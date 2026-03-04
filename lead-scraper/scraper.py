@@ -73,6 +73,12 @@ class FirebaseAPI:
             data['csvUrl'] = csv_url
         self._post({'action': 'updateJob', 'jobId': job_id, 'data': data})
 
+    def update_region(self, job_id: str, region: str):
+        """Update the region label on a Firestore job document."""
+        if not job_id:
+            return
+        self._post({'action': 'updateJob', 'jobId': job_id, 'data': {'region': region}})
+
     def upload_results(self, job_id: str, results: list):
         if not job_id:
             return
@@ -95,10 +101,189 @@ class FirebaseAPI:
         resp = self._post({'action': 'getJobState', 'jobId': job_id})
         return resp.get('job') if resp.get('success') else None
 
+    def rerun_job(self, job_id: str) -> bool:
+        """Reset a scrape job in Firebase (clears results/progress, keeps the doc ID)."""
+        if not job_id:
+            return False
+        resp = self._post({'action': 'rerunJob', 'jobId': job_id})
+        return resp.get('success', False)
+
     def list_jobs(self) -> list:
         """Fetch all scrape jobs from Firebase."""
         resp = self._post({'action': 'listJobs'})
         return resp.get('jobs', []) if resp.get('success') else []
+
+
+# =============================================================================
+#  VALID GOOGLE PLACES TYPES (Table A — usable as includedType in Text Search)
+# =============================================================================
+
+PLACE_TYPES = [
+    {
+        'category': 'Home & Construction',
+        'types': [
+            {'type': 'electrician',         'label': 'Electrician'},
+            {'type': 'plumber',             'label': 'Plumber'},
+            {'type': 'painter',             'label': 'Painter'},
+            {'type': 'locksmith',           'label': 'Locksmith'},
+            {'type': 'roofing_contractor',  'label': 'Roofing Contractor'},
+            {'type': 'moving_company',      'label': 'Moving Company'},
+            {'type': 'storage',             'label': 'Storage Facility'},
+        ],
+    },
+    {
+        'category': 'Automotive',
+        'types': [
+            {'type': 'car_dealer',          'label': 'Car Dealer'},
+            {'type': 'car_rental',          'label': 'Car Rental'},
+            {'type': 'car_repair',          'label': 'Auto Repair Shop'},
+            {'type': 'car_wash',            'label': 'Car Wash'},
+            {'type': 'tire_shop',           'label': 'Tire Shop'},
+            {'type': 'auto_parts_store',    'label': 'Auto Parts Store'},
+        ],
+    },
+    {
+        'category': 'Business & Legal',
+        'types': [
+            {'type': 'accounting',                       'label': 'Accounting / CPA Firm'},
+            {'type': 'insurance_agency',                 'label': 'Insurance Agency'},
+            {'type': 'lawyer',                           'label': 'Law Firm / Attorney'},
+            {'type': 'real_estate_agency',               'label': 'Real Estate Agency'},
+            {'type': 'courier_service',                  'label': 'Courier Service'},
+            {'type': 'employment_agency',                'label': 'Employment Agency'},
+            {'type': 'marketing_consultant',             'label': 'Marketing Consultant'},
+            {'type': 'consultant',                       'label': 'Consultant'},
+            {'type': 'telecommunications_service_provider', 'label': 'Telecom Provider'},
+            {'type': 'travel_agency',                    'label': 'Travel Agency'},
+        ],
+    },
+    {
+        'category': 'Health & Medical',
+        'types': [
+            {'type': 'dentist',             'label': 'Dentist'},
+            {'type': 'dental_clinic',       'label': 'Dental Clinic'},
+            {'type': 'doctor',              'label': 'Doctor / Medical Practice'},
+            {'type': 'medical_clinic',      'label': 'Medical Clinic'},
+            {'type': 'chiropractor',        'label': 'Chiropractor'},
+            {'type': 'physiotherapist',     'label': 'Physical Therapist'},
+            {'type': 'pharmacy',            'label': 'Pharmacy'},
+            {'type': 'hospital',            'label': 'Hospital'},
+            {'type': 'veterinary_care',     'label': 'Veterinary / Pet Clinic'},
+            {'type': 'skin_care_clinic',    'label': 'Skin Care Clinic'},
+            {'type': 'massage',             'label': 'Massage Therapy'},
+        ],
+    },
+    {
+        'category': 'Fitness & Wellness',
+        'types': [
+            {'type': 'gym',                 'label': 'Gym'},
+            {'type': 'fitness_center',      'label': 'Fitness Center'},
+            {'type': 'yoga_studio',         'label': 'Yoga Studio'},
+            {'type': 'spa',                 'label': 'Spa'},
+            {'type': 'wellness_center',     'label': 'Wellness Center'},
+        ],
+    },
+    {
+        'category': 'Personal Care & Beauty',
+        'types': [
+            {'type': 'beauty_salon',        'label': 'Beauty Salon'},
+            {'type': 'hair_salon',          'label': 'Hair Salon'},
+            {'type': 'hair_care',           'label': 'Hair Care'},
+            {'type': 'nail_salon',          'label': 'Nail Salon'},
+            {'type': 'barber_shop',         'label': 'Barber Shop'},
+        ],
+    },
+    {
+        'category': 'Food & Hospitality',
+        'types': [
+            {'type': 'restaurant',          'label': 'Restaurant'},
+            {'type': 'fast_food_restaurant', 'label': 'Fast Food Restaurant'},
+            {'type': 'bakery',              'label': 'Bakery'},
+            {'type': 'cafe',                'label': 'Cafe'},
+            {'type': 'coffee_shop',         'label': 'Coffee Shop'},
+            {'type': 'bar',                 'label': 'Bar'},
+            {'type': 'pizza_restaurant',    'label': 'Pizza Restaurant'},
+            {'type': 'catering_service',    'label': 'Catering Service'},
+        ],
+    },
+    {
+        'category': 'Education & Child Care',
+        'types': [
+            {'type': 'school',              'label': 'School'},
+            {'type': 'university',          'label': 'University / College'},
+            {'type': 'child_care_agency',   'label': 'Child Care / Day Care'},
+        ],
+    },
+    {
+        'category': 'Pet Services',
+        'types': [
+            {'type': 'pet_care',            'label': 'Pet Care'},
+            {'type': 'pet_boarding_service', 'label': 'Pet Boarding'},
+            {'type': 'pet_store',           'label': 'Pet Store'},
+        ],
+    },
+    {
+        'category': 'Retail & Hardware',
+        'types': [
+            {'type': 'hardware_store',      'label': 'Hardware Store'},
+            {'type': 'home_improvement_store', 'label': 'Home Improvement Store'},
+            {'type': 'florist',             'label': 'Florist'},
+            {'type': 'jewelry_store',       'label': 'Jewelry Store'},
+            {'type': 'furniture_store',     'label': 'Furniture Store'},
+            {'type': 'sporting_goods_store', 'label': 'Sporting Goods Store'},
+        ],
+    },
+    {
+        'category': 'Other Services',
+        'types': [
+            {'type': 'funeral_home',        'label': 'Funeral Home'},
+            {'type': 'laundry',             'label': 'Laundry / Dry Cleaner'},
+            {'type': 'tailor',              'label': 'Tailor'},
+        ],
+    },
+]
+
+# Flat lookup: type -> label (for display after selection)
+PLACE_TYPE_LABELS = {
+    t['type']: t['label']
+    for cat in PLACE_TYPES
+    for t in cat['types']
+}
+
+# Primary types to always exclude from text-search results.
+# These are never the private-sector service businesses we want as leads.
+#
+# Bucket 1 — Big-box retail / supply stores
+#   Catches Home Depot, Lowe's, Ace Hardware, Costco, Ferguson, etc.
+# Bucket 2 — Government entities
+#   Catches actual fire departments (for "fire protection" searches),
+#   city maintenance departments (for "HVAC" / "plumbing" searches), etc.
+# Bucket 3 — Non-profits and trade associations
+#   Catches industry unions, chambers of commerce, trade associations.
+EXCLUDED_PRIMARY_TYPES = {
+    # Bucket 1: Big-box retail
+    'home_improvement_store',
+    'hardware_store',
+    'building_materials_store',
+    'department_store',
+    'warehouse_store',
+    'wholesaler',
+    'discount_store',
+    'supermarket',
+    'grocery_store',
+    'convenience_store',
+    # Bucket 2: Government
+    'fire_station',
+    'government_office',
+    'local_government_office',
+    'city_hall',
+    'courthouse',
+    'police',
+    'embassy',
+    # Bucket 3: Non-profits and associations
+    'non_profit_organization',
+    'association_or_organization',
+}
 
 
 # =============================================================================
@@ -198,10 +383,14 @@ class ScrapeJob:
     SEARCH_RADIUS = 35000
 
     def __init__(self, job_id: str, niche: str, region: str, region_key: str,
-                 api_key: str, firebase_url: str = '', data_dir: str = ''):
+                 api_key: str, firebase_url: str = '', data_dir: str = '',
+                 niche_type: str = ''):
 
         self.local_id = job_id
         self.niche = niche
+        # niche_type is the Google Places API type key (e.g. 'car_repair').
+        # If not supplied, fall back to normalizing the niche label.
+        self.niche_type = niche_type or self._normalize_type(niche)
         self.region = region
         self.region_key = region_key
         self.api_key = api_key
@@ -216,12 +405,14 @@ class ScrapeJob:
         self.project_dir = base / slug
         self.project_dir.mkdir(parents=True, exist_ok=True)
 
-        self.place_ids_file = self.project_dir / 'place_ids.json'
-        self.progress_file = self.project_dir / 'progress.json'
-        self.scraped_file = self.project_dir / 'scraped.json'
-        self.emails_file = self.project_dir / 'emails.json'
-        self.meta_file = self.project_dir / 'job_meta.json'
-        self.csv_file = self.project_dir / f'{slug}.csv'
+        self.place_ids_file   = self.project_dir / 'place_ids.json'
+        self.excluded_file    = self.project_dir / 'excluded_ids.json'
+        self.progress_file    = self.project_dir / 'progress.json'
+        self.scraped_file     = self.project_dir / 'scraped.json'
+        self.emails_file      = self.project_dir / 'emails.json'
+        self.meta_file        = self.project_dir / 'job_meta.json'
+        self.csv_file         = self.project_dir / f'{slug}.csv'
+        self.excluded_csv_file = self.project_dir / f'{slug}_excluded.csv'
 
         # Runtime state
         self.status = 'created'
@@ -231,6 +422,7 @@ class ScrapeJob:
             'gridTotal': 0, 'gridScanned': 0, 'placesFound': 0,
             'placesScraped': 0, 'emailsScraped': 0, 'emailsFound': 0,
             'totalWithPhone': 0, 'totalWithEmail': 0, 'totalWithWebsite': 0,
+            'placesExcluded': 0,
         }
 
         # Load existing metadata if resuming
@@ -242,6 +434,9 @@ class ScrapeJob:
         if meta:
             self.firebase_job_id = meta.get('firebase_job_id')
             saved_status = meta.get('status', 'created')
+            # Restore niche_type from saved meta (may not exist in older jobs)
+            if meta.get('niche_type'):
+                self.niche_type = meta['niche_type']
             # Restore progress counters from saved meta
             if meta.get('progress'):
                 self.progress.update(meta['progress'])
@@ -254,6 +449,7 @@ class ScrapeJob:
             'firebase_job_id': self.firebase_job_id,
             'local_id': self.local_id,
             'niche': self.niche,
+            'niche_type': self.niche_type,
             'region': self.region,
             'region_key': self.region_key,
             'status': self.status,
@@ -343,6 +539,41 @@ class ScrapeJob:
         with open(path, 'w') as f:
             json.dump(data, f, indent=2 if len(str(data)) < 100000 else None)
 
+    # -- Cost estimation --
+    COST_PER_REQUEST = 0.035  # USD, Text Search (New) — Advanced pricing tier
+
+    @staticmethod
+    def estimate_scan_cost(region_key: str) -> dict:
+        """Estimate the Google Places API cost for scanning a region.
+
+        Returns a dict with grid_points, estimated_requests, and estimated_cost_usd.
+        """
+        bounds = get_region_bounds(region_key)
+        if not bounds:
+            return {'error': f'Unknown region: {region_key}'}
+
+        # Replicate _generate_grid without instantiating a full job
+        points = 0
+        lat = bounds['min_lat']
+        while lat <= bounds['max_lat']:
+            lng = bounds['min_lng']
+            while lng <= bounds['max_lng']:
+                points += 1
+                lng += ScrapeJob.GRID_SPACING
+            lat += ScrapeJob.GRID_SPACING
+
+        # Each grid point = 1 request (plus up to 2 pagination requests for dense areas,
+        # but most points return <20 results so pagination is rare outside cities).
+        # We use 1.1× as a modest buffer for pagination.
+        estimated_requests = round(points * 1.1)
+        estimated_cost = round(estimated_requests * ScrapeJob.COST_PER_REQUEST, 2)
+
+        return {
+            'grid_points': points,
+            'estimated_requests': estimated_requests,
+            'estimated_cost_usd': estimated_cost,
+        }
+
     # -- Grid generation --
     def _generate_grid(self, bounds):
         points = []
@@ -355,28 +586,48 @@ class ScrapeJob:
             lat += self.GRID_SPACING
         return points
 
+    # -- Type normalization --
+    @staticmethod
+    def _normalize_type(niche: str) -> str:
+        """Convert a human-readable niche to Google Places type format (snake_case)."""
+        return re.sub(r'\s+', '_', niche.strip().lower())
+
     # =========================================================================
     #  STEP 1: Collect Place IDs (FREE)
     # =========================================================================
     def _search_at_point(self, lat, lng):
+        """Search one grid cell.
+
+        If niche_type is set, send it as includedType for the tightest match.
+        If includedType is rejected (400) or niche_type is empty, fall back to
+        a text-only search and apply the three-bucket exclusion filter instead.
+
+        Returns (included_ids: set, excluded_records: list[dict])
+        where each excluded record is {id, primaryType, googleMapsUrl}.
+        """
         url = 'https://places.googleapis.com/v1/places:searchText'
         headers = {
             'X-Goog-Api-Key': self.api_key,
-            'X-Goog-FieldMask': 'places.id,nextPageToken'
+            'X-Goog-FieldMask': 'places.id,places.primaryType,places.displayName,nextPageToken'
         }
         ids = set()
+        excluded = []
         page_token = None
+        half_step = self.GRID_SPACING / 2.0
+        niche_type = self.niche_type  # may be empty string
 
         while True:
             payload = {
                 'textQuery': self.niche,
-                'locationBias': {'circle': {
-                    'center': {'latitude': lat, 'longitude': lng},
-                    'radius': float(self.SEARCH_RADIUS)
+                'locationRestriction': {'rectangle': {
+                    'low': {'latitude': lat - half_step, 'longitude': lng - half_step},
+                    'high': {'latitude': lat + half_step, 'longitude': lng + half_step},
                 }},
                 'maxResultCount': 20,
                 'languageCode': 'en',
             }
+            if niche_type:
+                payload['includedType'] = niche_type
             if page_token:
                 payload['pageToken'] = page_token
             try:
@@ -385,12 +636,31 @@ class ScrapeJob:
                     data = r.json()
                     for p in data.get('places', []):
                         pid = p.get('id')
-                        if pid:
+                        if not pid:
+                            continue
+                        primary = p.get('primaryType', '')
+                        if primary in EXCLUDED_PRIMARY_TYPES:
+                            excluded.append({
+                                'id': pid,
+                                'primaryType': primary,
+                                'name': p.get('displayName', {}).get('text', ''),
+                                'googleMapsUrl': f'https://www.google.com/maps/place/?q=place_id:{pid}',
+                            })
+                        else:
                             ids.add(pid)
                     page_token = data.get('nextPageToken')
                     if not page_token:
                         break
                     time.sleep(0.5)
+                elif r.status_code == 400 and niche_type:
+                    # includedType not recognized by Google — clear it at the job
+                    # level so NO subsequent grid point wastes an extra API call.
+                    self.log(f"  includedType '{niche_type}' not recognized, switching to text-only search for all remaining points")
+                    self.niche_type = ''
+                    niche_type = ''
+                    page_token = None
+                    ids.clear()
+                    excluded.clear()
                 elif r.status_code == 429:
                     self.log("  Rate limited, waiting 30s...")
                     time.sleep(30)
@@ -400,7 +670,7 @@ class ScrapeJob:
             except Exception as e:
                 self.log(f"  Error ({lat:.2f},{lng:.2f}): {e}")
                 break
-        return ids
+        return ids, excluded
 
     def step_scan(self):
         self.status = 'scanning'
@@ -414,12 +684,15 @@ class ScrapeJob:
         grid = self._generate_grid(bounds)
         progress_data = self._load_json(self.progress_file) or {'scanned_points': []}
         all_ids = set(self._load_json(self.place_ids_file) or [])
+        # excluded_map: place_id -> {primaryType, name, googleMapsUrl}
+        excluded_map = {r['id']: r for r in (self._load_json(self.excluded_file) or [])}
         scanned = set(tuple(p) for p in progress_data.get('scanned_points', []))
         remaining = [p for p in grid if p not in scanned]
 
         self.progress['gridTotal'] = len(grid)
         self.progress['gridScanned'] = len(scanned)
         self.progress['placesFound'] = len(all_ids)
+        self.progress['placesExcluded'] = len(excluded_map)
         self._sync_firebase('scanning')
 
         if remaining:
@@ -432,16 +705,20 @@ class ScrapeJob:
                 self.log("Stopped by user.")
                 break
 
-            new_ids = self._search_at_point(lat, lng)
+            new_ids, new_excluded = self._search_at_point(lat, lng)
             all_ids.update(new_ids)
+            for rec in new_excluded:
+                excluded_map[rec['id']] = rec
             scanned.add((lat, lng))
 
             progress_data['scanned_points'] = [list(p) for p in scanned]
             self._save_json(self.progress_file, progress_data)
             self._save_json(self.place_ids_file, list(all_ids))
+            self._save_json(self.excluded_file, list(excluded_map.values()))
 
             self.progress['gridScanned'] = len(scanned)
             self.progress['placesFound'] = len(all_ids)
+            self.progress['placesExcluded'] = len(excluded_map)
 
             if len(scanned) % 5 == 0:
                 self._sync_firebase()
@@ -449,7 +726,7 @@ class ScrapeJob:
             time.sleep(0.2)
 
         self._sync_firebase('scan_complete')
-        self.log(f"  Found {len(all_ids)} unique places.")
+        self.log(f"  Found {len(all_ids)} unique places. ({len(excluded_map)} filtered out)")
 
     # =========================================================================
     #  STEP 2: Scrape Google Maps (FREE)
@@ -729,6 +1006,7 @@ class ScrapeJob:
             emails = email_data.get(pid, [])
             email_str = '; '.join(emails) if emails else ''
             results.append({
+                'Place ID': pid,
                 'Business Name': info.get('name', ''),
                 'Phone': info.get('phone', ''),
                 'Email': email_str,
@@ -737,6 +1015,7 @@ class ScrapeJob:
                 'Google Maps': info.get('google_maps_url', ''),
             })
             fb_results.append({
+                'placeId': pid,
                 'name': info.get('name', ''),
                 'phone': info.get('phone', ''),
                 'email': email_str,
@@ -763,6 +1042,18 @@ class ScrapeJob:
 
         self.log(f"  {len(df)} businesses, {with_phone} phones, {with_email} emails")
         self.log(f"  CSV saved: {self.csv_file}")
+
+        # Export filtered-out places to a separate CSV for review
+        excluded_records = self._load_json(self.excluded_file) or []
+        if excluded_records:
+            ex_df = pd.DataFrame(excluded_records, columns=['id', 'name', 'primaryType', 'googleMapsUrl'])
+            ex_df = ex_df.rename(columns={
+                'id': 'Place ID', 'name': 'Business Name',
+                'primaryType': 'Excluded Reason (Google Type)', 'googleMapsUrl': 'Google Maps',
+            }).sort_values('Excluded Reason (Google Type)')
+            ex_df.to_csv(self.excluded_csv_file, index=False)
+            self.progress['placesExcluded'] = len(ex_df)
+            self.log(f"  {len(ex_df)} filtered places saved: {self.excluded_csv_file}")
 
         # Upload to Firebase
         if self.fb.enabled and self.firebase_job_id:
@@ -813,6 +1104,34 @@ class ScrapeJob:
             self._save_meta()
 
         self.log(f"Resuming job: {self.niche} in {self.region}")
+
+        # Determine whether there are grid points that still need scanning.
+        # This handles the region-expansion case: after expand_region() the
+        # bounding box is larger, so new grid cells exist that are not yet in
+        # progress.json even though all previously-found places may be fully
+        # scraped and emailed.
+        bounds = get_region_bounds(self.region_key)
+        if bounds:
+            full_grid = self._generate_grid(bounds)
+            progress_data = self._load_json(self.progress_file) or {'scanned_points': []}
+            already_scanned = set(tuple(p) for p in progress_data.get('scanned_points', []))
+            grid_remaining = [p for p in full_grid if p not in already_scanned]
+        else:
+            grid_remaining = []
+
+        if grid_remaining:
+            self.log(f"  {len(grid_remaining)} grid points remaining — running full pipeline from scan...")
+            self.step_scan()
+            if self.should_stop:
+                return
+            await self.step_scrape()
+            if self.should_stop:
+                return
+            await self.step_emails()
+            if self.should_stop:
+                return
+            self.step_export()
+            return
 
         # Determine which step to resume from based on local checkpoint data
         has_place_ids = self.place_ids_file.exists() and len(self._load_json(self.place_ids_file) or []) > 0
@@ -891,20 +1210,130 @@ class ScrapeJob:
             return
         self.step_export()
 
+    # =========================================================================
+    #  RE-RUN PIPELINE (wipe local data, reset Firebase, scrape from scratch)
+    # =========================================================================
+    async def clear_and_rerun(self):
+        """Delete all local checkpoints and reset the Firebase job, then run fresh."""
+        self.log(f"Re-running job: {self.niche} in {self.region}")
+
+        # 1. Clear local checkpoint files
+        for f in [self.place_ids_file, self.excluded_file, self.progress_file,
+                  self.scraped_file, self.emails_file, self.csv_file, self.excluded_csv_file]:
+            if f.exists():
+                f.unlink()
+                self.log(f"  Cleared {f.name}")
+
+        # 2. Reset in-memory state
+        self.status = 'created'
+        self.should_stop = False
+        self.log_lines = self.log_lines[-5:]  # keep last few lines for context
+        self.progress = {
+            'gridTotal': 0, 'gridScanned': 0, 'placesFound': 0,
+            'placesScraped': 0, 'emailsScraped': 0, 'emailsFound': 0,
+            'totalWithPhone': 0, 'totalWithEmail': 0, 'totalWithWebsite': 0,
+        }
+
+        # 3. Reset the Firebase job (clears results but keeps the same doc ID)
+        if self.firebase_job_id:
+            success = self.fb.rerun_job(self.firebase_job_id)
+            if success:
+                self.log("  Firebase job reset (results cleared, contacts preserved)")
+            else:
+                self.log("  Warning: could not reset Firebase job, creating new one")
+                self.firebase_job_id = self.fb.create_job(self.niche, self.region)
+
+        self._save_meta()
+
+        # 4. Run the full pipeline from scratch
+        if not self.firebase_job_id:
+            self.firebase_job_id = self.fb.create_job(self.niche, self.region)
+            if self.firebase_job_id:
+                self.log(f"  New Firebase job: {self.firebase_job_id}")
+            self._save_meta()
+
+        self.step_scan()
+        if self.should_stop:
+            return
+        await self.step_scrape()
+        if self.should_stop:
+            return
+        await self.step_emails()
+        if self.should_stop:
+            return
+        self.step_export()
+
     def get_state(self) -> dict:
         """Return current job state for the UI."""
         return {
             'id': self.local_id,
             'niche': self.niche,
             'region': self.region,
+            'region_key': self.region_key,
             'status': self.status,
             'progress': dict(self.progress),
             'log': self.log_lines[-50:],
             'csv_path': str(self.csv_file) if self.csv_file.exists() else None,
+            'excluded_csv_path': str(self.excluded_csv_file) if self.excluded_csv_file.exists() else None,
             'can_resume': self.can_resume,
             'resume_step': self.resume_step if self.can_resume else None,
             'firebase_job_id': self.firebase_job_id,
         }
+
+    # =========================================================================
+    #  EXPAND REGION (widen geographic scope without re-scraping existing data)
+    # =========================================================================
+    def expand_region(self, new_region_key: str) -> bool:
+        """Expand the job's geographic region to cover a larger area.
+
+        Existing checkpoint data (scanned grid points, place IDs, scraped
+        business details, and emails) is preserved.  Only the new grid points
+        that fall outside the previously scanned area will be processed when
+        the job is resumed.
+
+        Returns True on success, False if the region key is unrecognised.
+        """
+        bounds = get_region_bounds(new_region_key)
+        if not bounds:
+            self.log(f"Error: Unknown region '{new_region_key}'")
+            return False
+
+        if new_region_key in REGIONS:
+            new_region_name = REGIONS[new_region_key]['name']
+        else:
+            new_region_name = new_region_key.replace('_', ' ').title()
+
+        old_region = self.region
+        self.region = new_region_name
+        self.region_key = new_region_key
+
+        # Recalculate grid totals for the new (larger) bounding box.
+        # Existing scanned_points are preserved in progress.json so step_scan
+        # will skip them automatically on the next run.
+        new_grid = self._generate_grid(bounds)
+        progress_data = self._load_json(self.progress_file) or {'scanned_points': []}
+        already_scanned = set(tuple(p) for p in progress_data.get('scanned_points', []))
+        new_points_count = len([p for p in new_grid if p not in already_scanned])
+
+        self.progress['gridTotal'] = len(new_grid)
+
+        # Move the status back so can_resume returns True and resume()
+        # detects that there are new grid points to scan.
+        self.status = 'scan_complete'
+
+        self._save_meta()
+
+        # Push updated region and status to Firestore.
+        if self.firebase_job_id:
+            self.fb.update_region(self.firebase_job_id, self.region)
+            self.fb.update_job(self.firebase_job_id,
+                               status=self.status,
+                               progress=self.progress)
+
+        self.log(f"Region expanded: {old_region} → {self.region}")
+        self.log(f"  Total grid: {len(new_grid)} points, {new_points_count} new to scan")
+        self.log(f"  Existing scan progress preserved ({len(already_scanned)} points done)")
+        return True
 
     # =========================================================================
     #  CLASS METHOD: Discover resumable jobs from local data directory
@@ -933,6 +1362,7 @@ class ScrapeJob:
                 job = ScrapeJob(
                     job_id=meta.get('local_id', project_dir.name),
                     niche=meta.get('niche', ''),
+                    niche_type=meta.get('niche_type', ''),
                     region=meta.get('region', ''),
                     region_key=meta.get('region_key', ''),
                     api_key=api_key,

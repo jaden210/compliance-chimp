@@ -76,7 +76,7 @@ export class BlogService {
             oshaStandards: doc.oshaStandards,
             hazards: doc.hazards,
             generatedAt: doc.generatedAt,
-            author: doc.author || 'The Chimp'
+            author: doc.author || 'Ulysses'
           }))
           // Sort by publishedDate descending (in case Firestore index isn't set up)
           .sort((a, b) => {
@@ -143,7 +143,7 @@ export class BlogService {
         oshaStandards: data['oshaStandards'],
         hazards: data['hazards'],
         generatedAt: data['generatedAt'],
-        author: data['author'] || 'The Chimp'
+        author: data['author'] || 'Ulysses'
       };
     } catch (error) {
       console.error('Error fetching blog post by slug:', error);

@@ -17,7 +17,7 @@ export class PlansComponent implements OnInit, OnDestroy {
   // FAQ data for structured data
   private pricingFaqs = [
     {
-      question: "What's included in the $99/month?",
+      question: "What's included in the $199/month?",
       answer: "Everything! Unlimited team members, all features, no hidden fees. The same tools whether you have 5 employees or 50."
     },
     {

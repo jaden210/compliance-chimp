@@ -97,7 +97,7 @@ export class BlogPostComponent implements OnInit, OnDestroy {
     this.setMetaProperty('article:published_time', post.publishedDate);
 
     // article:author
-    this.setMetaProperty('article:author', post.author || 'The Chimp');
+    this.setMetaProperty('article:author', post.author || 'Ulysses');
 
     // article:section (maps to category)
     this.setMetaProperty('article:section', post.category);
@@ -189,7 +189,7 @@ export class BlogPostComponent implements OnInit, OnDestroy {
       "wordCount": wordCount,
       "author": {
         "@type": "Person",
-        "name": post.author || "The Chimp",
+        "name": post.author || "Ulysses",
         "url": "https://compliancechimp.com"
       },
       "publisher": {

@@ -288,6 +288,14 @@ h1 {
   color: var(--chimp-on-surface-variant);
 }
 
+.pricing-comparison {
+  color: var(--chimp-accent);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 0;
+  text-align: center;
+}
+
 .pricing-card ul {
   list-style: none;
   margin: 22px 0;

@@ -3,13 +3,13 @@
     <div class="step-header" [class.has-timer]="buildStarted && challengeService.isTimerStarted">
       <div class="step-header-content">
         <div class="step-indicator">Step 4 of 4</div>
-        <h1 class="step-title-desktop">{{ buildStarted ? 'Building your compliance program' : 'Ready to build your compliance program' }}</h1>
-        <h1 class="step-title-mobile">{{ buildStarted ? 'Building your program' : 'Time to build your program' }}</h1>
+        <h1 class="step-title-desktop">{{ buildStarted ? 'I\'m building your compliance program' : 'Ready — I\'ll build your program now' }}</h1>
+        <h1 class="step-title-mobile">{{ buildStarted ? 'Building your program' : 'I\'m ready to build' }}</h1>
         <p class="step-subtitle" *ngIf="!buildStarted">
-          The Chimp will analyze your team and industry to create everything you need — in 6 minutes or less.
+          I'll analyze your team and industry to create everything you need — in 6 minutes or less.
         </p>
         <p class="step-subtitle" *ngIf="buildStarted">
-          The Chimp is creating personalized inspections and trainings for your team.
+          I'm creating personalized inspections and trainings for your team right now.
         </p>
       </div>
       <div class="step-header-timer" *ngIf="buildStarted && challengeService.isTimerStarted">
@@ -27,7 +27,7 @@
             </div>
             <h4>Self-Inspection Checklists</h4>
           </div>
-          <p>We'll create custom safety checklists tailored to your industry. Use them to document regular walkthroughs and catch hazards before they become incidents.</p>
+          <p>I'll build custom safety checklists tailored to your industry. Use them to document regular walkthroughs and catch hazards before they become incidents.</p>
         </div>
         <div class="intro-card">
           <div class="intro-card-header">
@@ -45,7 +45,7 @@
             </div>
             <h4>Scheduled Outreach</h4>
           </div>
-          <p>Trainings are scheduled on a smart cadence based on priority. Your team will receive assignments via text or email as each training comes due.</p>
+          <p>I schedule training on a smart cadence based on priority. Your team receives assignments via text or email as each one comes due.</p>
         </div>
       </div>
       
@@ -59,7 +59,7 @@
                 <span class="timer-label">min</span>
               </div>
             </div>
-            <h3 class="cta-headline">The Chimp will build your entire compliance program while you watch.</h3>
+            <h3 class="cta-headline">I'll build your entire compliance program while you watch.</h3>
           </div>
           <button
             mat-flat-button

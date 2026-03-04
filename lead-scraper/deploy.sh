@@ -10,7 +10,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUCKET="teamlog-2d74c.appspot.com"
-STORAGE_PATH="public/lead-scraper-v3.zip"
+STORAGE_PATH="public/lead-scraper-v9.zip"
 ZIP_FILE="/tmp/lead-scraper-deploy.zip"
 
 echo ""
