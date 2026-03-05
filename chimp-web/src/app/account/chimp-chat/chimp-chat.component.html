@@ -1,13 +1,14 @@
 <div class="chimp-chat-panel" 
   [class.sidenav-mode]="mode === 'sidenav'"
+  [class.page-mode]="mode === 'page'"
   [class.mobile-mode]="isMobile"
   cdkDrag
   cdkDragBoundary="body"
-  [cdkDragDisabled]="mode === 'sidenav' || isMobile"
+  [cdkDragDisabled]="mode === 'sidenav' || mode === 'page' || isMobile"
   [cdkDragFreeDragPosition]="dragPosition"
   (cdkDragEnded)="onDragEnded($event)">
-  <!-- Header -->
-  <div class="chat-header" cdkDragHandle>
+  <!-- Header (hidden in page mode — the page component provides its own header) -->
+  <div class="chat-header" cdkDragHandle *ngIf="mode !== 'page'">
     <div class="header-left">
       <img src="/assets/chimpFace.png" alt="ChimpChat" class="chimp-avatar" />
       <span class="header-title">ChimpChat</span>
@@ -15,6 +16,9 @@
     <div class="header-actions">
       <button *ngIf="!isMobile" mat-icon-button class="mode-toggle-btn" (click)="toggleMode()" [matTooltip]="mode === 'dialog' ? 'Dock to side' : 'Pop out'">
         <mat-icon>{{ mode === 'dialog' ? 'dock_to_right' : 'picture_in_picture_alt' }}</mat-icon>
+      </button>
+      <button *ngIf="!isMobile" mat-icon-button class="expand-btn" (click)="expandToFullPage()" matTooltip="Full page">
+        <mat-icon>open_in_full</mat-icon>
       </button>
       <button *ngIf="isMobile" mat-icon-button class="minimize-btn" (click)="minimizePanel()" matTooltip="Minimize">
         <mat-icon>keyboard_arrow_down</mat-icon>
@@ -71,11 +75,15 @@
                   class="action-button"
                   [class.tour-next-button]="action.type === 'tourNext'"
                   [class.secondary-action]="action.type === 'navigate' && action.queryParams"
+                  [class.write-action]="action.type === 'assignTraining' || action.type === 'runComplianceCheck'"
                   (click)="executeAction(action)">
                   <mat-icon *ngIf="action.icon">{{action.icon}}</mat-icon>
                   <mat-icon *ngIf="!action.icon && action.type === 'navigate'">arrow_forward</mat-icon>
                   <mat-icon *ngIf="!action.icon && action.type === 'smartBuilder'">auto_awesome</mat-icon>
                   <mat-icon *ngIf="!action.icon && action.type === 'search'">search</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'assignTraining'">school</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'createDraftInspection'">assignment</mat-icon>
+                  <mat-icon *ngIf="!action.icon && action.type === 'runComplianceCheck'">fact_check</mat-icon>
                   <span>{{action.label}}</span>
                 </button>
               }
@@ -105,10 +113,12 @@
     <div class="input-wrapper">
       <textarea 
         #messageInput
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="1"
+        cdkAutosizeMaxRows="6"
         [(ngModel)]="inputMessage"
         (keydown)="onKeyDown($event)"
-        placeholder="Ask Ulysses anything..."
-        rows="1"></textarea>
+        placeholder="Ask Ulysses anything..."></textarea>
       <button 
         mat-icon-button 
         class="send-btn" 

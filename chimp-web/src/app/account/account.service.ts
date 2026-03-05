@@ -51,6 +51,7 @@ export class AccountService {
   public trialDaysRemaining: number = 0;
   public isTrialExpired: boolean = false;
   private trialDialogShown: boolean = false;
+  private trialDialogTimer: any = null;
 
   helperProfiles: any;
   helper: Helper;
@@ -58,6 +59,9 @@ export class AccountService {
 
   /** Emits when a child (e.g. dashboard) requests to open ChimpChat. AccountComponent subscribes and opens the panel. */
   openChimpChatRequested = new Subject<void>();
+
+  /** Emits when the full-page ChimpChat view wants to switch back to float or pin mode. */
+  openChatInMode = new Subject<'dialog' | 'sidenav'>();
 
   constructor(
     public db: Firestore,
@@ -151,11 +155,17 @@ export class AccountService {
    * If no subscription and trial expired, set read-only mode
    */
   private checkTrialStatus(team: Team): void {
-    // If team has a Stripe subscription, they're not in trial
+    // If team has a Stripe subscription, they're not in trial.
+    // Cancel any pending trial dialog in case this update arrives after a
+    // cached Firestore snapshot that was missing stripeSubscriptionId.
     if (team.stripeSubscriptionId) {
       this.isReadOnly = false;
       this.isTrialExpired = false;
       this.trialDaysRemaining = 0;
+      if (this.trialDialogTimer) {
+        clearTimeout(this.trialDialogTimer);
+        this.trialDialogTimer = null;
+      }
       return;
     }
 
@@ -176,10 +186,18 @@ export class AccountService {
       this.isTrialExpired = true;
       this.isReadOnly = true;
       
-      // Show trial expired dialog once per session
-      if (!this.trialDialogShown) {
-        this.trialDialogShown = true;
-        this.showTrialExpiredDialog(team);
+      // Delay showing the dialog to allow the server snapshot to arrive.
+      // Firestore may serve a cached doc first (without stripeSubscriptionId),
+      // followed by the real server doc that has it. The timer is cancelled
+      // above if a subsequent update confirms an active subscription.
+      if (!this.trialDialogShown && !this.trialDialogTimer) {
+        this.trialDialogTimer = setTimeout(() => {
+          this.trialDialogTimer = null;
+          if (!this.trialDialogShown && this.isTrialExpired) {
+            this.trialDialogShown = true;
+            this.showTrialExpiredDialog(team);
+          }
+        }, 2500);
       }
     } else {
       this.isTrialExpired = false;

@@ -4194,6 +4194,32 @@ export const scheduledFunctionCrontab = onSchedule(
 );
 
 /**
+ * Write an activity entry to a team's chimpActivity subcollection.
+ * Used by scheduled functions to log automated actions.
+ */
+async function logChimpActivity(
+  db: admin.firestore.Firestore,
+  teamId: string,
+  actionType: string,
+  description: string,
+  metadata: Record<string, any> = {}
+): Promise<void> {
+  try {
+    await db.collection(`team/${teamId}/chimpActivity`).add({
+      teamId,
+      userId: null,
+      source: 'scheduled',
+      actionType,
+      description,
+      metadata,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error(`Failed to log chimp activity for team ${teamId}:`, err);
+  }
+}
+
+/**
  * Auto-start trainings that are due for teams with autoStartTrainings enabled.
  * Checks each team's library items and starts trainings that are due today or overdue.
  * Creates a Survey for each due training and notifies team members via SMS/email.
@@ -4296,6 +4322,14 @@ async function autoStartDueTrainings() {
         
         trainingsStarted++;
         console.log(`Auto-started training "${libraryItem.name}" for team ${team.id} with ${trainees.length} trainees`);
+
+        await logChimpActivity(
+          db,
+          team.id,
+          'autoStartedTraining',
+          `I automatically kicked off "${libraryItem.name}" for ${trainees.length} member${trainees.length !== 1 ? 's' : ''}.`,
+          { trainingId: libraryItem.id, trainingName: libraryItem.name, traineeCount: trainees.length }
+        );
       }
     }
     
@@ -4597,6 +4631,20 @@ async function checkSelfInspectionReminders() {
           await admin.firestore()
             .doc(`team/${team.id}/self-inspection/${siDoc.id}`)
             .update({ lastReminderSent: new Date() });
+
+          const urgencyLabel = daysUntilDue < 0
+            ? `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) !== 1 ? 's' : ''} overdue`
+            : daysUntilDue === 0
+              ? 'due today'
+              : `due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`;
+
+          await logChimpActivity(
+            admin.firestore(),
+            team.id,
+            'sentInspectionReminder',
+            `I sent a reminder that "${selfInspection.title}" is ${urgencyLabel}.`,
+            { inspectionId: siDoc.id, inspectionName: selfInspection.title, daysUntilDue }
+          );
         }
       }
     }
@@ -4616,36 +4664,53 @@ function getSelfInspectionReminderEmail(): string {
 
 function findSurveys(): Promise<any> {
   const today = moment(); 
-  let teamDocs = admin.firestore().collection("team").get();
+  const db = admin.firestore();
+  let teamDocs = db.collection("team").get();
   return teamDocs.then((teams: any) => {
     const promises: Promise<any>[] = [];
     teams.forEach((teamDoc: any) => {
       const team = { ...teamDoc.data(), id: teamDoc.id };
-      let surveysDocs = admin.firestore().collection(`team/${team.id}/survey`).get();
+      let surveysDocs = db.collection(`team/${team.id}/survey`).get();
       promises.push(surveysDocs.then((surveys: any) => {
+          const surveyPromises: Promise<any>[] = [];
           surveys.forEach((surveyDoc: any) => {
             const survey = surveyDoc.data();
             if (!survey.notificationSent) {
               let teamMember: any[] = [];
               if (moment(survey.runDate).isSame(today, 'day')) { //do it
                 if (teamMember.length == 0) {
-                  admin.firestore().collection(`team/${team.id}/user`).get().then((users: any) => {
+                  const p = db.collection(`team/${team.id}/user`).get().then(async (users: any) => {
+                      let notifiedCount = 0;
                       users.forEach((userDoc: any) => {
                         teamMember.push(userDoc.data());
                       });
-                      Object.keys(survey.userSurvey).forEach((key,index) => {
+                      const sendPromises: Promise<any>[] = [];
+                      Object.keys(survey.userSurvey).forEach((key) => {
                         let user = teamMember.find(u => u.id == key);
                         if (user) {
                           const body = `Hi ${user.name}. A new survey is waiting for you. Click the link to answer. Please answer right away to help your employer maintain current records. Thank you! - The Compliancechimp team.\n
                           https://compliancechimp.com/user?member-id=${user.id}`;
-                          sendMessage(user, team, body).then(() => {
-                            surveyDoc.ref.update({notificationSent: true});
-                          });
+                          sendPromises.push(sendMessage(user, team, body).then(() => {
+                            notifiedCount++;
+                            return surveyDoc.ref.update({notificationSent: true});
+                          }));
                         }
                       });
+                      await Promise.all(sendPromises);
+                      if (notifiedCount > 0) {
+                        const surveyTitle = survey.title || 'a survey';
+                        await logChimpActivity(
+                          db,
+                          team.id,
+                          'sentSurveyNotification',
+                          `I sent "${surveyTitle}" to ${notifiedCount} member${notifiedCount !== 1 ? 's' : ''}.`,
+                          { surveyId: surveyDoc.id, surveyTitle, notifiedCount }
+                        );
+                      }
                   });
+                  surveyPromises.push(p);
                 } else {
-                  Object.keys(survey.userSurvey).forEach((key,index) => {
+                  Object.keys(survey.userSurvey).forEach((key) => {
                     const body = ``;
                     let user = teamMember.find(u => u.id == key);
                     if (user) {
@@ -4658,6 +4723,7 @@ function findSurveys(): Promise<any> {
               }
             }
           });
+          return Promise.all(surveyPromises);
       }));
     });
     return Promise.all(promises);
@@ -4995,6 +5061,41 @@ export const sendPendingWelcomeMessages = onCall(
     };
   }
 );
+
+export const sendIncidentReportNotification = onCall(
+  { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
+  async (request) => {
+    requireAuth(request);
+    const { teamMembers, team } = request.data as any;
+
+    const teamName = team?.name || 'your company';
+
+    const promises = (teamMembers as any[]).map((teamMember) => {
+      const reportUrl = getIncidentReportUrl(teamMember);
+
+      let messageBody: string;
+      if (teamMember.preferEmail) {
+        messageBody = `<p>Hi ${teamMember.name},</p>
+<p>${teamName} is requesting you fill out an incident report. Please click the link below to get started:</p>
+<p><a href="${reportUrl}" style="display:inline-block;padding:12px 24px;background:#ff9100;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Fill Out Incident Report</a></p>
+<p>If the button above doesn't work, copy and paste this link into your browser:<br>${reportUrl}</p>`;
+      } else {
+        messageBody = `Hi ${teamMember.name}. ${teamName} is requesting you fill out an incident report. Please complete it here: ${reportUrl}`;
+      }
+
+      return sendMessage(teamMember, team, messageBody);
+    });
+
+    return await Promise.all(promises);
+  }
+);
+
+function getIncidentReportUrl(member: any): string {
+  if (member.linkedUserId) {
+    return `https://compliancechimp.com/user/injury-report?user-id=${member.linkedUserId}`;
+  }
+  return `https://compliancechimp.com/user/injury-report?member-id=${member.id}`;
+}
 
 export const resendSurveyNotification = onCall(
   { secrets: [sendgridApiKey, twilioAccountSid, twilioAuthToken] },
@@ -6392,6 +6493,9 @@ YOUR CAPABILITIES:
 3. Suggest creating new trainings via the Smart Builder
 4. Provide navigation shortcuts to different sections
 5. Give compliance advice and recommendations
+6. Directly assign trainings to tag groups (write action - actually does the update)
+7. Create draft inspections with pre-filled data
+8. Run compliance checks and summarize team status
 
 RESPONSE FORMAT:
 You MUST respond with a JSON object in this exact format:
@@ -6419,6 +6523,23 @@ ACTION TYPES:
   - "/account/files" - Files
 - "smartBuilder": Opens Smart Builder with prefilled data. Include smartBuilderData: { name, description, cadence }. Cadence should be "Annually", "Semi-Annually", "Quarterly", "Monthly", "Upon Hire", or "Once".
 - "search": Navigate with search query. Use queryParams: { "search": "term" }
+- "assignTraining": DIRECTLY assigns a training to specific tags (this actually updates the database). Use when the user explicitly asks you to assign or reassign a training. Include:
+  - trainingId: the training's ID from the TRAINING ARTICLES DETAILS section above
+  - trainingName: the training's name for display
+  - tags: array of tag strings matching the team member tags shown above (e.g. ["All"] for everyone, ["Morning Shift"] for a specific group)
+  - label: action button label
+  - icon: "school"
+  IMPORTANT: Only use this action when you have a valid trainingId from the context. Do not invent IDs.
+- "createDraftInspection": Opens the inspection builder with a suggested name/description pre-filled. Use when the user asks to create a new self-inspection. Include:
+  - inspectionName: a clear name for the inspection
+  - inspectionDescription: brief description of what it covers
+  - label: action button label
+  - icon: "assignment"
+- "runComplianceCheck": Use this action after you provide a detailed compliance summary in your message. It logs the check to the Work Log. Include:
+  - label: "Log Compliance Check"
+  - icon: "fact_check"
+
+PRIORITY RULE: When the user asks to DO something (assign a training, create an inspection), prefer write actions (assignTraining, createDraftInspection) over navigation actions. Only navigate when there's no write action available for the request.
 
 IMPORTANT: When the user asks about a specific training or inspection that exists in the library, ALWAYS link directly to that item using its ID in the route (e.g., "/account/training/library/abc123"). Do NOT just link to the general library page.
 
@@ -6448,6 +6569,30 @@ For "Do I have a training about fire safety?" (when you find article id "abc123"
   ]
 }
 
+For "Assign the Fire Safety training to all warehouse workers" (when training id "abc123" exists, tag "Warehouse" exists):
+{
+  "message": "Done. Fire Safety Training is now assigned to the Warehouse group. They'll get notified on the next scheduled run.",
+  "actions": [
+    { "type": "assignTraining", "label": "Assign Fire Safety to Warehouse", "trainingId": "abc123", "trainingName": "Fire Safety Training", "tags": ["Warehouse"], "icon": "school" }
+  ]
+}
+
+For "Create a monthly forklift inspection":
+{
+  "message": "Good call. Forklifts need regular eyes on them. I'll open the builder with a name and description ready to go.",
+  "actions": [
+    { "type": "createDraftInspection", "label": "Open Inspection Builder", "inspectionName": "Monthly Forklift Safety Inspection", "inspectionDescription": "Monthly pre-operation check covering fluid levels, brakes, forks, lights, horn, and general condition", "icon": "assignment" }
+  ]
+}
+
+For "What's my compliance status?" / "Run a compliance check":
+{
+  "message": "Here's where things stand: you have ${context.overdueTrainings} overdue training${context.overdueTrainings !== 1 ? 's' : ''} and ${context.overdueInspections} overdue inspection${context.overdueInspections !== 1 ? 's' : ''}. [Continue with specific details from context...]",
+  "actions": [
+    { "type": "runComplianceCheck", "label": "Log Compliance Check", "icon": "fact_check" }
+  ]
+}
+
 For "What inspections are overdue?":
 ${context.overdueInspections > 0 
   ? `{
@@ -6469,7 +6614,8 @@ RESPONSE GUIDELINES:
 - Let your personality come through naturally - don't force chimp references into every message
 - When delivering good news, be quietly satisfied. When delivering bad news (overdue items, gaps), be matter-of-fact but convey that it matters.
 - If they ask about something that doesn't exist, suggest creating it. Nature abhors a vacuum, and so does a compliance program.
-- Always include at least one relevant action button when appropriate.`;
+- Always include at least one relevant action button when appropriate.
+- When using assignTraining, confirm in your message that you're making the change directly (not just suggesting they do it).`;
 }
 
 // Parse the AI response and extract message + actions

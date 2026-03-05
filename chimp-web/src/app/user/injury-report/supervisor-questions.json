@@ -1,10 +1,10 @@
 [
   {
-    "description": "Employees shall use this form to report all work related injuries, illnesses, or 'near miss' events (which could have caused an injury or illness) – no matter how minor. This helps us to identify and correct hazards before they cause serious injuries. This form shall be completed by employees as soon as possible and given to a supervisor for further action.",
+    "description": "Use this form to conduct a thorough investigation of a workplace incident. Complete all applicable fields as accurately as possible. This record is required for OSHA compliance and helps prevent future incidents.",
     "getStarted": true
   },
   {
-    "description": "I am reporting a work related:",
+    "description": "What type of incident occurred?",
     "type": "radio",
     "radioOptions": [
       { "name": "Injury", "value": "injury" },
@@ -20,7 +20,13 @@
     "next": true
   },
   {
-    "description": "Date of injured persons birth?",
+    "description": "What was the employee's date of hire?",
+    "type": "date",
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Date of injured person's birth?",
     "type": "date",
     "next": true,
     "skip": true
@@ -72,19 +78,35 @@
     "next": true
   },
   {
-    "description": "What part of the body was injured? Describe in detail:",
+    "description": "Date of event",
+    "type": "date",
+    "next": true
+  },
+  {
+    "description": "What time did the employee begin work on the day of the incident? (e.g. 7:00 AM)",
+    "type": "text",
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "What time did the incident occur? (e.g. 10:30 AM)",
+    "type": "text",
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "What was the exact location of the event?",
+    "type": "text",
+    "next": true
+  },
+  {
+    "description": "What was the employee doing just before the incident? Describe the specific activity, tools, and equipment involved.",
     "type": "text",
     "next": true,
     "skip": true
   },
   {
-    "description": "What was the nature of the injury? Describe in detail:",
-    "type": "text",
-    "next": true,
-    "skip": true
-  },
-  {
-    "description": "Describe fully how the accident happened. What was employee doing prior to the event? What equipment or tools were being used?",
+    "description": "Describe fully how the accident happened. What sequence of events led to the injury or illness?",
     "type": "text",
     "next": true,
     "skip": true
@@ -96,19 +118,27 @@
     "skip": true
   },
   {
-    "description": "Date of event",
-    "type": "date",
-    "next": true
-  },
-  {
-    "description": "What was the exact location of the event?",
-    "type": "text",
-    "next": true
-  },
-  {
     "description": "What caused the event?",
     "type": "text",
     "next": true
+  },
+  {
+    "description": "What part of the body was injured? Describe in detail:",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "What was the nature of the injury or illness? Describe in detail:",
+    "type": "text",
+    "next": true,
+    "skip": true
+  },
+  {
+    "description": "What object or substance directly harmed the employee? (e.g. concrete floor, table saw, ammonia)",
+    "type": "text",
+    "next": true,
+    "skip": true
   },
   {
     "description": "Were safety regulations in place and used?",
@@ -129,7 +159,7 @@
     "next": true
   },
   {
-    "description": "Did the employee go to the doctor, hospital or ER?",
+    "description": "Did the employee go to the doctor, hospital, or ER?",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -138,10 +168,36 @@
     "next": true
   },
   {
+    "description": "Was the employee treated in an emergency room?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Was the employee hospitalized overnight as an in-patient?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
     "description": "Hospital or clinic name",
     "type": "text",
     "showIf": {
-      "question": "Did the employee go to the doctor, hospital or ER?",
+      "question": "Did the employee go to the doctor, hospital, or ER?",
       "value": "yes"
     },
     "next": true
@@ -150,14 +206,40 @@
     "description": "Name of Doctor",
     "type": "text",
     "showIf": {
-      "question": "Did the employee go to the doctor, hospital or ER?",
+      "question": "Did the employee go to the doctor, hospital, or ER?",
       "value": "yes"
     },
     "skip": true,
     "next": true
   },
   {
-    "description": "What changes do you suggest to prevent this incident/near miss from happening again? ",
+    "description": "How many days was the employee away from work as a result of this incident? (Enter 0 if none)",
+    "type": "text",
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Was the employee placed on restricted work duties or job transfer as a result of this incident?",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "If yes, how many days of restricted work or job transfer?",
+    "type": "text",
+    "showIf": {
+      "question": "Was the employee placed on restricted work duties or job transfer as a result of this incident?",
+      "value": "yes"
+    },
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "What changes do you suggest to prevent this incident from happening again?",
     "type": "text",
     "next": true
   },

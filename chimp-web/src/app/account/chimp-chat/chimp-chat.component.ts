@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CdkDrag, CdkDragHandle, CdkDragEnd } from '@angular/cdk/drag-drop';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { ChimpChatService, ChimpChatMessage, ChimpChatAction } from './chimp-chat.service';
 import { TourService } from '../tour.service';
 import { Subscription } from 'rxjs';
@@ -22,7 +23,7 @@ interface Position {
   y: number;
 }
 
-export type ChimpChatMode = 'dialog' | 'sidenav';
+export type ChimpChatMode = 'dialog' | 'sidenav' | 'page';
 
 const POSITION_STORAGE_KEY = 'chimp_chat_position';
 const MODE_STORAGE_KEY = 'chimp_chat_mode';
@@ -40,7 +41,8 @@ const PANEL_HEIGHT = 520;
     MatProgressSpinnerModule,
     MatTooltipModule,
     CdkDrag,
-    CdkDragHandle
+    CdkDragHandle,
+    TextFieldModule
   ],
   templateUrl: './chimp-chat.component.html',
   styleUrls: ['./chimp-chat.component.scss']
@@ -130,6 +132,13 @@ export class ChimpChatComponent implements OnInit, OnChanges, AfterViewChecked, 
       };
       this.chimpChatService.addMessage(assistantMessage);
       this.shouldScrollToBottom = true;
+
+      // In full-page mode the tour navigation replaces the page — switch to the
+      // floating overlay so the user can watch the tour happen beneath the chat.
+      if (this.mode === 'page') {
+        this.chimpChatService.skipNextClear = true;
+        this.modeChange.emit('dialog');
+      }
     }
   }
 
@@ -201,6 +210,11 @@ export class ChimpChatComponent implements OnInit, OnChanges, AfterViewChecked, 
     this.modeChange.emit(newMode);
   }
 
+  expandToFullPage(): void {
+    this.chimpChatService.skipNextClear = true;
+    this.modeChange.emit('page');
+  }
+
   sendMessage(): void {
     const message = this.inputMessage.trim();
     if (!message || this.isLoading) return;
@@ -258,7 +272,7 @@ export class ChimpChatComponent implements OnInit, OnChanges, AfterViewChecked, 
       this.handleTourNext(action);
       return;
     }
-    this.chimpChatService.executeAction(action);
+    this.chimpChatService.executeAction(action).catch(err => console.error('Action failed:', err));
   }
 
   private handleTourNext(action: ChimpChatAction): void {

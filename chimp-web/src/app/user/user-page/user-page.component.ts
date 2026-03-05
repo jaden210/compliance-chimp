@@ -222,16 +222,136 @@ export class UserPageComponent implements OnInit {
   selector: "app-injury-report-type-sheet",
   imports: [CommonModule, MatIconModule],
   template: `
-    <h2>Report an injury</h2>
-    <div class="info">What type of injury are you reporting? Choose one:</div>
-    <div class="ir" style="color: #FF9002" (click)="close('injuryReport')">
-      <mat-icon>book</mat-icon>Personal Injury Report
-    </div>
-    <div class="ir" style="color: #054D8A" (click)="close('supervisorInvestigation')">
-      <mat-icon>bookmark</mat-icon>Supervisor Investigation
+    <div class="irt-sheet">
+      <div class="irt-header">
+        <span class="irt-title">Report an Incident</span>
+        <span class="irt-subtitle">Choose the type of report to file</span>
+      </div>
+      <div class="irt-options">
+        <button class="irt-option irt-option--employee" (click)="close('injuryReport')">
+          <div class="irt-option-icon">
+            <mat-icon>personal_injury</mat-icon>
+          </div>
+          <div class="irt-option-text">
+            <span class="irt-option-title">Employee Report</span>
+            <span class="irt-option-desc">Injury, illness, or near miss</span>
+          </div>
+          <mat-icon class="irt-option-arrow">chevron_right</mat-icon>
+        </button>
+        <button class="irt-option irt-option--supervisor" (click)="close('supervisorInvestigation')">
+          <div class="irt-option-icon">
+            <mat-icon>manage_search</mat-icon>
+          </div>
+          <div class="irt-option-text">
+            <span class="irt-option-title">Supervisor Investigation</span>
+            <span class="irt-option-desc">Management incident investigation</span>
+          </div>
+          <mat-icon class="irt-option-arrow">chevron_right</mat-icon>
+        </button>
+      </div>
     </div>
   `,
-  styleUrls: ["./user-page.component.scss"],
+  styles: [`
+    .irt-sheet {
+      padding: 8px 16px 24px;
+    }
+
+    .irt-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 0 20px;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 16px;
+    }
+
+    .irt-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .irt-subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .irt-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .irt-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s ease;
+
+      &:active {
+        opacity: 0.8;
+        transform: scale(0.99);
+      }
+    }
+
+    .irt-option-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        color: #fff;
+      }
+    }
+
+    .irt-option--employee .irt-option-icon {
+      background: linear-gradient(135deg, #ef4444, #f87171);
+    }
+
+    .irt-option--supervisor .irt-option-icon {
+      background: linear-gradient(135deg, #054d8a, #0a6fc2);
+    }
+
+    .irt-option-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .irt-option-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .irt-option-desc {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .irt-option-arrow {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+  `]
 })
 export class InjuryReportTypeSheet {
   private readonly bsr = inject(MatBottomSheetRef<InjuryReportTypeSheet>);

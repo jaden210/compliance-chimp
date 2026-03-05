@@ -156,7 +156,18 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
     document.addEventListener('startTour', this.startTourListener);
 
     this.openChimpChatSubscription = this.accountService.openChimpChatRequested.subscribe(() => {
-      if (!this.showChimpChat) this.showChimpChat = true;
+      if (this.chatMode === 'page') {
+        this.router.navigate(['/account/chat']);
+      } else if (!this.showChimpChat) {
+        this.showChimpChat = true;
+      }
+    });
+
+    this.accountService.openChatInMode.subscribe(mode => {
+      this.chatMode = mode;
+      this.showChimpChat = true;
+      this.isChatMinimized = false;
+      this.saveChatMode();
     });
 
     // Detect mobile breakpoint to auto-switch ChimpChat behavior
@@ -175,7 +186,7 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   private loadChatMode(): void {
     try {
       const stored = localStorage.getItem(this.CHAT_MODE_STORAGE_KEY);
-      if (stored === 'dialog' || stored === 'sidenav') {
+      if (stored === 'dialog' || stored === 'sidenav' || stored === 'page') {
         this.chatMode = stored;
       }
     } catch {
@@ -410,6 +421,15 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   toggleChimpChat(): void {
+    if (this.chatMode === 'page') {
+      // In page mode there is no overlay to toggle — navigate to/from the full page view
+      if (this.router.url.startsWith('/account/chat')) {
+        this.router.navigate(['/account/dashboard']);
+      } else {
+        this.router.navigate(['/account/chat']);
+      }
+      return;
+    }
     this.showChimpChat = !this.showChimpChat;
     this.isChatMinimized = false;
     // Clear pending message if closing
@@ -437,6 +457,13 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
 
   // Handle mode change from ChimpChat component
   onChatModeChange(newMode: ChimpChatMode): void {
+    if (newMode === 'page') {
+      this.showChimpChat = false;
+      this.chatMode = 'page';
+      this.saveChatMode();
+      this.router.navigate(['/account/chat']);
+      return;
+    }
     this.chatMode = newMode;
     this.saveChatMode();
   }
@@ -444,6 +471,11 @@ export class AccountComponent implements AfterViewInit, OnDestroy, OnInit {
   // Open ChimpChat with a pre-filled message that will be auto-submitted
   openChimpChatWithMessage(message: string): void {
     this.pendingChatMessage = message;
+    if (this.chatMode === 'page') {
+      // Page mode has no overlay; open as dialog temporarily so the message
+      // gets submitted and the user can see the response.
+      this.chatMode = 'dialog';
+    }
     this.showChimpChat = true;
   }
 

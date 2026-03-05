@@ -24,16 +24,59 @@
     box-shadow: none;
     border: none;
     z-index: auto;
-    // Reset any CDK drag transforms
     transform: none !important;
 
-    // Ensure header and input have square corners in sidenav
     .chat-header {
       border-radius: 0;
     }
 
     .input-area {
       border-radius: 0;
+    }
+  }
+
+  // Page mode - embedded in full-page route, no chrome
+  &.page-mode {
+    position: static;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    z-index: auto;
+    transform: none !important;
+
+    // Center-constrain the scrollable messages column
+    .messages-container {
+      padding: 32px max(24px, calc((100% - 740px) / 2));
+    }
+
+    // Welcome state: cap the prompt list width so it doesn't sprawl
+    .welcome-content {
+      max-width: 520px;
+    }
+
+    // Cap individual message bubble width so long lines stay readable
+    .message-wrapper {
+      max-width: 680px;
+
+      &.user-message {
+        margin-left: auto;
+        margin-right: 0;
+      }
+
+      &.assistant-message {
+        margin-right: auto;
+        margin-left: 0;
+      }
+    }
+
+    // Input: centered column, visually anchored to the bottom
+    .input-area {
+      padding: 16px max(24px, calc((100% - 740px) / 2));
+      border-top: 1px solid var(--chimp-outline-variant);
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
     }
   }
 
@@ -91,7 +134,8 @@
   gap: 4px;
 }
 
-.mode-toggle-btn {
+.mode-toggle-btn,
+.expand-btn {
   color: var(--chimp-on-primary);
   opacity: 0.85;
 
@@ -354,6 +398,17 @@
 
     &:hover {
       background: var(--chimp-primary-container, rgba(5, 77, 138, 0.1));
+    }
+  }
+
+  // Write action button - accent green tint to differentiate "doing something"
+  &.write-action {
+    background: var(--chimp-accent, #ff9100);
+    color: white;
+    border: none;
+
+    &:hover {
+      background: #e07d00;
     }
   }
 }

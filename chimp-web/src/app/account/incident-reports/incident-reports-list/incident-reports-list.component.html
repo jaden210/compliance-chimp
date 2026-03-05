@@ -16,16 +16,14 @@
       </div>
       <div class="splash-tip">
         <mat-icon>info</mat-icon>
-        <span>If you need to report an incident, please go to the team member's page to report the incident from there, not from here.</span>
+        <span>Send an incident report link directly to a team member via text or email so they can fill it out right away.</span>
       </div>
-      @if (loggedInTeamMember) {
-        <div class="splash-actions">
-          <button mat-flat-button color="accent" (click)="navMemberPage()">
-            <mat-icon>person</mat-icon>
-            Go to your team member page
-          </button>
-        </div>
-      }
+      <div class="splash-actions">
+        <button mat-flat-button color="accent" (click)="openSendIncidentReport()" [disabled]="sending">
+          <mat-icon>send</mat-icon>
+          {{ sending ? 'Sending...' : 'Send an incident report' }}
+        </button>
+      </div>
     </div>
   </section>
 
@@ -85,13 +83,12 @@
       </div>
       <div class="empty-tip">
         <mat-icon>info</mat-icon>
-        <span>If you need to report an incident, please go to the team member's page to report the incident from there.</span>
+        <span>Send an incident report link directly to a team member via text or email so they can fill it out right away.</span>
       </div>
-      @if (loggedInTeamMember) {
-        <button mat-flat-button color="accent" (click)="navMemberPage()">
-          Go to your team member page
-        </button>
-      }
+      <button mat-flat-button color="accent" (click)="openSendIncidentReport()" [disabled]="sending">
+        <mat-icon>send</mat-icon>
+        {{ sending ? 'Sending...' : 'Send an incident report' }}
+      </button>
     </div>
   }
 </div>

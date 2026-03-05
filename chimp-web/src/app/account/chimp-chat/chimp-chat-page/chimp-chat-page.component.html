@@ -1,0 +1,17 @@
+<div class="chat-page">
+  <mat-toolbar>
+    <img class="toolbar-logo" src="/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" />
+    <div class="toolbar-title">ChimpChat</div>
+    <div class="flex"></div>
+    <button mat-icon-button (click)="switchToMode('dialog')" matTooltip="Pop out to floating window">
+      <mat-icon>picture_in_picture_alt</mat-icon>
+    </button>
+    <button mat-icon-button (click)="switchToMode('sidenav')" matTooltip="Pin to sidebar">
+      <mat-icon>dock_to_right</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <div class="chat-content">
+    <chimp-chat mode="page" (modeChange)="onChatModeChange($event)"></chimp-chat>
+  </div>
+</div>

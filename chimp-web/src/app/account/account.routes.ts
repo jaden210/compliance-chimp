@@ -51,6 +51,11 @@ export const accountRoutes: Routes = [
         redirectTo: "support/outreach",
         pathMatch: "full",
       },
+      {
+        path: "chat",
+        loadComponent: () =>
+          import("./chimp-chat/chimp-chat-page/chimp-chat-page.component").then((m) => m.ChimpChatPageComponent),
+      },
       { path: "**", redirectTo: "dashboard" }
     ]
   }

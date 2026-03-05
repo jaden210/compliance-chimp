@@ -1,15 +1,19 @@
 import { Component, OnInit, OnDestroy } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
-import { AccountService, TeamMember } from "../../account.service";
+import { AccountService } from "../../account.service";
 import { map } from "rxjs/operators";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
-import { combineLatest, Subscription } from "rxjs";
+import { MatBottomSheet, MatBottomSheetModule } from "@angular/material/bottom-sheet";
+import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
+import { Subscription } from "rxjs";
 import { Router, ActivatedRoute, RouterModule } from "@angular/router";
+import { Functions, httpsCallable } from "@angular/fire/functions";
 import { collection, collectionData, query, where, orderBy } from "@angular/fire/firestore";
+import { SendIncidentReportSheetComponent } from "./send-incident-report-sheet.component";
 
 @Component({
   standalone: true,
@@ -23,7 +27,9 @@ import { collection, collectionData, query, where, orderBy } from "@angular/fire
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    MatProgressBarModule
+    MatProgressBarModule,
+    MatBottomSheetModule,
+    MatSnackBarModule
   ],
   providers: [DatePipe]
 })
@@ -31,12 +37,15 @@ export class IncidentReportsListComponent implements OnInit, OnDestroy {
   private subscription: Subscription;
   incidentReports: any[] = [];
   loading = true;
-  public loggedInTeamMember: TeamMember;
+  sending = false;
 
   constructor(
     public accountService: AccountService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private bottomSheet: MatBottomSheet,
+    private snackbar: MatSnackBar,
+    private functions: Functions
   ) {
     this.accountService.helper = this.accountService.helperProfiles.incidentReport;
     this.subscription = this.accountService.teamMembersObservable.subscribe(team => {
@@ -69,18 +78,35 @@ export class IncidentReportsListComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnInit() {
-    combineLatest([
-      this.accountService.userObservable,
-      this.accountService.teamMembersObservable
-    ]).subscribe(([user, teamMembers]) => {
-      if (user && teamMembers) this.loggedInTeamMember = teamMembers.find(tm => tm.phone == user.phone);
-    });
-  }
+  ngOnInit() {}
 
-  public navMemberPage(): void {
-    this.router.navigate([`/user`], {
-      queryParams: { "member-id": this.loggedInTeamMember.id }
+  public openSendIncidentReport(): void {
+    const sheetRef = this.bottomSheet.open(SendIncidentReportSheetComponent, {
+      panelClass: 'incident-report-sheet'
+    });
+
+    sheetRef.afterDismissed().subscribe((result) => {
+      if (!result?.sent || !result.recipients?.length) return;
+
+      this.sending = true;
+      const sendFn = httpsCallable(this.functions, 'sendIncidentReportNotification');
+      sendFn({
+        teamMembers: result.recipients,
+        team: this.accountService.aTeam
+      }).then(() => {
+        this.sending = false;
+        const count = result.recipients.length;
+        const names = result.recipients.map((r: any) => r.name).join(', ');
+        this.snackbar.open(
+          `Incident report link sent to ${count === 1 ? names : `${count} team members`}`,
+          null,
+          { duration: 4000 }
+        );
+      }).catch((error) => {
+        this.sending = false;
+        console.error('Error sending incident report notification:', error);
+        this.snackbar.open('Failed to send incident report link', null, { duration: 4000 });
+      });
     });
   }
 

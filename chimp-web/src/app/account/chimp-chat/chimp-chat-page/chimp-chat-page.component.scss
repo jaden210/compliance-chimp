@@ -1,0 +1,35 @@
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--chimp-surface);
+}
+
+.chat-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// Toolbar styles
+mat-toolbar {
+  flex-shrink: 0;
+}
+
+.toolbar-logo {
+  height: 32px;
+  margin-right: 10px;
+}
+
+.toolbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--chimp-on-primary);
+}
+
+.flex {
+  flex: 1;
+}

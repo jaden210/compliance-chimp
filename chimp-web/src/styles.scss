@@ -355,3 +355,25 @@ agm-map {
   padding: 0;
   max-height: unset;
 }
+
+// ChimpChat full-page page component — absolutely fill #body (position: relative)
+// so the height chain doesn't depend on propagation through % heights.
+chimp-chat-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// ChimpChat full-page — chimp-chat host must fill the .chat-content flex column
+.chat-content > chimp-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
