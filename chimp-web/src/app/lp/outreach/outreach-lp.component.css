@@ -240,6 +240,57 @@ h1 {
   line-height: 1.5;
 }
 
+/* Video Section */
+.video-section {
+  background: var(--chimp-primary);
+  padding: 64px 24px;
+  box-sizing: border-box;
+}
+
+.video-section .section-content {
+  text-align: center;
+}
+
+.video-headline {
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 32px 0;
+  line-height: 1.3;
+}
+
+.video-embed-wrap {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  background: black;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.video-embed-wrap video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media screen and (max-width: 600px) {
+  .video-section {
+    padding: 40px 16px;
+  }
+
+  .video-headline {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+}
+
 .mid-cta {
   padding: 36px 20px;
   background: linear-gradient(135deg, var(--chimp-accent) 0%, #e65100 100%);

@@ -31,9 +31,9 @@ const MANUAL_INCLUDES = ['contact_phone'];
 // Matches the Cloud Function's instructed AI icon list. Used only when fetch fails.
 const FIRESTORE_FALLBACK = [
   'assignment', 'build', 'checklist', 'construction', 'description',
-  'engineering', 'fact_check', 'health_and_safety', 'local_shipping',
-  'schedule', 'security', 'shield', 'sms', 'supervisor_account',
-  'verified_user',
+  'engineering', 'fact_check', 'fall_protection', 'health_and_safety',
+  'local_shipping', 'schedule', 'security', 'shield', 'sms',
+  'supervisor_account', 'verified_user',
 ];
 
 // Strings that match the icon-name pattern but are definitely not icons.

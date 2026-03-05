@@ -111,7 +111,7 @@ const CATEGORY_ICONS: { [key: string]: string } = {
   'noise': 'volume_up',
   'hearing': 'hearing',
   'respiratory': 'masks',
-  'fall protection': 'vertical_align_bottom',
+  'fall protection': 'fall_protection',
   'confined space': 'sensor_door',
   'chemical': 'science',
   'housekeeping': 'cleaning_services',
