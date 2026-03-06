@@ -4,6 +4,13 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as moment from "moment";
 import * as admin from "firebase-admin";
+import {
+  AiConsultationClassification,
+  ConsultationRequestInput,
+  buildConsultationAssessment,
+  buildFallbackClassification,
+  sanitizeConsultationInput,
+} from "./osha-knowledge";
 
 admin.initializeApp();
 
@@ -1364,6 +1371,228 @@ Return JSON: { "suggestion": "your description here" } or { "suggestion": null }
     }
   }
 );
+
+export const generateOshaConsultationReport = onCall(
+  {
+    secrets: [xaiApiKey],
+    timeoutSeconds: 30,
+    memory: "512MiB",
+  },
+  async (request) => {
+    let input: ConsultationRequestInput;
+    try {
+      input = sanitizeConsultationInput(request.data);
+    } catch (error: any) {
+      throw new HttpsError("invalid-argument", error?.message || "Invalid consultation request.");
+    }
+
+    const visitorHash = await enforceOshaConsultationRateLimit(request);
+    const classification = await classifyBusinessForOshaConsultation(input);
+    const report = buildConsultationAssessment(input, classification);
+    const generatedAt = new Date().toISOString();
+
+    const db = admin.firestore();
+    const docRef = db.collection("osha-consultation-assessments").doc();
+
+    const responsePayload = {
+      assessmentId: docRef.id,
+      generatedAt,
+      ...report,
+    };
+
+    await docRef.set({
+      request: input,
+      response: responsePayload,
+      classification,
+      visitorHash,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      generatedAt,
+      version: 1,
+    });
+
+    return responsePayload;
+  }
+);
+
+async function classifyBusinessForOshaConsultation(
+  input: ConsultationRequestInput
+): Promise<AiConsultationClassification> {
+  const fallback = buildFallbackClassification(input);
+  const websiteContext = input.website ? `\nWebsite: ${input.website}` : "";
+
+  try {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          {
+            role: "system",
+            content: `You classify companies for an OSHA consultation workflow.
+
+Return JSON only with this shape:
+{
+  "businessSummary": "2-3 sentences, practical, no hype",
+  "ulyssesTake": "3-5 sentences in Ulysses's voice",
+  "industryDescription": "1 concise sentence",
+  "oshaTrack": "general-industry" | "construction" | "maritime" | "agriculture",
+  "hazardFlags": ["falls", "forklifts", "chemicals", "silica", "respiratory", "machine-guarding", "lockout-tagout", "bloodborne-pathogens", "electrical", "hot-work", "excavation", "confined-spaces"],
+  "likelyLowHazardPartialExemption": true | false,
+  "assumptions": ["up to 4 short assumptions"],
+  "confidence": "low" | "medium" | "high"
+}
+
+Rules:
+- Base the answer only on the information provided.
+- Do not invent certifications, facilities, or equipment.
+- If unsure, choose the most likely OSHA track and list the uncertainty in assumptions.
+- Keep businessSummary concrete and inspection-minded.
+- Write ulyssesTake in the same voice used across Compliance Chimp:
+  - You are Ulysses, the chimp who runs ComplianceChimp.
+  - Concise and direct. No fluff.
+  - Dry, understated wit. A slight smirk, not corny jokes.
+  - You genuinely care about workplace safety and poor compliance concerns you.
+  - Lead with consequences and practical reality, not fearmongering.
+  - Never use emojis.
+  - Never use em-dashes.
+  - Avoid filler phrases like "here's the thing", "did you know", or "at the end of the day".
+- ulyssesTake should sound like Ulysses giving the owner his read on the situation.
+- It should include what feels urgent, what kind of compliance workload this business is likely looking at, and what they should not be casual about.
+- industryDescription should help a safety system know what hazards to prioritize.
+- hazardFlags must only use the allowed values above.`,
+          },
+          {
+            role: "user",
+            content: `Company name: ${input.companyName}
+Primary state: ${input.state}
+Employees: ${input.employeeCount}
+Business description: ${input.description}${websiteContext}`,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 400,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Grok API error for OSHA consultation:", await response.text());
+      return fallback;
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || "{}";
+    const parsed = parseJsonObject(aiMessage);
+    if (!parsed) {
+      return fallback;
+    }
+
+    return mergeConsultationClassification(parsed, fallback);
+  } catch (error: any) {
+    console.error("Error classifying OSHA consultation request:", error);
+    return fallback;
+  }
+}
+
+function mergeConsultationClassification(
+  parsed: any,
+  fallback: AiConsultationClassification
+): AiConsultationClassification {
+  const validTrack = ["general-industry", "construction", "maritime", "agriculture"].includes(parsed?.oshaTrack)
+    ? parsed.oshaTrack
+    : fallback.oshaTrack;
+  const validConfidence = ["low", "medium", "high"].includes(parsed?.confidence)
+    ? parsed.confidence
+    : fallback.confidence;
+  const validHazards: string[] = Array.isArray(parsed?.hazardFlags)
+    ? Array.from(
+      new Set<string>(
+        parsed.hazardFlags
+          .filter((hazard: unknown): hazard is string => typeof hazard === "string")
+          .map((hazard: string) => hazard.trim())
+          .filter((hazard: string) => !!hazard)
+      )
+    ).slice(0, 12)
+    : fallback.hazardFlags;
+  const assumptions: string[] = Array.isArray(parsed?.assumptions)
+    ? Array.from(
+      new Set<string>(
+        parsed.assumptions
+          .filter((assumption: unknown): assumption is string => typeof assumption === "string")
+          .map((assumption: string) => assumption.trim())
+          .filter((assumption: string) => !!assumption)
+      )
+    ).slice(0, 4)
+    : fallback.assumptions;
+
+  return {
+    businessSummary: typeof parsed?.businessSummary === "string" && parsed.businessSummary.trim()
+      ? parsed.businessSummary.trim()
+      : fallback.businessSummary,
+    ulyssesTake: typeof parsed?.ulyssesTake === "string" && parsed.ulyssesTake.trim()
+      ? parsed.ulyssesTake.trim()
+      : fallback.ulyssesTake,
+    industryDescription: typeof parsed?.industryDescription === "string" && parsed.industryDescription.trim()
+      ? parsed.industryDescription.trim()
+      : fallback.industryDescription,
+    oshaTrack: validTrack as AiConsultationClassification["oshaTrack"],
+    hazardFlags: validHazards.length ? validHazards : fallback.hazardFlags,
+    likelyLowHazardPartialExemption: typeof parsed?.likelyLowHazardPartialExemption === "boolean"
+      ? parsed.likelyLowHazardPartialExemption
+      : fallback.likelyLowHazardPartialExemption,
+    assumptions: assumptions.length ? assumptions : fallback.assumptions,
+    confidence: validConfidence as AiConsultationClassification["confidence"],
+  };
+}
+
+async function enforceOshaConsultationRateLimit(request: any): Promise<string> {
+  const rawReq = request.rawRequest;
+  const rawIp = rawReq?.headers?.["x-forwarded-for"] || rawReq?.ip || "unknown";
+  const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(",")[0].trim();
+  const ua = String(rawReq?.headers?.["user-agent"] || "unknown");
+  const visitorHash = crypto
+    .createHash("sha256")
+    .update(`${ip}|${ua}`)
+    .digest("hex")
+    .substring(0, 24);
+
+  const bucket = new Date().toISOString().slice(0, 13);
+  const db = admin.firestore();
+  const ref = db.doc(`osha-consultation-rate-limits/${bucket}_${visitorHash}`);
+
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    const currentCount = snap.exists ? Number(snap.data()?.count || 0) : 0;
+    if (currentCount >= 5) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many consultation requests from this browser right now. Please wait a bit and try again."
+      );
+    }
+
+    transaction.set(ref, {
+      bucket,
+      count: currentCount + 1,
+      visitorHash,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: snap.exists ? (snap.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  return visitorHash;
+}
+
+function parseJsonObject(content: string): any | null {
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Generate an OSHA-related fact for the chimp mascot during onboarding
 // This is a pre-auth function (used during challenge before account creation)

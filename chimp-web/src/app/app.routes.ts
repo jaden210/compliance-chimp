@@ -12,6 +12,7 @@ import { CommonQuestionsComponent } from "./common-questions/common-questions.co
 import { PlansComponent } from "./plans/plans.component";
 import { InspectionRedirectComponent } from "./go/inspection-redirect.component";
 import { NotFoundComponent } from "./not-found/not-found.component";
+import { FreeSafetyConsultationComponent } from "./free-safety-consultation/free-safety-consultation.component";
 
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
@@ -30,6 +31,7 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./lp/lp.routes').then(m => m.lpRoutes)
   },
   { path: "contact", component: ContactComponent },
+  { path: "free-safety-consultation", component: FreeSafetyConsultationComponent },
   { path: "how-it-works", component: HowComponent },
   { path: "common-questions", component: CommonQuestionsComponent },
   { path: "plans", component: PlansComponent },

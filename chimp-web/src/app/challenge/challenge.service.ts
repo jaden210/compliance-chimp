@@ -4,9 +4,11 @@ import { Firestore, collection, doc, setDoc, addDoc, updateDoc, getDoc } from "@
 import { Auth } from "@angular/fire/auth";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { BehaviorSubject } from "rxjs";
+import { ConsultationPrefill } from "../shared/osha-consultation";
 
 const STORAGE_KEY = 'chimp_challenge_state';
 const DRY_RUN_KEY = 'chimp_dry_run';
+const CONSULTATION_PREFILL_KEY = 'chimp_consultation_prefill';
 const CHALLENGE_DURATION_SECONDS = 360; // 6 minutes
 
 export interface ChallengeState {
@@ -20,6 +22,10 @@ export interface ChallengeState {
   businessName: string;
   businessWebsite: string;
   industry: string;
+  businessState: string;
+  employeeCount: number | null;
+  consultationAssessmentId: string | null;
+  consultationImportanceScore: number | null;
   name: string;
   email: string;
   teamId: string | null;
@@ -63,6 +69,10 @@ export class ChallengeService {
       businessName: '',
       businessWebsite: '',
       industry: '',
+      businessState: '',
+      employeeCount: null,
+      consultationAssessmentId: null,
+      consultationImportanceScore: null,
       name: '',
       email: '',
       teamId: null
@@ -213,6 +223,46 @@ export class ChallengeService {
     this.saveState();
   }
 
+  setBusinessMetadata(
+    businessState: string,
+    employeeCount: number | null,
+    consultationAssessmentId: string | null = null,
+    consultationImportanceScore: number | null = null
+  ): void {
+    this.state.businessState = businessState;
+    this.state.employeeCount = employeeCount;
+    this.state.consultationAssessmentId = consultationAssessmentId;
+    this.state.consultationImportanceScore = consultationImportanceScore;
+    this.saveState();
+  }
+
+  setConsultationPrefill(prefill: ConsultationPrefill): void {
+    try {
+      sessionStorage.setItem(CONSULTATION_PREFILL_KEY, JSON.stringify(prefill));
+    } catch (e) {
+      console.error('Error saving consultation prefill:', e);
+    }
+  }
+
+  getConsultationPrefill(): ConsultationPrefill | null {
+    try {
+      const stored = sessionStorage.getItem(CONSULTATION_PREFILL_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (!parsed?.companyName || !parsed?.industryDescription || !parsed?.state) {
+        return null;
+      }
+      return parsed as ConsultationPrefill;
+    } catch (e) {
+      console.error('Error loading consultation prefill:', e);
+      return null;
+    }
+  }
+
+  clearConsultationPrefill(): void {
+    sessionStorage.removeItem(CONSULTATION_PREFILL_KEY);
+  }
+
   setUserInfo(name: string, email: string): void {
     this.state.name = name;
     this.state.email = email;
@@ -222,12 +272,17 @@ export class ChallengeService {
 
   setTeamId(teamId: string): void {
     this.state.teamId = teamId;
+    this.clearConsultationPrefill();
     this.saveState();
   }
 
   get businessName(): string { return this.state.businessName; }
   get businessWebsite(): string { return this.state.businessWebsite; }
   get industry(): string { return this.state.industry; }
+  get businessState(): string { return this.state.businessState; }
+  get employeeCount(): number | null { return this.state.employeeCount; }
+  get consultationAssessmentId(): string | null { return this.state.consultationAssessmentId; }
+  get consultationImportanceScore(): number | null { return this.state.consultationImportanceScore; }
   get name(): string { return this.state.name; }
   get email(): string { return this.state.email; }
   get teamId(): string | null { return this.state.teamId; }
@@ -282,15 +337,24 @@ export class ChallengeService {
       name: this.state.businessName,
       website: this.state.businessWebsite,
       industry: this.state.industry,
+      state: this.state.businessState || null,
+      employeeCount: this.state.employeeCount,
       email: this.state.email,
       disabled: false,
       createdVia: 'challenge',
-      autoStartTrainings: true  // New teams default to auto-start enabled
+      autoStartTrainings: true,  // New teams default to auto-start enabled
+      consultationAssessmentId: this.state.consultationAssessmentId,
+      consultationImportanceScore: this.state.consultationImportanceScore
     };
-    
-    return addDoc(collection(this.db, "team"), teamData)
+
+    const cleanedTeamData = Object.fromEntries(
+      Object.entries(teamData).filter(([_, value]) => value !== null && value !== undefined && value !== '')
+    );
+
+    return addDoc(collection(this.db, "team"), cleanedTeamData)
       .then(team => {
         this.state.teamId = team.id;
+        this.clearConsultationPrefill();
         this.saveState();
         return team.id;
       })

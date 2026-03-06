@@ -20,6 +20,8 @@ import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
 })
 export class WelcomeComponent implements OnInit {
   private preselectedIndustry = "";
+  hasConsultationPrefill = false;
+  consultationImportanceScore: number | null = null;
 
   constructor(
     private challengeService: ChallengeService,
@@ -33,9 +35,35 @@ export class WelcomeComponent implements OnInit {
     // This ensures a fresh start when returning to the beginning
     this.challengeService.reset();
 
-    this.preselectedIndustry = this.route.snapshot.queryParamMap.get("industry")?.trim() || "";
-    if (this.preselectedIndustry) {
-      this.challengeService.setBusinessInfo("", "", this.preselectedIndustry);
+    const consultationPrefill = this.challengeService.getConsultationPrefill();
+    if (consultationPrefill) {
+      this.hasConsultationPrefill = true;
+      this.consultationImportanceScore = consultationPrefill.importanceScore ?? null;
+      this.preselectedIndustry = consultationPrefill.industryDescription.trim();
+      this.challengeService.setBusinessInfo(
+        consultationPrefill.companyName.trim(),
+        consultationPrefill.website.trim(),
+        consultationPrefill.industryDescription.trim()
+      );
+      this.challengeService.setBusinessMetadata(
+        consultationPrefill.state.trim(),
+        consultationPrefill.employeeCount,
+        consultationPrefill.assessmentId || null,
+        consultationPrefill.importanceScore ?? null
+      );
+    }
+
+    const industryQueryParam = this.route.snapshot.queryParamMap.get("industry")?.trim() || "";
+    if (industryQueryParam) {
+      this.preselectedIndustry = industryQueryParam;
+    }
+
+    if (industryQueryParam) {
+      this.challengeService.setBusinessInfo(
+        this.challengeService.businessName,
+        this.challengeService.businessWebsite,
+        this.preselectedIndustry
+      );
     }
 
     const dryrun = this.route.snapshot.queryParamMap.get("dryrun");

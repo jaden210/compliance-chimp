@@ -50,6 +50,11 @@ export class SeoService implements OnDestroy {
       description: 'Get in touch with the Compliance Chimp team. We\'re here to help with your OSHA compliance and safety training questions.',
       keywords: 'contact compliance chimp, OSHA compliance support, safety software help'
     },
+    '/free-safety-consultation': {
+      title: 'Free OSHA Safety Consultation | Compliance Chimp',
+      description: 'Get a free OSHA consultation report with likely required posters, documents, trainings, and next steps for your business.',
+      keywords: 'free OSHA consultation, OSHA assessment, OSHA compliance report, OSHA documents required'
+    },
     '/blog': {
       title: 'OSHA Compliance & Safety Training Blog | Compliance Chimp',
       description: 'Expert guides on OSHA regulations, workplace safety training, hazard prevention, and industry-specific compliance. Helping small businesses avoid fines and stay compliant.',
