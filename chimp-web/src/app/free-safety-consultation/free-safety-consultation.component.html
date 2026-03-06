@@ -97,15 +97,15 @@
           class="submit-btn"
           [disabled]="isSubmitting || consultForm.invalid"
         >
-          @if (isSubmitting) {
-            <mat-spinner diameter="20"></mat-spinner>
-            <span>Building Report...</span>
-          } @else {
-            <ng-container>
+          <span class="submit-btn-content">
+            @if (isSubmitting) {
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>Building Report...</span>
+            } @else {
               <mat-icon>auto_awesome</mat-icon>
               <span>Generate Free Report</span>
-            </ng-container>
-          }
+            }
+          </span>
         </button>
       </form>
     </div>
