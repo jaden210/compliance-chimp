@@ -34,6 +34,12 @@
   margin: 0;
 }
 
+.consultation-prefill-note {
+  margin-top: 12px;
+  color: var(--chimp-primary);
+  font-weight: 500;
+}
+
 // Two-column layout for steps + chimp
 .steps-layout {
   display: flex;

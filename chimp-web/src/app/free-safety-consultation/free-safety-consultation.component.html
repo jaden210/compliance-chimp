@@ -1,0 +1,338 @@
+<section class="consult-hero">
+  <div class="consult-hero-inner">
+    <div class="hero-copy">
+      <span class="eyebrow">Free Safety Consultation</span>
+      <h1>See what OSHA expects from your business before you buy anything.</h1>
+      <p class="hero-subtitle">
+        Tell Ulysses what your company does, where you operate, and how big your team is.
+        We will generate a practical report with your likely OSHA obligations, documents,
+        posters, training priorities, and the fastest next steps.
+      </p>
+      <div class="hero-points">
+        <div class="hero-point">
+          <mat-icon>fact_check</mat-icon>
+          <span>Federal OSHA baseline plus state-plan awareness</span>
+        </div>
+        <div class="hero-point">
+          <mat-icon>description</mat-icon>
+          <span>Exact document and process checklist</span>
+        </div>
+        <div class="hero-point">
+          <mat-icon>rocket_launch</mat-icon>
+          <span>One click into the existing setup flow with prefill</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2>Generate Your Report</h2>
+      <p class="form-intro">No account required. Takes about a minute.</p>
+
+      <form [formGroup]="consultForm" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Company Name</mat-label>
+          <input matInput formControlName="companyName" placeholder="Acme Construction LLC" />
+          @if (consultForm.get('companyName')?.hasError('required') && consultForm.get('companyName')?.touched) {
+            <mat-error>Company name is required.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Website (optional)</mat-label>
+          <input matInput formControlName="website" placeholder="www.example.com" />
+          <mat-hint>If you have one, it helps classify your work more accurately.</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>What does the company do?</mat-label>
+          <textarea
+            matInput
+            rows="4"
+            formControlName="description"
+            placeholder="Commercial electrical contractor doing service calls, tenant improvements, and panel upgrades."
+          ></textarea>
+          @if (consultForm.get('description')?.hasError('required') && consultForm.get('description')?.touched) {
+            <mat-error>A business description is required.</mat-error>
+          }
+          @if (consultForm.get('description')?.hasError('minlength') && consultForm.get('description')?.touched) {
+            <mat-error>Give us a little more detail so the report is useful.</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="two-column-fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Number of employees</mat-label>
+            <input matInput type="number" formControlName="employeeCount" placeholder="25" min="1" />
+            @if (consultForm.get('employeeCount')?.hasError('required') && consultForm.get('employeeCount')?.touched) {
+              <mat-error>Employee count is required.</mat-error>
+            }
+            @if ((consultForm.get('employeeCount')?.hasError('min') || consultForm.get('employeeCount')?.hasError('max')) && consultForm.get('employeeCount')?.touched) {
+              <mat-error>Enter a realistic employee count.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Primary state</mat-label>
+            <mat-select formControlName="state">
+              @for (state of states; track state.code) {
+                <mat-option [value]="state.code">{{ state.name }}</mat-option>
+              }
+            </mat-select>
+            @if (consultForm.get('state')?.hasError('required') && consultForm.get('state')?.touched) {
+              <mat-error>State is required.</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        @if (errorMessage) {
+          <div class="error-banner">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ errorMessage }}</span>
+          </div>
+        }
+
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit-btn"
+          [disabled]="isSubmitting || consultForm.invalid"
+        >
+          @if (isSubmitting) {
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>Building Report...</span>
+          } @else {
+            <ng-container>
+              <mat-icon>auto_awesome</mat-icon>
+              <span>Generate Free Report</span>
+            </ng-container>
+          }
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+@if (assessment) {
+  <section class="report-section">
+    <div class="report-shell">
+      <div class="report-header">
+        <div>
+          <span class="eyebrow">Assessment Ready</span>
+          <h2>{{ assessment.profile.companyName }}</h2>
+          <p class="report-subtitle">{{ assessment.summary }}</p>
+        </div>
+
+        <div class="score-card" [class]="scoreSeverityClass">
+          <div class="score-label">Compliance Urgency Score</div>
+          <div class="score-value">{{ assessment.importanceScore }}</div>
+          <div class="score-level">{{ assessment.importanceLevel }}</div>
+          <p class="score-helper">Higher score = more OSHA obligations and more urgency to get controls in place.</p>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-item">
+          <span class="profile-label">Industry profile</span>
+          <strong>{{ assessment.profile.industryDescription }}</strong>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">OSHA track</span>
+          <strong>{{ assessment.profile.oshaTrack }}</strong>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">Employees</span>
+          <strong>{{ assessment.profile.employeeCount }}</strong>
+        </div>
+        <div class="profile-item">
+          <span class="profile-label">State</span>
+          <strong>{{ assessment.profile.state }}</strong>
+        </div>
+      </div>
+
+      <div class="ulysses-card">
+        <img src="/assets/chimp.png" alt="Ulysses" class="ulysses-avatar" />
+        <div class="ulysses-bubble">
+          <span class="ulysses-label">Ulysses's Take</span>
+          <strong class="ulysses-title">{{ scoreMeaningTitle }}</strong>
+          <p>{{ assessment.ulyssesTake }}</p>
+          <p class="ulysses-support">{{ assessment.importanceReason }}</p>
+          <p class="ulysses-support">{{ scoreMeaningDescription }}</p>
+        </div>
+      </div>
+
+      <div class="wheel-card">
+        <div class="wheel-visual">
+          <div class="compliance-wheel">
+            <div class="wheel-center" [class]="scoreSeverityClass">
+              <span class="wheel-center-label">Compliance</span>
+              <strong>{{ assessment.importanceScore }}/100</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="wheel-copy">
+          <h3>All The Elements Of Compliance</h3>
+          <p class="card-intro">
+            Think of this as the wheel you have to keep turning. Each slice is one part of a complete OSHA program.
+          </p>
+
+          <div class="wheel-legend">
+            @for (item of complianceWheel; track trackByWheelItem($index, item)) {
+              <div class="wheel-legend-item">
+                <span class="wheel-swatch" [class]="item.accentClass"></span>
+                <div>
+                  <strong>{{ item.label }}</strong>
+                  <p>{{ item.description }}</p>
+                </div>
+                <span class="wheel-count">{{ item.count }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="report-actions">
+        <button mat-flat-button class="primary-cta" (click)="startOnboarding()">
+          Start Building My Program
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+        <button mat-stroked-button class="secondary-cta" (click)="downloadPdf()">
+          Download PDF
+          <mat-icon>download</mat-icon>
+        </button>
+        <button mat-stroked-button class="secondary-cta" (click)="reset()">
+          Run Another Assessment
+        </button>
+      </div>
+
+      <div class="report-stack">
+        <article class="report-card">
+          <h3>Required Federal Actions</h3>
+          <p class="card-intro">These are the baseline federal items most likely to apply to this business profile.</p>
+          @for (obligation of assessment.federalRequirements; track trackByObligation($index, obligation)) {
+            <div class="obligation-card">
+              <div class="obligation-header">
+                <div>
+                  <h4>{{ obligation.title }}</h4>
+                  <p>{{ obligation.appliesBecause }}</p>
+                </div>
+                <span class="status-chip" [class.required]="obligation.requirementLevel === 'required'" [class.conditional]="obligation.requirementLevel === 'conditional'">
+                  {{ obligation.requirementLevel }}
+                </span>
+              </div>
+              <ul>
+                @for (detail of obligation.details; track trackByText($index, detail)) {
+                  <li>{{ detail }}</li>
+                }
+              </ul>
+              @if (obligation.thresholdNotes.length) {
+                <div class="notes-block">
+                  @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
+                    <p>{{ note }}</p>
+                  }
+                </div>
+              }
+              <div class="citations">
+                @for (citation of obligation.citations; track trackByCitation($index, citation)) {
+                  <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
+                }
+              </div>
+            </div>
+          }
+        </article>
+
+        <article class="report-card">
+          <h3>State-Specific Flags</h3>
+          <p class="card-intro">
+            Federal OSHA is not always the whole story. These are the state-plan items and caveats to check.
+          </p>
+          @if (assessment.stateRequirements.length) {
+            @for (obligation of assessment.stateRequirements; track trackByObligation($index, obligation)) {
+              <div class="obligation-card">
+                <div class="obligation-header">
+                  <div>
+                    <h4>{{ obligation.title }}</h4>
+                    <p>{{ obligation.appliesBecause }}</p>
+                  </div>
+                  <span class="status-chip" [class.required]="obligation.requirementLevel === 'required'" [class.conditional]="obligation.requirementLevel === 'conditional'">
+                    {{ obligation.requirementLevel }}
+                  </span>
+                </div>
+                <ul>
+                  @for (detail of obligation.details; track trackByText($index, detail)) {
+                    <li>{{ detail }}</li>
+                  }
+                </ul>
+                @if (obligation.thresholdNotes.length) {
+                  <div class="notes-block">
+                    @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
+                      <p>{{ note }}</p>
+                    }
+                  </div>
+                }
+                <div class="citations">
+                  @for (citation of obligation.citations; track trackByCitation($index, citation)) {
+                    <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
+                  }
+                </div>
+              </div>
+            }
+          } @else {
+            <div class="empty-card">
+              <mat-icon>verified</mat-icon>
+              <p>No extra private-sector state-plan overlay was detected from the state you selected. Federal OSHA likely remains the primary baseline.</p>
+            </div>
+          }
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="report-card">
+          <h3>Recommended Processes</h3>
+          <p class="card-intro">These are the systems most businesses need in practice to stay organized and inspection-ready.</p>
+          @for (obligation of assessment.recommendedProcesses; track trackByObligation($index, obligation)) {
+            <div class="obligation-card compact">
+              <div class="obligation-header">
+                <div>
+                  <h4>{{ obligation.title }}</h4>
+                  <p>{{ obligation.appliesBecause }}</p>
+                </div>
+                <span class="status-chip recommended">recommended</span>
+              </div>
+              <ul>
+                @for (detail of obligation.details; track trackByText($index, detail)) {
+                  <li>{{ detail }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </article>
+
+        <article class="report-card">
+          <h3>What To Do Next</h3>
+          <p class="card-intro">Use this as your first pass through the work.</p>
+          <div class="next-actions">
+            @for (action of assessment.nextActions; track trackByText($index, action.title)) {
+              <div class="next-action">
+                <span class="priority-dot" [class.high]="action.priority === 'high'" [class.medium]="action.priority === 'medium'" [class.low]="action.priority === 'low'"></span>
+                <div>
+                  <strong>{{ action.title }}</strong>
+                  <p>{{ action.description }}</p>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="caveat-card">
+            <h4>Assumptions And Caveats</h4>
+            <ul>
+              @for (caveat of assessment.caveats; track trackByText($index, caveat)) {
+                <li>{{ caveat }}</li>
+              }
+            </ul>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+}

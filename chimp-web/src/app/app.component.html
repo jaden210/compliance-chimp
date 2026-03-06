@@ -54,6 +54,16 @@
 
         <a
           class="sidenav-link"
+          routerLink="/free-safety-consultation"
+          routerLinkActive="sidenav-link-active"
+          (click)="sidenav.close()"
+        >
+          <mat-icon class="sidenav-link-icon">health_and_safety</mat-icon>
+          <span>Free Safety Consultation</span>
+        </a>
+
+        <a
+          class="sidenav-link"
           routerLink="/common-questions"
           routerLinkActive="sidenav-link-active"
           (click)="sidenav.close()"
@@ -121,6 +131,15 @@
           How it Works
         </button>
 
+
+        <button
+          mat-button
+          class="link"
+          routerLink="free-safety-consultation"
+          routerLinkActive="tactive"
+        >
+          Free Safety Consultation
+        </button>
 
         <button
           mat-button

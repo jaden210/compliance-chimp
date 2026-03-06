@@ -4,6 +4,14 @@
     <div class="welcome-header">
       <h1>Hi, I'm Ulysses — Your AI Safety Manager</h1>
       <p class="welcome-subtitle">I'll build your full compliance program in minutes and keep it running forever.</p>
+      @if (hasConsultationPrefill) {
+        <p class="welcome-subtitle consultation-prefill-note">
+          I pulled over your consultation details
+          @if (consultationImportanceScore !== null) {
+            <span> and your OSHA priority score is {{ consultationImportanceScore }}/100.</span>
+          }
+        </p>
+      }
     </div>
 
     <!-- Two-column: Chimp + Steps -->
