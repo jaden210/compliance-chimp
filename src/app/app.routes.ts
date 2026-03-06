@@ -5,14 +5,21 @@ export const routes: Routes = [
     path: 'report/:token',
     loadComponent: () =>
       import('./report/report-page').then(m => m.ReportPageComponent),
-    title: 'OSHA Compliance Report — ComplianceChimp',
+    title: 'OSHA Compliance Report'
   },
   {
     path: 'dashboard',
     loadComponent: () =>
       import('./dashboard/lead-gen-dashboard').then(m => m.LeadGenDashboardComponent),
-    title: 'Lead Gen Dashboard — ComplianceChimp',
+    title: 'Lead Gen Dashboard'
   },
-  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: '**', redirectTo: '/dashboard' },
+  {
+    path: '',
+    redirectTo: 'dashboard',
+    pathMatch: 'full'
+  },
+  {
+    path: '**',
+    redirectTo: 'dashboard'
+  }
 ];
