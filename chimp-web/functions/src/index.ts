@@ -45,6 +45,7 @@ function createStripeClient() {
 
 // Re-export functions from other modules
 export * from './outbound';
+export * from './leads';
 
 const fs = require("fs");
 const path = require("path");

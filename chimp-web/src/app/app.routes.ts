@@ -17,6 +17,17 @@ import { FreeSafetyConsultationComponent } from "./free-safety-consultation/free
 export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
   { path: "home", component: HomeComponent },
+  {
+    path: "report/:token",
+    loadComponent: () =>
+      import("./report/report-page.component").then((m) => m.ReportPageComponent)
+  },
+  {
+    path: "dashboard",
+    loadComponent: () =>
+      import("./dashboard/lead-gen-dashboard.component").then((m) => m.LeadGenDashboardComponent),
+    canActivate: [AuthGuard]
+  },
   // Gateway routes for self-inspection links - detects device + auth and redirects
   {
     path: "go/inspection/:selfInspectionId/:inspectionId",

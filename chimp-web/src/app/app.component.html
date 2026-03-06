@@ -106,11 +106,7 @@
   <mat-sidenav-content>
     <mat-toolbar
       class="toolbar"
-      *ngIf="
-        !router.isActive('/account', false) &&
-        !router.isActive('/user', false) &&
-        !router.isActive('/get-started', false)
-      "
+      *ngIf="!hideMarketingChrome"
       [class.shadow]="appService.toolbarShadow"
     >
       <img
@@ -193,11 +189,7 @@
       <router-outlet></router-outlet>
       <footer
         id="footer"
-        *ngIf="
-          !router.isActive('/account', false) &&
-          !router.isActive('/user', false) &&
-        !router.isActive('/get-started', false)
-      "
+      *ngIf="!hideMarketingChrome"
       ></footer>
     </main>
   </mat-sidenav-content>
