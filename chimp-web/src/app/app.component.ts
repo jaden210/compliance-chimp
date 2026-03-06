@@ -38,6 +38,17 @@ export class AppComponent implements OnInit {
     return path.startsWith('/account') || path.startsWith('/user');
   }
 
+  get hideMarketingChrome(): boolean {
+    const path = window.location.pathname;
+    return (
+      path.startsWith('/account') ||
+      path.startsWith('/user') ||
+      path.startsWith('/get-started') ||
+      path === '/dashboard' ||
+      path.startsWith('/report/')
+    );
+  }
+
   constructor(
     public router: Router,
     public appService: AppService,
