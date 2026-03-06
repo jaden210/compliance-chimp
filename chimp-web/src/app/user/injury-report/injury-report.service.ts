@@ -2,7 +2,8 @@ import { Injectable, inject } from "@angular/core";
 import { Storage, ref, uploadString, getDownloadURL } from "@angular/fire/storage";
 import { catchError, switchMap } from "rxjs/operators";
 import { Observable, throwError, from } from "rxjs";
-import { Firestore, collection, addDoc } from "@angular/fire/firestore";
+import { Firestore, collection, addDoc, doc, updateDoc } from "@angular/fire/firestore";
+import { OshaCase } from "../../shared/osha-recordkeeping";
 
 @Injectable()
 export class InjuryReportService {
@@ -35,6 +36,17 @@ export class InjuryReportService {
         throw error;
       });
   }
+
+  public updateIncidentReport(reportId: string, patch: Partial<IncidentReport>): Promise<void> {
+    const cleanedPatch = Object.fromEntries(
+      Object.entries(patch).filter(([_, v]) => v !== undefined)
+    );
+    return updateDoc(doc(this.db, `incident-report/${reportId}`), cleanedPatch)
+      .catch(error => {
+        console.error(`Error updating incident report`, error);
+        throw error;
+      });
+  }
 }
 
 export class IncidentReport {
@@ -42,17 +54,20 @@ export class IncidentReport {
   type: string;
   teamId: string;
   submittedBy: string;
+  oshaCase?: OshaCase;
   questions: QuestionAnswer[] = [];
 }
 
 export interface QuestionAnswer {
   description: string;
+  fieldId?: string;
   value: any;
   type: Type;
 }
 
 export class Question {
   description: string;
+  fieldId?: string;
   type?: Type;
   radioOptions?: RadioOption[];
   next?: boolean;

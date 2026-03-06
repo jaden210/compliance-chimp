@@ -5,6 +5,7 @@
   },
   {
     "description": "What type of incident occurred?",
+    "fieldId": "incident.type",
     "type": "radio",
     "radioOptions": [
       { "name": "Injury", "value": "injury" },
@@ -16,132 +17,141 @@
   },
   {
     "description": "Name of injured person?",
+    "fieldId": "employee.name",
     "type": "text",
     "next": true
   },
   {
     "description": "What was the employee's date of hire?",
+    "fieldId": "employee.dateHired",
     "type": "date",
-    "skip": true,
     "next": true
   },
   {
     "description": "Date of injured person's birth?",
+    "fieldId": "employee.dateOfBirth",
     "type": "date",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Phone number of the injured person?",
+    "fieldId": "employee.phone",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Street address of the injured person?",
+    "fieldId": "employee.address.street",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Suite or apt number of the injured person?",
+    "fieldId": "employee.address.street2",
     "type": "text",
     "skip": true,
     "next": true
   },
   {
     "description": "City of the injured person?",
+    "fieldId": "employee.address.city",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "State of the injured person?",
+    "fieldId": "employee.address.state",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Zipcode of the injured person?",
+    "fieldId": "employee.address.zip",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Is this employee male or female?",
+    "fieldId": "employee.sex",
     "type": "radio",
     "radioOptions": [
       { "name": "Male", "value": "male" },
       { "name": "Female", "value": "female" },
-      { "name": "Not Sure", "value": "notSure" }
+      { "name": "Not Sure", "value": "unknown" }
     ],
     "next": true
   },
   {
     "description": "Date of event",
+    "fieldId": "incident.date",
     "type": "date",
     "next": true
   },
   {
     "description": "What time did the employee begin work on the day of the incident? (e.g. 7:00 AM)",
+    "fieldId": "incident.workStartTime",
     "type": "text",
     "skip": true,
     "next": true
   },
   {
     "description": "What time did the incident occur? (e.g. 10:30 AM)",
+    "fieldId": "incident.time",
     "type": "text",
     "skip": true,
     "next": true
   },
   {
     "description": "What was the exact location of the event?",
+    "fieldId": "incident.location",
     "type": "text",
     "next": true
   },
   {
     "description": "What was the employee doing just before the incident? Describe the specific activity, tools, and equipment involved.",
+    "fieldId": "incident.activity",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Describe fully how the accident happened. What sequence of events led to the injury or illness?",
+    "fieldId": "incident.sequence",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "What are the names of all witnesses?",
+    "fieldId": "incident.witnesses",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "What caused the event?",
+    "fieldId": "incident.harmCause",
     "type": "text",
     "next": true
   },
   {
     "description": "What part of the body was injured? Describe in detail:",
+    "fieldId": "incident.bodyPartAffected",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "What was the nature of the injury or illness? Describe in detail:",
+    "fieldId": "incident.injuryNature",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "What object or substance directly harmed the employee? (e.g. concrete floor, table saw, ammonia)",
+    "fieldId": "incident.objectOrSubstance",
     "type": "text",
-    "next": true,
-    "skip": true
+    "next": true
   },
   {
     "description": "Were safety regulations in place and used?",
+    "fieldId": "incident.safetyControlsUsed",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -151,6 +161,7 @@
   },
   {
     "description": "If no, why not?",
+    "fieldId": "incident.safetyControlsGap",
     "type": "text",
     "showIf": {
       "question": "Were safety regulations in place and used?",
@@ -160,6 +171,7 @@
   },
   {
     "description": "Did the employee go to the doctor, hospital, or ER?",
+    "fieldId": "treatment.soughtCare",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -169,6 +181,7 @@
   },
   {
     "description": "Was the employee treated in an emergency room?",
+    "fieldId": "treatment.er",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -182,6 +195,7 @@
   },
   {
     "description": "Was the employee hospitalized overnight as an in-patient?",
+    "fieldId": "treatment.hospitalized",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -195,6 +209,58 @@
   },
   {
     "description": "Hospital or clinic name",
+    "fieldId": "treatment.facilityName",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Treatment facility street address",
+    "fieldId": "treatment.facilityAddress.street",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Treatment facility suite or unit",
+    "fieldId": "treatment.facilityAddress.street2",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "skip": true,
+    "next": true
+  },
+  {
+    "description": "Treatment facility city",
+    "fieldId": "treatment.facilityAddress.city",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Treatment facility state",
+    "fieldId": "treatment.facilityAddress.state",
+    "type": "text",
+    "showIf": {
+      "question": "Did the employee go to the doctor, hospital, or ER?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Treatment facility zip code",
+    "fieldId": "treatment.facilityAddress.zip",
     "type": "text",
     "showIf": {
       "question": "Did the employee go to the doctor, hospital, or ER?",
@@ -204,22 +270,43 @@
   },
   {
     "description": "Name of Doctor",
+    "fieldId": "treatment.physicianName",
     "type": "text",
     "showIf": {
       "question": "Did the employee go to the doctor, hospital, or ER?",
       "value": "yes"
     },
-    "skip": true,
     "next": true
   },
   {
     "description": "How many days was the employee away from work as a result of this incident? (Enter 0 if none)",
+    "fieldId": "osha.daysAway",
     "type": "text",
-    "skip": true,
     "next": true
   },
   {
     "description": "Was the employee placed on restricted work duties or job transfer as a result of this incident?",
+    "fieldId": "osha.restricted",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
+    "next": true
+  },
+  {
+    "description": "If yes, how many days of restricted work or job transfer?",
+    "fieldId": "osha.restrictedDays",
+    "type": "text",
+    "showIf": {
+      "question": "Was the employee placed on restricted work duties or job transfer as a result of this incident?",
+      "value": "yes"
+    },
+    "next": true
+  },
+  {
+    "description": "Is this case OSHA recordable?",
+    "fieldId": "osha.isRecordable",
     "type": "radio",
     "radioOptions": [
       { "name": "Yes", "value": "yes" },
@@ -229,22 +316,25 @@
     "next": true
   },
   {
-    "description": "If yes, how many days of restricted work or job transfer?",
-    "type": "text",
-    "showIf": {
-      "question": "Was the employee placed on restricted work duties or job transfer as a result of this incident?",
-      "value": "yes"
-    },
+    "description": "Should this case be treated as a privacy concern case on the OSHA log?",
+    "fieldId": "osha.privacyConcernCase",
+    "type": "radio",
+    "radioOptions": [
+      { "name": "Yes", "value": "yes" },
+      { "name": "No", "value": "no" }
+    ],
     "skip": true,
     "next": true
   },
   {
     "description": "What changes do you suggest to prevent this incident from happening again?",
+    "fieldId": "incident.preventionNotes",
     "type": "text",
     "next": true
   },
   {
     "description": "Please attach any photos to accompany this form",
+    "fieldId": "attachments.photos",
     "type": "photos",
     "next": true,
     "skip": true,
@@ -252,6 +342,7 @@
   },
   {
     "description": "Please sign below",
+    "fieldId": "employee.signature",
     "type": "signature",
     "next": true
   },

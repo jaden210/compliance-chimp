@@ -6238,11 +6238,12 @@ export const chimpChat = onCall(
 
 // Helper function to load team context for ChimpChat
 async function loadTeamContext(db: FirebaseFirestore.Firestore, teamId: string) {
-  const [teamDoc, librarySnapshot, inspectionsSnapshot, teamMembersSnapshot, incidentsSnapshot] = await Promise.all([
+  const [teamDoc, librarySnapshot, inspectionsSnapshot, teamMembersSnapshot, incidentsSnapshot, legacyIncidentsSnapshot] = await Promise.all([
     db.doc(`team/${teamId}`).get(),
     db.collection('library').where('teamId', '==', teamId).get(),
     db.collection(`team/${teamId}/self-inspection`).get(),
     db.collection('team-members').where('teamId', '==', teamId).get(),
+    db.collection('incident-report').where('teamId', '==', teamId).get(),
     db.collection(`team/${teamId}/incident-report`).get()
   ]);
 
@@ -6410,7 +6411,10 @@ async function loadTeamContext(db: FirebaseFirestore.Firestore, teamId: string) 
     teamMembers: teamMembers,
     memberTrainingStats: memberTrainingStats,
     teamMemberCount: teamMembersSnapshot.size,
-    incidentCount: incidentsSnapshot.size
+    incidentCount: new Set([
+      ...incidentsSnapshot.docs.map(doc => doc.id),
+      ...legacyIncidentsSnapshot.docs.map(doc => doc.id)
+    ]).size
   };
 }
 

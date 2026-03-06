@@ -24,6 +24,7 @@ import {
   IncidentReport,
   Type
 } from "./injury-report.service";
+import { normalizeOshaCase } from "../../shared/osha-recordkeeping";
 
 import employeeQuestions from "./employee-questions.json";
 import supervisorQuestions from "./supervisor-questions.json";
@@ -550,7 +551,12 @@ export class InjuryReport implements OnInit, AfterViewChecked, OnDestroy {
     finishedForm.questions = this.questions
       .filter(q => q.value !== undefined && q.value !== null && q.value !== '')
       .filter(q => !Array.isArray(q.value) || q.value.length > 0)
-      .map(q => ({ description: q.description, value: q.value, type: q.type }));
+      .map(q => ({ description: q.description, fieldId: q.fieldId, value: q.value, type: q.type }));
+    finishedForm.oshaCase = normalizeOshaCase(
+      finishedForm,
+      this.userService.aTeam,
+      this.userService.teamMember
+    );
 
     this.injuryReportService
       .createIncidentReport(this.userService.aTeam?.id || '', finishedForm)

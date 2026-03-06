@@ -8,7 +8,7 @@
   <div class="toolbar-actions">
     <button mat-flat-button color="accent" (click)="export()">
       <mat-icon>picture_as_pdf</mat-icon>
-      Export PDF
+      Export OSHA 301
     </button>
     <button mat-icon-button class="delete-btn" matTooltip="Delete this report" (click)="delete()">
       <mat-icon>delete</mat-icon>
@@ -33,6 +33,17 @@
       </div>
 
       <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon">
+            <mat-icon>badge</mat-icon>
+          </div>
+          <div class="metric-content">
+            <div class="metric-label">OSHA Case Number</div>
+            <div class="metric-value">{{ oshaCase?.caseNumber || 'Pending' }}</div>
+            <div class="metric-sublabel">Year {{ oshaCase?.calendarYear || '—' }}</div>
+          </div>
+        </div>
+
         <!-- Reported By -->
         <div class="metric-card wide">
           <div class="metric-icon">
@@ -59,18 +70,117 @@
           </div>
         </div>
 
-        <!-- Total Reports -->
         <div class="metric-card">
           <div class="metric-icon">
-            <mat-icon>assignment</mat-icon>
+            <mat-icon>fact_check</mat-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-label">Total Injuries Reported</div>
-            <div class="metric-value">{{ report.previousReports?.length || 1 }}</div>
-            <div class="metric-sublabel">by this team member</div>
+            <div class="metric-label">OSHA Classification</div>
+            <div class="metric-value">{{ classificationLabel }}</div>
+            <div class="metric-sublabel">
+              {{ oshaCase?.isRecordable === null ? 'Needs review' : (oshaCase?.isRecordable ? 'Recordable case' : 'Not recordable') }}
+            </div>
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="questions-section osha-section">
+      <div class="section-header">
+        <mat-icon>gavel</mat-icon>
+        <h2>OSHA Review</h2>
+      </div>
+
+      @if (oshaCase) {
+        <div class="osha-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Case Number</mat-label>
+            <input matInput [(ngModel)]="oshaCase.caseNumber">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Recordable Status</mat-label>
+            <mat-select [(ngModel)]="recordableValue">
+              <mat-option value="pending">Pending review</mat-option>
+              <mat-option value="true">Recordable</mat-option>
+              <mat-option value="false">Not recordable</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Classification</mat-label>
+            <mat-select [(ngModel)]="oshaCase.classification">
+              @for (option of classificationOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Incident Date</mat-label>
+            <input matInput type="date" [(ngModel)]="oshaCase.incidentDate">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Days Away From Work</mat-label>
+            <input matInput type="number" min="0" [(ngModel)]="oshaCase.daysAwayFromWork">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Restricted / Transfer Days</mat-label>
+            <input matInput type="number" min="0" [(ngModel)]="oshaCase.daysJobTransferOrRestriction">
+          </mat-form-field>
+
+          <mat-checkbox [(ngModel)]="oshaCase.jobTransferOrRestriction">Job transfer or restriction applies</mat-checkbox>
+          <mat-checkbox [(ngModel)]="oshaCase.privacyConcernCase">Privacy concern case</mat-checkbox>
+        </div>
+
+        <div class="osha-grid single-column">
+          <mat-form-field appearance="outline">
+            <mat-label>Outcome Summary</mat-label>
+            <textarea matInput rows="3" [(ngModel)]="oshaCase.outcomeDescription"></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="osha-actions">
+          <button mat-flat-button color="primary" (click)="saveOshaReview()" [disabled]="savingOsha">
+            <mat-icon>save</mat-icon>
+            {{ savingOsha ? 'Saving...' : 'Save OSHA Review' }}
+          </button>
+        </div>
+      }
+    </section>
+
+    <section class="questions-section osha-section">
+      <div class="section-header">
+        <mat-icon>description</mat-icon>
+        <h2>OSHA 301 Snapshot</h2>
+      </div>
+
+      @if (oshaCase) {
+        <div class="osha-summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Employee</div>
+            <div class="summary-value">{{ oshaCase.employeeName || '—' }}</div>
+            <div class="summary-meta">{{ oshaCase.employeeJobTitle || 'No job title on file' }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Establishment</div>
+            <div class="summary-value">{{ oshaCase.establishment?.name || '—' }}</div>
+            <div class="summary-meta">{{ displayAddress(oshaCase.establishment) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Incident</div>
+            <div class="summary-value">{{ displayDate(oshaCase.incidentDate) }}</div>
+            <div class="summary-meta">{{ oshaCase.incidentLocation || 'Location not provided' }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Treatment</div>
+            <div class="summary-value">{{ oshaCase.treatmentFacilityName || 'No offsite treatment documented' }}</div>
+            <div class="summary-meta">{{ oshaCase.physicianName || 'No physician listed' }}</div>
+          </div>
+        </div>
+      }
     </section>
 
     <!-- Questions Section -->

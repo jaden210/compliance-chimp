@@ -1,0 +1,113 @@
+<mat-toolbar>
+  <button mat-icon-button routerLink="/account/incident-reports">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <div class="toolbar-title">OSHA 300A Summary</div>
+  <div class="flex"></div>
+  <button mat-button (click)="exportInspectionPacket()" [disabled]="!recordableCasesForYear.length">
+    <mat-icon>folder_zip</mat-icon>
+    Export Inspection Packet
+  </button>
+  <button mat-flat-button color="accent" (click)="exportSummary()">
+    <mat-icon>picture_as_pdf</mat-icon>
+    Export 300A
+  </button>
+</mat-toolbar>
+
+<div class="page-content">
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading annual summary...</div>
+    </div>
+  } @else {
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="eyebrow">Annual Summary</div>
+          <h1>OSHA 300A equivalent summary for {{ accountService.aTeam?.name }}</h1>
+        </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Summary Year</mat-label>
+          <mat-select [(ngModel)]="selectedYear" (ngModelChange)="loadCertification()">
+            @for (year of availableYears; track year) {
+              <mat-option [value]="year">{{ year }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Total Recordable Cases</div>
+          <div class="metric-value">{{ summary.totalRecordableCases }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Deaths</div>
+          <div class="metric-value">{{ summary.totalDeaths }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Days Away Cases</div>
+          <div class="metric-value">{{ summary.totalDaysAwayCases }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Restricted / Transfer Cases</div>
+          <div class="metric-value">{{ summary.totalJobTransferCases }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Other Recordable Cases</div>
+          <div class="metric-value">{{ summary.totalOtherRecordableCases }}</div>
+        </div>
+        <div class="metric warning">
+          <div class="metric-label">Pending Review</div>
+          <div class="metric-value">{{ pendingReviewCount }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-header">
+        <mat-icon>verified_user</mat-icon>
+        <h2>Certification</h2>
+      </div>
+
+      <div class="cert-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Certifier Name</mat-label>
+          <input matInput [(ngModel)]="certification.certifierName">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Certifier Title</mat-label>
+          <input matInput [(ngModel)]="certification.certifierTitle">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Certification Date</mat-label>
+          <input matInput type="date" [(ngModel)]="certification.certifiedAt">
+        </mat-form-field>
+      </div>
+
+      <div class="actions">
+        <button mat-flat-button color="primary" (click)="saveCertification()" [disabled]="saving">
+          <mat-icon>save</mat-icon>
+          {{ saving ? 'Saving...' : 'Save Certification' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-header">
+        <mat-icon>checklist</mat-icon>
+        <h2>Posting Checklist</h2>
+      </div>
+
+      <div class="checklist">
+        <div>1. Review all cases for {{ selectedYear }} and clear pending-review items before posting.</div>
+        <div>2. Save the executive certification for the annual summary.</div>
+        <div>3. Export the 300A summary and post it from February 1 through April 30.</div>
+        <div>4. Use the inspection packet export when OSHA requests the year’s 300, 300A, and linked 301 records.</div>
+      </div>
+    </section>
+  }
+</div>

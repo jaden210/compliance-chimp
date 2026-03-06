@@ -1,0 +1,88 @@
+<mat-toolbar>
+  <button mat-icon-button routerLink="/account/incident-reports">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <div class="toolbar-title">OSHA 300 Log</div>
+  <div class="flex"></div>
+  <button mat-flat-button color="accent" (click)="exportLog()" [disabled]="!filteredCases.length">
+    <mat-icon>picture_as_pdf</mat-icon>
+    Export Log
+  </button>
+</mat-toolbar>
+
+<div class="page-content">
+  @if (loading) {
+    <div class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <div class="loading-text">Loading OSHA recordable cases...</div>
+    </div>
+  } @else {
+    <section class="summary-card">
+      <div class="summary-header">
+        <div>
+          <div class="summary-kicker">Inspection Ready</div>
+          <h1>Year-based OSHA 300 equivalent log</h1>
+        </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Log Year</mat-label>
+          <mat-select [(ngModel)]="selectedYear">
+            @for (year of availableYears; track year) {
+              <mat-option [value]="year">{{ year }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Recordable Cases</div>
+          <div class="metric-value">{{ filteredCases.length }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Total Days Away</div>
+          <div class="metric-value">{{ totalDaysAway }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Restricted Days</div>
+          <div class="metric-value">{{ totalRestrictedDays }}</div>
+        </div>
+        <div class="metric warning">
+          <div class="metric-label">Pending Review Cases</div>
+          <div class="metric-value">{{ pendingReviewCount }}</div>
+        </div>
+      </div>
+    </section>
+
+    @if (filteredCases.length) {
+      <section class="table-card">
+        <div class="table-header">
+          <div>Case</div>
+          <div>Employee</div>
+          <div>Date</div>
+          <div>Description</div>
+          <div>Classification</div>
+          <div>Days Away</div>
+          <div>Restricted</div>
+        </div>
+
+        @for (oshaCase of filteredCases; track oshaCase.reportId) {
+          <button class="table-row" (click)="openReport(oshaCase.reportId)">
+            <div>{{ oshaCase.caseNumber }}</div>
+            <div>{{ oshaCase.privacyConcernCase ? 'Privacy case' : (oshaCase.employeeName || '—') }}</div>
+            <div>{{ displayDate(oshaCase.incidentDate) }}</div>
+            <div>{{ oshaCase.injuryNature || oshaCase.howDidIncidentHappen || '—' }}</div>
+            <div>{{ oshaCase.classification }}</div>
+            <div>{{ oshaCase.daysAwayFromWork || 0 }}</div>
+            <div>{{ oshaCase.daysJobTransferOrRestriction || 0 }}</div>
+          </button>
+        }
+      </section>
+    } @else {
+      <div class="empty-state">
+        <mat-icon>assignment_turned_in</mat-icon>
+        <h3>No recordable cases for {{ selectedYear }}</h3>
+        <p>Cases marked as pending review or non-recordable will stay out of the OSHA 300 log until a manager confirms them.</p>
+      </div>
+    }
+  }
+</div>
