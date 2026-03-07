@@ -360,6 +360,29 @@
     }
     .service-card .card-impact.zero { color: var(--muted); font-weight: 400; font-size: .85rem; }
     .service-card .card-timeline { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+    .service-card .card-seats {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .service-card .card-seats .seat-price {
+      font-size: .72rem;
+      opacity: .75;
+    }
+    .service-card .card-breakeven {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: var(--green-soft);
+      border: 1px solid #a7f3d0;
+      font-size: .76rem;
+      color: #065f46;
+      line-height: 1.4;
+    }
+    .service-card .card-breakeven strong {
+      color: #065f46;
+    }
     .service-card .card-source {
       margin-top: 10px;
       padding-top: 10px;
@@ -563,13 +586,18 @@
 
 <script>
 // ─── ROI Constants (inlined from roi-constants.js) ─────────────────────────
+// Business-specific pricing pulled from prospect's website
+const BUSINESS_MEMBERSHIP_PRICE = 100; // $ per month per member (Crushers Golf Lounge)
+const BUSINESS_UNIT = "member";        // what one seat is called
+const OBSESSION_MONTHLY_FEE = 300;     // our monthly retainer
+
 const ROI_SERVICES = [
-  { id:"website", name:"Website Redesign",          icon:"🖥️",  tagline:"Turn visitors into customers with a site that actually converts.",         conservativePct:.10, aggressivePct:.25, assumption:"A professionally redesigned website typically improves conversion rates by 20–50%. We apply a conservative 10–25% net revenue lift for local service businesses.", tooltip:"Utsubo 2026: well-executed redesigns deliver 20–50% conversion lift within 6 months. ThillX: CRO-driven redesigns deliver 223% ROI.",                    timeToResults:"2–4 months",  color:"#4F46E5" },
-  { id:"seo",     name:"Local SEO",                 icon:"🔍",  tagline:"Show up when locals search for what you offer.",                            conservativePct:.15, aggressivePct:.40, assumption:"BrightLocal reports an average 124% organic revenue increase for SMBs with active local SEO. We apply a conservative 15–40% lift to account for timeline.", tooltip:"BrightLocal: avg 124% organic revenue increase. 40% of local SEO campaigns achieve 500%+ ROI. 46% of all Google searches have local intent.",           timeToResults:"4–9 months",  color:"#059669" },
-  { id:"reviews", name:"Google Review Collection",  icon:"⭐",  tagline:"More 5-star reviews = more trust = more bookings.",                        conservativePct:.05, aggressivePct:.18, assumption:"Harvard Business School research shows a 1-star rating improvement drives 5–9% revenue increase. Active review collection typically earns 1–2 stars over 6 months.", tooltip:"Harvard HBS: 5–9% revenue per star gained. SOCi: 44% conversion boost from +1.0 star. Businesses with 50+ reviews rank significantly higher.",          timeToResults:"1–3 months",  color:"#D97706" },
-  { id:"social",  name:"Social Media Management",   icon:"📱",  tagline:"Stay top-of-mind and drive repeat business through consistent posting.",   conservativePct:.05, aggressivePct:.15, assumption:"BrandMuscle 2024 found top local marketers see up to 56% more revenue growth vs. inactive competitors.",                                                 tooltip:"BrandMuscle 2024: active local social marketers see up to 56% more revenue. Primarily drives brand recall, referral traffic, and repeat customers.",      timeToResults:"2–5 months",  color:"#7C3AED" },
-  { id:"ads",     name:"Google Ads",                icon:"📣",  tagline:"Put your business in front of people actively searching to buy.",          conservativePct:.12, aggressivePct:.30, assumption:"MetricNexus SMB benchmarks show 2.5x–6.2x ROAS for local businesses spending $1K–$10K/month. Assumes ~5% of revenue in ad spend.",                      tooltip:"MetricNexus 2026: SMBs achieve 2.5x–6.2x ROAS. 75% of local searches convert into leads; 28% purchase within 24 hours.",                               timeToResults:"1–2 months",  color:"#DC2626" },
-  { id:"email",   name:"Email Marketing",           icon:"✉️",  tagline:"Keep past customers coming back with targeted campaigns.",                 conservativePct:.08, aggressivePct:.20, assumption:"Email marketing generates $36–$42 per $1 spent (DMA). We model an 8–20% revenue lift from improved customer retention and repeat bookings.",              tooltip:"DMA: email averages $42 ROI per $1 spent. A 5% retention increase can boost profits 25–95% (Bain & Company).",                                          timeToResults:"1–3 months",  color:"#0891B2" },
+  { id:"website", name:"Website Redesign",          icon:"🖥️",  tagline:"Turn visitors into customers with a site that actually converts.",         conservativePct:.10, aggressivePct:.25, unit:BUSINESS_UNIT, assumption:"A professionally redesigned website typically improves conversion rates by 20–50%. We apply a conservative 10–25% net revenue lift for local service businesses.", tooltip:"Utsubo 2026: well-executed redesigns deliver 20–50% conversion lift within 6 months. ThillX: CRO-driven redesigns deliver 223% ROI.",                    timeToResults:"2–4 months",  color:"#4F46E5" },
+  { id:"seo",     name:"Local SEO",                 icon:"🔍",  tagline:"Show up when locals search for what you offer.",                            conservativePct:.15, aggressivePct:.40, unit:BUSINESS_UNIT, assumption:"BrightLocal reports an average 124% organic revenue increase for SMBs with active local SEO. We apply a conservative 15–40% lift to account for timeline.", tooltip:"BrightLocal: avg 124% organic revenue increase. 40% of local SEO campaigns achieve 500%+ ROI. 46% of all Google searches have local intent.",           timeToResults:"4–9 months",  color:"#059669" },
+  { id:"reviews", name:"Google Review Collection",  icon:"⭐",  tagline:"More 5-star reviews = more trust = more bookings.",                        conservativePct:.05, aggressivePct:.18, unit:BUSINESS_UNIT, assumption:"Harvard Business School research shows a 1-star rating improvement drives 5–9% revenue increase. Active review collection typically earns 1–2 stars over 6 months.", tooltip:"Harvard HBS: 5–9% revenue per star gained. SOCi: 44% conversion boost from +1.0 star. Businesses with 50+ reviews rank significantly higher.",          timeToResults:"1–3 months",  color:"#D97706" },
+  { id:"social",  name:"Social Media Management",   icon:"📱",  tagline:"Stay top-of-mind and drive repeat business through consistent posting.",   conservativePct:.05, aggressivePct:.15, unit:BUSINESS_UNIT, assumption:"BrandMuscle 2024 found top local marketers see up to 56% more revenue growth vs. inactive competitors.",                                                 tooltip:"BrandMuscle 2024: active local social marketers see up to 56% more revenue. Primarily drives brand recall, referral traffic, and repeat customers.",      timeToResults:"2–5 months",  color:"#7C3AED" },
+  { id:"ads",     name:"Google Ads",                icon:"📣",  tagline:"Put your business in front of people actively searching to buy.",          conservativePct:.12, aggressivePct:.30, unit:BUSINESS_UNIT, assumption:"MetricNexus SMB benchmarks show 2.5x–6.2x ROAS for local businesses spending $1K–$10K/month. Assumes ~5% of revenue in ad spend.",                      tooltip:"MetricNexus 2026: SMBs achieve 2.5x–6.2x ROAS. 75% of local searches convert into leads; 28% purchase within 24 hours.",                               timeToResults:"1–2 months",  color:"#DC2626" },
+  { id:"email",   name:"Email Marketing",           icon:"✉️",  tagline:"Keep past customers coming back with targeted campaigns.",                 conservativePct:.08, aggressivePct:.20, unit:BUSINESS_UNIT, assumption:"Email marketing generates $36–$42 per $1 spent (DMA). We model an 8–20% revenue lift from improved customer retention and repeat bookings.",              tooltip:"DMA: email averages $42 ROI per $1 spent. A 5% retention increase can boost profits 25–95% (Bain & Company).",                                          timeToResults:"1–3 months",  color:"#0891B2" },
 ];
 const COMBINED_CAP = { conservative: 0.80, aggressive: 1.50 };
 
@@ -745,10 +773,29 @@ function renderServiceCards() {
   grid.innerHTML = "";
   ROI_SERVICES.forEach(svc => {
     const active = activeServices.has(svc.id);
-    const { low, high } = calcImpact(svc, revenue);
-    const impactHtml = revenue > 0
-      ? `<div class="card-impact">${fmt(low)} &ndash; ${fmt(high)} / yr</div>`
-      : `<div class="card-impact zero">Enter your revenue above</div>`;
+    const { low, high, seatsLow, seatsHigh, breakevenSeats } = calcImpact(svc, revenue);
+
+    let impactHtml = "";
+    if (revenue <= 0) {
+      impactHtml = `<div class="card-impact zero">Enter your revenue above</div>`;
+    } else if (seatsLow !== null && seatsHigh !== null) {
+      // Seat-based: show both dollar lift AND seat count
+      const unitPlural = BUSINESS_UNIT + "s";
+      impactHtml = `
+        <div class="card-impact">${fmt(low)} &ndash; ${fmt(high)} / yr</div>
+        <div class="card-seats">
+          = ${seatsLow} &ndash; ${seatsHigh} new ${unitPlural}/yr
+          &nbsp;<span class="seat-price">@ $${BUSINESS_MEMBERSHIP_PRICE}/mo each</span>
+        </div>`;
+    } else {
+      impactHtml = `<div class="card-impact">${fmt(low)} &ndash; ${fmt(high)} / yr</div>`;
+    }
+
+    // Breakeven callout — only show when revenue is entered
+    const breakevenHtml = (revenue > 0 && breakevenSeats !== null) ? `
+      <div class="card-breakeven">
+        Just <strong>${breakevenSeats} new ${breakevenSeats === 1 ? BUSINESS_UNIT : BUSINESS_UNIT + "s"}</strong> covers our $${OBSESSION_MONTHLY_FEE}/mo fee
+      </div>` : "";
 
     grid.innerHTML += `
       <div class="service-card ${active ? "active" : ""}" id="card-${svc.id}" onclick="toggleService('${svc.id}')">
@@ -762,6 +809,7 @@ function renderServiceCards() {
         <div class="card-tagline">${svc.tagline}</div>
         <div class="card-lift">${pct(svc.conservativePct)} &ndash; ${pct(svc.aggressivePct)} estimated lift</div>
         ${impactHtml}
+        ${breakevenHtml}
         <div class="card-timeline">&#x23f1; Results in ${svc.timeToResults}</div>
         <div class="card-source" onclick="event.stopPropagation()">
           <strong>Source</strong>${escHtml(svc.tooltip)}
@@ -805,10 +853,17 @@ function bindRevenueInputs() {
 }
 
 function calcImpact(svc, rev) {
-  return {
-    low:  Math.round(rev * svc.conservativePct),
-    high: Math.round(rev * svc.aggressivePct),
-  };
+  const low  = Math.round(rev * svc.conservativePct);
+  const high = Math.round(rev * svc.aggressivePct);
+  // Seats = annual dollar lift ÷ (monthly price × 12)
+  const annualPerSeat = BUSINESS_MEMBERSHIP_PRICE * 12;
+  const seatsLow  = annualPerSeat > 0 ? Math.round(low  / annualPerSeat) : null;
+  const seatsHigh = annualPerSeat > 0 ? Math.round(high / annualPerSeat) : null;
+  // Breakeven: how many new seats/mo cover our monthly fee
+  const breakevenSeats = BUSINESS_MEMBERSHIP_PRICE > 0
+    ? Math.ceil(OBSESSION_MONTHLY_FEE / BUSINESS_MEMBERSHIP_PRICE)
+    : null;
+  return { low, high, seatsLow, seatsHigh, breakevenSeats };
 }
 
 function updateTotals() {
@@ -834,7 +889,21 @@ function updateTotals() {
   const high = Math.round(revenue * rawHigh);
 
   totalRange.innerHTML = `${fmt(low)} &ndash; ${fmt(high)}`;
-  totalSub.textContent = `Based on ${selected.length} service${selected.length > 1 ? "s" : ""} selected &middot; estimated annual impact`;
+  // Seat-based sub-label
+  const annualPerSeat = BUSINESS_MEMBERSHIP_PRICE * 12;
+  if (annualPerSeat > 0) {
+    const seatsLow  = Math.round(low  / annualPerSeat);
+    const seatsHigh = Math.round(high / annualPerSeat);
+    const breakevenSeats = Math.ceil(OBSESSION_MONTHLY_FEE / BUSINESS_MEMBERSHIP_PRICE);
+    const unitPlural = BUSINESS_UNIT + "s";
+    totalSub.innerHTML = `
+      ${seatsLow}&ndash;${seatsHigh} new ${unitPlural}/yr &nbsp;&middot;&nbsp;
+      just <strong>${breakevenSeats} ${breakevenSeats === 1 ? BUSINESS_UNIT : unitPlural}</strong> covers our $${OBSESSION_MONTHLY_FEE}/mo fee &nbsp;&middot;&nbsp;
+      ${selected.length} service${selected.length > 1 ? "s" : ""} selected
+    `;
+  } else {
+    totalSub.textContent = `Based on ${selected.length} service${selected.length > 1 ? "s" : ""} selected · estimated annual impact`;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
