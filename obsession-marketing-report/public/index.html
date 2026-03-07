@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Internet Best Practice Report | Obsession Marketing</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand:       #1a1a2e;
+      --accent:      #e8463a;
+      --accent-soft: #fff0ef;
+      --green:       #059669;
+      --green-soft:  #ecfdf5;
+      --text:        #111827;
+      --muted:       #6b7280;
+      --border:      #e5e7eb;
+      --card:        #ffffff;
+      --bg:          #f9fafb;
+      --radius:      12px;
+      --shadow:      0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ─── Header ───────────────────────────────────────────────── */
+    .site-header {
+      background: var(--brand);
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .site-header .logo { font-weight: 700; font-size: 1rem; letter-spacing: .03em; color: #fff; text-decoration: none; }
+    .site-header .logo span { color: var(--accent); }
+    .site-header .tagline { font-size: .8rem; color: #94a3b8; }
+
+    /* ─── Hero ─────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, var(--brand) 0%, #16213e 100%);
+      color: #fff;
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(232,70,58,.15);
+      border: 1px solid rgba(232,70,58,.4);
+      color: #fca5a1;
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 18px;
+    }
+    .hero h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.2; margin-bottom: 14px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.05rem; color: #cbd5e1; max-width: 560px; margin: 0 auto 28px; }
+    .hero .prepared-for {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 99px;
+      padding: 8px 20px;
+      font-size: .9rem; color: #e2e8f0;
+    }
+    .hero .prepared-for strong { color: #fff; }
+
+    /* ─── Layout ───────────────────────────────────────────────── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+    .section { padding: 48px 0; }
+
+    /* ─── Score Bar ─────────────────────────────────────────────── */
+    .scores-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin: 32px 0;
+    }
+    .score-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .score-card .score-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .score-card .score-grade { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+    .score-card .score-verdict { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-top: 5px; opacity: .8; }
+    .score-card .score-bar { height: 5px; border-radius: 99px; background: var(--border); margin-top: 12px; overflow: hidden; }
+    .score-card .score-fill { height: 100%; border-radius: 99px; }
+    .score-red    { color: #dc2626; } .fill-red    { background: #dc2626; }
+    .score-orange { color: #d97706; } .fill-orange { background: #d97706; }
+    .score-green  { color: #059669; } .fill-green  { background: #059669; }
+
+    /* ─── Report Content ────────────────────────────────────────── */
+    .report-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .report-card .report-toolbar {
+      background: var(--brand);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .report-card .report-toolbar h2 { font-size: 1rem; font-weight: 700; }
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .btn-download:hover { background: #c73528; }
+    .report-body {
+      padding: 36px 40px;
+      max-height: 700px;
+      overflow-y: auto;
+    }
+    /* Markdown rendered styles */
+    .report-body h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 6px; color: var(--brand); }
+    .report-body h2 { font-size: 1.1rem; font-weight: 700; margin: 28px 0 10px; color: var(--brand); border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+    .report-body h3 { font-size: .95rem; font-weight: 700; margin: 18px 0 6px; color: var(--text); }
+    .report-body p  { margin-bottom: 10px; color: #374151; }
+    .report-body ul, .report-body ol { margin: 8px 0 12px 20px; }
+    .report-body li { margin-bottom: 4px; color: #374151; }
+    .report-body strong { color: var(--text); }
+    .report-body table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: .875rem; }
+    .report-body th { background: var(--brand); color: #fff; padding: 8px 12px; text-align: left; }
+    .report-body td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .report-body tr:nth-child(even) td { background: #f9fafb; }
+    .report-body blockquote { border-left: 3px solid var(--accent); padding: 10px 16px; background: var(--accent-soft); border-radius: 0 6px 6px 0; margin: 14px 0; }
+    .report-body hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .report-body a { color: #4F46E5; }
+    .report-fade {
+      position: relative;
+    }
+    .report-fade::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 80px;
+      background: linear-gradient(to bottom, transparent, #fff);
+      pointer-events: none;
+    }
+
+    /* ─── Upgrade Block ─────────────────────────────────────────── */
+    .upgrade-block {
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+      border-radius: var(--radius);
+      padding: 48px 40px;
+      color: #fff;
+      text-align: center;
+      margin: 40px 0;
+      box-shadow: var(--shadow);
+    }
+    .upgrade-block .upgrade-eyebrow {
+      font-size: .75rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: #fca5a1; margin-bottom: 12px;
+    }
+    .upgrade-block h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); font-weight: 800; margin-bottom: 12px; }
+    .upgrade-block p { color: #94a3b8; max-width: 480px; margin: 0 auto 28px; }
+    .upgrade-block .preview-pills {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 30px;
+    }
+    .upgrade-block .pill {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 99px;
+      padding: 5px 14px;
+      font-size: .8rem; color: #e2e8f0;
+    }
+
+    /* ─── Email Gate ────────────────────────────────────────────── */
+    #email-gate { transition: all .3s; }
+    .email-form {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 460px; margin: 0 auto;
+    }
+    .email-form input[type="email"] {
+      flex: 1; min-width: 220px;
+      padding: 13px 16px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      font-size: .95rem;
+      outline: none;
+      transition: border .2s;
+    }
+    .email-form input[type="email"]::placeholder { color: #64748b; }
+    .email-form input[type="email"]:focus { border-color: rgba(255,255,255,.5); }
+    .btn-unlock {
+      padding: 13px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn-unlock:hover { background: #c73528; transform: translateY(-1px); }
+    .gate-msg { margin-top: 14px; font-size: .85rem; color: #64748b; }
+    .gate-error { color: #fca5a1 !important; }
+    .gate-success { color: #6ee7b7 !important; }
+
+    /* ─── Check Inbox State ─────────────────────────────────────── */
+    #inbox-state { display: none; text-align: center; }
+    #inbox-state .inbox-icon { font-size: 3rem; margin-bottom: 12px; }
+    #inbox-state h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    #inbox-state p { color: #94a3b8; font-size: .9rem; }
+
+    /* ─── ROI Calculator ────────────────────────────────────────── */
+    #roi-calculator { display: none; }
+    #roi-calculator.unlocked { display: block; animation: fadeUp .4s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .calc-header {
+      text-align: center;
+      padding: 48px 24px 32px;
+    }
+    .calc-header .badge {
+      display: inline-block;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: .75rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; padding: 4px 12px; border-radius: 99px; margin-bottom: 14px;
+    }
+    .calc-header h2 { font-size: clamp(1.4rem, 3.5vw, 2rem); font-weight: 800; margin-bottom: 10px; }
+    .calc-header p { color: var(--muted); max-width: 500px; margin: 0 auto; }
+
+    /* Revenue input */
+    .revenue-input-block {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow);
+    }
+    .revenue-input-block label { font-weight: 700; font-size: .95rem; display: block; margin-bottom: 14px; }
+    .revenue-input-block label span { color: var(--muted); font-weight: 400; font-size: .85rem; }
+    .revenue-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .revenue-text-wrap {
+      position: relative; flex-shrink: 0;
+    }
+    .revenue-text-wrap .dollar { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 700; }
+    #revenue-text {
+      padding: 11px 12px 11px 26px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem; font-weight: 700;
+      width: 160px;
+      outline: none;
+      transition: border .2s;
+    }
+    #revenue-text:focus { border-color: var(--accent); }
+    #revenue-slider {
+      flex: 1; min-width: 200px;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 99px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    #revenue-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 3px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+      transition: transform .1s;
+    }
+    #revenue-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .slider-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-top: 6px; }
+
+    /* Service toggle cards */
+    .services-label { font-weight: 700; font-size: .95rem; margin-bottom: 14px; }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .service-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s, transform .1s;
+      position: relative;
+      user-select: none;
+    }
+    .service-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+    .service-card.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+      box-shadow: 0 0 0 3px rgba(5,150,105,.15);
+    }
+    .service-card .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+    .service-card .card-icon-name { display: flex; align-items: center; gap: 10px; }
+    .service-card .card-icon { font-size: 1.4rem; }
+    .service-card .card-name { font-weight: 700; font-size: .95rem; }
+    .service-card .card-toggle {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--border);
+      background: #fff;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+      font-size: .8rem;
+    }
+    .service-card.active .card-toggle {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+    .service-card .card-tagline { font-size: .8rem; color: var(--muted); margin-bottom: 10px; }
+    .service-card .card-lift {
+      font-size: .8rem;
+      color: var(--green);
+      font-weight: 700;
+    }
+    .service-card .card-impact {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 4px;
+    }
+    .service-card .card-impact.zero { color: var(--muted); font-weight: 400; font-size: .85rem; }
+    .service-card .card-timeline { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+    .service-card .tooltip-icon {
+      position: absolute; top: 14px; right: 14px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--border); color: var(--muted);
+      font-size: .65rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      cursor: help;
+    }
+    /* Tooltip */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: calc(100% + 8px); right: 0;
+      background: #1e293b; color: #f1f5f9;
+      font-size: .72rem; line-height: 1.5;
+      padding: 8px 12px; border-radius: 8px;
+      width: 240px; z-index: 10;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+      pointer-events: none;
+      white-space: normal;
+    }
+
+    /* Total block */
+    .total-block {
+      background: var(--brand);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .total-block .total-label { font-size: .85rem; color: #94a3b8; margin-bottom: 4px; }
+    .total-block .total-range { font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 800; color: #6ee7b7; }
+    .total-block .total-sub { font-size: .8rem; color: #64748b; margin-top: 4px; }
+    .total-block .total-cta { flex-shrink: 0; }
+    .btn-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none; border-radius: 8px;
+      padding: 13px 22px;
+      font-size: .9rem; font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s, transform .1s;
+    }
+    .btn-cta:hover { background: #c73528; transform: translateY(-1px); }
+
+    .disclaimer {
+      font-size: .75rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+      padding: 0 20px 48px;
+    }
+
+    /* ─── Footer ────────────────────────────────────────────────── */
+    footer {
+      background: var(--brand);
+      color: #64748b;
+      text-align: center;
+      padding: 24px;
+      font-size: .8rem;
+    }
+    footer a { color: #94a3b8; }
+
+    /* ─── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .report-body { padding: 24px 20px; }
+      .upgrade-block { padding: 36px 24px; }
+      .revenue-input-block { padding: 22px 20px; }
+      .total-block { padding: 22px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <a class="logo" href="#">Obsession <span>Marketing</span></a>
+  <span class="tagline">St. George, Utah</span>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="badge">Personalized Digital Audit</div>
+  <h1>Your Internet Best<br><span>Practice Report</span></h1>
+  <p id="hero-sub">A free audit of your current online presence — what's working, what's not, and exactly what to fix.</p>
+  <br>
+  <div class="prepared-for">
+    Prepared for &nbsp;<strong id="hero-business">your business</strong>
+  </div>
+</section>
+
+<!-- Report Section -->
+<div class="container">
+  <div class="section">
+
+    <!-- Score cards (dynamic) -->
+    <div class="scores-grid" id="scores-grid"></div>
+
+    <!-- Report card -->
+    <div class="report-card">
+      <div class="report-toolbar">
+        <h2>Your Full Audit Report</h2>
+        <a class="btn-download" id="pdf-download-btn" href="#" download>
+          &#x2913; Download PDF
+        </a>
+      </div>
+      <div class="report-fade">
+        <div class="report-body" id="report-body">
+          <p style="color:#6b7280; font-style:italic;">Loading your report...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upgrade block -->
+    <div class="upgrade-block">
+      <div class="upgrade-eyebrow">Interactive Version</div>
+      <h2>What would fixing this actually be worth?</h2>
+      <p>Enter your annual revenue and we'll show you the estimated dollar impact of each improvement — tailored to your business.</p>
+      <div class="preview-pills">
+        <span class="pill">&#x1f4b0; Revenue impact in dollars</span>
+        <span class="pill">&#x1f39a; Toggle each service on/off</span>
+        <span class="pill">&#x1f4c8; Conservative vs. aggressive range</span>
+        <span class="pill">&#x23f1; Timeline to results</span>
+      </div>
+
+      <!-- Email gate -->
+      <div id="email-gate">
+        <div class="email-form">
+          <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email" />
+          <button class="btn-unlock" onclick="handleEmailSubmit()">Unlock Free Calculator &rarr;</button>
+        </div>
+        <p class="gate-msg" id="gate-msg">No spam. Just your numbers.</p>
+      </div>
+
+      <!-- Check inbox state -->
+      <div id="inbox-state">
+        <div class="inbox-icon">&#x2709;&#xfe0f;</div>
+        <h3>Check your inbox</h3>
+        <p>We sent a confirmation link to <strong id="confirm-email-display"></strong>.<br>Click it to unlock the interactive calculator.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ROI Calculator (hidden until unlocked) -->
+<div id="roi-calculator">
+  <div class="calc-header">
+    <div class="badge">&#x2713; Unlocked</div>
+    <h2>Your Revenue Opportunity Calculator</h2>
+    <p>Adjust your annual revenue below, then toggle the services you're interested in to see your estimated upside.</p>
+  </div>
+
+  <div class="container">
+
+    <!-- Revenue input -->
+    <div class="revenue-input-block">
+      <label for="revenue-slider">
+        Current Annual Revenue <span>— drag the slider or type a number</span>
+      </label>
+      <div class="revenue-row">
+        <div class="revenue-text-wrap">
+          <span class="dollar">$</span>
+          <input type="text" id="revenue-text" value="500,000" />
+        </div>
+        <input type="range" id="revenue-slider" min="0" max="5000000" step="25000" value="500000" />
+      </div>
+      <div class="slider-labels"><span>$0</span><span>$1M</span><span>$2M</span><span>$3M</span><span>$4M</span><span>$5M</span></div>
+    </div>
+
+    <!-- Service cards -->
+    <p class="services-label">Toggle services to include in your estimate:</p>
+    <div class="services-grid" id="services-grid"></div>
+
+    <!-- Total -->
+    <div class="total-block">
+      <div>
+        <div class="total-label">Estimated Annual Revenue Opportunity</div>
+        <div class="total-range" id="total-range">$0 &ndash; $0</div>
+        <div class="total-sub" id="total-sub">Select at least one service above</div>
+      </div>
+      <div class="total-cta">
+        <a class="btn-cta" href="mailto:jaden@nebula.me?subject=Let%27s%20talk%20about%20my%20report&body=Hi%20Jaden%2C%20I%20just%20reviewed%20my%20audit%20report%20and%20want%20to%20learn%20more.">
+          Get a Free Strategy Call &rarr;
+        </a>
+      </div>
+    </div>
+
+    <p class="disclaimer">
+      These are estimates based on published industry benchmarks from BrightLocal, Harvard Business School, MetricNexus, and others. Actual results vary based on your market, competition, starting point, and execution quality. Obsession Marketing does not guarantee specific revenue outcomes.
+    </p>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <p>&copy; 2026 Obsession Marketing &mdash; St. George, Utah &nbsp;&middot;&nbsp; <a href="mailto:jaden@nebula.me">jaden@nebula.me</a></p>
+</footer>
+
+
+<script>
+// ─── ROI Constants (inlined from roi-constants.js) ─────────────────────────
+const ROI_SERVICES = [
+  { id:"website", name:"Website Redesign",          icon:"🖥️",  tagline:"Turn visitors into customers with a site that actually converts.",         conservativePct:.10, aggressivePct:.25, assumption:"A professionally redesigned website typically improves conversion rates by 20–50%. We apply a conservative 10–25% net revenue lift for local service businesses.", tooltip:"Utsubo 2026: well-executed redesigns deliver 20–50% conversion lift within 6 months. ThillX: CRO-driven redesigns deliver 223% ROI.",                    timeToResults:"2–4 months",  color:"#4F46E5" },
+  { id:"seo",     name:"Local SEO",                 icon:"🔍",  tagline:"Show up when locals search for what you offer.",                            conservativePct:.15, aggressivePct:.40, assumption:"BrightLocal reports an average 124% organic revenue increase for SMBs with active local SEO. We apply a conservative 15–40% lift to account for timeline.", tooltip:"BrightLocal: avg 124% organic revenue increase. 40% of local SEO campaigns achieve 500%+ ROI. 46% of all Google searches have local intent.",           timeToResults:"4–9 months",  color:"#059669" },
+  { id:"reviews", name:"Google Review Collection",  icon:"⭐",  tagline:"More 5-star reviews = more trust = more bookings.",                        conservativePct:.05, aggressivePct:.18, assumption:"Harvard Business School research shows a 1-star rating improvement drives 5–9% revenue increase. Active review collection typically earns 1–2 stars over 6 months.", tooltip:"Harvard HBS: 5–9% revenue per star gained. SOCi: 44% conversion boost from +1.0 star. Businesses with 50+ reviews rank significantly higher.",          timeToResults:"1–3 months",  color:"#D97706" },
+  { id:"social",  name:"Social Media Management",   icon:"📱",  tagline:"Stay top-of-mind and drive repeat business through consistent posting.",   conservativePct:.05, aggressivePct:.15, assumption:"BrandMuscle 2024 found top local marketers see up to 56% more revenue growth vs. inactive competitors.",                                                 tooltip:"BrandMuscle 2024: active local social marketers see up to 56% more revenue. Primarily drives brand recall, referral traffic, and repeat customers.",      timeToResults:"2–5 months",  color:"#7C3AED" },
+  { id:"ads",     name:"Google Ads",                icon:"📣",  tagline:"Put your business in front of people actively searching to buy.",          conservativePct:.12, aggressivePct:.30, assumption:"MetricNexus SMB benchmarks show 2.5x–6.2x ROAS for local businesses spending $1K–$10K/month. Assumes ~5% of revenue in ad spend.",                      tooltip:"MetricNexus 2026: SMBs achieve 2.5x–6.2x ROAS. 75% of local searches convert into leads; 28% purchase within 24 hours.",                               timeToResults:"1–2 months",  color:"#DC2626" },
+  { id:"email",   name:"Email Marketing",           icon:"✉️",  tagline:"Keep past customers coming back with targeted campaigns.",                 conservativePct:.08, aggressivePct:.20, assumption:"Email marketing generates $36–$42 per $1 spent (DMA). We model an 8–20% revenue lift from improved customer retention and repeat bookings.",              tooltip:"DMA: email averages $42 ROI per $1 spent. A 5% retention increase can boost profits 25–95% (Bain & Company).",                                          timeToResults:"1–3 months",  color:"#0891B2" },
+];
+const COMBINED_CAP = { conservative: 0.80, aggressive: 1.50 };
+
+// ─── URL Params ────────────────────────────────────────────────────────────
+const params      = new URLSearchParams(window.location.search);
+const slug        = params.get("slug")     || "crushers-golf-lounge";
+const bizName     = params.get("biz")      || "Your Business";
+const ownerName   = params.get("owner")    || "";
+const prospectEmail = params.get("email")  || "";
+const token       = params.get("token")    || "";
+const pdfUrl      = params.get("pdf")      || `https://report.obsessionmarketing.com/pdf/${slug}`;
+
+// ─── Personalise Hero ─────────────────────────────────────────────────────
+document.getElementById("hero-business").textContent = bizName;
+if (ownerName) {
+  document.getElementById("hero-sub").textContent =
+    `Hi ${ownerName} — here's a free audit of ${bizName}'s online presence. What's working, what's not, and exactly what to fix.`;
+}
+document.title = `${bizName} — Internet Best Practice Report | Obsession Marketing`;
+document.getElementById("pdf-download-btn").href = pdfUrl;
+// Update strategy call email
+document.querySelector(".btn-cta").href =
+  `mailto:jaden@nebula.me?subject=Let%27s%20talk%20%E2%80%94%20${encodeURIComponent(bizName)}&body=Hi%20Jaden%2C%20I%20just%20reviewed%20the%20audit%20for%20${encodeURIComponent(bizName)}%20and%20want%20to%20learn%20more.`;
+
+// ─── Score Cards ──────────────────────────────────────────────────────────
+// Scores are passed via URL params: ?ws=15&seo=0&rev=10&soc=5&ads=0&em=0
+// or via the report data. Here we read from params with sensible defaults.
+const scoreData = [
+  { label: "Website",         val: parseInt(params.get("ws")  || "15"), max: 100 },
+  { label: "Local SEO",       val: parseInt(params.get("seo") || "10"), max: 100 },
+  { label: "Google Reviews",  val: parseInt(params.get("rev") || "5"),  max: 100 },
+  { label: "Social Media",    val: parseInt(params.get("soc") || "20"), max: 100 },
+  { label: "Google Ads",      val: parseInt(params.get("ads") || "0"),  max: 100 },
+  { label: "Email Marketing", val: parseInt(params.get("em")  || "0"),  max: 100 },
+];
+
+function scoreClass(v) {
+  if (v >= 60) return "green";
+  if (v >= 30) return "orange";
+  return "red";
+}
+
+function scoreGrade(v) {
+  if (v >= 90) return { letter: "A+", verdict: "Excellent" };
+  if (v >= 80) return { letter: "A",  verdict: "Strong" };
+  if (v >= 70) return { letter: "B",  verdict: "Good" };
+  if (v >= 60) return { letter: "B-", verdict: "Above Average" };
+  if (v >= 50) return { letter: "C",  verdict: "Average" };
+  if (v >= 40) return { letter: "C-", verdict: "Below Average" };
+  if (v >= 25) return { letter: "D",  verdict: "Needs Work" };
+  if (v >= 10) return { letter: "F",  verdict: "Critical Gaps" };
+  return { letter: "F",  verdict: "Not Set Up" };
+}
+
+const scoresGrid = document.getElementById("scores-grid");
+scoreData.forEach(s => {
+  const cls = scoreClass(s.val);
+  const { letter, verdict } = scoreGrade(s.val);
+  scoresGrid.innerHTML += `
+    <div class="score-card">
+      <div class="score-label">${s.label}</div>
+      <div class="score-grade score-${cls}">${letter}</div>
+      <div class="score-verdict score-${cls}">${verdict}</div>
+      <div class="score-bar"><div class="score-fill fill-${cls}" style="width:${s.val}%"></div></div>
+    </div>`;
+});
+
+// ─── Load Report Markdown ─────────────────────────────────────────────────
+async function loadReport() {
+  const body = document.getElementById("report-body");
+  try {
+    // Fetch markdown from Firestore REST API (no auth needed for public reports)
+    const PROJECT = "obsession-marketing-report";
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/reports/${slug}`;
+    const res = await fetch(firestoreUrl);
+    if (!res.ok) throw new Error("Firestore " + res.status);
+    const json = await res.json();
+    const md = json.fields && json.fields.markdown && json.fields.markdown.stringValue;
+    if (!md) throw new Error("no markdown field");
+    body.innerHTML = marked.parse(md);
+  } catch (err) {
+    console.warn("Report fetch failed:", err.message);
+    // Show a helpful message — PDF always works
+    body.innerHTML = `
+      <div style="padding:8px 0">
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:#1a1a2e;">Your report is ready as a PDF</h2>
+        <p style="color:#374151;margin-bottom:12px;">Click <strong>Download PDF</strong> above to get your full personalized audit — it includes all findings, scores, and specific recommendations for your business.</p>
+        <p style="color:#6b7280;font-size:.875rem;">Questions? Email <a href="mailto:jaden@nebula.me" style="color:#4287F5;">jaden@nebula.me</a></p>
+      </div>`;
+  }
+}
+loadReport();
+
+// ─── Email Gate Logic ─────────────────────────────────────────────────────
+// If token param is present → this is a confirmation link click → unlock directly
+if (token) {
+  verifyToken(token);
+}
+// If email param matches the entered email → auto-unlock
+// (checked in handleEmailSubmit)
+
+async function verifyToken(t) {
+  // In production: POST to Firebase Function /verify-token
+  // For now, any non-empty token unlocks (Firebase Function will validate signature)
+  if (t && t.length > 8) {
+    unlockCalculator();
+  }
+}
+
+function handleEmailSubmit() {
+  const input = document.getElementById("email-input").value.trim().toLowerCase();
+  const msg   = document.getElementById("gate-msg");
+
+  if (!input || !input.includes("@")) {
+    msg.textContent = "Please enter a valid email address.";
+    msg.className   = "gate-msg gate-error";
+    return;
+  }
+
+  // Known prospect: email matches the one we emailed → unlock immediately
+  if (prospectEmail && input === prospectEmail.toLowerCase()) {
+    msg.textContent = "Confirmed! Loading your calculator...";
+    msg.className   = "gate-msg gate-success";
+    setTimeout(unlockCalculator, 600);
+    return;
+  }
+
+  // Unknown email → send confirmation link
+  sendConfirmationEmail(input);
+}
+
+async function sendConfirmationEmail(email) {
+  const gate     = document.getElementById("email-gate");
+  const inboxDiv = document.getElementById("inbox-state");
+  document.getElementById("confirm-email-display").textContent = email;
+
+  // POST to Firebase Function /send-confirm
+  try {
+    await fetch(`/api/send-confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, slug, bizName })
+    });
+  } catch {
+    // If API not reachable yet, still show the inbox state (will work post-deploy)
+  }
+
+  gate.style.display    = "none";
+  inboxDiv.style.display = "block";
+}
+
+function unlockCalculator() {
+  // Hide upgrade block, show calculator
+  document.querySelector(".upgrade-block").style.display = "none";
+  const calc = document.getElementById("roi-calculator");
+  calc.classList.add("unlocked");
+  calc.scrollIntoView({ behavior: "smooth", block: "start" });
+  initCalculator();
+}
+
+// ─── ROI Calculator ───────────────────────────────────────────────────────
+let activeServices = new Set(ROI_SERVICES.map(s => s.id)); // all on by default
+let revenue = 500000;
+
+function initCalculator() {
+  renderServiceCards();
+  bindRevenueInputs();
+  updateTotals();
+}
+
+function renderServiceCards() {
+  const grid = document.getElementById("services-grid");
+  grid.innerHTML = "";
+  ROI_SERVICES.forEach(svc => {
+    const active = activeServices.has(svc.id);
+    const { low, high } = calcImpact(svc, revenue);
+    const impactHtml = revenue > 0
+      ? `<div class="card-impact">${fmt(low)} &ndash; ${fmt(high)} / yr</div>`
+      : `<div class="card-impact zero">Enter your revenue above</div>`;
+
+    grid.innerHTML += `
+      <div class="service-card ${active ? "active" : ""}" id="card-${svc.id}" onclick="toggleService('${svc.id}')">
+        <div class="tooltip-icon" data-tooltip="${escHtml(svc.tooltip)}" onclick="event.stopPropagation()">?</div>
+        <div class="card-top">
+          <div class="card-icon-name">
+            <span class="card-icon">${svc.icon}</span>
+            <span class="card-name">${svc.name}</span>
+          </div>
+          <div class="card-toggle">${active ? "&#x2713;" : ""}</div>
+        </div>
+        <div class="card-tagline">${svc.tagline}</div>
+        <div class="card-lift">${pct(svc.conservativePct)} &ndash; ${pct(svc.aggressivePct)} estimated lift</div>
+        ${impactHtml}
+        <div class="card-timeline">&#x23f1; Results in ${svc.timeToResults}</div>
+      </div>`;
+  });
+}
+
+function toggleService(id) {
+  if (activeServices.has(id)) {
+    activeServices.delete(id);
+  } else {
+    activeServices.add(id);
+  }
+  renderServiceCards();
+  updateTotals();
+}
+
+function bindRevenueInputs() {
+  const slider = document.getElementById("revenue-slider");
+  const text   = document.getElementById("revenue-text");
+
+  slider.addEventListener("input", () => {
+    revenue = parseInt(slider.value);
+    text.value = fmtPlain(revenue);
+    renderServiceCards();
+    updateTotals();
+  });
+
+  text.addEventListener("input", () => {
+    const raw = parseInt(text.value.replace(/[^0-9]/g, "")) || 0;
+    revenue = Math.min(raw, 5000000);
+    slider.value = revenue;
+    renderServiceCards();
+    updateTotals();
+  });
+
+  text.addEventListener("blur", () => {
+    text.value = fmtPlain(revenue);
+  });
+}
+
+function calcImpact(svc, rev) {
+  return {
+    low:  Math.round(rev * svc.conservativePct),
+    high: Math.round(rev * svc.aggressivePct),
+  };
+}
+
+function updateTotals() {
+  const selected = ROI_SERVICES.filter(s => activeServices.has(s.id));
+  const totalRange = document.getElementById("total-range");
+  const totalSub   = document.getElementById("total-sub");
+
+  if (selected.length === 0 || revenue === 0) {
+    totalRange.innerHTML = "$0 &ndash; $0";
+    totalSub.textContent = selected.length === 0
+      ? "Select at least one service above"
+      : "Enter your annual revenue above";
+    return;
+  }
+
+  // Sum individual lifts, then cap at combined max
+  let rawLow  = selected.reduce((sum, s) => sum + s.conservativePct, 0);
+  let rawHigh = selected.reduce((sum, s) => sum + s.aggressivePct,   0);
+  rawLow  = Math.min(rawLow,  COMBINED_CAP.conservative);
+  rawHigh = Math.min(rawHigh, COMBINED_CAP.aggressive);
+
+  const low  = Math.round(revenue * rawLow);
+  const high = Math.round(revenue * rawHigh);
+
+  totalRange.innerHTML = `${fmt(low)} &ndash; ${fmt(high)}`;
+  totalSub.textContent = `Based on ${selected.length} service${selected.length > 1 ? "s" : ""} selected &middot; estimated annual impact`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1000000) return "$" + (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000)    return "$" + Math.round(n / 1000) + "K";
+  return "$" + n;
+}
+function fmtPlain(n) {
+  return n.toLocaleString("en-US");
+}
+function pct(v) { return Math.round(v * 100) + "%"; }
+function escHtml(s) { return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Allow Enter key on email input
+document.getElementById("email-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") handleEmailSubmit();
+});
+</script>
+</body>
+</html>
