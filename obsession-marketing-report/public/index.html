@@ -360,26 +360,19 @@
     }
     .service-card .card-impact.zero { color: var(--muted); font-weight: 400; font-size: .85rem; }
     .service-card .card-timeline { font-size: .72rem; color: var(--muted); margin-top: 4px; }
-    .service-card .tooltip-icon {
-      position: absolute; top: 14px; right: 14px;
-      width: 16px; height: 16px; border-radius: 50%;
-      background: var(--border); color: var(--muted);
-      font-size: .65rem; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      cursor: help;
+    .service-card .card-source {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: .72rem;
+      color: var(--muted);
+      line-height: 1.5;
     }
-    /* Tooltip */
-    [data-tooltip] { position: relative; }
-    [data-tooltip]:hover::after {
-      content: attr(data-tooltip);
-      position: absolute; bottom: calc(100% + 8px); right: 0;
-      background: #1e293b; color: #f1f5f9;
-      font-size: .72rem; line-height: 1.5;
-      padding: 8px 12px; border-radius: 8px;
-      width: 240px; z-index: 10;
-      box-shadow: 0 4px 16px rgba(0,0,0,.2);
-      pointer-events: none;
-      white-space: normal;
+    .service-card .card-source strong {
+      color: var(--text);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 2px;
     }
 
     /* Total block */
@@ -759,7 +752,6 @@ function renderServiceCards() {
 
     grid.innerHTML += `
       <div class="service-card ${active ? "active" : ""}" id="card-${svc.id}" onclick="toggleService('${svc.id}')">
-        <div class="tooltip-icon" data-tooltip="${escHtml(svc.tooltip)}" onclick="event.stopPropagation()">?</div>
         <div class="card-top">
           <div class="card-icon-name">
             <span class="card-icon">${svc.icon}</span>
@@ -771,6 +763,9 @@ function renderServiceCards() {
         <div class="card-lift">${pct(svc.conservativePct)} &ndash; ${pct(svc.aggressivePct)} estimated lift</div>
         ${impactHtml}
         <div class="card-timeline">&#x23f1; Results in ${svc.timeToResults}</div>
+        <div class="card-source" onclick="event.stopPropagation()">
+          <strong>Source</strong>${escHtml(svc.tooltip)}
+        </div>
       </div>`;
   });
 }
