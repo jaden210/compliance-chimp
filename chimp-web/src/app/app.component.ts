@@ -11,6 +11,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { FooterComponent } from "./footer/footer.component";
 import { AnalyticsService, FunnelStep } from "./shared/analytics.service";
+import { LeadTrackingService } from "./shared/lead-tracking.service";
 
 @Component({
   standalone: true,
@@ -54,6 +55,7 @@ export class AppComponent implements OnInit {
     public appService: AppService,
     public auth: Auth,
     private analytics: AnalyticsService,
+    private leadTracking: LeadTrackingService,
     @Inject(PLATFORM_ID) private platformId: Object,
     @Inject(DOCUMENT) private document: Document
   ) {
@@ -62,6 +64,9 @@ export class AppComponent implements OnInit {
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
         document.getElementById("scroll")?.scrollTop && (document.getElementById("scroll").scrollTop = 0);
+        if (this.leadTracking.hasActiveJourney()) {
+          this.leadTracking.trackPageView(event.urlAfterRedirects);
+        }
       }
     });
     

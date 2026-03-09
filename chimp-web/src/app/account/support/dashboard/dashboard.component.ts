@@ -53,6 +53,13 @@ export class DashboardComponent {
       icon: 'campaign',
       route: 'outreach',
       color: 'warm'
+    },
+    {
+      label: 'Consultation Leads',
+      description: 'Ingest leads, monitor generated consultations, and resend delivery emails.',
+      icon: 'mark_email_read',
+      route: 'consultation-leads',
+      color: 'primary'
     }
   ];
 }

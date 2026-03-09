@@ -1,0 +1,26 @@
+@if (loading) {
+  <section class="public-consultation-shell">
+    <div class="loading-card">
+      <h1>Loading consultation</h1>
+      <p>Pulling your saved safety consultation now.</p>
+    </div>
+  </section>
+} @else if (notFound || !assessment) {
+  <section class="public-consultation-shell">
+    <div class="message-card">
+      <span class="eyebrow">Consultation Not Found</span>
+      <h1>This consultation link does not exist anymore.</h1>
+      <p>
+        If you expected a report here, request a fresh safety consultation and we will generate a new one.
+      </p>
+      <a class="primary-link" href="/free-safety-consultation">Start a new consultation</a>
+    </div>
+  </section>
+} @else {
+  <app-consultation-assessment-view
+    [assessment]="assessment"
+    [showResetAction]="false"
+    (start)="startOnboarding()"
+    (download)="downloadPdf()"
+  />
+}

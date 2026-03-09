@@ -132,5 +132,11 @@ service cloud.firestore {
     match /outreach-suppression/{hash} {
       allow read, write: if request.auth.uid != null;
     }
+
+    // Public consultation records must be accessible without auth so emailed leads
+    // and self-serve visitors can open their saved consultation links.
+    match /public-osha-consultations/{consultationId} {
+      allow read, write: if true;
+    }
     }
 }

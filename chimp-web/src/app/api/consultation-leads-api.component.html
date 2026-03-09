@@ -1,0 +1,17 @@
+<section class="api-docs-shell">
+  <div class="api-docs-hero">
+    <span class="eyebrow">Developer Docs</span>
+    <h1>Consultation Leads API</h1>
+    <p>
+      Submit leads, generate a free safety consultation on their behalf, and send them a ready-to-open report link.
+    </p>
+  </div>
+
+  <div class="api-docs-card">
+    @if (loading) {
+      <p>Loading documentation...</p>
+    } @else {
+      <article class="api-docs-content" [innerHTML]="renderedContent"></article>
+    }
+  </div>
+</section>

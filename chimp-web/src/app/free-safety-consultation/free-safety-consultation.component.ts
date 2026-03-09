@@ -12,21 +12,15 @@ import { MatSelectModule } from '@angular/material/select';
 import { SeoService } from '../shared/seo.service';
 import {
   ConsultationAssessment,
-  ConsultationObligation,
   ConsultationPrefill,
   US_STATE_OPTIONS
 } from '../shared/osha-consultation';
 import { ChallengeService } from '../challenge/challenge.service';
 import { exportConsultationAssessmentPdf } from '../shared/osha-pdf';
+import { ConsultationAssessmentViewComponent } from '../shared/consultation-assessment-view.component';
+import { LeadTrackingService } from '../shared/lead-tracking.service';
 
-interface ComplianceWheelItem {
-  label: string;
-  description: string;
-  count: number;
-  accentClass: string;
-}
-
-type ScoreSeverity = 'low' | 'medium' | 'high' | 'critical';
+const LAST_REPORT_STORAGE_KEY = 'chimp_last_osha_consultation_report';
 
 @Component({
   standalone: true,
@@ -42,7 +36,8 @@ type ScoreSeverity = 'low' | 'medium' | 'high' | 'critical';
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    MatSelectModule
+    MatSelectModule,
+    ConsultationAssessmentViewComponent
   ]
 })
 export class FreeSafetyConsultationComponent implements OnInit {
@@ -51,6 +46,7 @@ export class FreeSafetyConsultationComponent implements OnInit {
   private seoService = inject(SeoService);
   private router = inject(Router);
   private challengeService = inject(ChallengeService);
+  private leadTracking = inject(LeadTrackingService);
 
   readonly states = US_STATE_OPTIONS;
   readonly consultForm = this.fb.group({
@@ -64,6 +60,7 @@ export class FreeSafetyConsultationComponent implements OnInit {
   isSubmitting = false;
   errorMessage = '';
   assessment: ConsultationAssessment | null = null;
+  savedReportPreview: { companyName: string; generatedAt: string } | null = null;
 
   ngOnInit(): void {
     this.seoService.setCustomSeo({
@@ -72,6 +69,7 @@ export class FreeSafetyConsultationComponent implements OnInit {
       keywords: 'free OSHA consultation, OSHA compliance assessment, OSHA report, safety compliance checklist, OSHA documents required',
       url: 'https://compliancechimp.com/free-safety-consultation'
     });
+    this.refreshSavedReportPreview();
   }
 
   async submit(): Promise<void> {
@@ -94,6 +92,14 @@ export class FreeSafetyConsultationComponent implements OnInit {
       });
 
       this.assessment = result.data as ConsultationAssessment;
+      this.persistLastReport(this.assessment);
+      this.refreshSavedReportPreview();
+
+      if (this.assessment.publicConsultationId) {
+        this.leadTracking.initFromParams(this.assessment.publicConsultationId, 'self-serve', null);
+        this.leadTracking.trackEvent('report_viewed', '/free-safety-consultation');
+        this.leadTracking.syncToFirestore();
+      }
     } catch (error: any) {
       console.error('Error generating OSHA consultation report:', error);
       this.errorMessage = error?.message || 'There was a problem generating your report. Please try again.';
@@ -104,6 +110,9 @@ export class FreeSafetyConsultationComponent implements OnInit {
 
   startOnboarding(): void {
     if (!this.assessment) return;
+
+    this.leadTracking.trackEvent('cta_clicked', undefined, 'start_building');
+    this.leadTracking.syncToFirestore();
 
     const prefill: ConsultationPrefill = {
       ...this.assessment.prefill,
@@ -120,6 +129,7 @@ export class FreeSafetyConsultationComponent implements OnInit {
   reset(): void {
     this.assessment = null;
     this.errorMessage = '';
+    this.refreshSavedReportPreview();
   }
 
   async downloadPdf(): Promise<void> {
@@ -127,115 +137,59 @@ export class FreeSafetyConsultationComponent implements OnInit {
     await exportConsultationAssessmentPdf(this.assessment);
   }
 
-  get scoreSeverity(): ScoreSeverity {
-    const score = this.assessment?.importanceScore ?? 0;
-    if (score >= 85) return 'critical';
-    if (score >= 70) return 'high';
-    if (score >= 55) return 'medium';
-    return 'low';
+  showLastReport(): void {
+    const savedReport = this.readLastReport();
+    if (!savedReport) return;
+    this.assessment = savedReport;
+    this.errorMessage = '';
   }
 
-  get scoreSeverityClass(): string {
-    return `score-${this.scoreSeverity}`;
+  get hasSavedReport(): boolean {
+    return !!this.savedReportPreview;
   }
 
-  get scoreMeaningTitle(): string {
-    switch (this.scoreSeverity) {
-      case 'critical':
-        return 'Immediate compliance attention needed';
-      case 'high':
-        return 'High compliance urgency';
-      case 'medium':
-        return 'Meaningful compliance workload';
-      default:
-        return 'Lower immediate complexity';
+  get savedReportDateLabel(): string {
+    if (!this.savedReportPreview?.generatedAt) return '';
+
+    try {
+      return new Date(this.savedReportPreview.generatedAt).toLocaleString();
+    } catch {
+      return this.savedReportPreview.generatedAt;
     }
   }
 
-  get scoreMeaningDescription(): string {
-    switch (this.scoreSeverity) {
-      case 'critical':
-        return 'A higher score means this business likely has more OSHA duties, more documentation, and more risk exposure to manage right away.';
-      case 'high':
-        return 'This score suggests a fairly serious OSHA workload with several areas that should be documented and controlled early.';
-      case 'medium':
-        return 'This score suggests a moderate set of OSHA requirements, with some formal programs and recordkeeping likely needed.';
-      default:
-        return 'This does not mean no OSHA responsibility. It means the business appears less complex than higher-risk operations.';
+  private persistLastReport(report: ConsultationAssessment): void {
+    try {
+      localStorage.setItem(LAST_REPORT_STORAGE_KEY, JSON.stringify(report));
+    } catch (error) {
+      console.error('Error saving consultation report locally:', error);
     }
   }
 
-  get complianceWheel(): ComplianceWheelItem[] {
-    if (!this.assessment) return [];
+  private readLastReport(): ConsultationAssessment | null {
+    try {
+      const raw = localStorage.getItem(LAST_REPORT_STORAGE_KEY);
+      if (!raw) return null;
 
-    const federal = this.assessment.federalRequirements;
-    const recommended = this.assessment.recommendedProcesses;
-    const state = this.assessment.stateRequirements;
-
-    const posters = federal.filter(item => item.category === 'posters-and-notices');
-    const recordkeeping = federal.filter(item => item.category === 'recordkeeping-and-reporting');
-    const writtenPlans = federal.filter(item => item.category === 'written-programs-and-plans');
-    const training = federal.filter(item =>
-      item.category.includes('training') ||
-      item.title.toLowerCase().includes('train')
-    );
-    const operationalControls = federal.filter(item =>
-      ['fall-protection', 'construction-safety', 'machine-safety', 'training-and-equipment', 'healthcare-and-biohazards'].includes(item.category)
-    );
-
-    return [
-      {
-        label: 'Posters',
-        description: posters.length ? posters[0].title : 'Required notice posting',
-        count: posters.length,
-        accentClass: 'wheel-posters'
-      },
-      {
-        label: 'Recordkeeping',
-        description: recordkeeping.length ? recordkeeping[0].title : 'OSHA logs and reporting',
-        count: recordkeeping.length,
-        accentClass: 'wheel-recordkeeping'
-      },
-      {
-        label: 'Written Plans',
-        description: writtenPlans.length ? writtenPlans[0].title : 'Core written safety plans',
-        count: writtenPlans.length,
-        accentClass: 'wheel-written-plans'
-      },
-      {
-        label: 'Training',
-        description: training.length ? training[0].title : 'Employee training duties',
-        count: training.length,
-        accentClass: 'wheel-training'
-      },
-      {
-        label: 'Operational Controls',
-        description: operationalControls.length ? operationalControls[0].title : 'Jobsite and equipment controls',
-        count: operationalControls.length,
-        accentClass: 'wheel-controls'
-      },
-      {
-        label: 'State Rules',
-        description: state.length ? state[0].title : 'State-plan checks and overlays',
-        count: state.length || recommended.length,
-        accentClass: 'wheel-state'
+      const parsed = JSON.parse(raw) as ConsultationAssessment;
+      if (!parsed?.assessmentId || !parsed?.profile?.companyName) {
+        return null;
       }
-    ];
+
+      return parsed;
+    } catch (error) {
+      console.error('Error reading saved consultation report:', error);
+      return null;
+    }
   }
 
-  trackByObligation(_: number, obligation: ConsultationObligation): string {
-    return obligation.id;
-  }
-
-  trackByText(_: number, value: string): string {
-    return value;
-  }
-
-  trackByCitation(_: number, citation: { url: string }): string {
-    return citation.url;
-  }
-
-  trackByWheelItem(_: number, item: ComplianceWheelItem): string {
-    return item.label;
+  private refreshSavedReportPreview(): void {
+    const savedReport = this.readLastReport();
+    this.savedReportPreview = savedReport
+      ? {
+          companyName: savedReport.profile.companyName,
+          generatedAt: savedReport.generatedAt
+        }
+      : null;
   }
 }

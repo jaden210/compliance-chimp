@@ -5,6 +5,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { ChallengeService } from "../challenge.service";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
+import { LeadTrackingService } from "../../shared/lead-tracking.service";
 
 @Component({
   standalone: true,
@@ -27,7 +28,8 @@ export class WelcomeComponent implements OnInit {
     private challengeService: ChallengeService,
     private router: Router,
     private route: ActivatedRoute,
-    private analytics: AnalyticsService
+    private analytics: AnalyticsService,
+    private leadTracking: LeadTrackingService
   ) {}
 
   ngOnInit(): void {
@@ -73,6 +75,11 @@ export class WelcomeComponent implements OnInit {
 
     // Track welcome page view
     this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_WELCOME_VIEW);
+
+    if (this.leadTracking.hasActiveJourney()) {
+      this.leadTracking.trackEvent('signup_started', '/get-started/welcome');
+      this.leadTracking.syncToFirestore();
+    }
   }
 
   getStarted(): void {

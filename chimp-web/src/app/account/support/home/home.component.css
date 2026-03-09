@@ -19,5 +19,5 @@ a.toolbar-title {
 /* Scrollable content area */
 .support-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
 }

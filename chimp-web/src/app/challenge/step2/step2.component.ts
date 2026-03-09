@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { ChallengeService } from "../challenge.service";
 import { AppService } from "../../app.service";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
+import { LeadTrackingService } from "../../shared/lead-tracking.service";
 
 @Component({
   standalone: true,
@@ -46,7 +47,8 @@ export class Step2Component implements OnInit {
     public challengeService: ChallengeService,
     private appService: AppService,
     private router: Router,
-    private analytics: AnalyticsService
+    private analytics: AnalyticsService,
+    private leadTracking: LeadTrackingService
   ) {}
 
   ngOnInit(): void {
@@ -130,6 +132,12 @@ export class Step2Component implements OnInit {
         team_id: teamId,
         industry: this.challengeService.industry
       });
+
+      if (this.leadTracking.hasActiveJourney()) {
+        this.leadTracking.trackEvent('account_created', '/get-started/step2', teamId);
+        await this.leadTracking.syncToFirestore();
+        this.leadTracking.clear();
+      }
       
       // Navigate to next step
       this.router.navigate(['/get-started/step3']);

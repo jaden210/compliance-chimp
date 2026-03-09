@@ -1,0 +1,128 @@
+.api-docs-shell {
+  padding: 56px 16px 80px;
+  background: linear-gradient(180deg, rgba(5, 77, 138, 0.05) 0%, #f6f8fb 100%);
+}
+
+.api-docs-hero,
+.api-docs-card {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.api-docs-hero {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(5, 77, 138, 0.08);
+  color: var(--chimp-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.api-docs-hero h1 {
+  margin: 16px 0 12px;
+  font-size: 48px;
+  line-height: 1.08;
+  color: var(--chimp-primary);
+}
+
+.api-docs-hero p {
+  margin: 0;
+  max-width: 760px;
+  line-height: 1.7;
+  color: rgba(20, 20, 20, 0.76);
+}
+
+.api-docs-card {
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+}
+
+.api-docs-content {
+  color: #1b1b1b;
+}
+
+.api-docs-content :is(h2, h3, h4) {
+  color: var(--chimp-primary);
+  margin-top: 28px;
+  margin-bottom: 12px;
+}
+
+.api-docs-content h2 {
+  font-size: 30px;
+}
+
+.api-docs-content h3 {
+  font-size: 22px;
+}
+
+.api-docs-content p,
+.api-docs-content li {
+  line-height: 1.7;
+}
+
+.api-docs-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: rgba(5, 77, 138, 0.08);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+
+.api-docs-content pre {
+  overflow-x: auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.api-docs-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.api-docs-content ul {
+  padding-left: 20px;
+}
+
+.api-docs-content a {
+  color: var(--chimp-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.api-docs-content a:hover {
+  text-decoration: underline;
+}
+
+.api-docs-content hr {
+  border: 0;
+  border-top: 1px solid rgba(5, 77, 138, 0.12);
+  margin: 28px 0;
+}
+
+@media screen and (max-width: 720px) {
+  .api-docs-shell {
+    padding: 32px 16px 48px;
+  }
+
+  .api-docs-hero h1 {
+    font-size: 34px;
+  }
+
+  .api-docs-card {
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+}

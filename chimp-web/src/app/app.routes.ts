@@ -18,6 +18,11 @@ export const appRoutes: Routes = [
   { path: "", redirectTo: "home", pathMatch: "full" },
   { path: "home", component: HomeComponent },
   {
+    path: "api/consultation-leads",
+    loadComponent: () =>
+      import("./api/consultation-leads-api.component").then((m) => m.ConsultationLeadsApiComponent)
+  },
+  {
     path: "report/:token",
     loadComponent: () =>
       import("./report/report-page.component").then((m) => m.ReportPageComponent)
@@ -42,6 +47,13 @@ export const appRoutes: Routes = [
     loadChildren: () => import('./lp/lp.routes').then(m => m.lpRoutes)
   },
   { path: "contact", component: ContactComponent },
+  {
+    path: "free-safety-consultation/report/:consultationId",
+    loadComponent: () =>
+      import("./free-safety-consultation/public-consultation-report.component").then(
+        (m) => m.PublicConsultationReportComponent
+      )
+  },
   { path: "free-safety-consultation", component: FreeSafetyConsultationComponent },
   { path: "how-it-works", component: HowComponent },
   { path: "common-questions", component: CommonQuestionsComponent },

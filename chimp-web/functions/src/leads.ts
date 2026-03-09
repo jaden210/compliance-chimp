@@ -5,7 +5,6 @@ import * as admin from "firebase-admin";
 
 const scraperIngestSecret = defineSecret("SCRAPER_INGEST_SECRET");
 const bouncerApiKey = defineSecret("BOUNCER_API_KEY");
-const whoisApiKey = defineSecret("WHOIS_API_KEY");
 
 const db = () => admin.firestore();
 
@@ -23,7 +22,6 @@ type LeadSource =
   | "instagram"
   | "chamber"
   | "bbb"
-  | "whois"
   | "manual";
 
 type LeadStatus =
@@ -439,11 +437,11 @@ export const updateLeadStatus = onCall({}, async (request) => {
 
 /**
  * onCall: enrichLeads
- * WHOIS + Bouncer email verification enrichment.
+ * Bouncer email verification enrichment.
  * Auth: isDev only.
  */
 export const enrichLeads = onCall(
-  { secrets: [bouncerApiKey, whoisApiKey], timeoutSeconds: 300 },
+  { secrets: [bouncerApiKey], timeoutSeconds: 300 },
   async (request) => {
     await requireDev(request);
 
@@ -467,7 +465,6 @@ export const enrichLeads = onCall(
       leads = snap.docs;
     }
 
-    let whoisHits = 0;
     let verified = 0;
     let bounced = 0;
 
@@ -475,25 +472,6 @@ export const enrichLeads = onCall(
       const data = doc.data()!;
       const update: any = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
 
-      // WHOIS enrichment
-      if (data.website && process.env.WHOIS_API_KEY) {
-        try {
-          const domain = new URL(data.website).hostname.replace(/^www\./, "");
-          const whoisRes = await fetch(
-            `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${process.env.WHOIS_API_KEY}&domainName=${domain}&outputFormat=JSON`
-          );
-          const whoisJson: any = await whoisRes.json();
-          const registrantEmail = whoisJson?.WhoisRecord?.registrant?.email;
-          if (registrantEmail && registrantEmail !== data.email && !registrantEmail.includes("privacy") && !registrantEmail.includes("redacted")) {
-            update.whoisEmail = registrantEmail.toLowerCase();
-            whoisHits++;
-          }
-        } catch {
-          // silently skip failed WHOIS lookups
-        }
-      }
-
-      // Bouncer email verification
       if (process.env.BOUNCER_API_KEY) {
         try {
           const bouncerRes = await fetch(
@@ -520,7 +498,6 @@ export const enrichLeads = onCall(
 
     return {
       processed: leads.length,
-      whoisHits,
       verified,
       bounced,
     };

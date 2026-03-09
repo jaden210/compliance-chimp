@@ -23,6 +23,7 @@ const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const xaiApiKey = defineSecret("XAI_API_KEY");
 const slackWebhookUrl = defineSecret("SLACK_WEBHOOK_URL");
 const bouncerApiKey = defineSecret("BOUNCER_API_KEY");
+const consultationLeadIngestSecret = defineSecret("CONSULTATION_LEAD_INGEST_SECRET");
 
 const nodemailer = require("nodemailer");
 const sendgridTransport = require("nodemailer-sendgrid-transport");
@@ -85,6 +86,15 @@ async function requireTeamOwner(
       "permission-denied",
       "You do not have permission to access this team."
     );
+  }
+  return uid;
+}
+
+async function requireDev(request: any): Promise<string> {
+  const uid = requireAuth(request);
+  const userDoc = await admin.firestore().doc(`user/${uid}`).get();
+  if (!userDoc.exists || userDoc.data()?.isDev !== true) {
+    throw new HttpsError("permission-denied", "Dev access required.");
   }
   return uid;
 }
@@ -1390,28 +1400,520 @@ export const generateOshaConsultationReport = onCall(
     const visitorHash = await enforceOshaConsultationRateLimit(request);
     const classification = await classifyBusinessForOshaConsultation(input);
     const report = buildConsultationAssessment(input, classification);
-    const generatedAt = new Date().toISOString();
-
-    const db = admin.firestore();
-    const docRef = db.collection("osha-consultation-assessments").doc();
-
-    const responsePayload = {
-      assessmentId: docRef.id,
-      generatedAt,
-      ...report,
-    };
-
-    await docRef.set({
-      request: input,
-      response: responsePayload,
-      classification,
+    const saved = await saveConsultationArtifacts(input, classification, report, {
+      sourceType: "self-serve",
       visitorHash,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lead: {
+        email: "",
+        emailHash: "",
+        deliveryStatus: "generated",
+        sourceMetadata: { source: "self-serve", campaign: null, externalLeadId: null },
+      },
+    });
+
+    return saved.assessment;
+  }
+);
+
+type ConsultationLeadSourceType = "api" | "self-serve";
+type ConsultationLeadDeliveryStatus = "generated" | "sent" | "send_failed";
+
+interface ConsultationLeadSourceMetadata {
+  source: string | null;
+  campaign: string | null;
+  externalLeadId: string | null;
+}
+
+interface ConsultationLeadIngestInput extends ConsultationRequestInput {
+  email: string;
+  sourceMetadata: ConsultationLeadSourceMetadata;
+}
+
+interface SaveConsultationArtifactsOptions {
+  sourceType: ConsultationLeadSourceType;
+  visitorHash?: string | null;
+  lead?: {
+    email: string;
+    emailHash: string;
+    deliveryStatus: ConsultationLeadDeliveryStatus;
+    emailSentAt?: string | null;
+    emailError?: string | null;
+    sourceMetadata: ConsultationLeadSourceMetadata;
+  };
+}
+
+interface SavedConsultationArtifacts {
+  assessment: any;
+  assessmentId: string;
+  publicConsultationId: string;
+  publicPath: string;
+  publicUrl: string;
+  leadId: string | null;
+}
+
+function buildConsultationPublicPath(publicConsultationId: string): string {
+  return `/free-safety-consultation/report/${publicConsultationId}`;
+}
+
+function buildConsultationPublicUrl(publicConsultationId: string): string {
+  return `https://compliancechimp.com${buildConsultationPublicPath(publicConsultationId)}`;
+}
+
+function normalizeOptionalString(value: unknown, maxLength = 120): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+}
+
+function sanitizeConsultationLeadInput(raw: any): ConsultationLeadIngestInput {
+  const consultationInput = sanitizeConsultationInput(raw);
+  const email = cleanEmailField(String(raw?.email || ""));
+  if (!isValidEmail(email)) {
+    throw new Error("A valid lead email is required.");
+  }
+
+  return {
+    ...consultationInput,
+    email,
+    sourceMetadata: {
+      source: normalizeOptionalString(raw?.source, 80),
+      campaign: normalizeOptionalString(raw?.campaign, 120),
+      externalLeadId: normalizeOptionalString(raw?.externalLeadId, 120),
+    },
+  };
+}
+
+async function saveConsultationArtifacts(
+  input: ConsultationRequestInput,
+  classification: AiConsultationClassification,
+  report: ReturnType<typeof buildConsultationAssessment>,
+  options: SaveConsultationArtifactsOptions
+): Promise<SavedConsultationArtifacts> {
+  const db = admin.firestore();
+  const assessmentRef = db.collection("osha-consultation-assessments").doc();
+  const publicConsultationId = assessmentRef.id;
+  const publicPath = buildConsultationPublicPath(publicConsultationId);
+  const publicUrl = buildConsultationPublicUrl(publicConsultationId);
+  const generatedAt = new Date().toISOString();
+  const responsePayload = {
+    assessmentId: assessmentRef.id,
+    generatedAt,
+    publicConsultationId,
+    publicPath,
+    publicUrl,
+    ...report,
+  };
+
+  const batch = db.batch();
+  batch.set(assessmentRef, {
+    request: input,
+    response: responsePayload,
+    classification,
+    visitorHash: options.visitorHash || null,
+    sourceType: options.sourceType,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    generatedAt,
+    version: 2,
+  });
+
+  const publicRef = db.collection("public-osha-consultations").doc(publicConsultationId);
+  batch.set(publicRef, {
+    assessmentId: assessmentRef.id,
+    publicPath,
+    publicUrl,
+    companyName: input.companyName,
+    sourceType: options.sourceType,
+    generatedAt,
+    assessment: responsePayload,
+    leadId: null,
+    viewCount: 0,
+    lastViewedAt: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    version: 1,
+  });
+
+  let leadId: string | null = null;
+  if (options.lead) {
+    const leadRef = db.collection("osha-consultation-leads").doc();
+    leadId = leadRef.id;
+    batch.set(leadRef, {
+      assessmentId: assessmentRef.id,
+      publicConsultationId,
+      publicPath,
+      publicUrl,
+      sourceType: options.sourceType,
+      deliveryStatus: options.lead.deliveryStatus,
+      email: options.lead.email,
+      emailHash: options.lead.emailHash,
+      companyName: input.companyName,
+      website: input.website,
+      state: input.state,
+      employeeCount: input.employeeCount,
+      description: input.description,
       generatedAt,
+      emailSentAt: options.lead.emailSentAt || null,
+      emailError: options.lead.emailError || null,
+      sourceMetadata: options.lead.sourceMetadata,
+      assessment: responsePayload,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       version: 1,
     });
 
-    return responsePayload;
+    batch.set(publicRef, { leadId }, { merge: true });
+    batch.set(assessmentRef, { leadId, publicConsultationId }, { merge: true });
+  } else {
+    batch.set(assessmentRef, { publicConsultationId }, { merge: true });
+  }
+
+  await batch.commit();
+
+  return {
+    assessment: responsePayload,
+    assessmentId: assessmentRef.id,
+    publicConsultationId,
+    publicPath,
+    publicUrl,
+    leadId,
+  };
+}
+
+function buildConsultationLeadEmailSubject(companyName: string): string {
+  return `Your free safety consultation for ${companyName}`;
+}
+
+const ULYSSES_FUN_FACTS: string[] = [
+  "I had a banana for lunch. Unrelated, but worth mentioning.",
+  "My therapist says I worry too much about fall protection. I say she doesn't worry enough.",
+  "People ask why a chimp runs a compliance company. I ask why it took this long for one to step up.",
+  "I type 40 words per minute. Impressive for someone who also uses his feet.",
+  "I can bench press 600 pounds. Unrelated to compliance but I like to bring it up.",
+  "Sometimes I just sit and think about PPE. That's not a joke. I genuinely do that.",
+  "My team wanted casual Fridays. I reminded them that hard hats aren't optional. We compromised on Hawaiian hard hats.",
+  "I once read the entire OSHA 1910 general industry standard. Cover to cover. On vacation.",
+  "They say dress for the job you want. I want the job where everyone goes home safe. So, steel-toed banana peels.",
+  "I started this company because I care about two things: safety and bananas. In that order. Usually.",
+  "Technically I'm not licensed to give legal advice. Technically I'm also a chimp. Lots of technicalities.",
+  "I was grooming earlier and found a citation under my fur. Just kidding. But I have found them in stranger places.",
+];
+
+function getRandomUlyssesFunFact(): string {
+  return ULYSSES_FUN_FACTS[Math.floor(Math.random() * ULYSSES_FUN_FACTS.length)];
+}
+
+function buildConsultationLeadEmailHtml(args: {
+  companyName: string;
+  assessment: any;
+  publicUrl: string;
+}): string {
+  const { companyName, assessment, publicUrl } = args;
+  const funFact = getRandomUlyssesFunFact();
+  const nextActions = Array.isArray(assessment.nextActions)
+    ? assessment.nextActions.slice(0, 3)
+    : [];
+  const nextActionsHtml = nextActions.length
+    ? nextActions
+        .map(
+          (action: any) =>
+            `<li style="margin:0 0 8px;"><strong>${action.title}</strong>: ${action.description}</li>`
+        )
+        .join("")
+    : `<li style="margin:0;">Open the consultation to review your recommended next steps.</li>`;
+
+  return `
+    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
+          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
+        </div>
+        <div style="padding:32px;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+            <tr>
+              <td style="width:140px;vertical-align:top;padding-right:20px;">
+                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:top;">
+                <h2 style="margin:0 0 6px;font-size:22px;color:#054d8a;">A New Era of Workplace Safety</h2>
+                <p style="margin:0 0 10px;font-size:14px;color:#5b6470;line-height:1.5;">
+                  I'm Ulysses, the world's first AI agent for workplace safety with a total mastery of OSHA.
+                </p>
+                <p style="margin:0;line-height:1.7;">
+                  I help small businesses put together real safety programs. Training plans, inspections, compliance tracking, record keeping. The whole system, without the price tag of a full-time safety manager.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:0 0 24px;line-height:1.7;">
+            I went ahead and ran <strong>${companyName}</strong> against current OSHA standards to see where you stand. Here is what I found.
+          </p>
+          <div style="display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
+            <div>
+              <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
+              <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
+              <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
+            </div>
+            <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;">Open My Consultation</a>
+          </div>
+          <div style="margin-top:24px;">
+            <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">Ulysses's quick read</h2>
+            <p style="margin:0;line-height:1.7;">${assessment.ulyssesTake}</p>
+          </div>
+          <div style="margin-top:24px;">
+            <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">First things to look at</h2>
+            <ul style="margin:0;padding-left:20px;line-height:1.7;">
+              ${nextActionsHtml}
+            </ul>
+          </div>
+          <div style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
+            <p style="margin:0;line-height:1.7;color:#4b5563;">
+              Full consultation link: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
+            </p>
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
+            <tr>
+              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
+                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:middle;padding:16px 20px;">
+                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildConsultationLeadEmailText(args: {
+  companyName: string;
+  assessment: any;
+  publicUrl: string;
+}): string {
+  const { companyName, assessment, publicUrl } = args;
+  const funFact = getRandomUlyssesFunFact();
+  const nextActions = Array.isArray(assessment.nextActions)
+    ? assessment.nextActions
+        .slice(0, 3)
+        .map((action: any) => `- ${action.title}: ${action.description}`)
+        .join("\n")
+    : "- Open the consultation to review your recommended next steps.";
+
+  return [
+    `A New Era of Workplace Safety`,
+    `I'm Ulysses, the world's first AI agent for workplace safety with a total mastery of OSHA.`,
+    "",
+    `I help small businesses put together real safety programs. Training plans, inspections, compliance tracking, record keeping. The whole system, without the price tag of a full-time safety manager.`,
+    "",
+    `I went ahead and ran ${companyName} against current OSHA standards to see where you stand. Here is what I found.`,
+    "",
+    `Compliance urgency score: ${assessment.importanceScore} (${assessment.importanceLevel})`,
+    "",
+    "Ulysses's quick read:",
+    assessment.ulyssesTake,
+    "",
+    "First things to look at:",
+    nextActions,
+    "",
+    `Open your consultation: ${publicUrl}`,
+    "",
+    `Fun fact about me: ${funFact}`,
+  ].join("\n");
+}
+
+async function sendConsultationLeadEmail(args: {
+  to: string;
+  companyName: string;
+  assessment: any;
+  publicUrl: string;
+  leadId?: string;
+}): Promise<void> {
+  const trackedUrl = args.leadId
+    ? `${args.publicUrl}?ref=email&lid=${args.leadId}`
+    : args.publicUrl;
+  const emailArgs = { companyName: args.companyName, assessment: args.assessment, publicUrl: trackedUrl };
+  const client = createSendgridClient();
+  await client.sendMail({
+    from: '"Compliancechimp" <support@compliancechimp.com>',
+    to: args.to,
+    subject: buildConsultationLeadEmailSubject(args.companyName),
+    html: buildConsultationLeadEmailHtml(emailArgs),
+    text: buildConsultationLeadEmailText(emailArgs),
+  });
+}
+
+async function findExistingConsultationLead(
+  sourceMetadata: ConsultationLeadSourceMetadata
+): Promise<admin.firestore.QueryDocumentSnapshot | null> {
+  if (!sourceMetadata.source || !sourceMetadata.externalLeadId) {
+    return null;
+  }
+
+  const snap = await admin
+    .firestore()
+    .collection("osha-consultation-leads")
+    .where("sourceMetadata.source", "==", sourceMetadata.source)
+    .where("sourceMetadata.externalLeadId", "==", sourceMetadata.externalLeadId)
+    .limit(1)
+    .get();
+
+  return snap.empty ? null : snap.docs[0];
+}
+
+function requireConsultationLeadIngestSecret(req: any): void {
+  const provided = req.headers["x-consultation-ingest-secret"];
+  const expected = consultationLeadIngestSecret.value();
+  if (!expected || provided !== expected) {
+    throw new HttpsError("unauthenticated", "Invalid consultation lead ingest secret.");
+  }
+}
+
+export const submitConsultationLead = onRequest(
+  {
+    secrets: [consultationLeadIngestSecret, sendgridApiKey, xaiApiKey],
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    cors: true,
+  },
+  async (req, res): Promise<void> => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      requireConsultationLeadIngestSecret(req);
+    } catch {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    let input: ConsultationLeadIngestInput;
+    try {
+      input = sanitizeConsultationLeadInput(req.body);
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "Invalid consultation lead request." });
+      return;
+    }
+
+    const existing = await findExistingConsultationLead(input.sourceMetadata);
+    if (existing) {
+      const data = existing.data() || {};
+      res.status(200).json({
+        deduped: true,
+        leadId: existing.id,
+        assessmentId: data.assessmentId || null,
+        publicConsultationId: data.publicConsultationId || null,
+        publicPath: data.publicPath || null,
+        publicUrl: data.publicUrl || null,
+        deliveryStatus: data.deliveryStatus || null,
+      });
+      return;
+    }
+
+    const classification = await classifyBusinessForOshaConsultation(input);
+    const report = buildConsultationAssessment(input, classification);
+    const saved = await saveConsultationArtifacts(input, classification, report, {
+      sourceType: "api",
+      lead: {
+        email: input.email,
+        emailHash: emailHash(input.email),
+        deliveryStatus: "generated",
+        sourceMetadata: input.sourceMetadata,
+      },
+    });
+
+    let deliveryStatus: ConsultationLeadDeliveryStatus = "generated";
+    let emailSentAt: string | null = null;
+    let emailError: string | null = null;
+
+    try {
+      await sendConsultationLeadEmail({
+        to: input.email,
+        companyName: input.companyName,
+        assessment: saved.assessment,
+        publicUrl: saved.publicUrl,
+        leadId: saved.leadId ?? undefined,
+      });
+      deliveryStatus = "sent";
+      emailSentAt = new Date().toISOString();
+    } catch (error: any) {
+      console.error("Error sending consultation lead email:", error);
+      deliveryStatus = "send_failed";
+      emailError = error?.message || "Unable to send consultation email.";
+    }
+
+    if (saved.leadId) {
+      await admin.firestore().doc(`osha-consultation-leads/${saved.leadId}`).set(
+        {
+          deliveryStatus,
+          emailSentAt,
+          emailError,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    res.status(200).json({
+      deduped: false,
+      leadId: saved.leadId,
+      assessmentId: saved.assessmentId,
+      publicConsultationId: saved.publicConsultationId,
+      publicPath: saved.publicPath,
+      publicUrl: saved.publicUrl,
+      deliveryStatus,
+      emailSentAt,
+      emailError,
+    });
+  }
+);
+
+export const resendConsultationLeadEmail = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    await requireDev(request);
+    const { leadId, testEmail } = request.data || {};
+    if (!leadId || typeof leadId !== "string") {
+      throw new HttpsError("invalid-argument", "Missing leadId");
+    }
+
+    const leadRef = admin.firestore().doc(`osha-consultation-leads/${leadId}`);
+    const leadSnap = await leadRef.get();
+    if (!leadSnap.exists) {
+      throw new HttpsError("not-found", "Consultation lead not found");
+    }
+
+    const lead = leadSnap.data() || {};
+    const recipientEmail = (typeof testEmail === "string" && testEmail.trim())
+      ? testEmail.trim()
+      : String(lead.email || "");
+
+    await sendConsultationLeadEmail({
+      to: recipientEmail,
+      companyName: String(lead.companyName || lead.assessment?.profile?.companyName || "your business"),
+      assessment: lead.assessment,
+      publicUrl: String(lead.publicUrl || ""),
+      leadId,
+    });
+
+    if (!testEmail) {
+      const emailSentAt = new Date().toISOString();
+      await leadRef.set(
+        {
+          deliveryStatus: "sent",
+          emailSentAt,
+          emailError: null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    return { success: true, leadId, sentTo: recipientEmail };
   }
 );
 

@@ -59,6 +59,9 @@ export interface ConsultationProfile {
 export interface ConsultationAssessment {
   assessmentId: string;
   generatedAt: string;
+  publicConsultationId?: string;
+  publicPath?: string;
+  publicUrl?: string;
   importanceScore: number;
   importanceLevel: string;
   summary: string;
@@ -71,6 +74,78 @@ export interface ConsultationAssessment {
   nextActions: ConsultationNextAction[];
   caveats: string[];
   prefill: ConsultationPrefill;
+}
+
+export type ConsultationLeadSourceType = 'api' | 'self-serve';
+export type ConsultationLeadDeliveryStatus = 'generated' | 'sent' | 'send_failed';
+
+export interface ConsultationLeadSourceMetadata {
+  source?: string;
+  campaign?: string;
+  externalLeadId?: string;
+}
+
+export interface ConsultationLeadRecord {
+  id: string;
+  assessmentId: string;
+  publicConsultationId: string;
+  publicPath: string;
+  publicUrl: string;
+  sourceType: ConsultationLeadSourceType;
+  deliveryStatus: ConsultationLeadDeliveryStatus;
+  email: string;
+  emailHash: string;
+  companyName: string;
+  website: string;
+  state: string;
+  employeeCount: number;
+  description: string;
+  generatedAt: string;
+  emailSentAt?: string | null;
+  emailError?: string | null;
+  sourceMetadata?: ConsultationLeadSourceMetadata;
+  assessment: ConsultationAssessment;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  version: number;
+}
+
+export interface LeadJourneyEvent {
+  type: 'report_viewed' | 'page_view' | 'cta_clicked' | 'signup_started' | 'step_completed' | 'account_created';
+  path?: string;
+  timestamp: string;
+  detail?: string;
+}
+
+export interface LeadJourney {
+  leadId?: string;
+  ref?: string;
+  firstVisitAt?: string;
+  lastActivityAt?: string;
+  reportViewed?: boolean;
+  ctaClicked?: boolean;
+  signupStarted?: boolean;
+  accountCreated?: boolean;
+  teamId?: string;
+  events?: LeadJourneyEvent[];
+}
+
+export interface PublicConsultationRecord {
+  id: string;
+  assessmentId: string;
+  publicPath: string;
+  publicUrl: string;
+  companyName: string;
+  sourceType: ConsultationLeadSourceType;
+  generatedAt: string;
+  assessment: ConsultationAssessment;
+  leadId?: string | null;
+  viewCount?: number;
+  lastViewedAt?: unknown;
+  journey?: LeadJourney;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  version: number;
 }
 
 export const US_STATE_OPTIONS: StateOption[] = [

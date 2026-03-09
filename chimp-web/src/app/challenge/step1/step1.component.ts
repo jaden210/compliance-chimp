@@ -14,6 +14,7 @@ import { Subject, Subscription, debounceTime } from "rxjs";
 import { trigger, transition, style, animate } from "@angular/animations";
 import { ChallengeService } from "../challenge.service";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
+import { LeadTrackingService } from "../../shared/lead-tracking.service";
 
 @Component({
   standalone: true,
@@ -89,6 +90,7 @@ export class Step1Component implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private analytics: AnalyticsService,
+    private leadTracking: LeadTrackingService,
     private functions: Functions,
     private dialog: MatDialog
   ) {}
@@ -227,6 +229,8 @@ export class Step1Component implements OnInit, OnDestroy {
       industry: this.industry.trim(),
       has_website: !!this.businessWebsite.trim()
     });
+
+    this.leadTracking.trackEvent('step_completed', '/get-started/step1', 'step1');
     
     // Show interstitial overlay with chimp fact before navigating
     this.showInterstitial();

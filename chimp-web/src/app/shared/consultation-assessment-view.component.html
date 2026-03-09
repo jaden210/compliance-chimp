@@ -1,0 +1,270 @@
+<section class="report-section">
+  <div class="report-shell">
+    <div class="report-header">
+      <div>
+        <span class="eyebrow">Assessment Ready</span>
+        <h2>{{ assessment.profile.companyName }}</h2>
+        <p class="report-subtitle">{{ assessment.summary }}</p>
+      </div>
+
+      <div class="score-card" [class]="scoreSeverityClass">
+        <div class="score-label">Compliance Urgency Score</div>
+        <div class="score-value">{{ assessment.importanceScore }}</div>
+        <div class="score-level">{{ assessment.importanceLevel }}</div>
+        <p class="score-helper">
+          Higher score = more OSHA obligations and more urgency to get controls in place.
+        </p>
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <div class="profile-item">
+        <span class="profile-label">Industry profile</span>
+        <strong>{{ assessment.profile.industryDescription }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">OSHA track</span>
+        <strong>{{ assessment.profile.oshaTrack }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Employees</span>
+        <strong>{{ assessment.profile.employeeCount }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">State</span>
+        <strong>{{ assessment.profile.state }}</strong>
+      </div>
+    </div>
+
+    <div class="ulysses-card">
+      <img src="/assets/chimp.png" alt="Ulysses" class="ulysses-avatar" />
+      <div class="ulysses-bubble">
+        <span class="ulysses-label">Ulysses's Take</span>
+        <strong class="ulysses-title">{{ scoreMeaningTitle }}</strong>
+        <p>{{ assessment.ulyssesTake }}</p>
+        <p class="ulysses-support">{{ assessment.importanceReason }}</p>
+        <p class="ulysses-support">{{ scoreMeaningDescription }}</p>
+      </div>
+    </div>
+
+    <div class="wheel-card">
+      <div class="wheel-visual">
+        <div class="compliance-wheel">
+          <div class="wheel-center" [class]="scoreSeverityClass">
+            <span class="wheel-center-label">Compliance</span>
+            <strong>{{ assessment.importanceScore }}/100</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="wheel-copy">
+        <h3>All The Elements Of Compliance</h3>
+        <p class="card-intro">
+          Think of this as the wheel you have to keep turning. Each slice is one part of a complete OSHA program.
+        </p>
+
+        <div class="wheel-legend">
+          @for (item of complianceWheel; track trackByWheelItem($index, item)) {
+            <div class="wheel-legend-item">
+              <span class="wheel-swatch" [class]="item.accentClass"></span>
+              <div>
+                <strong>{{ item.label }}</strong>
+                <p>{{ item.description }}</p>
+              </div>
+              <span class="wheel-count">{{ item.count }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="report-actions">
+      @if (showStartAction) {
+        <button mat-flat-button class="primary-cta" (click)="start.emit()">
+          {{ primaryCtaLabel }}
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      }
+      @if (showDownloadAction) {
+        <button mat-stroked-button class="secondary-cta" (click)="download.emit()">
+          Download PDF
+          <mat-icon>download</mat-icon>
+        </button>
+      }
+      @if (showResetAction) {
+        <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
+          Run Another Assessment
+        </button>
+      }
+    </div>
+
+    <div class="report-stack">
+      <article class="report-card">
+        <h3>Required Federal Actions</h3>
+        <p class="card-intro">
+          These are the baseline federal items most likely to apply to this business profile.
+        </p>
+        @for (obligation of assessment.federalRequirements; track trackByObligation($index, obligation)) {
+          <div class="obligation-card">
+            <div class="obligation-header">
+              <div>
+                <h4>{{ obligation.title }}</h4>
+                <p>{{ obligation.appliesBecause }}</p>
+              </div>
+              <span
+                class="status-chip"
+                [class.required]="obligation.requirementLevel === 'required'"
+                [class.conditional]="obligation.requirementLevel === 'conditional'"
+              >
+                {{ obligation.requirementLevel }}
+              </span>
+            </div>
+            <ul>
+              @for (detail of obligation.details; track trackByText($index, detail)) {
+                <li>{{ detail }}</li>
+              }
+            </ul>
+            @if (obligation.thresholdNotes.length) {
+              <div class="notes-block">
+                @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
+                  <p>{{ note }}</p>
+                }
+              </div>
+            }
+            <div class="citations">
+              @for (citation of obligation.citations; track trackByCitation($index, citation)) {
+                <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
+              }
+            </div>
+          </div>
+        }
+      </article>
+
+      <article class="report-card">
+        <h3>State-Specific Flags</h3>
+        <p class="card-intro">
+          Federal OSHA is not always the whole story. These are the state-plan items and caveats to check.
+        </p>
+        @if (assessment.stateRequirements.length) {
+          @for (obligation of assessment.stateRequirements; track trackByObligation($index, obligation)) {
+            <div class="obligation-card">
+              <div class="obligation-header">
+                <div>
+                  <h4>{{ obligation.title }}</h4>
+                  <p>{{ obligation.appliesBecause }}</p>
+                </div>
+                <span
+                  class="status-chip"
+                  [class.required]="obligation.requirementLevel === 'required'"
+                  [class.conditional]="obligation.requirementLevel === 'conditional'"
+                >
+                  {{ obligation.requirementLevel }}
+                </span>
+              </div>
+              <ul>
+                @for (detail of obligation.details; track trackByText($index, detail)) {
+                  <li>{{ detail }}</li>
+                }
+              </ul>
+              @if (obligation.thresholdNotes.length) {
+                <div class="notes-block">
+                  @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
+                    <p>{{ note }}</p>
+                  }
+                </div>
+              }
+              <div class="citations">
+                @for (citation of obligation.citations; track trackByCitation($index, citation)) {
+                  <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
+                }
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="empty-card">
+            <mat-icon>verified</mat-icon>
+            <p>
+              No extra private-sector state-plan overlay was detected from the state you selected.
+              Federal OSHA likely remains the primary baseline.
+            </p>
+          </div>
+        }
+      </article>
+    </div>
+
+    <div class="section-grid">
+      <article class="report-card">
+        <h3>Recommended Processes</h3>
+        <p class="card-intro">
+          These are the systems most businesses need in practice to stay organized and inspection-ready.
+        </p>
+        @for (obligation of assessment.recommendedProcesses; track trackByObligation($index, obligation)) {
+          <div class="obligation-card compact">
+            <div class="obligation-header">
+              <div>
+                <h4>{{ obligation.title }}</h4>
+                <p>{{ obligation.appliesBecause }}</p>
+              </div>
+              <span class="status-chip recommended">recommended</span>
+            </div>
+            <ul>
+              @for (detail of obligation.details; track trackByText($index, detail)) {
+                <li>{{ detail }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </article>
+
+      <article class="report-card">
+        <h3>What To Do Next</h3>
+        <p class="card-intro">Use this as your first pass through the work.</p>
+        <div class="next-actions">
+          @for (action of assessment.nextActions; track trackByText($index, action.title)) {
+            <div class="next-action">
+              <span
+                class="priority-dot"
+                [class.high]="action.priority === 'high'"
+                [class.medium]="action.priority === 'medium'"
+                [class.low]="action.priority === 'low'"
+              ></span>
+              <div>
+                <strong>{{ action.title }}</strong>
+                <p>{{ action.description }}</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="caveat-card">
+          <h4>Assumptions And Caveats</h4>
+          <ul>
+            @for (caveat of assessment.caveats; track trackByText($index, caveat)) {
+              <li>{{ caveat }}</li>
+            }
+          </ul>
+        </div>
+      </article>
+    </div>
+
+    @if (showStartAction) {
+      <div class="bottom-cta-card">
+        <div>
+          <span class="bottom-cta-eyebrow">Ready To Fix It</span>
+          <h3>
+            Let Ulysses build the system instead of leaving you with a very expensive to-do list.
+          </h3>
+          <p>
+            You have the score, the documents, and the weak spots. The next step is getting the program built,
+            assigned, and tracked before any of this turns into a fine, an injury, or both.
+          </p>
+        </div>
+
+        <button mat-flat-button class="bottom-cta-btn" (click)="start.emit()">
+          {{ bottomCtaLabel }}
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+</section>

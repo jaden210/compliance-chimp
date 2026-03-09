@@ -48,6 +48,13 @@ export const supportRoutes: Routes = [
         loadChildren: () =>
           import("../outreach/outreach.routes").then((m) => m.outreachRoutes),
       },
+      {
+        path: "consultation-leads",
+        loadComponent: () =>
+          import("../consultation-leads/consultation-leads.component").then(
+            (m) => m.ConsultationLeadsComponent
+          ),
+      },
     ],
   },
 ];

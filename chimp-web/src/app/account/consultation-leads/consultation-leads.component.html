@@ -1,0 +1,191 @@
+<section class="consultation-leads-page">
+  <div class="page-header">
+    <h1>Consultation Leads</h1>
+    <div class="header-actions">
+      <a mat-stroked-button href="/api/consultation-leads" target="_blank" rel="noopener">
+        API Docs
+      </a>
+      <a mat-flat-button href="/free-safety-consultation" target="_blank" rel="noopener">
+        Open Self-Serve Tool
+      </a>
+    </div>
+  </div>
+  <p class="page-subtitle">Review generated leads, open their saved consultation, and resend the delivery email when needed.</p>
+
+  @if (summary$ | async; as summary) {
+    <div class="summary-grid">
+      <div class="summary-card">
+        <span>Total Leads</span>
+        <strong>{{ summary.total }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Emails Sent</span>
+        <strong>{{ summary.sent }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Viewed Report</span>
+        <strong>{{ summary.viewed }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Started Signup</span>
+        <strong>{{ summary.signupStarted }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Converted</span>
+        <strong>{{ summary.converted }}</strong>
+      </div>
+      <div class="summary-card">
+        <span>Send Failed</span>
+        <strong>{{ summary.failed }}</strong>
+      </div>
+    </div>
+  }
+
+  <div class="filters-card">
+    <mat-form-field appearance="outline">
+      <mat-label>Search</mat-label>
+      <input matInput #searchInput (input)="setSearch(searchInput.value)" placeholder="Company, email, source, or campaign" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Conversion Status</mat-label>
+      <mat-select #statusSelect (selectionChange)="setStatus(statusSelect.value)" value="all">
+        <mat-option value="all">All statuses</mat-option>
+        <mat-option value="generated">Generated</mat-option>
+        <mat-option value="sent">Sent</mat-option>
+        <mat-option value="viewed">Viewed</mat-option>
+        <mat-option value="clicked">CTA Clicked</mat-option>
+        <mat-option value="signup_started">Signup Started</mat-option>
+        <mat-option value="converted">Converted</mat-option>
+        <mat-option value="failed">Failed</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Source Type</mat-label>
+      <mat-select #sourceSelect (selectionChange)="setSource(sourceSelect.value)" value="all">
+        <mat-option value="all">All sources</mat-option>
+        <mat-option value="api">API</mat-option>
+        <mat-option value="self-serve">Self-serve</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (filteredLeads$ | async; as leads) {
+    @if (leads.length) {
+      <div class="lead-list">
+        @for (lead of leads; track trackByLeadId($index, lead)) {
+          <article class="lead-card">
+            <div class="lead-card-top">
+              <div>
+                <h2>{{ lead.companyName }}</h2>
+                <p>{{ lead.email }}</p>
+              </div>
+              <span class="status-chip" [class]="getConversionStatus(lead)">{{ conversionLabels[getConversionStatus(lead)] }}</span>
+            </div>
+
+            <div class="lead-meta-grid">
+              <div>
+                <span class="meta-label">Score</span>
+                <strong>{{ lead.assessment.importanceScore }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">State</span>
+                <strong>{{ lead.state }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">Employees</span>
+                <strong>{{ lead.employeeCount }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">Source</span>
+                <strong>{{ lead.sourceMetadata?.source || lead.sourceType }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">Campaign</span>
+                <strong>{{ lead.sourceMetadata?.campaign || '—' }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">Sent At</span>
+                <strong>{{ formatDate(lead.emailSentAt || lead.createdAt) }}</strong>
+              </div>
+            </div>
+
+            @if (journeysLoaded) {
+              <div class="funnel-track">
+                <div class="funnel-step reached">
+                  <div class="funnel-dot"></div>
+                  <span>{{ lead.deliveryStatus === 'sent' ? 'Email Sent' : 'Generated' }}</span>
+                </div>
+                <div class="funnel-connector" [class.reached]="getJourney(lead)?.reportViewed"></div>
+                <div class="funnel-step" [class.reached]="getJourney(lead)?.reportViewed">
+                  <div class="funnel-dot"></div>
+                  <span>Viewed</span>
+                </div>
+                <div class="funnel-connector" [class.reached]="getJourney(lead)?.ctaClicked"></div>
+                <div class="funnel-step" [class.reached]="getJourney(lead)?.ctaClicked">
+                  <div class="funnel-dot"></div>
+                  <span>CTA Clicked</span>
+                </div>
+                <div class="funnel-connector" [class.reached]="getJourney(lead)?.signupStarted"></div>
+                <div class="funnel-step" [class.reached]="getJourney(lead)?.signupStarted">
+                  <div class="funnel-dot"></div>
+                  <span>Signup Started</span>
+                </div>
+                <div class="funnel-connector" [class.reached]="getJourney(lead)?.accountCreated"></div>
+                <div class="funnel-step" [class.reached]="getJourney(lead)?.accountCreated">
+                  <div class="funnel-dot"></div>
+                  <span>Converted</span>
+                </div>
+              </div>
+            }
+
+            <p class="lead-summary">{{ lead.assessment.summary }}</p>
+
+            @if (lead.emailError) {
+              <div class="error-banner">
+                <strong>Email issue:</strong>
+                <span>{{ lead.emailError }}</span>
+              </div>
+            }
+
+            <div class="lead-actions">
+              <a mat-stroked-button [href]="lead.publicUrl" target="_blank" rel="noopener">
+                Open Consultation
+              </a>
+              <button mat-stroked-button (click)="toggleEmailPreview(lead)">
+                {{ emailPreviewById[lead.id] ? 'Hide Email' : 'Preview Email' }}
+              </button>
+              <button mat-flat-button (click)="resendEmail(lead)" [disabled]="resendingById[lead.id]">
+                {{ resendingById[lead.id] ? 'Resending...' : 'Resend Email' }}
+              </button>
+              <div class="test-email-inline">
+                <input
+                  [ngModel]="testEmailById[lead.id] || ''"
+                  (ngModelChange)="testEmailById[lead.id] = $event"
+                  placeholder="Send test to..."
+                  type="email" />
+                <button mat-stroked-button
+                  (click)="sendTestEmail(lead)"
+                  [disabled]="sendingTestById[lead.id] || !testEmailById[lead.id]?.trim()">
+                  {{ sendingTestById[lead.id] ? 'Sending...' : 'Send' }}
+                </button>
+              </div>
+            </div>
+
+            @if (emailPreviewById[lead.id]) {
+              <div class="email-preview">
+                <iframe [src]="emailPreviewById[lead.id]" sandbox="allow-same-origin"></iframe>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="empty-card">
+        <h2>No consultation leads yet</h2>
+        <p>Once leads are submitted through the new API, they will show up here with generation and email status.</p>
+      </div>
+    }
+  }
+</section>
