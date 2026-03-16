@@ -331,7 +331,9 @@ export class ChallengeService {
 
   createTeam(userId: string): Promise<string> {
     // Analytics tracking is handled in the step2 component
-    const teamData = {
+    const referralCode = localStorage.getItem('chimp_referral_code') || null;
+
+    const teamData: Record<string, any> = {
       createdAt: new Date(),
       ownerId: userId,
       name: this.state.businessName,
@@ -342,9 +344,10 @@ export class ChallengeService {
       email: this.state.email,
       disabled: false,
       createdVia: 'challenge',
-      autoStartTrainings: true,  // New teams default to auto-start enabled
+      autoStartTrainings: true,
       consultationAssessmentId: this.state.consultationAssessmentId,
-      consultationImportanceScore: this.state.consultationImportanceScore
+      consultationImportanceScore: this.state.consultationImportanceScore,
+      referredByCode: referralCode,
     };
 
     const cleanedTeamData = Object.fromEntries(
@@ -355,6 +358,7 @@ export class ChallengeService {
       .then(team => {
         this.state.teamId = team.id;
         this.clearConsultationPrefill();
+        localStorage.removeItem('chimp_referral_code');
         this.saveState();
         return team.id;
       })

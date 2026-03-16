@@ -6,6 +6,7 @@ import * as moment from "moment";
 import * as admin from "firebase-admin";
 import {
   AiConsultationClassification,
+  ConsultationAssessment,
   ConsultationRequestInput,
   buildConsultationAssessment,
   buildFallbackClassification,
@@ -47,6 +48,7 @@ function createStripeClient() {
 // Re-export functions from other modules
 export * from './outbound';
 export * from './leads';
+export * from './sales-leads';
 
 const fs = require("fs");
 const path = require("path");
@@ -1386,7 +1388,7 @@ Return JSON: { "suggestion": "your description here" } or { "suggestion": null }
 export const generateOshaConsultationReport = onCall(
   {
     secrets: [xaiApiKey],
-    timeoutSeconds: 30,
+    timeoutSeconds: 60,
     memory: "512MiB",
   },
   async (request) => {
@@ -1400,6 +1402,7 @@ export const generateOshaConsultationReport = onCall(
     const visitorHash = await enforceOshaConsultationRateLimit(request);
     const classification = await classifyBusinessForOshaConsultation(input);
     const report = buildConsultationAssessment(input, classification);
+    const spanishReport = await translateAssessmentToSpanish(report);
     const saved = await saveConsultationArtifacts(input, classification, report, {
       sourceType: "self-serve",
       visitorHash,
@@ -1409,14 +1412,14 @@ export const generateOshaConsultationReport = onCall(
         deliveryStatus: "generated",
         sourceMetadata: { source: "self-serve", campaign: null, externalLeadId: null },
       },
-    });
+    }, spanishReport);
 
-    return saved.assessment;
+    return { ...saved.assessment, assessment_es: saved.assessment_es };
   }
 );
 
 type ConsultationLeadSourceType = "api" | "self-serve";
-type ConsultationLeadDeliveryStatus = "generated" | "sent" | "send_failed";
+type ConsultationLeadDeliveryStatus = "generated" | "sent" | "send_failed" | "skipped_duplicate_email";
 
 interface ConsultationLeadSourceMetadata {
   source: string | null;
@@ -1426,6 +1429,10 @@ interface ConsultationLeadSourceMetadata {
 
 interface ConsultationLeadIngestInput extends ConsultationRequestInput {
   email: string;
+  name: string | null;
+  industry: string | null;
+  niche: string | null;
+  city: string | null;
   sourceMetadata: ConsultationLeadSourceMetadata;
 }
 
@@ -1436,6 +1443,10 @@ interface SaveConsultationArtifactsOptions {
     email: string;
     emailHash: string;
     deliveryStatus: ConsultationLeadDeliveryStatus;
+    name?: string | null;
+    industry?: string | null;
+    niche?: string | null;
+    city?: string | null;
     emailSentAt?: string | null;
     emailError?: string | null;
     sourceMetadata: ConsultationLeadSourceMetadata;
@@ -1444,6 +1455,7 @@ interface SaveConsultationArtifactsOptions {
 
 interface SavedConsultationArtifacts {
   assessment: any;
+  assessment_es: any | null;
   assessmentId: string;
   publicConsultationId: string;
   publicPath: string;
@@ -1466,6 +1478,44 @@ function normalizeOptionalString(value: unknown, maxLength = 120): string | null
   return trimmed.slice(0, maxLength);
 }
 
+function normalizeDomain(url: string): string {
+  if (!url) return "";
+  let domain = url.trim().toLowerCase();
+  domain = domain.replace(/^https?:\/\//, "");
+  domain = domain.replace(/^www\./, "");
+  domain = domain.replace(/\/.*$/, "");
+  return domain;
+}
+
+function formatConsultationLeadTimestamp(val: any): string | null {
+  if (!val) return null;
+  if (val.toDate) return val.toDate().toISOString();
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "string") return val;
+  return null;
+}
+
+function formatConsultationLead(doc: admin.firestore.DocumentSnapshot): Record<string, any> {
+  const d = doc.data() || {};
+  return {
+    id: doc.id,
+    email: d.email || null,
+    name: d.name || null,
+    businessName: d.companyName || null,
+    website: d.website || null,
+    industry: d.industry || null,
+    niche: d.niche || null,
+    state: d.state || null,
+    city: d.city || null,
+    employeeCount: d.employeeCount || null,
+    source: d.sourceMetadata?.source || null,
+    status: d.deliveryStatus || null,
+    createdAt: formatConsultationLeadTimestamp(d.createdAt),
+    updatedAt: formatConsultationLeadTimestamp(d.updatedAt),
+    statusHistory: d.statusHistory || [],
+  };
+}
+
 function sanitizeConsultationLeadInput(raw: any): ConsultationLeadIngestInput {
   const consultationInput = sanitizeConsultationInput(raw);
   const email = cleanEmailField(String(raw?.email || ""));
@@ -1476,6 +1526,10 @@ function sanitizeConsultationLeadInput(raw: any): ConsultationLeadIngestInput {
   return {
     ...consultationInput,
     email,
+    name: normalizeOptionalString(raw?.name, 120),
+    industry: normalizeOptionalString(raw?.industry, 80),
+    niche: normalizeOptionalString(raw?.niche, 80),
+    city: normalizeOptionalString(raw?.city, 80),
     sourceMetadata: {
       source: normalizeOptionalString(raw?.source, 80),
       campaign: normalizeOptionalString(raw?.campaign, 120),
@@ -1488,7 +1542,8 @@ async function saveConsultationArtifacts(
   input: ConsultationRequestInput,
   classification: AiConsultationClassification,
   report: ReturnType<typeof buildConsultationAssessment>,
-  options: SaveConsultationArtifactsOptions
+  options: SaveConsultationArtifactsOptions,
+  spanishAssessment?: any | null
 ): Promise<SavedConsultationArtifacts> {
   const db = admin.firestore();
   const assessmentRef = db.collection("osha-consultation-assessments").doc();
@@ -1505,10 +1560,15 @@ async function saveConsultationArtifacts(
     ...report,
   };
 
+  const responsePayloadEs = spanishAssessment
+    ? { ...spanishAssessment, assessmentId: assessmentRef.id, generatedAt, publicConsultationId, publicPath, publicUrl }
+    : null;
+
   const batch = db.batch();
   batch.set(assessmentRef, {
     request: input,
     response: responsePayload,
+    response_es: responsePayloadEs,
     classification,
     visitorHash: options.visitorHash || null,
     sourceType: options.sourceType,
@@ -1526,6 +1586,7 @@ async function saveConsultationArtifacts(
     sourceType: options.sourceType,
     generatedAt,
     assessment: responsePayload,
+    assessment_es: responsePayloadEs,
     leadId: null,
     viewCount: 0,
     lastViewedAt: null,
@@ -1548,8 +1609,12 @@ async function saveConsultationArtifacts(
       email: options.lead.email,
       emailHash: options.lead.emailHash,
       companyName: input.companyName,
-      website: input.website,
+      name: options.lead.name || null,
+      website: normalizeDomain(input.website || ""),
+      industry: options.lead.industry || null,
+      niche: options.lead.niche || null,
       state: input.state,
+      city: options.lead.city || null,
       employeeCount: input.employeeCount,
       description: input.description,
       generatedAt,
@@ -1557,6 +1622,10 @@ async function saveConsultationArtifacts(
       emailError: options.lead.emailError || null,
       sourceMetadata: options.lead.sourceMetadata,
       assessment: responsePayload,
+      assessment_es: responsePayloadEs,
+      statusHistory: [
+        { status: options.lead.deliveryStatus, at: generatedAt },
+      ],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       version: 1,
@@ -1572,6 +1641,7 @@ async function saveConsultationArtifacts(
 
   return {
     assessment: responsePayload,
+    assessment_es: responsePayloadEs,
     assessmentId: assessmentRef.id,
     publicConsultationId,
     publicPath,
@@ -1648,14 +1718,18 @@ function buildConsultationLeadEmailHtml(args: {
           <p style="margin:0 0 24px;line-height:1.7;">
             I went ahead and ran <strong>${companyName}</strong> against current OSHA standards to see where you stand. Here is what I found.
           </p>
-          <div style="display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
-            <div>
-              <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
-              <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
-              <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
-            </div>
-            <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;">Open My Consultation</a>
-          </div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
+            <tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
+                <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
+                <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
+              </td>
+              <td style="vertical-align:middle;text-align:right;">
+                <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;line-height:1;">Open My Consultation</a>
+              </td>
+            </tr>
+          </table>
           <div style="margin-top:24px;">
             <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">Ulysses's quick read</h2>
             <p style="margin:0;line-height:1.7;">${assessment.ulyssesTake}</p>
@@ -1724,6 +1798,224 @@ function buildConsultationLeadEmailText(args: {
   ].join("\n");
 }
 
+const CONSULTATION_LEAD_SENDERS = [
+  '"ComplianceChimp" <support@compliancechimp.app>',
+  '"ComplianceChimp" <support@compliancechimp.org>',
+];
+
+// ── Follow-up email constants ─────────────────────────────────────────────────
+
+const CHIMP_DEMO_VIDEO_URL = "https://www.youtube.com/watch?v=-CbdLuBbd1s";
+const CHIMP_DEMO_THUMBNAIL_URL = "https://img.youtube.com/vi/-CbdLuBbd1s/maxresdefault.jpg";
+
+// ── Follow-up email: viewed report → show the video ──────────────────────────
+
+function buildVideoFollowupEmailHtml(args: { companyName: string; publicUrl: string }): string {
+  const { companyName, publicUrl } = args;
+  const funFact = getRandomUlyssesFunFact();
+  return `
+    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
+          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
+        </div>
+        <div style="padding:32px;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+            <tr>
+              <td style="width:140px;vertical-align:top;padding-right:20px;">
+                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:top;">
+                <h2 style="margin:0 0 8px;font-size:22px;color:#054d8a;">You opened the report. Good.</h2>
+                <p style="margin:0;line-height:1.7;">
+                  You have seen the score and what applies to <strong>${companyName}</strong>. Most people stop there. The next step takes 75 seconds to watch.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <a href="${CHIMP_DEMO_VIDEO_URL}" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;margin-bottom:12px;">
+            <img src="${CHIMP_DEMO_THUMBNAIL_URL}" alt="Watch Ulysses build a full safety program in 75 seconds" style="width:100%;height:auto;display:block;border-radius:12px;border:0;" />
+          </a>
+          <div style="text-align:center;margin-bottom:24px;">
+            <a href="${CHIMP_DEMO_VIDEO_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;line-height:1;">Watch the Full Onboarding (75 sec)</a>
+          </div>
+          <p style="margin:0 0 28px;line-height:1.7;color:#4b5563;">
+            That is the full program. Every written plan, training assignment, and document built from your specific report. Once it is set up, Ulysses keeps monitoring it. No safety manager required.
+          </p>
+          <div style="text-align:center;margin-bottom:28px;">
+            <a href="${publicUrl}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:#054d8a;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;">Start Building My Program</a>
+          </div>
+          <div style="padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
+            <p style="margin:0;line-height:1.7;color:#4b5563;">
+              Your consultation: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
+            </p>
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
+            <tr>
+              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
+                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:middle;padding:16px 20px;">
+                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildVideoFollowupEmailText(args: { companyName: string; publicUrl: string }): string {
+  const { companyName, publicUrl } = args;
+  const funFact = getRandomUlyssesFunFact();
+  return [
+    `You opened the report. Good.`,
+    "",
+    `You have seen the score and what applies to ${companyName}. The next step takes 75 seconds to watch.`,
+    "",
+    `Watch the full onboarding: ${CHIMP_DEMO_VIDEO_URL}`,
+    "",
+    `That is the full program. Every written plan, training assignment, and document built from your specific report. Once it is set up, Ulysses keeps monitoring it. No safety manager required.`,
+    "",
+    `Start building your program: ${publicUrl}`,
+    "",
+    `Your consultation: ${publicUrl}`,
+    "",
+    `Fun fact about me: ${funFact}`,
+  ].join("\n");
+}
+
+// ── Follow-up emails: non-viewer drip (week 1 and week 2) ────────────────────
+
+function pickFollowupObligation(assessment: any, index: number): any | null {
+  const all = [
+    ...(Array.isArray(assessment?.federalRequirements) ? assessment.federalRequirements : []),
+    ...(Array.isArray(assessment?.stateRequirements) ? assessment.stateRequirements : []),
+  ];
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  all.sort((a: any, b: any) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  return all[index] ?? null;
+}
+
+function buildNonViewerFollowupEmailHtml(args: {
+  companyName: string;
+  assessment: any;
+  publicUrl: string;
+  week: 1 | 2;
+}): string {
+  const { companyName, assessment, publicUrl, week } = args;
+  const obligation = pickFollowupObligation(assessment, week - 1);
+  const totalObligations =
+    (Array.isArray(assessment?.federalRequirements) ? assessment.federalRequirements.length : 0) +
+    (Array.isArray(assessment?.stateRequirements) ? assessment.stateRequirements.length : 0);
+  const funFact = getRandomUlyssesFunFact();
+
+  const introText = week === 1
+    ? `Your compliance consultation for <strong>${companyName}</strong> has been ready for a week. I will bring one item from it to you instead of waiting for you to click through.`
+    : `Your compliance consultation for <strong>${companyName}</strong> has been sitting for two weeks. One more item before I let it go.`;
+
+  const obligationHtml = obligation
+    ? `
+      <div style="padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);margin-bottom:24px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;margin-bottom:6px;">
+          ${obligation.requirementLevel === "required" ? "Required" : "Conditional"} obligation
+        </div>
+        <h3 style="margin:0 0 8px;font-size:18px;color:#054d8a;">${obligation.title}</h3>
+        <p style="margin:0 0 10px;line-height:1.6;color:#4b5563;">${obligation.appliesBecause}</p>
+        ${obligation.details && obligation.details[0] ? `<p style="margin:0;line-height:1.6;"><strong>What this means:</strong> ${obligation.details[0]}</p>` : ""}
+      </div>
+    `
+    : "";
+
+  const remainingCount = Math.max(0, totalObligations - week);
+  const remainingText = remainingCount > 0
+    ? `There ${remainingCount === 1 ? "is" : "are"} ${remainingCount} more obligation${remainingCount === 1 ? "" : "s"} in your full report, each with the specific regulation and what it requires from you.`
+    : `Your full report has the complete picture of what applies to your business.`;
+
+  return `
+    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
+          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
+        </div>
+        <div style="padding:32px;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+            <tr>
+              <td style="width:140px;vertical-align:top;padding-right:20px;">
+                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:top;">
+                <h2 style="margin:0 0 8px;font-size:22px;color:#054d8a;">Something from your report worth knowing</h2>
+                <p style="margin:0;line-height:1.7;">${introText}</p>
+              </td>
+            </tr>
+          </table>
+          ${obligationHtml}
+          <p style="margin:0 0 24px;line-height:1.7;color:#4b5563;">${remainingText}</p>
+          <div style="text-align:center;margin-bottom:28px;">
+            <a href="${publicUrl}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;">Open My Consultation</a>
+          </div>
+          <div style="padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
+            <p style="margin:0;line-height:1.7;color:#4b5563;">
+              Full consultation link: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
+            </p>
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
+            <tr>
+              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
+                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
+              </td>
+              <td style="vertical-align:middle;padding:16px 20px;">
+                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildNonViewerFollowupEmailText(args: {
+  companyName: string;
+  assessment: any;
+  publicUrl: string;
+  week: 1 | 2;
+}): string {
+  const { companyName, assessment, publicUrl, week } = args;
+  const obligation = pickFollowupObligation(assessment, week - 1);
+  const funFact = getRandomUlyssesFunFact();
+
+  const introText = week === 1
+    ? `Your compliance consultation for ${companyName} has been ready for a week. Here is one item from it worth knowing about.`
+    : `Your compliance consultation for ${companyName} has been sitting for two weeks. One more item before I let it go.`;
+
+  const lines: string[] = [
+    `Something from your report worth knowing`,
+    "",
+    introText,
+    "",
+  ];
+
+  if (obligation) {
+    lines.push(`${obligation.requirementLevel === "required" ? "Required" : "Conditional"} obligation: ${obligation.title}`);
+    lines.push(obligation.appliesBecause);
+    if (obligation.details && obligation.details[0]) {
+      lines.push(`What this means: ${obligation.details[0]}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`Open your consultation: ${publicUrl}`);
+  lines.push("");
+  lines.push(`Fun fact about me: ${funFact}`);
+
+  return lines.join("\n");
+}
+
 async function sendConsultationLeadEmail(args: {
   to: string;
   companyName: string;
@@ -1735,9 +2027,10 @@ async function sendConsultationLeadEmail(args: {
     ? `${args.publicUrl}?ref=email&lid=${args.leadId}`
     : args.publicUrl;
   const emailArgs = { companyName: args.companyName, assessment: args.assessment, publicUrl: trackedUrl };
+  const fromAddress = CONSULTATION_LEAD_SENDERS[Math.floor(Math.random() * CONSULTATION_LEAD_SENDERS.length)];
   const client = createSendgridClient();
   await client.sendMail({
-    from: '"Compliancechimp" <support@compliancechimp.com>',
+    from: fromAddress,
     to: args.to,
     subject: buildConsultationLeadEmailSubject(args.companyName),
     html: buildConsultationLeadEmailHtml(emailArgs),
@@ -1816,30 +2109,50 @@ export const submitConsultationLead = onRequest(
 
     const classification = await classifyBusinessForOshaConsultation(input);
     const report = buildConsultationAssessment(input, classification);
+    const spanishReport = await translateAssessmentToSpanish(report);
     const saved = await saveConsultationArtifacts(input, classification, report, {
       sourceType: "api",
       lead: {
         email: input.email,
         emailHash: emailHash(input.email),
         deliveryStatus: "generated",
+        name: input.name,
+        industry: input.industry,
+        niche: input.niche,
+        city: input.city,
         sourceMetadata: input.sourceMetadata,
       },
-    });
+    }, spanishReport);
 
     let deliveryStatus: ConsultationLeadDeliveryStatus = "generated";
     let emailSentAt: string | null = null;
     let emailError: string | null = null;
 
+    // Skip sending if another lead with the same email already exists
+    const existingByEmailSnap = await admin
+      .firestore()
+      .collection("osha-consultation-leads")
+      .where("emailHash", "==", emailHash(input.email))
+      .get();
+
+    const otherLeadsWithSameEmail = existingByEmailSnap.docs.filter((d) => d.id !== saved.leadId);
+    const shouldSkipEmail = otherLeadsWithSameEmail.length > 0;
+
     try {
-      await sendConsultationLeadEmail({
-        to: input.email,
-        companyName: input.companyName,
-        assessment: saved.assessment,
-        publicUrl: saved.publicUrl,
-        leadId: saved.leadId ?? undefined,
-      });
-      deliveryStatus = "sent";
-      emailSentAt = new Date().toISOString();
+      if (shouldSkipEmail) {
+        deliveryStatus = "skipped_duplicate_email";
+        emailError = "Skipped: another lead with this email already exists.";
+      } else {
+        await sendConsultationLeadEmail({
+          to: input.email,
+          companyName: input.companyName,
+          assessment: saved.assessment,
+          publicUrl: saved.publicUrl,
+          leadId: saved.leadId ?? undefined,
+        });
+        deliveryStatus = "sent";
+        emailSentAt = new Date().toISOString();
+      }
     } catch (error: any) {
       console.error("Error sending consultation lead email:", error);
       deliveryStatus = "send_failed";
@@ -1853,6 +2166,10 @@ export const submitConsultationLead = onRequest(
           emailSentAt,
           emailError,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: deliveryStatus,
+            at: new Date().toISOString(),
+          }),
         },
         { merge: true }
       );
@@ -1869,6 +2186,143 @@ export const submitConsultationLead = onRequest(
       emailSentAt,
       emailError,
     });
+  }
+);
+
+// ── Sales Lead → Consultation Bridge ──────────────────────────────────────────
+
+async function generateConsultationForSalesLead(
+  leadId: string,
+  actor?: { uid: string; name: string }
+): Promise<{
+  consultationLeadId: string | null;
+  consultationUrl: string | null;
+}> {
+  const db = admin.firestore();
+  const leadDoc = await db.doc(`sales-leads/${leadId}`).get();
+  if (!leadDoc.exists) return { consultationLeadId: null, consultationUrl: null };
+  const lead = leadDoc.data()!;
+
+  if (lead.consultationLeadId) {
+    return {
+      consultationLeadId: lead.consultationLeadId,
+      consultationUrl: lead.consultationUrl || null,
+    };
+  }
+
+  const input: ConsultationRequestInput = {
+    companyName: lead.businessName || "",
+    website: lead.website || "",
+    description: lead.fitReason || lead.industry || `${lead.businessName} in ${lead.state || "the US"}`,
+    employeeCount: parseInt(lead.employeeEstimate) || 20,
+    state: lead.state || "TX",
+  };
+
+  const classification = await classifyBusinessForOshaConsultation(input);
+  const report = buildConsultationAssessment(input, classification);
+  const spanishReport = await translateAssessmentToSpanish(report);
+  const saved = await saveConsultationArtifacts(input, classification, report, {
+    sourceType: "api",
+    lead: {
+      email: lead.email,
+      emailHash: emailHash(lead.email),
+      deliveryStatus: "generated",
+      name: lead.contactName || null,
+      industry: lead.industry || null,
+      niche: null,
+      city: lead.city || null,
+      sourceMetadata: { source: "sales-pipeline", campaign: null, externalLeadId: leadId },
+    },
+  }, spanishReport);
+
+  let deliveryStatus: ConsultationLeadDeliveryStatus = "generated";
+  try {
+    await sendConsultationLeadEmail({
+      to: lead.email,
+      companyName: lead.businessName,
+      assessment: saved.assessment,
+      publicUrl: saved.publicUrl,
+      leadId: saved.leadId ?? undefined,
+    });
+    deliveryStatus = "sent";
+  } catch (err) {
+    console.error(`Failed to send consultation email for sales lead ${leadId}:`, err);
+    deliveryStatus = "send_failed";
+  }
+
+  if (saved.leadId) {
+    await db.doc(`osha-consultation-leads/${saved.leadId}`).set(
+      {
+        deliveryStatus,
+        emailSentAt: deliveryStatus === "sent" ? new Date().toISOString() : null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  await db.doc(`sales-leads/${leadId}`).update({
+    consultationLeadId: saved.leadId || null,
+    consultationUrl: saved.publicUrl || null,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  if (deliveryStatus === "sent") {
+    const consultSubject = buildConsultationLeadEmailSubject(lead.businessName || "");
+    const consultHtml = buildConsultationLeadEmailHtml({
+      companyName: lead.businessName || "",
+      assessment: saved.assessment,
+      publicUrl: saved.publicUrl,
+    });
+    await db.collection(`sales-leads/${leadId}/activity`).add({
+      type: "email_sent",
+      content: consultHtml,
+      emailSubject: consultSubject,
+      emailHtml: consultHtml,
+      createdBy: actor?.uid || "system",
+      actorName: actor?.name || "Ulysses (AI)",
+      actorType: actor ? "user" : "agent",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  return {
+    consultationLeadId: saved.leadId,
+    consultationUrl: saved.publicUrl,
+  };
+}
+
+export const createSalesLeadConsultation = onCall(
+  {
+    secrets: [xaiApiKey, sendgridApiKey],
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const uid = await requireDev(request);
+    const userDoc = await admin.firestore().doc(`user/${uid}`).get();
+    const userData = userDoc.data();
+    const actor = { uid, name: userData?.name || userData?.email || uid };
+    const { leadId } = request.data as any;
+    if (!leadId) throw new HttpsError("invalid-argument", "Lead ID is required.");
+    return await generateConsultationForSalesLead(leadId, actor);
+  }
+);
+
+export const onSalesLeadCreatedConsultation = onDocumentCreated(
+  {
+    document: "sales-leads/{leadId}",
+    secrets: [xaiApiKey, sendgridApiKey],
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (event) => {
+    const leadId = event.params.leadId;
+    try {
+      await generateConsultationForSalesLead(leadId);
+    } catch (err) {
+      console.error(`Auto-consultation generation failed for sales lead ${leadId}:`, err);
+    }
   }
 );
 
@@ -1908,12 +2362,364 @@ export const resendConsultationLeadEmail = onCall(
           emailSentAt,
           emailError: null,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "sent",
+            at: emailSentAt,
+          }),
         },
         { merge: true }
       );
     }
 
     return { success: true, leadId, sentTo: recipientEmail };
+  }
+);
+
+// ── testConsultationLeadFollowupEmail ─────────────────────────────────────────
+// Dev-only callable. Sends any follow-up email template for a given lead to a
+// test address without modifying lead state.
+
+export const testConsultationLeadFollowupEmail = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    await requireDev(request);
+
+    const { leadId, type, testEmail } = (request.data || {}) as {
+      leadId: string;
+      type: "video" | "w1" | "w2";
+      testEmail?: string;
+    };
+
+    if (!leadId || typeof leadId !== "string") {
+      throw new HttpsError("invalid-argument", "Missing leadId");
+    }
+    if (!["video", "w1", "w2"].includes(type)) {
+      throw new HttpsError("invalid-argument", "type must be one of: video, w1, w2");
+    }
+
+    const leadSnap = await admin.firestore().doc(`osha-consultation-leads/${leadId}`).get();
+    if (!leadSnap.exists) throw new HttpsError("not-found", "Consultation lead not found");
+
+    const lead = leadSnap.data() || {};
+    const companyName = String(lead.companyName || lead.assessment?.profile?.companyName || "your business");
+    const publicUrl = String(lead.publicUrl || "");
+    const to = typeof testEmail === "string" && testEmail.trim()
+      ? testEmail.trim()
+      : String(lead.email || "");
+
+    const trackedUrl = `${publicUrl}?ref=test_${type}&lid=${leadId}`;
+    const fromAddress = CONSULTATION_LEAD_SENDERS[0];
+    const client = createSendgridClient();
+
+    let subject: string;
+    let html: string;
+    let text: string;
+
+    if (type === "video") {
+      subject = `[TEST] See what happens after the ${companyName} report`;
+      html = buildVideoFollowupEmailHtml({ companyName, publicUrl: trackedUrl });
+      text = buildVideoFollowupEmailText({ companyName, publicUrl: trackedUrl });
+    } else {
+      const week = type === "w1" ? 1 : 2;
+      subject = type === "w1"
+        ? `[TEST] One thing from your ${companyName} consultation`
+        : `[TEST] One more thing from your ${companyName} consultation`;
+      html = buildNonViewerFollowupEmailHtml({ companyName, assessment: lead.assessment, publicUrl: trackedUrl, week });
+      text = buildNonViewerFollowupEmailText({ companyName, assessment: lead.assessment, publicUrl: trackedUrl, week });
+    }
+
+    await client.sendMail({ from: fromAddress, to, subject, html, text });
+    return { success: true, leadId, type, sentTo: to };
+  }
+);
+
+// ── Follow-up A: fires when a lead views their report ────────────────────────
+// Sends the video email in near-real-time as soon as journey.reportViewed flips true.
+
+export const onPublicConsultationReportViewed = onDocumentUpdated(
+  {
+    document: "public-osha-consultations/{docId}",
+    secrets: [sendgridApiKey],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    // Only act when reportViewed transitions from falsy to true
+    if (after.journey?.reportViewed !== true || before.journey?.reportViewed === true) return;
+
+    const leadId = after.leadId;
+    if (!leadId || typeof leadId !== "string") return;
+
+    const leadRef = admin.firestore().doc(`osha-consultation-leads/${leadId}`);
+    const leadSnap = await leadRef.get();
+    if (!leadSnap.exists) return;
+
+    const lead = leadSnap.data() || {};
+
+    // Only send if initial email was delivered and video followup hasn't gone out yet
+    if (lead.deliveryStatus !== "sent") return;
+    if (lead.followupVideoSentAt) return;
+
+    const trackedUrl = `${lead.publicUrl}?ref=followup_video&lid=${leadId}`;
+    const companyName = String(lead.companyName || lead.assessment?.profile?.companyName || "your business");
+    const fromAddress = CONSULTATION_LEAD_SENDERS[Math.floor(Math.random() * CONSULTATION_LEAD_SENDERS.length)];
+    const client = createSendgridClient();
+
+    try {
+      await client.sendMail({
+        from: fromAddress,
+        to: String(lead.email || ""),
+        subject: `See what happens after the ${companyName} report`,
+        html: buildVideoFollowupEmailHtml({ companyName, publicUrl: trackedUrl }),
+        text: buildVideoFollowupEmailText({ companyName, publicUrl: trackedUrl }),
+      });
+
+      const sentAt = new Date().toISOString();
+      await leadRef.set(
+        {
+          followupVideoSentAt: sentAt,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          statusHistory: admin.firestore.FieldValue.arrayUnion({ status: "followup_video_sent", at: sentAt }),
+        },
+        { merge: true }
+      );
+      console.log(`Video followup sent to lead ${leadId}`);
+    } catch (error: any) {
+      console.error(`Error sending video followup to lead ${leadId}:`, error?.message || error);
+    }
+  }
+);
+
+// ── Follow-up B: daily drip for leads who never opened the report ─────────────
+// Week 1 (7 days after initial email): surface the top obligation from their report.
+// Week 2 (7 days after W1): surface the second obligation.
+// Once a lead views the report (followupVideoSentAt is set), they exit this drip automatically.
+
+export const scheduledConsultationLeadFollowups = onSchedule(
+  {
+    schedule: "0 16 * * *", // 10 AM Central (UTC-6)
+    secrets: [sendgridApiKey],
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const twentyDaysMs = 20 * 24 * 60 * 60 * 1000;
+
+    // Fetch all leads that got the initial email and have not yet viewed (no video followup sent)
+    const snap = await admin
+      .firestore()
+      .collection("osha-consultation-leads")
+      .where("deliveryStatus", "==", "sent")
+      .get();
+
+    const client = createSendgridClient();
+    let w1Sent = 0;
+    let w2Sent = 0;
+
+    for (const docSnap of snap.docs) {
+      const lead = docSnap.data();
+
+      // Skip anyone who has already viewed (video followup would have been sent)
+      if (lead.followupVideoSentAt) continue;
+      if (!lead.emailSentAt || !lead.email) continue;
+
+      const emailSentMs = new Date(lead.emailSentAt).getTime();
+      if (isNaN(emailSentMs)) continue;
+
+      const age = now - emailSentMs;
+      const fromAddress = CONSULTATION_LEAD_SENDERS[Math.floor(Math.random() * CONSULTATION_LEAD_SENDERS.length)];
+      const trackedBase = `${lead.publicUrl}?ref=followup_nonviewer&lid=${docSnap.id}`;
+      const companyName = String(lead.companyName || lead.assessment?.profile?.companyName || "your business");
+
+      // W1: 7–20 days old, W1 not yet sent
+      // The 20-day ceiling prevents retroactive sends to leads created before this feature
+      if (age >= sevenDaysMs && age < twentyDaysMs && !lead.followupW1SentAt) {
+        try {
+          await client.sendMail({
+            from: fromAddress,
+            to: String(lead.email),
+            subject: `One thing from your ${companyName} consultation`,
+            html: buildNonViewerFollowupEmailHtml({
+              companyName,
+              assessment: lead.assessment,
+              publicUrl: `${trackedBase}&seq=w1`,
+              week: 1,
+            }),
+            text: buildNonViewerFollowupEmailText({
+              companyName,
+              assessment: lead.assessment,
+              publicUrl: `${trackedBase}&seq=w1`,
+              week: 1,
+            }),
+          });
+          const sentAt = new Date().toISOString();
+          await docSnap.ref.set(
+            {
+              followupW1SentAt: sentAt,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              statusHistory: admin.firestore.FieldValue.arrayUnion({ status: "followup_w1_sent", at: sentAt }),
+            },
+            { merge: true }
+          );
+          w1Sent++;
+        } catch (error: any) {
+          console.error(`Error sending W1 followup to lead ${docSnap.id}:`, error?.message || error);
+        }
+        continue; // Only one followup per lead per run
+      }
+
+      // W2: at least 7 days since W1 was sent, W2 not yet sent
+      if (lead.followupW1SentAt && !lead.followupW2SentAt) {
+        const w1SentMs = new Date(lead.followupW1SentAt).getTime();
+        if (!isNaN(w1SentMs) && (now - w1SentMs) >= sevenDaysMs) {
+          try {
+            await client.sendMail({
+              from: fromAddress,
+              to: String(lead.email),
+              subject: `One more thing from your ${companyName} consultation`,
+              html: buildNonViewerFollowupEmailHtml({
+                companyName,
+                assessment: lead.assessment,
+                publicUrl: `${trackedBase}&seq=w2`,
+                week: 2,
+              }),
+              text: buildNonViewerFollowupEmailText({
+                companyName,
+                assessment: lead.assessment,
+                publicUrl: `${trackedBase}&seq=w2`,
+                week: 2,
+              }),
+            });
+            const sentAt = new Date().toISOString();
+            await docSnap.ref.set(
+              {
+                followupW2SentAt: sentAt,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                statusHistory: admin.firestore.FieldValue.arrayUnion({ status: "followup_w2_sent", at: sentAt }),
+              },
+              { merge: true }
+            );
+            w2Sent++;
+          } catch (error: any) {
+            console.error(`Error sending W2 followup to lead ${docSnap.id}:`, error?.message || error);
+          }
+        }
+      }
+    }
+
+    console.log(`Consultation lead followups complete: ${w1Sent} W1 sent, ${w2Sent} W2 sent.`);
+  }
+);
+
+export const getConsultationLeads = onRequest(
+  {
+    secrets: [consultationLeadIngestSecret],
+    timeoutSeconds: 30,
+    cors: false,
+  },
+  async (req, res): Promise<void> => {
+    if (req.method !== "GET") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      requireConsultationLeadIngestSecret(req);
+    } catch {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const {
+      email,
+      website,
+      status,
+      industry,
+      state,
+      source,
+      limit: limitParam,
+      offset: offsetParam,
+      orderBy: orderByParam,
+      orderDir: orderDirParam,
+    } = req.query as Record<string, string | undefined>;
+
+    const collection = "osha-consultation-leads";
+
+    if (email) {
+      const snap = await admin.firestore()
+        .collection(collection)
+        .where("email", "==", email.trim().toLowerCase())
+        .limit(1)
+        .get();
+
+      const leads = snap.docs.map((d) => formatConsultationLead(d));
+      res.status(200).json({ total: leads.length, returned: leads.length, offset: 0, leads });
+      return;
+    }
+
+    if (website) {
+      const snap = await admin.firestore()
+        .collection(collection)
+        .where("website", "==", normalizeDomain(website))
+        .limit(1)
+        .get();
+
+      const leads = snap.docs.map((d) => formatConsultationLead(d));
+      res.status(200).json({ total: leads.length, returned: leads.length, offset: 0, leads });
+      return;
+    }
+
+    const limit = Math.min(Math.max(parseInt(limitParam || "50") || 50, 1), 200);
+    const offset = Math.max(parseInt(offsetParam || "0") || 0, 0);
+
+    const orderByMap: Record<string, string> = {
+      createdAt: "createdAt",
+      status: "deliveryStatus",
+      industry: "industry",
+    };
+    const orderByField = orderByMap[orderByParam || ""] || "createdAt";
+    const orderDir: "asc" | "desc" = orderDirParam === "asc" ? "asc" : "desc";
+
+    let query: admin.firestore.Query = admin.firestore()
+      .collection(collection)
+      .orderBy(orderByField, orderDir);
+
+    if (status) {
+      const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        query = query.where("deliveryStatus", "==", statuses[0]);
+      } else if (statuses.length > 1) {
+        query = query.where("deliveryStatus", "in", statuses.slice(0, 10));
+      }
+    }
+
+    if (industry) {
+      query = query.where("industry", "==", industry.trim());
+    }
+
+    if (state) {
+      query = query.where("state", "==", state.trim().toUpperCase());
+    }
+
+    if (source) {
+      query = query.where("sourceMetadata.source", "==", source.trim());
+    }
+
+    const countSnap = await query.count().get();
+    const total = countSnap.data().count;
+
+    if (offset > 0) {
+      query = query.offset(offset);
+    }
+    query = query.limit(limit);
+
+    const snap = await query.get();
+    const leads = snap.docs.map((d) => formatConsultationLead(d));
+
+    res.status(200).json({ total, returned: leads.length, offset, leads });
   }
 );
 
@@ -2086,6 +2892,231 @@ async function enforceOshaConsultationRateLimit(request: any): Promise<string> {
   });
 
   return visitorHash;
+}
+
+function extractTranslatableStrings(assessment: any): Record<string, string> {
+  const strings: Record<string, string> = {};
+
+  const add = (key: string, value: unknown) => {
+    if (typeof value === "string" && value.trim()) strings[key] = value;
+  };
+
+  add("summary", assessment.summary);
+  add("importanceReason", assessment.importanceReason);
+  add("importanceLevel", assessment.importanceLevel);
+  add("ulyssesTake", assessment.ulyssesTake);
+  add("profile.industryDescription", assessment.profile?.industryDescription);
+  add("profile.statePlanNote", assessment.profile?.statePlanNote);
+
+  const addObligations = (list: any[], prefix: string) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((ob, i) => {
+      add(`${prefix}.${i}.title`, ob.title);
+      add(`${prefix}.${i}.appliesBecause`, ob.appliesBecause);
+      if (Array.isArray(ob.details)) {
+        ob.details.forEach((d: string, j: number) => add(`${prefix}.${i}.details.${j}`, d));
+      }
+      if (Array.isArray(ob.thresholdNotes)) {
+        ob.thresholdNotes.forEach((n: string, j: number) => add(`${prefix}.${i}.thresholdNotes.${j}`, n));
+      }
+    });
+  };
+
+  addObligations(assessment.federalRequirements, "fed");
+  addObligations(assessment.stateRequirements, "state");
+  addObligations(assessment.recommendedProcesses, "rec");
+
+  if (Array.isArray(assessment.nextActions)) {
+    assessment.nextActions.forEach((a: any, i: number) => {
+      add(`next.${i}.title`, a.title);
+      add(`next.${i}.description`, a.description);
+    });
+  }
+
+  if (Array.isArray(assessment.caveats)) {
+    assessment.caveats.forEach((c: string, i: number) => add(`caveats.${i}`, c));
+  }
+
+  if (Array.isArray(assessment.profile?.assumptions)) {
+    assessment.profile.assumptions.forEach((a: string, i: number) => add(`profile.assumptions.${i}`, a));
+  }
+
+  return strings;
+}
+
+function applyTranslatedStrings(assessment: any, translations: Record<string, string>): void {
+  const apply = (key: string, setter: (val: string) => void) => {
+    if (translations[key]) setter(translations[key]);
+  };
+
+  apply("summary", (v) => { assessment.summary = v; });
+  apply("importanceReason", (v) => { assessment.importanceReason = v; });
+  apply("importanceLevel", (v) => { assessment.importanceLevel = v; });
+  apply("ulyssesTake", (v) => { assessment.ulyssesTake = v; });
+  if (assessment.profile) {
+    apply("profile.industryDescription", (v) => { assessment.profile.industryDescription = v; });
+    apply("profile.statePlanNote", (v) => { assessment.profile.statePlanNote = v; });
+  }
+
+  const applyObligations = (list: any[], prefix: string) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((ob, i) => {
+      apply(`${prefix}.${i}.title`, (v) => { ob.title = v; });
+      apply(`${prefix}.${i}.appliesBecause`, (v) => { ob.appliesBecause = v; });
+      if (Array.isArray(ob.details)) {
+        ob.details.forEach((_: string, j: number) => {
+          apply(`${prefix}.${i}.details.${j}`, (v) => { ob.details[j] = v; });
+        });
+      }
+      if (Array.isArray(ob.thresholdNotes)) {
+        ob.thresholdNotes.forEach((_: string, j: number) => {
+          apply(`${prefix}.${i}.thresholdNotes.${j}`, (v) => { ob.thresholdNotes[j] = v; });
+        });
+      }
+    });
+  };
+
+  applyObligations(assessment.federalRequirements, "fed");
+  applyObligations(assessment.stateRequirements, "state");
+  applyObligations(assessment.recommendedProcesses, "rec");
+
+  if (Array.isArray(assessment.nextActions)) {
+    assessment.nextActions.forEach((a: any, i: number) => {
+      apply(`next.${i}.title`, (v) => { a.title = v; });
+      apply(`next.${i}.description`, (v) => { a.description = v; });
+    });
+  }
+
+  if (Array.isArray(assessment.caveats)) {
+    assessment.caveats.forEach((_: string, i: number) => {
+      apply(`caveats.${i}`, (v) => { assessment.caveats[i] = v; });
+    });
+  }
+
+  if (Array.isArray(assessment.profile?.assumptions)) {
+    assessment.profile.assumptions.forEach((_: string, i: number) => {
+      apply(`profile.assumptions.${i}`, (v) => { assessment.profile.assumptions[i] = v; });
+    });
+  }
+}
+
+async function translateAssessmentToSpanish(assessment: any): Promise<any | null> {
+  const strings = extractTranslatableStrings(assessment);
+  const keys = Object.keys(strings);
+  if (!keys.length) return null;
+
+  try {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional English-to-Spanish translator for OSHA workplace safety content.
+Translate all values in the provided JSON object from English to professional, clear Latin American Spanish.
+Keep the JSON keys exactly as provided. Return valid JSON only, no extra text.
+
+Rules:
+- Use formal but accessible Spanish (usted form).
+- Translate OSHA terminology accurately (e.g. "fall protection" = "proteccion contra caidas", "recordkeeping" = "mantenimiento de registros").
+- Keep proper nouns, CFR references, URLs, and legal citations in English.
+- Do not translate company names, state names, or OSHA standard numbers.
+- Keep the same tone: direct, practical, no fluff.`,
+          },
+          {
+            role: "user",
+            content: JSON.stringify(strings),
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Grok translation API error:", await response.text());
+      return null;
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || "{}";
+    const translated = parseJsonObject(aiMessage);
+    if (!translated || typeof translated !== "object") return null;
+
+    const spanishAssessment = JSON.parse(JSON.stringify(assessment));
+    applyTranslatedStrings(spanishAssessment, translated);
+    return spanishAssessment;
+  } catch (error) {
+    console.error("Error translating assessment to Spanish:", error);
+    return null;
+  }
+}
+
+async function translateTrainingArticleToSpanish(
+  name: string,
+  htmlContent: string
+): Promise<{ name_es: string; content_es: string } | null> {
+  if (!name && !htmlContent) return null;
+
+  try {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional English-to-Spanish translator for OSHA workplace safety training content.
+You will receive a JSON object with "name" (article title) and "content" (HTML article body).
+Translate both values from English to professional, clear Latin American Spanish.
+Return a JSON object with the same two keys. Preserve all HTML tags, attributes, and structure exactly.
+
+Rules:
+- Use formal but accessible Spanish (usted form).
+- Translate OSHA terminology accurately (e.g. "fall protection" = "proteccion contra caidas", "lockout/tagout" = "bloqueo/etiquetado").
+- Keep proper nouns, CFR references, URLs, iframe src attributes, and legal citations in English.
+- Do not translate company names, state names, or OSHA standard numbers.
+- Preserve all HTML tags, classes, styles, and attributes exactly as-is.
+- Keep the same tone: direct, practical, easy to understand.
+- Return valid JSON only, no extra text.`,
+          },
+          {
+            role: "user",
+            content: JSON.stringify({ name, content: htmlContent }),
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 16000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Grok translation API error:", await response.text());
+      return null;
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || "{}";
+    const translated = parseJsonObject(aiMessage);
+    if (!translated || typeof translated !== "object") return null;
+
+    return {
+      name_es: translated.name || name,
+      content_es: translated.content || htmlContent,
+    };
+  } catch (error) {
+    console.error("Error translating training article to Spanish:", error);
+    return null;
+  }
 }
 
 function parseJsonObject(content: string): any | null {
@@ -3930,7 +4961,7 @@ Generate a well-structured, engaging training article that covers this topic tho
 
 // Webhook to handle successful Stripe checkout
 export const stripeWebhook = onRequest(
-  { secrets: [stripeSecretKey, stripeWebhookSecret] },
+  { secrets: [stripeSecretKey, stripeWebhookSecret, sendgridApiKey] },
   async (req, res) => {
     const stripe = createStripeClient();
     const sig = req.headers['stripe-signature'];
@@ -3961,7 +4992,6 @@ export const stripeWebhook = onRequest(
     // Handle the checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      // Support both Payment Link (client_reference_id) and Checkout Session (metadata.teamId)
       const teamId = session.client_reference_id || session.metadata?.teamId;
       const customerId = session.customer;
       const subscriptionId = session.subscription;
@@ -3975,6 +5005,27 @@ export const stripeWebhook = onRequest(
             subscriptionStatus: 'active',
           });
           console.log(`Team ${teamId} subscription activated via ${session.client_reference_id ? 'Payment Link' : 'Checkout Session'}`);
+
+          // Update any referral pointing to this team from pending to active
+          const referralSnap = await admin.firestore().collection('referrals')
+            .where('referredTeamId', '==', teamId)
+            .where('status', '==', 'pending')
+            .get();
+
+          for (const refDoc of referralSnap.docs) {
+            await refDoc.ref.update({
+              status: 'active',
+              statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`Referral ${refDoc.id} status updated to active`);
+          }
+
+          // Send subscription welcome email with referral program intro
+          try {
+            await sendSubscriptionWelcomeEmail(teamId);
+          } catch (emailError) {
+            console.error('Error sending subscription welcome email:', emailError);
+          }
         } catch (error) {
           console.error('Error updating team subscription:', error);
         }
@@ -3986,7 +5037,6 @@ export const stripeWebhook = onRequest(
       const subscription = event.data.object;
       const customerId = subscription.customer;
       
-      // Find the team by Stripe customer ID
       const teamsSnapshot = await admin.firestore()
         .collection('team')
         .where('stripeCustomerId', '==', customerId)
@@ -4001,12 +5051,51 @@ export const stripeWebhook = onRequest(
           stripeSubscriptionId: subscription.id,
         });
         console.log(`Team ${teamDoc.id} subscription status updated to ${status}`);
+
+        // If subscription was deleted/cancelled, mark referrals as churned
+        if (event.type === 'customer.subscription.deleted') {
+          const referralSnap = await admin.firestore().collection('referrals')
+            .where('referredTeamId', '==', teamDoc.id)
+            .where('status', '==', 'active')
+            .get();
+
+          for (const refDoc of referralSnap.docs) {
+            await refDoc.ref.update({
+              status: 'churned',
+              statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`Referral ${refDoc.id} status updated to churned`);
+          }
+        }
       }
     }
 
     res.json({ received: true });
   }
 );
+
+/* ----- REFERRAL HELPERS ----- */
+
+async function generateUniqueReferralCode(): Promise<string> {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const maxAttempts = 10;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const existing = await admin.firestore().collection('team')
+      .where('referralCode', '==', code)
+      .limit(1)
+      .get();
+
+    if (existing.empty) return code;
+  }
+
+  throw new Error('Could not generate a unique referral code after max attempts');
+}
 
 /* ----- TEAM CREATED ----- */
 
@@ -4030,6 +5119,45 @@ export const teamCreated = onDocumentCreated(
 
     // Note: Industry articles are NOT automatically applied on team creation.
     // Users can manually add recommended articles from the Library page.
+
+    // Generate a unique referral code for the new team
+    try {
+      const referralCode = await generateUniqueReferralCode();
+      await admin.firestore().doc(`team/${teamId}`).update({ referralCode });
+      console.log(`Generated referral code ${referralCode} for team ${teamId}`);
+    } catch (error) {
+      console.error('Error generating referral code:', error);
+    }
+
+    // Process incoming referral if this team was referred
+    if (team.referredByCode) {
+      try {
+        const referrerSnap = await admin.firestore().collection('team')
+          .where('referralCode', '==', team.referredByCode)
+          .limit(1)
+          .get();
+
+        if (!referrerSnap.empty) {
+          const referrerDoc = referrerSnap.docs[0];
+          if (referrerDoc.id !== teamId) {
+            await admin.firestore().collection('referrals').add({
+              referrerTeamId: referrerDoc.id,
+              referredTeamId: teamId,
+              referredTeamName: team.name || '',
+              referredByCode: team.referredByCode,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              status: 'pending',
+              statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.log(`Referral recorded: ${referrerDoc.id} referred ${teamId}`);
+          }
+        } else {
+          console.warn(`Referral code ${team.referredByCode} not found, skipping referral`);
+        }
+      } catch (error) {
+        console.error('Error processing referral:', error);
+      }
+    }
     
     // Send Slack notification for new team signup
     try {
@@ -4279,7 +5407,7 @@ export const createdSelfInspection = onDocumentCreated(
       EventType.selfInspection,
       EventAction.created,
       event.params.id,
-      selfInspection.userId,
+      selfInspection.userId || 'system',
       `Created self-inspection: ${selfInspection.title || 'Untitled'}`,
       teamId
     );
@@ -4575,7 +5703,12 @@ export const createdInjuryReportNew = onDocumentCreated(
 /* ----- ADD TO LIBRARY ----- */
 
 export const addToLibrary = onDocumentCreated(
-  "library/{id}",
+  {
+    document: "library/{id}",
+    secrets: [xaiApiKey],
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
   async (event) => {
     const libraryItem = event.data?.data();
     
@@ -4595,6 +5728,21 @@ export const addToLibrary = onDocumentCreated(
       libraryItem.teamId
     );
 
+    // Translate to Spanish in the background
+    if (libraryItem.name && libraryItem.content && !libraryItem.content_es) {
+      const translation = await translateTrainingArticleToSpanish(
+        libraryItem.name,
+        libraryItem.content
+      );
+      if (translation) {
+        await event.data!.ref.update({
+          name_es: translation.name_es,
+          content_es: translation.content_es,
+        });
+        console.log(`Spanish translation saved for library/${event.params.id}`);
+      }
+    }
+
     console.log("Add to library complete");
     return null;
   }
@@ -4602,7 +5750,12 @@ export const addToLibrary = onDocumentCreated(
 
 // When a library item is updated, invalidate the training coverage cache if relevant fields changed
 export const updatedLibraryItem = onDocumentUpdated(
-  "library/{id}",
+  {
+    document: "library/{id}",
+    secrets: [xaiApiKey],
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
@@ -4614,13 +5767,28 @@ export const updatedLibraryItem = onDocumentUpdated(
 
     // Check if content changed that affects coverage analysis
     // (name, cadence, or assigned tags)
-    const contentChanged = 
+    const metadataChanged = 
       before.name !== after.name ||
       before.trainingCadence !== after.trainingCadence ||
       JSON.stringify(before.assignedTags) !== JSON.stringify(after.assignedTags);
 
-    if (contentChanged) {
+    if (metadataChanged) {
       await invalidateTrainingCoverageAnalysisCache(teamId);
+    }
+
+    // Re-translate if name or content changed (but skip if this update IS a translation write)
+    const articleContentChanged = before.name !== after.name || before.content !== after.content;
+    const translationJustWritten = before.content_es !== after.content_es || before.name_es !== after.name_es;
+
+    if (articleContentChanged && !translationJustWritten && after.name && after.content) {
+      const translation = await translateTrainingArticleToSpanish(after.name, after.content);
+      if (translation) {
+        await event.data!.after.ref.update({
+          name_es: translation.name_es,
+          content_es: translation.content_es,
+        });
+        console.log(`Spanish translation updated for library/${event.params.id}`);
+      }
     }
 
     return null;
@@ -8707,6 +9875,217 @@ export const sendTestOutreachEmail = onCall(
       subject: `[TEST] ${subject}`,
       html: body,
     });
+  }
+);
+
+// ── Referral Program ────────────────────────────────────────────────────────
+
+async function sendSubscriptionWelcomeEmail(teamId: string): Promise<void> {
+  const db = admin.firestore();
+  const teamDoc = await db.doc(`team/${teamId}`).get();
+  if (!teamDoc.exists) return;
+
+  const team = teamDoc.data()!;
+  const ownerId = team.ownerId;
+  if (!ownerId) return;
+
+  const userDoc = await db.doc(`user/${ownerId}`).get();
+  const user = userDoc.exists ? userDoc.data()! : {};
+  const recipientEmail = user.email || team.email;
+  if (!recipientEmail) return;
+
+  const recipientName = user.name || team.name || 'there';
+  const referralCode = team.referralCode || '';
+  const referralLink = referralCode
+    ? `https://compliancechimp.com/get-started?ref=${referralCode}`
+    : 'https://compliancechimp.com/get-started';
+
+  let emailHtml = fs.readFileSync(
+    path.resolve('src/email-templates/user/subscription-welcome.html')
+  ).toString();
+
+  emailHtml = emailHtml
+    .split('{{recipientName}}').join(recipientName)
+    .split('{{referralCode}}').join(referralCode)
+    .split('{{referralLink}}').join(referralLink);
+
+  const client = createSendgridClient();
+  await client.sendMail({
+    from: '"Compliancechimp" <support@compliancechimp.com>',
+    to: recipientEmail,
+    subject: "You're all set. Now make it free.",
+    html: emailHtml,
+  });
+  console.log(`Subscription welcome email sent to ${recipientEmail}`);
+}
+
+export const generateReferralCode = onCall(
+  { secrets: [] },
+  async (request) => {
+    const uid = requireAuth(request);
+    const userDoc = await admin.firestore().doc(`user/${uid}`).get();
+    if (!userDoc.exists) throw new HttpsError('not-found', 'User not found');
+
+    const teamId = userDoc.data()!.teamId;
+    if (!teamId) throw new HttpsError('failed-precondition', 'No team found');
+
+    const teamDoc = await admin.firestore().doc(`team/${teamId}`).get();
+    if (!teamDoc.exists) throw new HttpsError('not-found', 'Team not found');
+
+    const existing = teamDoc.data()!.referralCode;
+    if (existing) return { referralCode: existing };
+
+    const code = await generateUniqueReferralCode();
+    await admin.firestore().doc(`team/${teamId}`).update({ referralCode: code });
+    return { referralCode: code };
+  }
+);
+
+export const getReferralData = onCall(
+  { secrets: [stripeSecretKey] },
+  async (request) => {
+    const uid = requireAuth(request);
+    const userDoc = await admin.firestore().doc(`user/${uid}`).get();
+    if (!userDoc.exists) throw new HttpsError('not-found', 'User not found');
+
+    const teamId = userDoc.data()!.teamId;
+    if (!teamId) throw new HttpsError('failed-precondition', 'No team found');
+
+    const teamDoc = await admin.firestore().doc(`team/${teamId}`).get();
+    if (!teamDoc.exists) throw new HttpsError('not-found', 'Team not found');
+    const team = teamDoc.data()!;
+
+    let referralCode = team.referralCode;
+    if (!referralCode) {
+      referralCode = await generateUniqueReferralCode();
+      await admin.firestore().doc(`team/${teamId}`).update({ referralCode });
+    }
+
+    const referralsSnap = await admin.firestore().collection('referrals')
+      .where('referrerTeamId', '==', teamId)
+      .get();
+
+    const referrals = referralsSnap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        referredTeamName: data.referredTeamName,
+        status: data.status,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+        statusUpdatedAt: data.statusUpdatedAt?.toDate?.()?.toISOString() || null,
+      };
+    });
+
+    const activeCount = referrals.filter(r => r.status === 'active').length;
+
+    // Look up actual plan price from Stripe if possible
+    let planPriceCents = 9900;
+    if (team.stripeSubscriptionId) {
+      try {
+        const stripe = createStripeClient();
+        const sub = await stripe.subscriptions.retrieve(team.stripeSubscriptionId);
+        if (sub.items?.data?.[0]?.price?.unit_amount) {
+          planPriceCents = sub.items.data[0].price.unit_amount;
+        }
+      } catch (e) {
+        console.warn('Could not fetch Stripe subscription for referral data:', e);
+      }
+    }
+
+    const perReferralCreditCents = Math.round(planPriceCents * 0.10);
+    const totalCreditCents = activeCount * perReferralCreditCents;
+    const appliedCreditCents = Math.min(totalCreditCents, planPriceCents);
+
+    return {
+      referralCode,
+      referrals,
+      stats: {
+        total: referrals.length,
+        active: activeCount,
+        pending: referrals.filter(r => r.status === 'pending').length,
+        churned: referrals.filter(r => r.status === 'churned').length,
+        monthlyCreditCents: appliedCreditCents,
+        planPriceCents,
+        perReferralCreditCents,
+      },
+    };
+  }
+);
+
+export const processReferralCredits = onSchedule(
+  {
+    schedule: '0 6 1 * *',
+    timeZone: 'America/Chicago',
+    secrets: [stripeSecretKey],
+  },
+  async () => {
+    const db = admin.firestore();
+    const stripe = createStripeClient();
+
+    const activeReferrals = await db.collection('referrals')
+      .where('status', '==', 'active')
+      .get();
+
+    if (activeReferrals.empty) {
+      console.log('No active referrals to process');
+      return;
+    }
+
+    // Group by referrer team
+    const referrerCounts: Record<string, number> = {};
+    for (const refDoc of activeReferrals.docs) {
+      const data = refDoc.data();
+      const rtid = data.referrerTeamId;
+      referrerCounts[rtid] = (referrerCounts[rtid] || 0) + 1;
+    }
+
+    for (const [referrerTeamId, activeCount] of Object.entries(referrerCounts)) {
+      try {
+        const teamDoc = await db.doc(`team/${referrerTeamId}`).get();
+        if (!teamDoc.exists) continue;
+
+        const team = teamDoc.data()!;
+        if (!team.stripeCustomerId || !team.stripeSubscriptionId) {
+          console.log(`Skipping team ${referrerTeamId}: no active Stripe subscription`);
+          continue;
+        }
+
+        // Fetch plan price from Stripe
+        let planPriceCents = 9900;
+        try {
+          const sub = await stripe.subscriptions.retrieve(team.stripeSubscriptionId);
+          if (sub.items?.data?.[0]?.price?.unit_amount) {
+            planPriceCents = sub.items.data[0].price.unit_amount;
+          }
+        } catch (e) {
+          console.warn(`Could not fetch subscription for team ${referrerTeamId}:`, e);
+        }
+
+        const perReferralCreditCents = Math.round(planPriceCents * 0.10);
+        const totalCreditCents = activeCount * perReferralCreditCents;
+        const appliedCreditCents = Math.min(totalCreditCents, planPriceCents);
+        const excessCents = Math.max(0, totalCreditCents - planPriceCents);
+
+        // Apply credit as a negative balance transaction (credit to customer)
+        await stripe.customers.createBalanceTransaction(team.stripeCustomerId, {
+          amount: -appliedCreditCents,
+          currency: 'usd',
+          description: `Referral credit: ${activeCount} active referral${activeCount > 1 ? 's' : ''} (10% each)`,
+        });
+
+        const updateData: Record<string, any> = {
+          referralCreditCents: appliedCreditCents,
+        };
+        if (excessCents > 0) {
+          updateData.referralPayoutOwedCents = admin.firestore.FieldValue.increment(excessCents);
+        }
+        await teamDoc.ref.update(updateData);
+
+        console.log(`Applied $${(appliedCreditCents / 100).toFixed(2)} referral credit to team ${referrerTeamId} (${activeCount} active referrals)`);
+      } catch (error) {
+        console.error(`Error processing referral credits for team ${referrerTeamId}:`, error);
+      }
+    }
   }
 );
 

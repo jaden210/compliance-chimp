@@ -441,3 +441,20 @@ export enum TrainingExpiration {
   Quarterly = "Quarterly",
   Montly = "Monthly"
 }
+
+export type HandbookLanguage = 'en' | 'es';
+
+const HANDBOOK_LANG_KEY = 'chimp_handbook_lang';
+
+export function resolveHandbookLanguage(): HandbookLanguage {
+  const stored = localStorage.getItem(HANDBOOK_LANG_KEY);
+  if (stored === 'en' || stored === 'es') return stored;
+
+  const nav = (navigator.language || '').toLowerCase();
+  if (nav.startsWith('es')) return 'es';
+  return 'en';
+}
+
+export function persistHandbookLanguage(lang: HandbookLanguage): void {
+  localStorage.setItem(HANDBOOK_LANG_KEY, lang);
+}

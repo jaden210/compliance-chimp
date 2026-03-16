@@ -27,9 +27,17 @@
     } @else if (article(); as article) {
       <div class="article-layout">
         <article class="article-container">
+          <!-- Language Toggle -->
+          @if (hasSpanish()) {
+            <div class="language-toggle">
+              <button [class.active]="language() === 'en'" (click)="toggleLanguage()">English</button>
+              <button [class.active]="language() === 'es'" (click)="toggleLanguage()">Espa&#241;ol</button>
+            </div>
+          }
+
           <!-- Article Header -->
           <header class="article-header">
-            <h1 class="article-title">{{ article.name }}</h1>
+            <h1 class="article-title">{{ displayName() }}</h1>
 
             <div class="article-stats">
               <span class="stat">
@@ -121,7 +129,7 @@
           }
 
           <!-- Article Content -->
-          <section class="article-content" [innerHTML]="article.content"></section>
+          <section class="article-content" [innerHTML]="displayContent()"></section>
 
           <!-- Attached Videos -->
           @if (article.videoUrls?.length) {

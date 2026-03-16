@@ -5,6 +5,10 @@
       <a mat-stroked-button href="/api/consultation-leads" target="_blank" rel="noopener">
         API Docs
       </a>
+      <button mat-stroked-button (click)="refreshJourneys()" [disabled]="refreshingJourneys">
+        <mat-icon>refresh</mat-icon>
+        {{ refreshingJourneys ? 'Refreshing...' : 'Refresh Views' }}
+      </button>
       <a mat-flat-button href="/free-safety-consultation" target="_blank" rel="noopener">
         Open Self-Serve Tool
       </a>
@@ -79,9 +83,54 @@
             <div class="lead-card-top">
               <div>
                 <h2>{{ lead.companyName }}</h2>
-                <p>{{ lead.email }}</p>
+                @if (editingById[lead.id]; as edits) {
+                  <div class="contact-edit-fields">
+                    <label class="contact-edit-row">
+                      <span class="contact-edit-label">Email</span>
+                      <input type="email"
+                        [ngModel]="edits.email"
+                        (ngModelChange)="edits.email = $event" />
+                    </label>
+                    <label class="contact-edit-row">
+                      <span class="contact-edit-label">Website</span>
+                      <input type="url"
+                        [ngModel]="edits.website"
+                        (ngModelChange)="edits.website = $event"
+                        placeholder="https://" />
+                    </label>
+                    <div class="contact-edit-actions">
+                      <button mat-flat-button (click)="saveContact(lead)" [disabled]="savingById[lead.id]">
+                        {{ savingById[lead.id] ? 'Saving...' : 'Save' }}
+                      </button>
+                      <button mat-stroked-button (click)="cancelEditing(lead)" [disabled]="savingById[lead.id]">Cancel</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="contact-display" (click)="startEditing(lead)">
+                    <p>{{ lead.email }}</p>
+                    @if (lead.website) {
+                      <p class="contact-website">
+                        <a [href]="externalUrl(lead.website)" target="_blank" rel="noopener" (click)="$event.stopPropagation()">{{ lead.website }}</a>
+                      </p>
+                    } @else {
+                      <p class="contact-website contact-website-empty">No website</p>
+                    }
+                    <span class="contact-edit-hint">click to edit</span>
+                  </div>
+                }
               </div>
-              <span class="status-chip" [class]="getConversionStatus(lead)">{{ conversionLabels[getConversionStatus(lead)] }}</span>
+              <div class="lead-card-top-right">
+                <span class="status-chip" [class]="getConversionStatus(lead)">{{ conversionLabels[getConversionStatus(lead)] }}</span>
+                <button mat-icon-button class="lead-overflow-btn" [matMenuTriggerFor]="leadMenu">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #leadMenu="matMenu">
+                  <button mat-menu-item (click)="deleteLead(lead)" [disabled]="deletingById[lead.id]">
+                    <mat-icon>delete</mat-icon>
+                    <span>{{ deletingById[lead.id] ? 'Deleting...' : 'Delete Lead' }}</span>
+                  </button>
+                </mat-menu>
+              </div>
             </div>
 
             <div class="lead-meta-grid">
@@ -163,12 +212,30 @@
                 <input
                   [ngModel]="testEmailById[lead.id] || ''"
                   (ngModelChange)="testEmailById[lead.id] = $event"
-                  placeholder="Send test to..."
+                  placeholder="Test email address..."
                   type="email" />
                 <button mat-stroked-button
                   (click)="sendTestEmail(lead)"
                   [disabled]="sendingTestById[lead.id] || !testEmailById[lead.id]?.trim()">
-                  {{ sendingTestById[lead.id] ? 'Sending...' : 'Send' }}
+                  {{ sendingTestById[lead.id] ? 'Sending...' : 'Send Initial' }}
+                </button>
+                <button mat-stroked-button
+                  (click)="sendTestFollowupEmail(lead, 'video')"
+                  [disabled]="!!sendingFollowupTestById[lead.id]"
+                  title="Sends the video follow-up (triggered when lead views the report)">
+                  {{ sendingFollowupTestById[lead.id] === 'video' ? 'Sending...' : 'Test: Video' }}
+                </button>
+                <button mat-stroked-button
+                  (click)="sendTestFollowupEmail(lead, 'w1')"
+                  [disabled]="!!sendingFollowupTestById[lead.id]"
+                  title="Sends the 7-day non-viewer follow-up">
+                  {{ sendingFollowupTestById[lead.id] === 'w1' ? 'Sending...' : 'Test: W1' }}
+                </button>
+                <button mat-stroked-button
+                  (click)="sendTestFollowupEmail(lead, 'w2')"
+                  [disabled]="!!sendingFollowupTestById[lead.id]"
+                  title="Sends the 14-day non-viewer follow-up">
+                  {{ sendingFollowupTestById[lead.id] === 'w2' ? 'Sending...' : 'Test: W2' }}
                 </button>
               </div>
             </div>

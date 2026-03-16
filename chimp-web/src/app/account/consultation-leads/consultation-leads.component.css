@@ -83,6 +83,21 @@
   padding: 24px;
 }
 
+.lead-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lead-overflow-btn {
+  color: rgba(20, 20, 20, 0.4);
+}
+
+.lead-overflow-btn:hover {
+  color: rgba(20, 20, 20, 0.72);
+}
+
 .lead-card-top {
   display: flex;
   justify-content: space-between;
@@ -99,6 +114,97 @@
 .lead-card p {
   margin: 0;
   color: rgba(20, 20, 20, 0.72);
+}
+
+.contact-display {
+  cursor: pointer;
+  position: relative;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.contact-display:hover {
+  background: rgba(5, 77, 138, 0.05);
+}
+
+.contact-display:hover .contact-edit-hint {
+  opacity: 1;
+}
+
+.contact-edit-hint {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(5, 77, 138, 0.5);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.contact-website {
+  margin-top: 2px !important;
+  font-size: 13px;
+}
+
+.contact-website a {
+  color: var(--chimp-primary);
+  text-decoration: none;
+}
+
+.contact-website a:hover {
+  text-decoration: underline;
+}
+
+.contact-website-empty {
+  color: rgba(20, 20, 20, 0.36);
+  font-style: italic;
+}
+
+.contact-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.contact-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contact-edit-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(20, 20, 20, 0.56);
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.contact-edit-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(5, 77, 138, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1b1b1b;
+  background: #ffffff;
+  outline: none;
+  max-width: 360px;
+  transition: border-color 0.15s;
+}
+
+.contact-edit-row input:focus {
+  border-color: var(--chimp-primary);
+}
+
+.contact-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .status-chip {

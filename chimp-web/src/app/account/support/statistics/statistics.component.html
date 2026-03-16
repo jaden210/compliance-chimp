@@ -21,8 +21,8 @@
       </div>
       <div class="stat-card tertiary">
         <div class="stat-info">
-          <div class="stat-title">Total Users</div>
-          <div class="stat-value">{{ totalUsersCount() }}</div>
+          <div class="stat-title">Total Team Members</div>
+          <div class="stat-value">{{ totalMemberCount() }}</div>
         </div>
         <mat-icon class="stat-icon">person</mat-icon>
       </div>
@@ -59,9 +59,9 @@
         <td mat-cell *matCellDef="let team">{{ team.createdAt | date: 'mediumDate' }}</td>
       </ng-container>
 
-      <ng-container matColumnDef="users">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Users</th>
-        <td mat-cell *matCellDef="let team">{{ team.userCount ?? '-' }}</td>
+      <ng-container matColumnDef="members">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Members</th>
+        <td mat-cell *matCellDef="let team">{{ team.memberCount ?? '-' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="delete">

@@ -1,0 +1,963 @@
+<section class="sales-leads">
+
+  <!-- ── Top Bar ── -->
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <h1>Peel & Deal</h1>
+      <div class="view-tabs">
+        <button mat-button [class.active]="view() === 'research'" (click)="switchView('research')">
+          <mat-icon>search</mat-icon> Research
+        </button>
+        <button mat-button [class.active]="view() === 'flow'" (click)="switchView('flow')">
+          <mat-icon>route</mat-icon> Flow
+          @if (flowStats().overdue > 0) {
+            <span class="flow-badge">{{ flowStats().overdue }}</span>
+          }
+        </button>
+        <button mat-button [class.active]="view() === 'leads'" (click)="switchView('leads')">
+          <mat-icon>view_list</mat-icon> Leads
+          @if (unviewedInboundCount() > 0) {
+            <span class="inbound-tab-badge">{{ unviewedInboundCount() }}</span>
+          }
+        </button>
+      </div>
+    </div>
+    <div class="top-bar-right">
+      @if (view() === 'leads') {
+        <button mat-stroked-button (click)="backfillLeads()" [disabled]="backfilling()">
+          @if (backfilling()) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>sync</mat-icon>
+          }
+          Sync Signups
+        </button>
+        <button mat-stroked-button (click)="exportLeadsCsv()">
+          <mat-icon>download</mat-icon> Export CSV
+        </button>
+        <button mat-flat-button color="primary" (click)="switchView('research'); startNewSession()">
+          <mat-icon>search</mat-icon> Research New Leads
+        </button>
+      }
+      @if (view() === 'flow') {
+        <button mat-stroked-button (click)="refreshAllFlow()" [disabled]="flowRefreshing()">
+          @if (flowRefreshing()) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>refresh</mat-icon>
+          }
+          Refresh All
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- LEADS VIEW                                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (view() === 'leads') {
+    <!-- Summary Bar -->
+    <div class="summary-bar" [class.has-filter]="statusFilter() !== 'all' || trialFilter()">
+      <div class="stat-chip total" [class.active]="statusFilter() === 'all' && !trialFilter()" (click)="clearStatFilters()">
+        <span class="stat-value">{{ pipelineStats().total }}</span>
+        <span class="stat-label">Total</span>
+      </div>
+      @for (s of statusOptions; track s.value) {
+        <div class="stat-chip" [class.active]="statusFilter() === s.value && !trialFilter()"
+          [style.--chip-active-bg]="s.color" [style.border-color]="s.color" (click)="toggleStatusChip(s.value)">
+          <span class="stat-value" [style.color]="s.color">{{ pipelineStats().byStatus[s.value] || 0 }}</span>
+          <span class="stat-label">{{ s.label }}</span>
+        </div>
+      }
+      <div class="stat-chip" [class.active]="trialFilter()" style="--chip-active-bg: #e65100; border-color: #e65100" (click)="toggleTrialChip()">
+        @if (loadingTrialData()) {
+          <mat-spinner diameter="16"></mat-spinner>
+        } @else {
+          <span class="stat-value" style="color: #e65100">{{ freeTrialCount() }}</span>
+        }
+        <span class="stat-label">Free Trial</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput placeholder="Search leads..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+          <mat-option value="all">All Statuses</mat-option>
+          @for (s of statusOptions; track s.value) {
+            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-select [ngModel]="sourceFilter()" (ngModelChange)="sourceFilter.set($event)">
+          <mat-option value="all">All Sources</mat-option>
+          <mat-option value="research">Research</mat-option>
+          <mat-option value="manual">Manual</mat-option>
+          <mat-option value="referral">Referral</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-select [ngModel]="sortBy()" (ngModelChange)="sortBy.set($event)">
+          <mat-option value="newest">Newest First</mat-option>
+          <mat-option value="unviewed_inbound">
+            Unread Replies{{ unviewedInboundCount() > 0 ? ' (' + unviewedInboundCount() + ')' : '' }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button class="collapse-all-btn" (click)="collapseAllLeads()">
+        <mat-icon>unfold_less</mat-icon> Collapse Inactive
+      </button>
+      <button mat-stroked-button class="collapse-all-btn" (click)="expandAllLeads()">
+        <mat-icon>unfold_more</mat-icon> Expand All
+      </button>
+      <button mat-stroked-button class="collapse-all-btn" (click)="showArchived.set(!showArchived())">
+        <mat-icon>{{ showArchived() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        {{ showArchived() ? 'Hide Archived' : 'Show Archived' }}
+      </button>
+    </div>
+
+    <!-- Lead List -->
+    <div class="lead-list">
+      @for (lead of filteredLeads(); track lead.id) {
+        @let collapsed = isLeadCollapsed(lead) && !hasActivity(lead);
+        <div class="lead-card" [class.overdue]="isOverdue(lead)" [class.collapsed]="collapsed" [class.archived]="lead.archived">
+          <!-- Collapsed summary row (always visible) -->
+          <div class="lead-card-header" (click)="collapsed ? toggleCollapse(lead, $event) : openLeadDetail(lead)">
+            <button mat-icon-button class="collapse-toggle" (click)="toggleCollapse(lead, $event)" matTooltip="{{ collapsed ? 'Expand' : 'Collapse' }}">
+              <mat-icon>{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+            </button>
+
+            <div class="lead-card-main">
+              <div class="lead-info">
+                <h3>
+                  {{ lead.businessName }}
+                  @if (collapsed && lead.contactName) {
+                    <span class="collapsed-contact">{{ lead.contactName }}</span>
+                  }
+                </h3>
+                @if (!collapsed) {
+                  <p class="contact-line">
+                    @if (lead.contactName) {
+                      <mat-icon class="inline-icon">person</mat-icon> {{ lead.contactName }}
+                    }
+                    @if (lead.email) {
+                      @if (lead.contactName) { <span class="separator">|</span> }
+                      <mat-icon class="inline-icon">email</mat-icon> {{ lead.email }}
+                    }
+                    @if (lead.phone) {
+                      @if (lead.contactName || lead.email) { <span class="separator">|</span> }
+                      <mat-icon class="inline-icon">phone</mat-icon> {{ lead.phone }}
+                    }
+                    @if (lead.website) {
+                      @if (lead.contactName || lead.email || lead.phone) { <span class="separator">|</span> }
+                      <a class="pipeline-link" [href]="lead.website.startsWith('http') ? lead.website : 'https://' + lead.website" target="_blank" rel="noopener" (click)="$event.stopPropagation()">
+                        <mat-icon class="inline-icon">language</mat-icon> {{ lead.website }}
+                      </a>
+                    }
+                    @if (!lead.contactName && !lead.email && !lead.phone && !lead.website) {
+                      <span class="no-contact-yet">No contact info yet</span>
+                    }
+                  </p>
+                  <p class="meta-line">
+                    @if (lead.employeeEstimate) {
+                      <span class="meta-pill"><mat-icon class="inline-icon">group</mat-icon> {{ lead.employeeEstimate }}</span>
+                    }
+                    @if (lead.city || lead.state) {
+                      <span>{{ lead.city }}{{ lead.city && lead.state ? ', ' : '' }}{{ lead.state }}</span>
+                      <span class="separator">|</span>
+                    }
+                    @if (lead.industry) {
+                      <span>{{ lead.industry }}</span>
+                      <span class="separator">|</span>
+                    }
+                    <span>{{ formatDate(lead.createdAt) }}</span>
+                  </p>
+                }
+              </div>
+
+              <div class="lead-actions">
+                <span class="status-chip" [style.background]="getStatusColor(lead.status)">
+                  {{ getStatusLabel(lead.status) }}
+                </span>
+
+                @if (lead.hasUnviewedInbound) {
+                  <span class="inbound-badge">
+                    <mat-icon class="inline-icon">mark_email_unread</mat-icon>
+                    {{ lead.unviewedInboundCount || 1 }} repl{{ (lead.unviewedInboundCount || 1) === 1 ? 'y' : 'ies' }}
+                  </span>
+                }
+
+                @if (lead.nextFollowUp && !collapsed) {
+                  <span class="follow-up-badge" [class.overdue]="isOverdue(lead)">
+                    <mat-icon class="inline-icon">event</mat-icon>
+                    {{ formatDate(lead.nextFollowUp) }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            @if (!collapsed) {
+              <div class="lead-quick-actions" (click)="$event.stopPropagation()">
+                <button mat-icon-button matTooltip="Call" (click)="openLeadDetail(lead)">
+                  <mat-icon>phone</mat-icon>
+                </button>
+                <button mat-icon-button matTooltip="Email" (click)="openLeadDetail(lead)">
+                  <mat-icon>email</mat-icon>
+                </button>
+                <button mat-icon-button [matMenuTriggerFor]="statusMenu" matTooltip="Change status">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #statusMenu="matMenu">
+                  @for (s of statusOptions; track s.value) {
+                    <button mat-menu-item (click)="changeStatus(lead, s.value)">
+                      <span class="menu-dot" [style.background]="s.color"></span>
+                      {{ s.label }}
+                    </button>
+                  }
+                  <mat-divider></mat-divider>
+                  <button mat-menu-item (click)="archiveLead(lead)">
+                    <mat-icon>{{ lead.archived ? 'unarchive' : 'archive' }}</mat-icon>
+                    {{ lead.archived ? 'Unarchive' : 'Archive' }}
+                  </button>
+                  <button mat-menu-item class="delete-item" (click)="deleteLead(lead)">
+                    <mat-icon>delete</mat-icon> Delete
+                  </button>
+                </mat-menu>
+              </div>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <mat-icon>person_search</mat-icon>
+          <h3>No leads yet</h3>
+          <p>Add leads manually or use the Research tab to find prospects with AI.</p>
+        </div>
+      }
+    </div>
+
+    <!-- Manual Lead Form (overlay) -->
+    @if (showManualLeadForm()) {
+      <div class="overlay" (click)="showManualLeadForm.set(false)">
+        <div class="modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Add Lead</h2>
+            <button mat-icon-button (click)="showManualLeadForm.set(false)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Business Name *</mat-label>
+              <input matInput [(ngModel)]="manualLead.businessName">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Contact Name *</mat-label>
+              <input matInput [(ngModel)]="manualLead.contactName">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Email *</mat-label>
+              <input matInput type="email" [(ngModel)]="manualLead.email">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Phone *</mat-label>
+              <input matInput type="tel" [(ngModel)]="manualLead.phone">
+            </mat-form-field>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Website</mat-label>
+                <input matInput [(ngModel)]="manualLead.website">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Industry</mat-label>
+                <input matInput [(ngModel)]="manualLead.industry">
+              </mat-form-field>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>City</mat-label>
+                <input matInput [(ngModel)]="manualLead.city">
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>State</mat-label>
+                <input matInput [(ngModel)]="manualLead.state">
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Source</mat-label>
+              <mat-select [(ngModel)]="manualLead.source">
+                <mat-option value="manual">Manual</mat-option>
+                <mat-option value="referral">Referral</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="modal-footer">
+            <button mat-stroked-button (click)="showManualLeadForm.set(false)">Cancel</button>
+            <button mat-flat-button color="primary" (click)="saveManualLead()" [disabled]="savingLead()">
+              @if (savingLead()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                Save Lead
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- RESEARCH VIEW                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (view() === 'research') {
+    <div class="research-layout">
+      <!-- Session sidebar -->
+      <aside class="session-sidebar">
+        <button mat-flat-button color="primary" class="new-session-btn" (click)="startNewSession()">
+          <mat-icon>add</mat-icon> New Session
+        </button>
+
+        <div class="session-list">
+          @for (session of filteredSessions(); track session.id) {
+            <div class="session-item"
+              [class.active]="activeSessionId() === session.id"
+              [class.archived]="session.archived"
+              (click)="loadSession(session)">
+              <mat-icon>{{ session.archived ? 'archive' : 'chat' }}</mat-icon>
+              <div class="session-meta">
+                @if (editingSessionId() === session.id) {
+                  <input class="session-title-input"
+                    [value]="editingSessionTitle"
+                    (input)="editingSessionTitle = $any($event.target).value"
+                    (blur)="saveSessionTitle(session.id)"
+                    (keydown.enter)="$any($event.target).blur()"
+                    (keydown.escape)="cancelSessionEdit()"
+                    (click)="$event.stopPropagation()"
+                    #sessionTitleInput />
+                } @else {
+                  <span class="session-title"
+                    (dblclick)="startEditingSession(session, $event)"
+                    [matTooltip]="'Double-click to rename'">
+                    {{ session.title || session.messages?.[0]?.content?.substring(0, 50) || 'Untitled session' }}
+                  </span>
+                }
+                <span class="session-date">{{ formatDate(session.createdAt) }}</span>
+              </div>
+              @if (activeSessionId() === session.id && editingSessionId() !== session.id) {
+                <button mat-icon-button class="session-edit-btn"
+                  [matMenuTriggerFor]="sessionMenu"
+                  (click)="$event.stopPropagation()">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #sessionMenu="matMenu">
+                  <button mat-menu-item (click)="startEditingSession(session, $event)">
+                    <mat-icon>edit</mat-icon> Rename
+                  </button>
+                  <button mat-menu-item (click)="archiveSession(session, $event)">
+                    <mat-icon>{{ session.archived ? 'unarchive' : 'archive' }}</mat-icon>
+                    {{ session.archived ? 'Unarchive' : 'Archive' }}
+                  </button>
+                </mat-menu>
+              }
+            </div>
+          } @empty {
+            <p class="no-sessions">No research sessions yet. Start a new one above.</p>
+          }
+        </div>
+
+        <button mat-button class="show-archived-sessions-btn" (click)="showArchivedSessions.set(!showArchivedSessions())">
+          <mat-icon>{{ showArchivedSessions() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          {{ showArchivedSessions() ? 'Hide archived' : 'Show archived' }}
+        </button>
+      </aside>
+
+      <!-- Chat area -->
+      <div class="chat-area">
+        <div class="chat-messages" #chatMessages>
+          @if (chatHistory().length === 0) {
+            <div class="chat-welcome">
+              <mat-icon class="welcome-icon">travel_explore</mat-icon>
+              <h2>Lead Researcher</h2>
+              <p>Ask me to find potential leads. Try something like:</p>
+              <div class="suggestions">
+                <button class="suggestion-chip" (click)="chatInput$ = 'Find roofing contractors in Texas with 10+ employees'; sendResearchMessage()">
+                  Roofing contractors in Texas
+                </button>
+                <button class="suggestion-chip" (click)="chatInput$ = 'HVAC companies in the Dallas-Fort Worth area'; sendResearchMessage()">
+                  HVAC companies in DFW
+                </button>
+                <button class="suggestion-chip" (click)="chatInput$ = 'Manufacturing facilities in Ohio that might need safety compliance software'; sendResearchMessage()">
+                  Manufacturing in Ohio
+                </button>
+              </div>
+            </div>
+          }
+
+          @for (msg of chatHistory(); track $index) {
+            @let msgIdx = $index;
+            <div class="chat-msg" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+              @if (msg.role === 'user') {
+                <div class="msg-bubble user-bubble">
+                  @if (msg.userName) {
+                    <span class="msg-author">{{ msg.userName }}</span>
+                  }
+                  {{ msg.content }}
+                </div>
+              } @else {
+                <div class="msg-bubble assistant-bubble">
+                  <div class="reply-text">{{ msg.content }}</div>
+
+                  @if (msg.leadsFound && msg.leadsFound.length > 0) {
+                    <div class="found-leads">
+                      <div class="found-leads-toolbar">
+                        <span class="found-leads-count">{{ msg.leadsFound.length }} lead{{ msg.leadsFound.length === 1 ? '' : 's' }} found</span>
+                        <button mat-stroked-button class="collapse-stale-btn" (click)="collapseStaleResearchLeads()">
+                          <mat-icon>unfold_less</mat-icon> Collapse stale
+                        </button>
+                      </div>
+                      @for (lead of msg.leadsFound; track $index) {
+                        @let leadIdx = $index;
+                        @let pipelineLead = getPipelineLead(lead);
+                        @let progressed = hasProgressedPipelineLead(pipelineLead);
+                        @let rCollapsed = isResearchLeadCollapsed(msgIdx, leadIdx, pipelineLead);
+                        <div class="found-lead-card"
+                          [class.in-pipeline]="!!pipelineLead && !progressed"
+                          [class.progressed]="progressed"
+                          [class.collapsed]="rCollapsed">
+
+                          <div class="found-lead-header" (click)="rCollapsed ? toggleResearchLeadCollapse(msgIdx, leadIdx, $event) : null">
+                            <button mat-icon-button class="found-lead-collapse-toggle"
+                              (click)="toggleResearchLeadCollapse(msgIdx, leadIdx, $event)"
+                              [matTooltip]="rCollapsed ? 'Expand' : 'Collapse'"
+                              [class.hidden-toggle]="progressed">
+                              <mat-icon>{{ rCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+                            </button>
+
+                            <div class="found-lead-title-row">
+                              <strong>{{ lead.businessName || 'Unknown Business' }}</strong>
+                              @if (lead.confidence != null) {
+                                <span class="confidence-badge" [class]="getConfidenceClass(lead.confidence)"
+                                  [matTooltip]="lead.confidence + '% confidence this is a real, active business'">
+                                  {{ lead.confidence }}%
+                                </span>
+                              }
+                              @if (pipelineLead) {
+                                <span class="pipeline-status-chip" [style.background]="getStatusColor(pipelineLead.status)">
+                                  {{ getStatusLabel(pipelineLead.status) }}
+                                </span>
+                              }
+                              @if (rCollapsed && lead.contactName) {
+                                <span class="found-collapsed-contact">{{ lead.contactName }}</span>
+                              }
+                              @if (rCollapsed) {
+                                @let collapsedGaps = getLeadGaps(lead);
+                                @if (collapsedGaps.length > 0) {
+                                  <span class="collapsed-gap-count" [matTooltip]="collapsedGaps.length + ' missing fields'">
+                                    <mat-icon class="inline-icon">warning_amber</mat-icon> {{ collapsedGaps.length }}
+                                  </span>
+                                }
+                              }
+                            </div>
+                          </div>
+
+                          @if (!rCollapsed) {
+                            <div class="found-lead-info">
+                              @if (lead.contactName) {
+                                <span class="found-field"><mat-icon class="inline-icon">person</mat-icon> {{ lead.contactName }}</span>
+                              }
+                              @if (lead.email) {
+                                <span class="found-field"><mat-icon class="inline-icon">email</mat-icon> {{ lead.email }}</span>
+                              }
+                              @if (lead.phone) {
+                                <span class="found-field"><mat-icon class="inline-icon">phone</mat-icon> {{ lead.phone }}</span>
+                              }
+                              <div class="found-web-row">
+                                @if (lead.website) {
+                                  <a class="found-field found-link" [href]="lead.website.startsWith('http') ? lead.website : 'https://' + lead.website" target="_blank" rel="noopener" (click)="$event.stopPropagation()">
+                                    <mat-icon class="inline-icon">language</mat-icon> {{ lead.website }}
+                                  </a>
+                                }
+                                <a class="google-search-btn"
+                                  [href]="'https://www.google.com/search?q=' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || ''))"
+                                  target="_blank" rel="noopener"
+                                  (click)="$event.stopPropagation()"
+                                  matTooltip="Search Google">
+                                  <mat-icon class="inline-icon">search</mat-icon> Google
+                                </a>
+                              </div>
+                              @if (lead.city || lead.state) {
+                                <span class="found-field"><mat-icon class="inline-icon">location_on</mat-icon> {{ lead.city }}{{ lead.city && lead.state ? ', ' : '' }}{{ lead.state }}</span>
+                              }
+                              <div class="found-meta-row">
+                                @if (lead.employeeEstimate) {
+                                  <span class="found-meta-tag"><mat-icon class="inline-icon">group</mat-icon> {{ lead.employeeEstimate }} employees</span>
+                                }
+                                @if (lead.yearEstablished) {
+                                  <span class="found-meta-tag"><mat-icon class="inline-icon">calendar_today</mat-icon> Est. {{ lead.yearEstablished }}</span>
+                                }
+                                @if (lead.industry) {
+                                  <span class="found-meta-tag"><mat-icon class="inline-icon">business</mat-icon> {{ lead.industry }}</span>
+                                }
+                              </div>
+                              @if (lead.verificationSignals) {
+                                <div class="verification-signals">
+                                  @if (lead.verificationSignals.googlePlaceId) {
+                                    <a class="signal-chip signal-yes signal-link"
+                                      [href]="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || '')) + '&query_place_id=' + lead.verificationSignals.googlePlaceId"
+                                      target="_blank" rel="noopener"
+                                      (click)="$event.stopPropagation()"
+                                      matTooltip="View on Google Maps">
+                                      <mat-icon class="inline-icon">check_circle</mat-icon> Google
+                                      <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
+                                    </a>
+                                  } @else if (lead.verificationSignals.hasGoogleListing) {
+                                    <a class="signal-chip signal-yes signal-link"
+                                      [href]="'https://www.google.com/maps/search/' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || ''))"
+                                      target="_blank" rel="noopener"
+                                      (click)="$event.stopPropagation()"
+                                      matTooltip="Search on Google Maps">
+                                      <mat-icon class="inline-icon">check_circle</mat-icon> Google
+                                      <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
+                                    </a>
+                                  } @else {
+                                    <span class="signal-chip signal-no">
+                                      <mat-icon class="inline-icon">cancel</mat-icon> Google
+                                    </span>
+                                  }
+                                  <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.hasReviews" [class.signal-no]="!lead.verificationSignals.hasReviews">
+                                    <mat-icon class="inline-icon">{{ lead.verificationSignals.hasReviews ? 'check_circle' : 'cancel' }}</mat-icon> Reviews
+                                  </span>
+                                  @if (lead.verificationSignals.hasReviews) {
+                                    <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.recentReviews" [class.signal-no]="!lead.verificationSignals.recentReviews">
+                                      <mat-icon class="inline-icon">{{ lead.verificationSignals.recentReviews ? 'check_circle' : 'cancel' }}</mat-icon> Recent
+                                    </span>
+                                  }
+                                  <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.hasWebsite" [class.signal-no]="!lead.verificationSignals.hasWebsite">
+                                    <mat-icon class="inline-icon">{{ lead.verificationSignals.hasWebsite ? 'check_circle' : 'cancel' }}</mat-icon> Website
+                                  </span>
+                                  <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.hasSocialMedia" [class.signal-no]="!lead.verificationSignals.hasSocialMedia">
+                                    <mat-icon class="inline-icon">{{ lead.verificationSignals.hasSocialMedia ? 'check_circle' : 'cancel' }}</mat-icon> Social
+                                  </span>
+                                  <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.hasPhone" [class.signal-no]="!lead.verificationSignals.hasPhone">
+                                    <mat-icon class="inline-icon">{{ lead.verificationSignals.hasPhone ? 'check_circle' : 'cancel' }}</mat-icon> Phone
+                                  </span>
+                                </div>
+                                @if (lead.verificationSignals.lastActivityIndicator) {
+                                  <span class="last-activity-indicator">
+                                    <mat-icon class="inline-icon">schedule</mat-icon>
+                                    {{ lead.verificationSignals.lastActivityIndicator }}
+                                  </span>
+                                }
+                              }
+                              @if (lead.fitReason) {
+                                <span class="found-fit-reason">{{ lead.fitReason }}</span>
+                              }
+                              @if (lead.bestContactMethod) {
+                                <span class="found-contact-method">
+                                  <mat-icon class="inline-icon">{{ contactMethodIcon(lead.bestContactMethod) }}</mat-icon>
+                                  Best contact: {{ contactMethodLabel(lead.bestContactMethod) }}
+                                </span>
+                              }
+                              @if (lead.notes) {
+                                <span class="found-notes">{{ lead.notes }}</span>
+                              }
+
+                              @let gaps = getLeadGaps(lead);
+                              @if (gaps.length > 0) {
+                                <div class="lead-gaps">
+                                  @for (gap of gaps; track gap.label) {
+                                    <span class="lead-gap-chip">
+                                      <mat-icon class="inline-icon">{{ gap.icon }}</mat-icon>
+                                      {{ gap.label }}
+                                    </span>
+                                  }
+                                </div>
+                              }
+                            </div>
+                            <div class="found-lead-action">
+                              @if (pipelineLead) {
+                                <button mat-stroked-button class="view-lead-btn" (click)="openLeadDetail(pipelineLead)">
+                                  <mat-icon>open_in_new</mat-icon> View Lead
+                                </button>
+                              } @else {
+                                <button mat-flat-button color="primary" class="add-btn" (click)="addResearchLeadToPipeline(lead)" [disabled]="savingLead()">
+                                  <mat-icon>add</mat-icon> Add to Leads
+                                </button>
+                              }
+                            </div>
+
+                            @let chatKey = researchLeadKey(msgIdx, leadIdx);
+                            <div class="lead-ai-chat">
+                              @if (lead.feedbackLog && lead.feedbackLog.length > 0) {
+                                <div class="lead-ai-log">
+                                  @for (entry of lead.feedbackLog; track $index) {
+                                    <div class="ai-log-entry">
+                                      <div class="ai-log-user">
+                                        <mat-icon class="inline-icon">person</mat-icon>
+                                        <span>{{ entry.feedback }}</span>
+                                      </div>
+                                      <div class="ai-log-reply">
+                                        <mat-icon class="inline-icon">auto_awesome</mat-icon>
+                                        <span>{{ entry.reply }}</span>
+                                      </div>
+                                    </div>
+                                  }
+                                </div>
+                              }
+                              @if (isLeadChatSending(chatKey)) {
+                                <div class="lead-ai-loading">
+                                  <mat-spinner diameter="14"></mat-spinner>
+                                  <span>Thinking...</span>
+                                </div>
+                              }
+                              <div class="lead-ai-input-row">
+                                <mat-icon class="ai-input-icon">auto_awesome</mat-icon>
+                                <input class="lead-ai-input"
+                                  [value]="getLeadChatText(chatKey)"
+                                  (input)="setLeadChatText(chatKey, $any($event.target).value)"
+                                  placeholder="What's new?"
+                                  (keydown.enter)="$event.preventDefault(); sendResearchLeadChat(lead, msgIdx, leadIdx)"
+                                  [disabled]="isLeadChatSending(chatKey)">
+                                <button mat-icon-button class="lead-ai-send"
+                                  (click)="sendResearchLeadChat(lead, msgIdx, leadIdx)"
+                                  [disabled]="!getLeadChatText(chatKey).trim() || isLeadChatSending(chatKey)">
+                                  <mat-icon>send</mat-icon>
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (researching()) {
+            <div class="chat-msg assistant">
+              <div class="msg-bubble assistant-bubble typing">
+                <mat-spinner diameter="20"></mat-spinner>
+                <span>Researching...</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Chat input -->
+        <div class="chat-input-bar">
+          <textarea #chatInput
+            [(ngModel)]="chatInput$"
+            placeholder="Ask about leads, industries, or specific companies..."
+            (keydown)="handleChatKeydown($event)"
+            rows="1"></textarea>
+          <button mat-icon-button color="primary" (click)="sendResearchMessage()" [disabled]="researching() || !chatInput$.trim()">
+            <mat-icon>send</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- FLOW VIEW                                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (view() === 'flow') {
+    <div class="flow-layout">
+
+      <!-- Flow Summary Bar -->
+      <div class="flow-summary-bar">
+        <div class="flow-stat overdue">
+          <span class="flow-stat-value">{{ flowStats().overdue }}</span>
+          <span class="flow-stat-label">Overdue</span>
+        </div>
+        <div class="flow-stat today">
+          <span class="flow-stat-value">{{ flowStats().today }}</span>
+          <span class="flow-stat-label">Today</span>
+        </div>
+        <div class="flow-stat upcoming">
+          <span class="flow-stat-value">{{ flowStats().upcoming }}</span>
+          <span class="flow-stat-label">Upcoming</span>
+        </div>
+        <div class="flow-stat total">
+          <span class="flow-stat-value">{{ flowStats().total }}</span>
+          <span class="flow-stat-label">Total</span>
+        </div>
+        @if (unviewedInboundCount() > 0) {
+          <div class="flow-stat inbound">
+            <span class="flow-stat-value">{{ unviewedInboundCount() }}</span>
+            <span class="flow-stat-label">Unread Replies</span>
+          </div>
+        }
+      </div>
+
+      <!-- Unread Replies Group -->
+      @if (unreadReplyLeads().length > 0) {
+        <div class="flow-group">
+          <h2 class="flow-group-title unread-replies">
+            <mat-icon>mark_email_unread</mat-icon> Unread Replies
+          </h2>
+          @for (lead of unreadReplyLeads(); track lead.id) {
+            <ng-container *ngTemplateOutlet="flowCard; context: { $implicit: lead, group: 'unread-replies' }"></ng-container>
+          }
+        </div>
+      }
+
+      <!-- Overdue Group -->
+      @if (overdueFlowLeads().length > 0) {
+        <div class="flow-group">
+          <h2 class="flow-group-title overdue">
+            <mat-icon>warning</mat-icon> Overdue
+          </h2>
+          @for (lead of overdueFlowLeads(); track lead.id) {
+            <ng-container *ngTemplateOutlet="flowCard; context: { $implicit: lead, group: 'overdue' }"></ng-container>
+          }
+        </div>
+      }
+
+      <!-- Today Group -->
+      @if (todayFlowLeads().length > 0) {
+        <div class="flow-group">
+          <h2 class="flow-group-title today">
+            <mat-icon>today</mat-icon> Today
+          </h2>
+          @for (lead of todayFlowLeads(); track lead.id) {
+            <ng-container *ngTemplateOutlet="flowCard; context: { $implicit: lead, group: 'today' }"></ng-container>
+          }
+        </div>
+      }
+
+      <!-- Upcoming Group -->
+      @if (upcomingFlowLeads().length > 0) {
+        <div class="flow-group">
+          <h2 class="flow-group-title upcoming">
+            <mat-icon>schedule</mat-icon> Upcoming
+          </h2>
+          @for (lead of upcomingFlowLeads(); track lead.id) {
+            <ng-container *ngTemplateOutlet="flowCard; context: { $implicit: lead, group: 'upcoming' }"></ng-container>
+          }
+        </div>
+      }
+
+      @if (flowLeads().length === 0) {
+        <div class="empty-state">
+          <mat-icon>route</mat-icon>
+          <h3>No flow actions yet</h3>
+          <p>Add leads and they'll automatically get analyzed. Or hit Refresh All to analyze existing leads.</p>
+          <button mat-flat-button color="primary" (click)="refreshAllFlow()" [disabled]="flowRefreshing()">
+            @if (flowRefreshing()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              <ng-container><mat-icon>refresh</mat-icon> Analyze All Leads</ng-container>
+            }
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Flow Email Composer Overlay -->
+    @if (flowEmailLead(); as emailLead) {
+      <div class="overlay" (click)="flowEmailLeadId.set(null)">
+        <div class="modal flow-email-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ flowEmailInReplyTo ? 'Reply to' : 'Email' }} {{ emailLead.contactName }}</h2>
+            <button mat-icon-button (click)="flowEmailLeadId.set(null)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="modal-body">
+            @if (flowEmailGenerating()) {
+              <div class="generating-email">
+                <mat-spinner diameter="24"></mat-spinner>
+                <span>Generating email with AI...</span>
+              </div>
+            } @else {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Subject</mat-label>
+                <input matInput [(ngModel)]="flowEmailSubject">
+              </mat-form-field>
+
+              <div class="email-editor-wrapper">
+                <div class="email-editor-container">
+                  <ngx-editor-menu [editor]="flowEmailEditor" [toolbar]="emailToolbar"></ngx-editor-menu>
+                  <ngx-editor
+                    [editor]="flowEmailEditor"
+                    [ngModel]="flowEmailEditorDoc"
+                    (ngModelChange)="onFlowEmailEditorChange($event)"
+                    [placeholder]="'Write your email...'">
+                  </ngx-editor>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="modal-footer">
+            <button mat-stroked-button (click)="flowEmailLeadId.set(null)">Cancel</button>
+            <button mat-flat-button color="primary" (click)="sendFlowEmail()" [disabled]="flowEmailSending() || flowEmailGenerating() || !flowEmailSubject || !flowEmailBody">
+              @if (flowEmailSending()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                <ng-container><mat-icon>send</mat-icon> Send Email</ng-container>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- FLOW CARD TEMPLATE                                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <ng-template #flowCard let-lead let-group="group">
+    <div class="flow-card" [attr.data-action]="lead.flow?.recommendedAction || 'email'" [class]="group">
+      <div class="flow-card-body">
+        <div class="flow-card-top">
+          <div class="flow-card-lead-info">
+            <h3 class="flow-card-business" (click)="openLeadDetail(lead)">{{ lead.businessName }}</h3>
+            <p class="flow-card-contact">
+              @if (lead.contactName) {
+                <mat-icon class="inline-icon">person</mat-icon> {{ lead.contactName }}
+              }
+              @if (lead.industry) {
+                <span class="separator">|</span> {{ lead.industry }}
+              }
+              @if (lead.city || lead.state) {
+                <span class="separator">|</span> {{ lead.city }}{{ lead.city && lead.state ? ', ' : '' }}{{ lead.state }}
+              }
+            </p>
+          </div>
+          <div class="flow-card-meta">
+            <span class="status-chip small" [style.background]="getStatusColor(lead.status)">{{ getStatusLabel(lead.status) }}</span>
+            @if (lead.hasUnviewedInbound) {
+              <span class="inbound-badge">
+                <mat-icon class="inline-icon">mark_email_unread</mat-icon>
+                {{ lead.unviewedInboundCount || 1 }} repl{{ (lead.unviewedInboundCount || 1) === 1 ? 'y' : 'ies' }}
+              </span>
+            }
+            <span class="priority-chip" [style.color]="getPriorityColor(lead.flow?.priority)">
+              {{ lead.flow?.priority || 'medium' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flow-card-recommendation">
+          <div class="flow-rec-header">
+            <div class="flow-rec-action">
+              <mat-icon class="flow-rec-icon">{{ getFlowActionIcon(lead.flow?.recommendedAction) }}</mat-icon>
+              <span class="flow-rec-label">{{ getFlowActionLabel(lead.flow?.recommendedAction) }}</span>
+            </div>
+            <span class="flow-rec-time" [class]="group">
+              <mat-icon class="inline-icon">schedule</mat-icon>
+              {{ formatRelativeTime(lead.flow?.nextActionAt) }}
+            </span>
+          </div>
+          <p class="flow-rec-reason">{{ lead.flow?.actionReason }}</p>
+          @if (lead.flow?.suggestedContent) {
+            <details class="flow-rec-content">
+              <summary>Suggested talking points</summary>
+              <p>{{ lead.flow?.suggestedContent }}</p>
+            </details>
+          }
+          <div class="flow-meta-row">
+            @if (lead.flow?.touchCount != null) {
+              <span class="flow-touch-count">{{ lead.flow.touchCount }} touch{{ lead.flow.touchCount === 1 ? '' : 'es' }} so far</span>
+            }
+            @if (lead.flow?.recommendedOwner) {
+              <span class="flow-recommended-owner">
+                <mat-icon class="inline-icon">person</mat-icon> {{ lead.flow.recommendedOwner }}
+              </span>
+            }
+          </div>
+        </div>
+
+        <div class="flow-card-actions">
+          <button mat-flat-button class="flow-action-btn flow-primary-action" (click)="executeFlowAction(lead)">
+            <mat-icon>{{ getFlowActionIcon(lead.flow?.recommendedAction) }}</mat-icon>
+            {{ getFlowActionLabel(lead.flow?.recommendedAction) }}
+          </button>
+          <button mat-stroked-button (click)="openFlowSnooze(lead)" matTooltip="Snooze">
+            <mat-icon>snooze</mat-icon> Snooze
+          </button>
+          <button mat-stroked-button (click)="dismissFlowAction(lead)" matTooltip="Dismiss">
+            <mat-icon>close</mat-icon> Dismiss
+          </button>
+          @if (!lead.consultationUrl) {
+            <button mat-stroked-button (click)="generateConsultation(lead)" matTooltip="Generate free safety consultation"
+              [disabled]="generatingConsultationId() === lead.id">
+              @if (generatingConsultationId() === lead.id) {
+                <mat-spinner diameter="18"></mat-spinner>
+              } @else {
+                <mat-icon>assignment</mat-icon>
+              }
+              Consultation
+            </button>
+          } @else {
+            <a mat-stroked-button [href]="lead.consultationUrl" target="_blank" rel="noopener" class="consultation-link-btn"
+              matTooltip="View consultation report" (click)="$event.stopPropagation()">
+              <mat-icon>assignment_turned_in</mat-icon> Report
+            </a>
+          }
+          <button mat-icon-button (click)="openLeadDetail(lead)" matTooltip="View lead details">
+            <mat-icon>open_in_new</mat-icon>
+          </button>
+          <button mat-icon-button (click)="refreshSingleFlow(lead)" matTooltip="Re-analyze"
+            [disabled]="flowAnalyzingId() === lead.id">
+            @if (flowAnalyzingId() === lead.id) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>refresh</mat-icon>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+
+  <!-- Snooze Overlay -->
+  @if (flowSnoozeLeadId()) {
+    <div class="overlay" (click)="flowSnoozeLeadId.set(null)">
+      <div class="modal flow-snooze-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Snooze Until</h2>
+          <button mat-icon-button (click)="flowSnoozeLeadId.set(null)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="modal-body">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Snooze until</mat-label>
+            <input matInput [matDatepicker]="snoozePicker" [(ngModel)]="flowSnoozeDate">
+            <mat-datepicker-toggle matSuffix [for]="snoozePicker"></mat-datepicker-toggle>
+            <mat-datepicker #snoozePicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="flowSnoozeLeadId.set(null)">Cancel</button>
+          <button mat-flat-button color="primary" (click)="confirmFlowSnooze()" [disabled]="!flowSnoozeDate">
+            <mat-icon>snooze</mat-icon> Snooze
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</section>

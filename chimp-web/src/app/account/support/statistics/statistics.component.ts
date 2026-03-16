@@ -21,7 +21,7 @@ interface TeamStats {
   ownerId?: string;
   createdAt?: Date;
   stripeSubscriptionId?: string;
-  userCount?: number;
+  memberCount?: number;
   logCount?: number;
   lastActivity?: Date;
   ownerEmail?: string;
@@ -52,11 +52,11 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
   readonly teams = signal<TeamStats[]>([]);
   readonly loading = signal(true);
   readonly deleting = signal(false);
-  readonly displayedColumns = ['status', 'name', 'email', 'created', 'users', 'delete'];
+  readonly displayedColumns = ['status', 'name', 'email', 'created', 'members', 'delete'];
   readonly dataSource = new MatTableDataSource<TeamStats>([]);
 
   readonly paidTeamsCount = signal(0);
-  readonly totalUsersCount = signal(0);
+  readonly totalMemberCount = signal(0);
 
   ngOnInit(): void {
     this.loadTeams();
@@ -94,11 +94,11 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
       // Get owner email - try multiple approaches
       this.findOwnerEmail(team);
 
-      // Get user count
-      const usersQuery = query(collection(this.db, 'user'), where('teamId', '==', team.id));
-      from(getCountFromServer(usersQuery)).subscribe(snapshot => {
-        team.userCount = snapshot.data().count;
-        this.updateTotalUsers();
+      // Get team member count
+      const membersQuery = query(collection(this.db, 'team-members'), where('teamId', '==', team.id));
+      from(getCountFromServer(membersQuery)).subscribe(snapshot => {
+        team.memberCount = snapshot.data().count;
+        this.updateTotalMembers();
         this.dataSource.data = [...this.teams()];
       });
 
@@ -123,9 +123,9 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private updateTotalUsers(): void {
-    const total = this.teams().reduce((sum, t) => sum + (t.userCount || 0), 0);
-    this.totalUsersCount.set(total);
+  private updateTotalMembers(): void {
+    const total = this.teams().reduce((sum, t) => sum + (t.memberCount || 0), 0);
+    this.totalMemberCount.set(total);
   }
 
   private findOwnerEmail(team: TeamStats): void {
@@ -248,7 +248,7 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
       this.teams.set(updatedTeams);
       this.dataSource.data = updatedTeams;
       this.paidTeamsCount.set(updatedTeams.filter(t => t.stripeSubscriptionId).length);
-      this.updateTotalUsers();
+      this.updateTotalMembers();
     } catch (error) {
       console.error('Error deleting team:', error);
       alert('Failed to delete team. Please try again.');
@@ -262,7 +262,7 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
     if (teams.length === 0) return;
 
     // CSV headers
-    const headers = ['Team Name', 'Email', 'Status', 'Created', 'Users', 'Logs', 'Last Activity'];
+    const headers = ['Team Name', 'Email', 'Status', 'Created', 'Team Members', 'Logs', 'Last Activity'];
     
     // CSV rows
     const rows = teams.map(team => [
@@ -270,7 +270,7 @@ export class StatisticsComponent implements OnInit, AfterViewInit {
       this.escapeCsvField(team.ownerEmail || team.email || ''),
       team.stripeSubscriptionId ? 'Paid' : 'Free',
       team.createdAt ? new Date(team.createdAt).toLocaleDateString() : '',
-      team.userCount?.toString() || '',
+      team.memberCount?.toString() || '',
       team.logCount?.toString() || '',
       team.lastActivity ? new Date(team.lastActivity).toLocaleDateString() : ''
     ]);

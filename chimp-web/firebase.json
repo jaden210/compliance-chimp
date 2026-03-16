@@ -83,6 +83,10 @@
         "function": "sitemap"
       },
       {
+        "source": "/salesEmailInbound",
+        "function": "salesEmailInbound"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -76,6 +76,8 @@ export interface ConsultationAssessment {
   prefill: ConsultationPrefill;
 }
 
+export type ConsultationLanguage = 'en' | 'es';
+
 export type ConsultationLeadSourceType = 'api' | 'self-serve';
 export type ConsultationLeadDeliveryStatus = 'generated' | 'sent' | 'send_failed';
 
@@ -139,6 +141,7 @@ export interface PublicConsultationRecord {
   sourceType: ConsultationLeadSourceType;
   generatedAt: string;
   assessment: ConsultationAssessment;
+  assessment_es?: ConsultationAssessment | null;
   leadId?: string | null;
   viewCount?: number;
   lastViewedAt?: unknown;
@@ -203,3 +206,29 @@ export const US_STATE_OPTIONS: StateOption[] = [
   { code: 'PR', name: 'Puerto Rico' },
   { code: 'VI', name: 'U.S. Virgin Islands' }
 ];
+
+const CONSULTATION_LANG_KEY = 'chimp_consultation_lang';
+
+export function resolveConsultationLanguage(queryParam?: string | null): ConsultationLanguage {
+  if (queryParam === 'es') return 'es';
+  if (queryParam === 'en') return 'en';
+
+  try {
+    const stored = localStorage.getItem(CONSULTATION_LANG_KEY);
+    if (stored === 'es') return 'es';
+    if (stored === 'en') return 'en';
+  } catch {}
+
+  try {
+    const browserLang = navigator.language || '';
+    if (browserLang.startsWith('es')) return 'es';
+  } catch {}
+
+  return 'en';
+}
+
+export function persistConsultationLanguage(lang: ConsultationLanguage): void {
+  try {
+    localStorage.setItem(CONSULTATION_LANG_KEY, lang);
+  } catch {}
+}

@@ -2,6 +2,9 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { Auth, authState } from '@angular/fire/auth';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { firstValueFrom } from 'rxjs';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,8 +15,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { SeoService } from '../shared/seo.service';
 import {
   ConsultationAssessment,
+  ConsultationLanguage,
   ConsultationPrefill,
-  US_STATE_OPTIONS
+  US_STATE_OPTIONS,
+  persistConsultationLanguage,
+  resolveConsultationLanguage,
 } from '../shared/osha-consultation';
 import { ChallengeService } from '../challenge/challenge.service';
 import { exportConsultationAssessmentPdf } from '../shared/osha-pdf';
@@ -21,6 +27,7 @@ import { ConsultationAssessmentViewComponent } from '../shared/consultation-asse
 import { LeadTrackingService } from '../shared/lead-tracking.service';
 
 const LAST_REPORT_STORAGE_KEY = 'chimp_last_osha_consultation_report';
+const LAST_REPORT_ES_STORAGE_KEY = 'chimp_last_osha_consultation_report_es';
 
 @Component({
   standalone: true,
@@ -41,12 +48,15 @@ const LAST_REPORT_STORAGE_KEY = 'chimp_last_osha_consultation_report';
   ]
 })
 export class FreeSafetyConsultationComponent implements OnInit {
+  private auth = inject(Auth);
+  private db = inject(Firestore);
   private fb = inject(FormBuilder);
   private functions = inject(Functions);
   private seoService = inject(SeoService);
   private router = inject(Router);
   private challengeService = inject(ChallengeService);
   private leadTracking = inject(LeadTrackingService);
+  private isAdmin: boolean | null = null;
 
   readonly states = US_STATE_OPTIONS;
   readonly consultForm = this.fb.group({
@@ -60,9 +70,21 @@ export class FreeSafetyConsultationComponent implements OnInit {
   isSubmitting = false;
   errorMessage = '';
   assessment: ConsultationAssessment | null = null;
+  assessmentEs: ConsultationAssessment | null = null;
+  currentLanguage: ConsultationLanguage = 'en';
   savedReportPreview: { companyName: string; generatedAt: string } | null = null;
 
+  get activeAssessment(): ConsultationAssessment | null {
+    if (this.currentLanguage === 'es' && this.assessmentEs) return this.assessmentEs;
+    return this.assessment;
+  }
+
+  get hasSpanishAssessment(): boolean {
+    return !!this.assessmentEs;
+  }
+
   ngOnInit(): void {
+    this.currentLanguage = resolveConsultationLanguage();
     this.seoService.setCustomSeo({
       title: 'Free OSHA Safety Consultation | Compliance Chimp',
       description: 'Get a free OSHA safety consultation with a tailored compliance report, required documents, poster guidance, recordkeeping obligations, and a fast path into setup.',
@@ -91,11 +113,13 @@ export class FreeSafetyConsultationComponent implements OnInit {
         state: this.consultForm.value.state
       });
 
-      this.assessment = result.data as ConsultationAssessment;
-      this.persistLastReport(this.assessment);
+      const data = result.data as any;
+      this.assessment = data as ConsultationAssessment;
+      this.assessmentEs = data.assessment_es || null;
+      this.persistLastReport(this.assessment, this.assessmentEs);
       this.refreshSavedReportPreview();
 
-      if (this.assessment.publicConsultationId) {
+      if (this.assessment.publicConsultationId && !(await this.checkIsAdmin())) {
         this.leadTracking.initFromParams(this.assessment.publicConsultationId, 'self-serve', null);
         this.leadTracking.trackEvent('report_viewed', '/free-safety-consultation');
         this.leadTracking.syncToFirestore();
@@ -108,11 +132,18 @@ export class FreeSafetyConsultationComponent implements OnInit {
     }
   }
 
+  onLanguageChange(lang: ConsultationLanguage): void {
+    this.currentLanguage = lang;
+    persistConsultationLanguage(lang);
+  }
+
   startOnboarding(): void {
     if (!this.assessment) return;
 
-    this.leadTracking.trackEvent('cta_clicked', undefined, 'start_building');
-    this.leadTracking.syncToFirestore();
+    if (this.isAdmin !== true) {
+      this.leadTracking.trackEvent('cta_clicked', undefined, 'start_building');
+      this.leadTracking.syncToFirestore();
+    }
 
     const prefill: ConsultationPrefill = {
       ...this.assessment.prefill,
@@ -128,19 +159,22 @@ export class FreeSafetyConsultationComponent implements OnInit {
 
   reset(): void {
     this.assessment = null;
+    this.assessmentEs = null;
     this.errorMessage = '';
     this.refreshSavedReportPreview();
   }
 
   async downloadPdf(): Promise<void> {
-    if (!this.assessment) return;
-    await exportConsultationAssessmentPdf(this.assessment);
+    const target = this.activeAssessment;
+    if (!target) return;
+    await exportConsultationAssessmentPdf(target, this.currentLanguage);
   }
 
   showLastReport(): void {
     const savedReport = this.readLastReport();
     if (!savedReport) return;
     this.assessment = savedReport;
+    this.assessmentEs = this.readLastReportEs();
     this.errorMessage = '';
   }
 
@@ -158,9 +192,14 @@ export class FreeSafetyConsultationComponent implements OnInit {
     }
   }
 
-  private persistLastReport(report: ConsultationAssessment): void {
+  private persistLastReport(report: ConsultationAssessment, reportEs: ConsultationAssessment | null): void {
     try {
       localStorage.setItem(LAST_REPORT_STORAGE_KEY, JSON.stringify(report));
+      if (reportEs) {
+        localStorage.setItem(LAST_REPORT_ES_STORAGE_KEY, JSON.stringify(reportEs));
+      } else {
+        localStorage.removeItem(LAST_REPORT_ES_STORAGE_KEY);
+      }
     } catch (error) {
       console.error('Error saving consultation report locally:', error);
     }
@@ -183,6 +222,19 @@ export class FreeSafetyConsultationComponent implements OnInit {
     }
   }
 
+  private readLastReportEs(): ConsultationAssessment | null {
+    try {
+      const raw = localStorage.getItem(LAST_REPORT_ES_STORAGE_KEY);
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw) as ConsultationAssessment;
+      if (!parsed?.assessmentId) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
   private refreshSavedReportPreview(): void {
     const savedReport = this.readLastReport();
     this.savedReportPreview = savedReport
@@ -191,5 +243,21 @@ export class FreeSafetyConsultationComponent implements OnInit {
           generatedAt: savedReport.generatedAt
         }
       : null;
+  }
+
+  private async checkIsAdmin(): Promise<boolean> {
+    if (this.isAdmin !== null) return this.isAdmin;
+    const currentUser = await firstValueFrom(authState(this.auth));
+    if (!currentUser) {
+      this.isAdmin = false;
+      return false;
+    }
+    try {
+      const snap = await getDoc(doc(this.db, `user/${currentUser.uid}`));
+      this.isAdmin = snap.exists() && snap.data()?.['isDev'] === true;
+    } catch {
+      this.isAdmin = false;
+    }
+    return this.isAdmin;
   }
 }

@@ -55,6 +55,20 @@ export const supportRoutes: Routes = [
             (m) => m.ConsultationLeadsComponent
           ),
       },
+      {
+        path: "sales-leads",
+        loadComponent: () =>
+          import("./sales-leads/sales-leads.component").then(
+            (m) => m.SalesLeadsComponent
+          ),
+      },
+      {
+        path: "sales-leads/:id",
+        loadComponent: () =>
+          import("./sales-leads/sales-lead-detail.component").then(
+            (m) => m.SalesLeadDetailComponent
+          ),
+      },
     ],
   },
 ];

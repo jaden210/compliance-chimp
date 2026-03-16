@@ -13,6 +13,10 @@
       </div>
       <h1 class="greeting">Hey, {{ TeamMember?.name?.split(' ')[0] || 'there' }}! 👋</h1>
       <p class="team-name">{{ Team?.name }}</p>
+      <div class="language-toggle">
+        <button [class.active]="language === 'en'" (click)="toggleLanguage()">English</button>
+        <button [class.active]="language === 'es'" (click)="toggleLanguage()">Espa&#241;ol</button>
+      </div>
     </div>
   </header>
 
@@ -25,8 +29,8 @@
             <mat-icon>add_to_home_screen</mat-icon>
           </div>
           <div class="install-text">
-            <strong>Add to Home Screen</strong>
-            <span>Quick access anytime</span>
+            <strong>{{ l.addToHomeScreen }}</strong>
+            <span>{{ l.quickAccess }}</span>
           </div>
         </div>
         <mat-icon class="install-arrow">arrow_forward</mat-icon>
@@ -41,8 +45,8 @@
             <mat-icon>healing</mat-icon>
           </div>
           <div class="action-details">
-            <span class="action-title">Report Incident</span>
-            <span class="action-subtitle">Injury or near miss</span>
+            <span class="action-title">{{ l.reportIncident }}</span>
+            <span class="action-subtitle">{{ l.injuryOrNearMiss }}</span>
           </div>
           <mat-icon class="action-arrow">chevron_right</mat-icon>
         </div>
@@ -53,8 +57,8 @@
               <mat-icon>school</mat-icon>
             </div>
             <div class="action-details">
-              <span class="action-title">Training</span>
-              <span class="action-subtitle">Start a new session</span>
+              <span class="action-title">{{ l.training }}</span>
+              <span class="action-subtitle">{{ l.startNewSession }}</span>
             </div>
             <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>
@@ -64,8 +68,8 @@
               <mat-icon>checklist</mat-icon>
             </div>
             <div class="action-details">
-              <span class="action-title">Self-Inspections</span>
-              <span class="action-subtitle">Safety checklists</span>
+              <span class="action-title">{{ l.selfInspections }}</span>
+              <span class="action-subtitle">{{ l.safetyChecklists }}</span>
             </div>
             <mat-icon class="action-arrow">chevron_right</mat-icon>
           </div>
@@ -82,12 +86,12 @@
               <mat-icon>lock_open</mat-icon>
             </div>
             <div class="sign-in-text">
-              <strong>Unlock more features</strong>
-              <span>Sign in to access training, self-inspections, team management, and more.</span>
+              <strong>{{ l.unlockFeatures }}</strong>
+              <span>{{ l.signInPrompt }}</span>
             </div>
           </div>
           <a class="sign-in-button" routerLink="/sign-in">
-            Sign In
+            {{ l.signIn }}
             <mat-icon>arrow_forward</mat-icon>
           </a>
         </div>
@@ -97,7 +101,7 @@
     <!-- Surveys Section -->
     <section class="surveys-section">
       <div class="section-header">
-        <h2 class="section-title">Your Surveys</h2>
+        <h2 class="section-title">{{ l.yourSurveys }}</h2>
         @if (Surveys?.length) {
           <span class="survey-badge">{{ Surveys.length }}</span>
         }
@@ -128,8 +132,8 @@
           <div class="empty-icon">
             <mat-icon>sync</mat-icon>
           </div>
-          <h3>Checking for surveys...</h3>
-          <p>Please wait while we load your latest surveys.</p>
+          <h3>{{ l.checkingForSurveys }}</h3>
+          <p>{{ l.pleaseWait }}</p>
         </div>
       } @else {
         <!-- Surveys loaded and confirmed empty -->
@@ -137,8 +141,8 @@
           <div class="empty-icon">
             <mat-icon>check_circle</mat-icon>
           </div>
-          <h3>All caught up!</h3>
-          <p>No surveys waiting for you. We'll notify you when something new arrives.</p>
+          <h3>{{ l.allCaughtUp }}</h3>
+          <p>{{ l.noSurveysWaiting }}</p>
         </div>
       }
     </section>
@@ -153,8 +157,8 @@
                 <mat-icon>folder_open</mat-icon>
               </div>
               <div class="action-details">
-                <span class="action-title">Team Files</span>
-                <span class="action-subtitle">{{ totalFilesCount }} file{{ totalFilesCount !== 1 ? 's' : '' }} available</span>
+                <span class="action-title">{{ l.teamFiles }}</span>
+                <span class="action-subtitle">{{ totalFilesCount }} {{ l.filesAvailable }}</span>
               </div>
               <mat-icon class="action-arrow">chevron_right</mat-icon>
             </div>
@@ -166,8 +170,8 @@
                 <mat-icon>history</mat-icon>
               </div>
               <div class="action-details">
-                <span class="action-title">Survey History</span>
-                <span class="action-subtitle">{{ completedSurveyCount }} completed survey{{ completedSurveyCount !== 1 ? 's' : '' }}</span>
+                <span class="action-title">{{ l.surveyHistory }}</span>
+                <span class="action-subtitle">{{ completedSurveyCount }} {{ l.completedSurveys }}</span>
               </div>
               <mat-icon class="action-arrow">chevron_right</mat-icon>
             </div>

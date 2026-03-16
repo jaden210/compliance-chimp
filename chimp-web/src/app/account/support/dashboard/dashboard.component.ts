@@ -18,48 +18,54 @@ interface SupportSection {
   imports: [RouterModule, MatIconModule]
 })
 export class DashboardComponent {
+  readonly featured: { label: string; description: string; route: string } = {
+    label: 'Peel & Deal',
+    description: 'Full sales pipeline. Research leads, manage deals, call, and close.',
+    route: 'sales-leads'
+  };
+
   readonly sections: SupportSection[] = [
     {
       label: 'Statistics',
       description: 'Team metrics, user counts, and subscription data with CSV export.',
       icon: 'bar_chart',
       route: 'statistics',
-      color: 'primary'
+      color: 'blue'
     },
     {
       label: 'Resource Library',
       description: 'Upload and manage posters, compliance docs, and safety resources.',
       icon: 'library_books',
       route: 'resource-library',
-      color: 'tertiary'
+      color: 'green'
     },
     {
       label: 'Inspection Template',
       description: 'Configure self-inspection categories and questions.',
       icon: 'checklist',
       route: 'inspection-template',
-      color: 'secondary'
+      color: 'purple'
     },
     {
       label: 'Feedback',
       description: 'Review Chimp Chat feedback, sentiment analysis, and user reports.',
       icon: 'feedback',
       route: 'feedback',
-      color: 'accent'
+      color: 'amber'
     },
     {
       label: 'Outreach',
       description: 'Manage outreach campaigns and lead generation.',
       icon: 'campaign',
       route: 'outreach',
-      color: 'warm'
+      color: 'red'
     },
     {
       label: 'Consultation Leads',
       description: 'Ingest leads, monitor generated consultations, and resend delivery emails.',
       icon: 'mark_email_read',
       route: 'consultation-leads',
-      color: 'primary'
+      color: 'teal'
     }
   ];
 }

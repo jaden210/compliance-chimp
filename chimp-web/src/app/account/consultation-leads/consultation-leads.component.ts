@@ -5,10 +5,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { combineLatest, map, startWith, BehaviorSubject, take } from 'rxjs';
+import { combineLatest, filter, firstValueFrom, map, startWith, BehaviorSubject, take } from 'rxjs';
 import { ConsultationLeadRecord, LeadJourney } from '../../shared/osha-consultation';
 import { ConsultationLeadsService } from './consultation-leads.service';
 
@@ -25,6 +26,7 @@ import { ConsultationLeadsService } from './consultation-leads.service';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatMenuModule,
     MatSelectModule,
   ],
   providers: [ConsultationLeadsService],
@@ -40,8 +42,12 @@ export class ConsultationLeadsComponent implements OnInit {
   readonly emailPreviewById: Record<string, SafeResourceUrl | null> = {};
   readonly testEmailById: Record<string, string> = {};
   readonly sendingTestById: Record<string, boolean> = {};
+  readonly sendingFollowupTestById: Record<string, 'video' | 'w1' | 'w2' | null> = {};
+  readonly editingById: Record<string, { email: string; website: string } | null> = {};
+  readonly savingById: Record<string, boolean> = {};
+  readonly deletingById: Record<string, boolean> = {};
 
-  journeyMap = new Map<string, LeadJourney>();
+  readonly journeyMap$ = new BehaviorSubject<Map<string, LeadJourney>>(new Map());
   journeysLoaded = false;
 
   readonly leads$ = this.service.getLeads().pipe(startWith([] as ConsultationLeadRecord[]));
@@ -50,8 +56,9 @@ export class ConsultationLeadsComponent implements OnInit {
     this.search$,
     this.statusFilter$,
     this.sourceFilter$,
+    this.journeyMap$,
   ]).pipe(
-    map(([leads, search, status, source]) => {
+    map(([leads, search, status, source, journeyMap]) => {
       const query = search.trim().toLowerCase();
       return leads.filter((lead) => {
         const matchesSearch =
@@ -60,20 +67,20 @@ export class ConsultationLeadsComponent implements OnInit {
           lead.email?.toLowerCase().includes(query) ||
           lead.sourceMetadata?.source?.toLowerCase().includes(query) ||
           lead.sourceMetadata?.campaign?.toLowerCase().includes(query);
-        const matchesStatus = status === 'all' || this.getConversionStatus(lead) === status;
+        const matchesStatus = status === 'all' || this.getConversionStatus(lead, journeyMap) === status;
         const matchesSource = source === 'all' || lead.sourceType === source;
         return matchesSearch && matchesStatus && matchesSource;
       });
     })
   );
 
-  readonly summary$ = this.leads$.pipe(
-    map((leads) => {
+  readonly summary$ = combineLatest([this.leads$, this.journeyMap$]).pipe(
+    map(([leads, journeyMap]) => {
       let viewed = 0;
       let signupStarted = 0;
       let converted = 0;
       for (const lead of leads) {
-        const j = this.journeyMap.get(lead.publicConsultationId);
+        const j = journeyMap.get(lead.publicConsultationId);
         if (j?.reportViewed) viewed++;
         if (j?.signupStarted) signupStarted++;
         if (j?.accountCreated) converted++;
@@ -89,21 +96,39 @@ export class ConsultationLeadsComponent implements OnInit {
     })
   );
 
+  refreshingJourneys = false;
+
   ngOnInit(): void {
     this.leads$.pipe(take(1)).subscribe(async (leads) => {
       if (!leads.length) return;
       const ids = leads.map(l => l.publicConsultationId);
-      this.journeyMap = await this.service.fetchJourneys(ids);
+      const journeyMap = await this.service.fetchJourneys(ids);
+      this.journeyMap$.next(journeyMap);
       this.journeysLoaded = true;
     });
   }
 
-  getJourney(lead: ConsultationLeadRecord): LeadJourney | undefined {
-    return this.journeyMap.get(lead.publicConsultationId);
+  async refreshJourneys(): Promise<void> {
+    if (this.refreshingJourneys) return;
+    this.refreshingJourneys = true;
+    try {
+      const leads = await firstValueFrom(this.leads$.pipe(filter(l => l.length > 0)));
+      if (!leads.length) return;
+      const ids = leads.map(l => l.publicConsultationId);
+      const journeyMap = await this.service.fetchJourneys(ids);
+      this.journeyMap$.next(journeyMap);
+      this.journeysLoaded = true;
+    } finally {
+      this.refreshingJourneys = false;
+    }
   }
 
-  getConversionStatus(lead: ConsultationLeadRecord): string {
-    const j = this.journeyMap.get(lead.publicConsultationId);
+  getJourney(lead: ConsultationLeadRecord): LeadJourney | undefined {
+    return this.journeyMap$.value.get(lead.publicConsultationId);
+  }
+
+  getConversionStatus(lead: ConsultationLeadRecord, journeyMap?: Map<string, LeadJourney>): string {
+    const j = (journeyMap ?? this.journeyMap$.value).get(lead.publicConsultationId);
     if (j?.accountCreated) return 'converted';
     if (j?.signupStarted) return 'signup_started';
     if (j?.ctaClicked) return 'clicked';
@@ -135,6 +160,51 @@ export class ConsultationLeadsComponent implements OnInit {
     this.sourceFilter$.next(value);
   }
 
+  startEditing(lead: ConsultationLeadRecord): void {
+    this.editingById[lead.id] = { email: lead.email, website: lead.website || '' };
+  }
+
+  cancelEditing(lead: ConsultationLeadRecord): void {
+    this.editingById[lead.id] = null;
+  }
+
+  async saveContact(lead: ConsultationLeadRecord): Promise<void> {
+    const edits = this.editingById[lead.id];
+    if (!edits || this.savingById[lead.id]) return;
+
+    const changes: { email?: string; website?: string } = {};
+    if (edits.email !== lead.email) changes.email = edits.email;
+    if (edits.website !== (lead.website || '')) changes.website = edits.website;
+
+    if (!Object.keys(changes).length) {
+      this.editingById[lead.id] = null;
+      return;
+    }
+
+    this.savingById[lead.id] = true;
+    try {
+      await this.service.updateLeadContact(lead.id, changes);
+      this.editingById[lead.id] = null;
+    } catch (error) {
+      console.error('Error saving lead contact info:', error);
+    } finally {
+      this.savingById[lead.id] = false;
+    }
+  }
+
+  async deleteLead(lead: ConsultationLeadRecord): Promise<void> {
+    if (this.deletingById[lead.id]) return;
+    if (!confirm(`Delete the lead for ${lead.companyName}? This cannot be undone.`)) return;
+    this.deletingById[lead.id] = true;
+    try {
+      await this.service.deleteLead(lead.id);
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+    } finally {
+      this.deletingById[lead.id] = false;
+    }
+  }
+
   async resendEmail(lead: ConsultationLeadRecord): Promise<void> {
     if (this.resendingById[lead.id]) return;
     this.resendingById[lead.id] = true;
@@ -161,6 +231,19 @@ export class ConsultationLeadsComponent implements OnInit {
     }
   }
 
+  async sendTestFollowupEmail(lead: ConsultationLeadRecord, type: 'video' | 'w1' | 'w2'): Promise<void> {
+    if (this.sendingFollowupTestById[lead.id]) return;
+    const testEmail = (this.testEmailById[lead.id] || '').trim() || undefined;
+    this.sendingFollowupTestById[lead.id] = type;
+    try {
+      await this.service.testFollowupEmail(lead.id, type, testEmail);
+    } catch (error) {
+      console.error('Error sending test followup email:', error);
+    } finally {
+      this.sendingFollowupTestById[lead.id] = null;
+    }
+  }
+
   formatDate(value: unknown): string {
     if (!value) return '—';
 
@@ -178,6 +261,10 @@ export class ConsultationLeadsComponent implements OnInit {
     }
 
     return '—';
+  }
+
+  externalUrl(url: string): string {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
   }
 
   trackByLeadId(_: number, lead: ConsultationLeadRecord): string {
@@ -250,14 +337,18 @@ export class ConsultationLeadsComponent implements OnInit {
             <p style="margin:0 0 24px;line-height:1.7;">
               I went ahead and ran <strong>${companyName}</strong> against current OSHA standards to see where you stand. Here is what I found.
             </p>
-            <div style="display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
-              <div>
-                <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
-                <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
-                <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
-              </div>
-              <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;">Open My Consultation</a>
-            </div>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
+              <tr>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
+                  <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
+                  <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
+                </td>
+                <td style="vertical-align:middle;text-align:right;">
+                  <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;line-height:1;">Open My Consultation</a>
+                </td>
+              </tr>
+            </table>
             <div style="margin-top:24px;">
               <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">Ulysses's quick read</h2>
               <p style="margin:0;line-height:1.7;">${assessment.ulyssesTake}</p>

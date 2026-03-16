@@ -5,7 +5,7 @@
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div class="header-content">
-      <h1 class="page-title">{{ article?.name }}</h1>
+      <h1 class="page-title">{{ activeName }}</h1>
       @if (article?.topic) {
         <p class="page-meta">{{ article.topic }}</p>
       }
@@ -13,11 +13,19 @@
   </header>
 
   <main class="content">
+    <!-- Language Toggle -->
+    @if (hasSpanish) {
+      <div class="language-toggle">
+        <button [class.active]="language === 'en'" (click)="toggleLanguage()">English</button>
+        <button [class.active]="language === 'es'" (click)="toggleLanguage()">Espa&#241;ol</button>
+      </div>
+    }
+
     <!-- Success Message -->
     @if (justStartedTraining) {
       <div class="success-card">
         <mat-icon>check_circle</mat-icon>
-        <span>Training session started!</span>
+        <span>{{ l.trainingStarted }}</span>
       </div>
     }
 
@@ -26,20 +34,20 @@
       <div class="session-card">
         <div class="session-header">
           <mat-icon>history</mat-icon>
-          <span class="session-label">Latest Session</span>
+          <span class="session-label">{{ l.latestSession }}</span>
         </div>
         <div class="session-stats">
           <div class="stat">
             <span class="stat-value">{{ latestSession.trainees?.length || 0 }}</span>
-            <span class="stat-label">Recipients</span>
+            <span class="stat-label">{{ l.recipients }}</span>
           </div>
           <div class="stat">
             <span class="stat-value" [class.complete]="responseRate === 100">{{ responseRate }}%</span>
-            <span class="stat-label">Response Rate</span>
+            <span class="stat-label">{{ l.responseRate }}</span>
           </div>
           <div class="stat">
             <span class="stat-value">{{ latestSession.createdAt?.toDate ? (latestSession.createdAt.toDate() | date:'MMM d') : 'Today' }}</span>
-            <span class="stat-label">Date</span>
+            <span class="stat-label">{{ l.date }}</span>
           </div>
         </div>
       </div>
@@ -51,15 +59,15 @@
         @if (isStartingTraining) {
           <mat-spinner diameter="24"></mat-spinner>
           <div class="cta-content">
-            <span class="cta-title">Starting...</span>
+            <span class="cta-title">{{ l.starting }}</span>
           </div>
         } @else {
           <div class="cta-icon">
             <mat-icon>play_circle</mat-icon>
           </div>
           <div class="cta-content">
-            <span class="cta-title">{{ latestSession ? 'Start Another Session' : 'Start Training Session' }}</span>
-            <span class="cta-subtitle">Record attendance and completion</span>
+            <span class="cta-title">{{ latestSession ? l.startAnother : l.startTraining }}</span>
+            <span class="cta-subtitle">{{ l.recordAttendance }}</span>
           </div>
           <mat-icon class="cta-arrow">arrow_forward</mat-icon>
         }

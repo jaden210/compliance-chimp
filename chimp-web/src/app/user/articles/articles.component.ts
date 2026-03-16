@@ -4,7 +4,7 @@ import { Router, ActivatedRoute, RouterModule } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { MyContent, Topic, UserService } from "../user.service";
+import { MyContent, Topic, UserService, HandbookLanguage, resolveHandbookLanguage } from "../user.service";
 import { LibraryItem, TrainingCadence } from "src/app/account/training/training.service";
 
 type TrainingStatus = 'overdue' | 'dueSoon' | 'current' | 'neverTrained';
@@ -41,6 +41,7 @@ export class ArticlesComponent implements OnInit {
   topic: Topic;
   library: LibraryItemWithStatus[] = [];
   error: string;
+  language: HandbookLanguage = resolveHandbookLanguage();
 
   ngOnInit() {
     this.userService.teamObservable
@@ -177,7 +178,37 @@ export class ArticlesComponent implements OnInit {
     ], { queryParamsHandling: "preserve" });
   }
 
+  public articleName(article: LibraryItemWithStatus): string {
+    return this.language === 'es' && article.name_es ? article.name_es : article.name;
+  }
+
+  get l() {
+    return this.language === 'es' ? ARTICLES_LABELS_ES : ARTICLES_LABELS_EN;
+  }
+
   public goBack(): void {
     this.location.back();
   }
 }
+
+const ARTICLES_LABELS_EN = {
+  trainingLibrary: 'Training Library',
+  trainingsAvailable: 'training',
+  trainingsAvailablePlural: 'trainings',
+  available: 'available',
+  overdue: 'Overdue',
+  notStarted: 'Not started',
+  noTrainingAvailable: 'No training available',
+  noTrainingDescription: 'Your team hasn\'t set up any training content yet.',
+};
+
+const ARTICLES_LABELS_ES = {
+  trainingLibrary: 'Biblioteca de Capacitacion',
+  trainingsAvailable: 'capacitacion',
+  trainingsAvailablePlural: 'capacitaciones',
+  available: 'disponibles',
+  overdue: 'Vencido',
+  notStarted: 'Sin iniciar',
+  noTrainingAvailable: 'No hay capacitacion disponible',
+  noTrainingDescription: 'Su equipo aun no ha configurado contenido de capacitacion.',
+};

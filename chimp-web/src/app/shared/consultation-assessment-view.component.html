@@ -1,37 +1,48 @@
 <section class="report-section">
   <div class="report-shell">
+    @if (showLanguageToggle) {
+      <div class="language-toggle">
+        <button
+          [class.active]="language === 'en'"
+          (click)="toggleLanguage()"
+        >English</button>
+        <button
+          [class.active]="language === 'es'"
+          (click)="toggleLanguage()"
+        >Espa&#241;ol</button>
+      </div>
+    }
+
     <div class="report-header">
       <div>
-        <span class="eyebrow">Assessment Ready</span>
+        <span class="eyebrow">{{ l.assessmentReady }}</span>
         <h2>{{ assessment.profile.companyName }}</h2>
         <p class="report-subtitle">{{ assessment.summary }}</p>
       </div>
 
       <div class="score-card" [class]="scoreSeverityClass">
-        <div class="score-label">Compliance Urgency Score</div>
+        <div class="score-label">{{ l.complianceUrgencyScore }}</div>
         <div class="score-value">{{ assessment.importanceScore }}</div>
         <div class="score-level">{{ assessment.importanceLevel }}</div>
-        <p class="score-helper">
-          Higher score = more OSHA obligations and more urgency to get controls in place.
-        </p>
+        <p class="score-helper">{{ l.scoreHelper }}</p>
       </div>
     </div>
 
     <div class="profile-grid">
       <div class="profile-item">
-        <span class="profile-label">Industry profile</span>
+        <span class="profile-label">{{ l.industryProfile }}</span>
         <strong>{{ assessment.profile.industryDescription }}</strong>
       </div>
       <div class="profile-item">
-        <span class="profile-label">OSHA track</span>
+        <span class="profile-label">{{ l.oshaTrack }}</span>
         <strong>{{ assessment.profile.oshaTrack }}</strong>
       </div>
       <div class="profile-item">
-        <span class="profile-label">Employees</span>
+        <span class="profile-label">{{ l.employees }}</span>
         <strong>{{ assessment.profile.employeeCount }}</strong>
       </div>
       <div class="profile-item">
-        <span class="profile-label">State</span>
+        <span class="profile-label">{{ l.state }}</span>
         <strong>{{ assessment.profile.state }}</strong>
       </div>
     </div>
@@ -39,7 +50,7 @@
     <div class="ulysses-card">
       <img src="/assets/chimp.png" alt="Ulysses" class="ulysses-avatar" />
       <div class="ulysses-bubble">
-        <span class="ulysses-label">Ulysses's Take</span>
+        <span class="ulysses-label">{{ l.ulyssesTake }}</span>
         <strong class="ulysses-title">{{ scoreMeaningTitle }}</strong>
         <p>{{ assessment.ulyssesTake }}</p>
         <p class="ulysses-support">{{ assessment.importanceReason }}</p>
@@ -51,17 +62,15 @@
       <div class="wheel-visual">
         <div class="compliance-wheel">
           <div class="wheel-center" [class]="scoreSeverityClass">
-            <span class="wheel-center-label">Compliance</span>
+            <span class="wheel-center-label">{{ l.compliance }}</span>
             <strong>{{ assessment.importanceScore }}/100</strong>
           </div>
         </div>
       </div>
 
       <div class="wheel-copy">
-        <h3>All The Elements Of Compliance</h3>
-        <p class="card-intro">
-          Think of this as the wheel you have to keep turning. Each slice is one part of a complete OSHA program.
-        </p>
+        <h3>{{ l.allElementsOfCompliance }}</h3>
+        <p class="card-intro">{{ l.wheelIntro }}</p>
 
         <div class="wheel-legend">
           @for (item of complianceWheel; track trackByWheelItem($index, item)) {
@@ -78,32 +87,59 @@
       </div>
     </div>
 
-    <div class="report-actions">
-      @if (showStartAction) {
-        <button mat-flat-button class="primary-cta" (click)="start.emit()">
-          {{ primaryCtaLabel }}
-          <mat-icon>arrow_forward</mat-icon>
-        </button>
-      }
-      @if (showDownloadAction) {
-        <button mat-stroked-button class="secondary-cta" (click)="download.emit()">
-          Download PDF
-          <mat-icon>download</mat-icon>
-        </button>
-      }
-      @if (showResetAction) {
-        <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
-          Run Another Assessment
-        </button>
-      }
+    <div class="pricing-card">
+      <div class="pricing-copy">
+        <span class="pricing-eyebrow">{{ l.whatYouGet }}</span>
+        <h3>{{ l.pricingHeadline }}</h3>
+        <ul class="pricing-features">
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            {{ l.pricingFeature1 }}
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            {{ l.pricingFeature2 }}
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            {{ l.pricingFeature3 }}
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            {{ l.pricingFeature4 }}
+          </li>
+        </ul>
+      </div>
+      <div class="pricing-action">
+        <div class="pricing-price">
+          <span class="pricing-amount">$99</span>
+          <span class="pricing-period">{{ l.perMonth }}</span>
+        </div>
+        <p class="pricing-note">{{ l.noContracts }}</p>
+        @if (showStartAction) {
+          <button mat-flat-button class="primary-cta" (click)="start.emit()">
+            {{ primaryCtaLabel }}
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        }
+        @if (showDownloadAction) {
+          <button mat-stroked-button class="secondary-cta" (click)="download.emit()">
+            {{ l.downloadPdf }}
+            <mat-icon>download</mat-icon>
+          </button>
+        }
+        @if (showResetAction) {
+          <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
+            {{ l.runAnother }}
+          </button>
+        }
+      </div>
     </div>
 
     <div class="report-stack">
       <article class="report-card">
-        <h3>Required Federal Actions</h3>
-        <p class="card-intro">
-          These are the baseline federal items most likely to apply to this business profile.
-        </p>
+        <h3>{{ l.requiredFederalActions }}</h3>
+        <p class="card-intro">{{ l.federalIntro }}</p>
         @for (obligation of assessment.federalRequirements; track trackByObligation($index, obligation)) {
           <div class="obligation-card">
             <div class="obligation-header">
@@ -141,10 +177,8 @@
       </article>
 
       <article class="report-card">
-        <h3>State-Specific Flags</h3>
-        <p class="card-intro">
-          Federal OSHA is not always the whole story. These are the state-plan items and caveats to check.
-        </p>
+        <h3>{{ l.stateSpecificFlags }}</h3>
+        <p class="card-intro">{{ l.stateIntro }}</p>
         @if (assessment.stateRequirements.length) {
           @for (obligation of assessment.stateRequirements; track trackByObligation($index, obligation)) {
             <div class="obligation-card">
@@ -183,21 +217,33 @@
         } @else {
           <div class="empty-card">
             <mat-icon>verified</mat-icon>
-            <p>
-              No extra private-sector state-plan overlay was detected from the state you selected.
-              Federal OSHA likely remains the primary baseline.
-            </p>
+            <p>{{ l.noStateOverlay }}</p>
           </div>
         }
       </article>
     </div>
 
+    <div class="demo-video-banner" [class.expanded]="videoExpanded">
+      <div class="demo-video-copy">
+        <h3>{{ l.demoHeadline }}</h3>
+        <p class="demo-video-subtext">{{ l.demoSub1 }}</p>
+        <p class="demo-video-subtext">{{ l.demoSub2 }}</p>
+        <button mat-flat-button class="expand-btn" (click)="videoExpanded = !videoExpanded">
+          <mat-icon>{{ videoExpanded ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
+          {{ videoExpanded ? l.collapse : l.fullScreen }}
+        </button>
+      </div>
+      <div class="demo-video-wrap">
+        <video controls playsinline>
+          <source src="https://firebasestorage.googleapis.com/v0/b/teamlog-2d74c.appspot.com/o/public%2FChimpDemo.mov?alt=media" type="video/mp4">
+        </video>
+      </div>
+    </div>
+
     <div class="section-grid">
       <article class="report-card">
-        <h3>Recommended Processes</h3>
-        <p class="card-intro">
-          These are the systems most businesses need in practice to stay organized and inspection-ready.
-        </p>
+        <h3>{{ l.recommendedProcesses }}</h3>
+        <p class="card-intro">{{ l.recommendedIntro }}</p>
         @for (obligation of assessment.recommendedProcesses; track trackByObligation($index, obligation)) {
           <div class="obligation-card compact">
             <div class="obligation-header">
@@ -205,7 +251,7 @@
                 <h4>{{ obligation.title }}</h4>
                 <p>{{ obligation.appliesBecause }}</p>
               </div>
-              <span class="status-chip recommended">recommended</span>
+              <span class="status-chip recommended">{{ l.recommended }}</span>
             </div>
             <ul>
               @for (detail of obligation.details; track trackByText($index, detail)) {
@@ -217,8 +263,8 @@
       </article>
 
       <article class="report-card">
-        <h3>What To Do Next</h3>
-        <p class="card-intro">Use this as your first pass through the work.</p>
+        <h3>{{ l.whatToDoNext }}</h3>
+        <p class="card-intro">{{ l.nextIntro }}</p>
         <div class="next-actions">
           @for (action of assessment.nextActions; track trackByText($index, action.title)) {
             <div class="next-action">
@@ -237,7 +283,7 @@
         </div>
 
         <div class="caveat-card">
-          <h4>Assumptions And Caveats</h4>
+          <h4>{{ l.assumptionsAndCaveats }}</h4>
           <ul>
             @for (caveat of assessment.caveats; track trackByText($index, caveat)) {
               <li>{{ caveat }}</li>
@@ -250,14 +296,9 @@
     @if (showStartAction) {
       <div class="bottom-cta-card">
         <div>
-          <span class="bottom-cta-eyebrow">Ready To Fix It</span>
-          <h3>
-            Let Ulysses build the system instead of leaving you with a very expensive to-do list.
-          </h3>
-          <p>
-            You have the score, the documents, and the weak spots. The next step is getting the program built,
-            assigned, and tracked before any of this turns into a fine, an injury, or both.
-          </p>
+          <span class="bottom-cta-eyebrow">{{ l.readyToFixIt }}</span>
+          <h3>{{ l.bottomCtaHeadline }}</h3>
+          <p>{{ l.bottomCtaDescription }}</p>
         </div>
 
         <button mat-flat-button class="bottom-cta-btn" (click)="start.emit()">

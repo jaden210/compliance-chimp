@@ -6,7 +6,83 @@ import {
   formatAddress,
   toDisplayDate
 } from "./osha-recordkeeping";
-import { ConsultationAssessment, US_STATE_OPTIONS } from "./osha-consultation";
+import { ConsultationAssessment, ConsultationLanguage, US_STATE_OPTIONS } from "./osha-consultation";
+
+interface PdfLabels {
+  reportTitle: string;
+  assessmentSnapshot: string;
+  oshaPriorityScore: string;
+  oshaTrack: string;
+  industryProfile: string;
+  employees: string;
+  state: string;
+  website: string;
+  ulyssesTake: string;
+  requiredFederalActions: string;
+  stateSpecificFlags: string;
+  noStateOverlay: string;
+  recommendedProcesses: string;
+  nextActions: string;
+  assumptionsAndCaveats: string;
+  thresholdNotes: string;
+  sources: string;
+  complianceChimp: string;
+  page: string;
+  of: string;
+  generated: string;
+}
+
+const PDF_LABELS_EN: PdfLabels = {
+  reportTitle: "Free OSHA Safety Consultation Report",
+  assessmentSnapshot: "Assessment Snapshot",
+  oshaPriorityScore: "OSHA priority score",
+  oshaTrack: "OSHA track",
+  industryProfile: "Industry profile",
+  employees: "Employees",
+  state: "State",
+  website: "Website",
+  ulyssesTake: "Ulysses's Take",
+  requiredFederalActions: "Required Federal Actions",
+  stateSpecificFlags: "State-Specific Flags",
+  noStateOverlay: "No extra private-sector state-plan overlay was detected from the selected state. Federal OSHA likely remains the primary baseline.",
+  recommendedProcesses: "Recommended Processes",
+  nextActions: "Next Actions",
+  assumptionsAndCaveats: "Assumptions And Caveats",
+  thresholdNotes: "Threshold notes",
+  sources: "Sources",
+  complianceChimp: "Compliance Chimp",
+  page: "Page",
+  of: "of",
+  generated: "Generated",
+};
+
+const PDF_LABELS_ES: PdfLabels = {
+  reportTitle: "Informe Gratuito de Consulta de Seguridad OSHA",
+  assessmentSnapshot: "Resumen de la Evaluacion",
+  oshaPriorityScore: "Puntaje de prioridad OSHA",
+  oshaTrack: "Categoria OSHA",
+  industryProfile: "Perfil de industria",
+  employees: "Empleados",
+  state: "Estado",
+  website: "Sitio web",
+  ulyssesTake: "La Opinion de Ulysses",
+  requiredFederalActions: "Acciones Federales Requeridas",
+  stateSpecificFlags: "Alertas Especificas del Estado",
+  noStateOverlay: "No se detecto ninguna capa adicional de plan estatal del sector privado para el estado seleccionado. OSHA federal probablemente sigue siendo la base principal.",
+  recommendedProcesses: "Procesos Recomendados",
+  nextActions: "Proximas Acciones",
+  assumptionsAndCaveats: "Suposiciones y Advertencias",
+  thresholdNotes: "Notas de umbral",
+  sources: "Fuentes",
+  complianceChimp: "Compliance Chimp",
+  page: "Pagina",
+  of: "de",
+  generated: "Generado",
+};
+
+function getPdfLabels(language: ConsultationLanguage): PdfLabels {
+  return language === "es" ? PDF_LABELS_ES : PDF_LABELS_EN;
+}
 
 function addTitle(doc: jsPDF, title: string, subtitle?: string): number {
   let y = 0.75;
@@ -352,10 +428,11 @@ export function exportInspectionPacketPdf(
   doc.save(`${summary.year}-osha-inspection-packet.pdf`);
 }
 
-export async function exportConsultationAssessmentPdf(assessment: ConsultationAssessment): Promise<void> {
+export async function exportConsultationAssessmentPdf(assessment: ConsultationAssessment, language: ConsultationLanguage = "en"): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", unit: "in", format: [8.5, 11] });
+  const labels = getPdfLabels(language);
   const stateName = US_STATE_OPTIONS.find(option => option.code === assessment.profile.state)?.name || assessment.profile.state;
-  const generatedLabel = new Date(assessment.generatedAt).toLocaleDateString();
+  const generatedLabel = new Date(assessment.generatedAt).toLocaleDateString(language === "es" ? "es" : "en");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const topMargin = 1.7;
@@ -387,11 +464,11 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
     doc.setTextColor(17, 17, 17);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text("Free OSHA Safety Consultation Report", 0.75, 1.05);
+    doc.text(labels.reportTitle, 0.75, 1.05);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(90, 90, 90);
-    doc.text(`${assessment.profile.companyName} • Generated ${generatedLabel}`, 0.75, 1.26);
+    doc.text(`${assessment.profile.companyName} • ${labels.generated} ${generatedLabel}`, 0.75, 1.26);
     doc.setDrawColor(225, 233, 243);
     doc.setLineWidth(0.01);
     doc.line(0.75, 1.42, 7.75, 1.42);
@@ -404,8 +481,8 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(105, 105, 105);
-    doc.text("Compliance Chimp", 0.75, pageHeight - 0.32);
-    doc.text(`Page ${pageNumber} of ${pageCount}`, 7.75, pageHeight - 0.32, { align: "right" });
+    doc.text(labels.complianceChimp, 0.75, pageHeight - 0.32);
+    doc.text(`${labels.page} ${pageNumber} ${labels.of} ${pageCount}`, 7.75, pageHeight - 0.32, { align: "right" });
   };
 
   const ensureConsultationSpace = (y: number, requiredHeight = 0.75): number => {
@@ -537,7 +614,7 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
     if (obligation.thresholdNotes.length) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text("Threshold notes", contentX, cursor);
+      doc.text(labels.thresholdNotes, contentX, cursor);
       cursor += 0.16;
       cursor = addConsultationBulletList(cursor, obligation.thresholdNotes, contentX + 0.2, 5.95);
     }
@@ -545,7 +622,7 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
     if (obligation.citations.length) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text("Sources", contentX, cursor);
+      doc.text(labels.sources, contentX, cursor);
       cursor += 0.16;
       cursor = addConsultationBulletList(
         cursor,
@@ -561,49 +638,46 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
   drawConsultationHeader();
   let y = topMargin;
 
-  y = addConsultationSectionHeading(y, "Assessment Snapshot");
-  y = addKeyValue(doc, y, "OSHA priority score", `${assessment.importanceScore}/100 (${assessment.importanceLevel})`, 0.75, 3);
-  y = addKeyValue(doc, y - 0.36, "OSHA track", assessment.profile.oshaTrack, 4.25, 3);
-  y = addKeyValue(doc, y, "Industry profile", assessment.profile.industryDescription, 0.75, 3);
-  y = addKeyValue(doc, y - 0.56, "Employees", String(assessment.profile.employeeCount), 4.25, 3);
-  y = addKeyValue(doc, y, "State", stateName, 0.75, 3);
-  y = addKeyValue(doc, y - 0.36, "Website", assessment.profile.website || "—", 4.25, 3);
+  y = addConsultationSectionHeading(y, labels.assessmentSnapshot);
+  y = addKeyValue(doc, y, labels.oshaPriorityScore, `${assessment.importanceScore}/100 (${assessment.importanceLevel})`, 0.75, 3);
+  y = addKeyValue(doc, y - 0.36, labels.oshaTrack, assessment.profile.oshaTrack, 4.25, 3);
+  y = addKeyValue(doc, y, labels.industryProfile, assessment.profile.industryDescription, 0.75, 3);
+  y = addKeyValue(doc, y - 0.56, labels.employees, String(assessment.profile.employeeCount), 4.25, 3);
+  y = addKeyValue(doc, y, labels.state, stateName, 0.75, 3);
+  y = addKeyValue(doc, y - 0.36, labels.website, assessment.profile.website || "—", 4.25, 3);
   y = addConsultationParagraph(y + 0.12, assessment.summary);
   y = addConsultationParagraph(y, assessment.importanceReason);
 
-  y = addConsultationSectionHeading(y + 0.08, "Ulysses's Take");
+  y = addConsultationSectionHeading(y + 0.08, labels.ulyssesTake);
   y = addConsultationParagraph(y, assessment.ulyssesTake);
   y = addConsultationParagraph(y, assessment.importanceReason);
 
-  y = addConsultationSectionHeading(y + 0.08, "Required Federal Actions");
+  y = addConsultationSectionHeading(y + 0.08, labels.requiredFederalActions);
   assessment.federalRequirements.forEach(obligation => {
     y = addConsultationObligation(y, obligation);
   });
 
-  y = addConsultationSectionHeading(y + 0.08, "State-Specific Flags");
+  y = addConsultationSectionHeading(y + 0.08, labels.stateSpecificFlags);
   if (assessment.stateRequirements.length) {
     assessment.stateRequirements.forEach(obligation => {
       y = addConsultationObligation(y, obligation);
     });
   } else {
-    y = addConsultationParagraph(
-      y,
-      "No extra private-sector state-plan overlay was detected from the selected state. Federal OSHA likely remains the primary baseline."
-    );
+    y = addConsultationParagraph(y, labels.noStateOverlay);
   }
 
-  y = addConsultationSectionHeading(y + 0.08, "Recommended Processes");
+  y = addConsultationSectionHeading(y + 0.08, labels.recommendedProcesses);
   assessment.recommendedProcesses.forEach(obligation => {
     y = addConsultationObligation(y, obligation);
   });
 
-  y = addConsultationSectionHeading(y + 0.08, "Next Actions");
+  y = addConsultationSectionHeading(y + 0.08, labels.nextActions);
   y = addConsultationBulletList(
     y,
     assessment.nextActions.map(action => `${action.title}: ${action.description}`)
   );
 
-  y = addConsultationSectionHeading(y + 0.08, "Assumptions And Caveats");
+  y = addConsultationSectionHeading(y + 0.08, labels.assumptionsAndCaveats);
   y = addConsultationBulletList(y, assessment.caveats);
 
   if (chimpData) {
@@ -622,5 +696,6 @@ export async function exportConsultationAssessmentPdf(assessment: ConsultationAs
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48) || "osha-consultation";
-  doc.save(`${safeName}-osha-consultation-report.pdf`);
+  const langSuffix = language === "es" ? "-es" : "";
+  doc.save(`${safeName}-osha-consultation-report${langSuffix}.pdf`);
 }

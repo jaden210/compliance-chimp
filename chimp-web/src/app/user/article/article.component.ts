@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { Firestore, collection, query, where, orderBy, limit, collectionData } from "@angular/fire/firestore";
 import { AttendanceComponent } from "./attendance.component";
 import { HistoryComponent } from "./history.component";
-import { Article, MyContent, Topic, UserService } from "../user.service";
+import { Article, MyContent, Topic, UserService, HandbookLanguage, resolveHandbookLanguage, persistHandbookLanguage } from "../user.service";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatBottomSheet, MatBottomSheetModule } from "@angular/material/bottom-sheet";
 import { MatButtonModule } from "@angular/material/button";
@@ -63,6 +63,9 @@ export class ArticleComponent implements OnInit {
   isStartingTraining = false;
   justStartedTraining = false;
 
+  // Language
+  language: HandbookLanguage = resolveHandbookLanguage();
+
   ngOnInit() {
     this.userService.teamObservable
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -77,7 +80,7 @@ export class ArticleComponent implements OnInit {
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe(article => {
                   this.article = article;
-                  this.loadData(article.content);
+                  this.loadData(this.activeContent);
                   this.loadLatestSession();
                 });
             });
@@ -177,7 +180,55 @@ export class ArticleComponent implements OnInit {
     }
   }
 
+  get hasSpanish(): boolean {
+    return !!this.article?.content_es;
+  }
+
+  get activeName(): string {
+    if (!this.article) return '';
+    return this.language === 'es' && this.article.name_es ? this.article.name_es : this.article.name;
+  }
+
+  get activeContent(): string {
+    if (!this.article) return '';
+    return this.language === 'es' && this.article.content_es ? this.article.content_es : this.article.content;
+  }
+
+  toggleLanguage(): void {
+    this.language = this.language === 'en' ? 'es' : 'en';
+    persistHandbookLanguage(this.language);
+    this.loadData(this.activeContent);
+  }
+
+  get l() {
+    return this.language === 'es' ? ARTICLE_LABELS_ES : ARTICLE_LABELS_EN;
+  }
+
   public goBack(): void {
     this.location.back();
   }
 }
+
+const ARTICLE_LABELS_EN = {
+  trainingStarted: 'Training session started!',
+  latestSession: 'Latest Session',
+  recipients: 'Recipients',
+  responseRate: 'Response Rate',
+  date: 'Date',
+  starting: 'Starting...',
+  startAnother: 'Start Another Session',
+  startTraining: 'Start Training Session',
+  recordAttendance: 'Record attendance and completion',
+};
+
+const ARTICLE_LABELS_ES = {
+  trainingStarted: 'Sesion de capacitacion iniciada!',
+  latestSession: 'Ultima Sesion',
+  recipients: 'Destinatarios',
+  responseRate: 'Tasa de Respuesta',
+  date: 'Fecha',
+  starting: 'Iniciando...',
+  startAnother: 'Iniciar Otra Sesion',
+  startTraining: 'Iniciar Sesion de Capacitacion',
+  recordAttendance: 'Registrar asistencia y finalizacion',
+};

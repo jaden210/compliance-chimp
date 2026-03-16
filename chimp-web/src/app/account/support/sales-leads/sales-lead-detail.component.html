@@ -1,0 +1,720 @@
+@if (lead(); as lead) {
+  <section class="lead-detail">
+
+    <!-- ── Header ── -->
+    <header class="detail-header">
+      <div class="header-top-row">
+        <button mat-button class="back-btn" (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon> Back
+        </button>
+
+        <span class="toolbar-spacer"></span>
+
+        <button mat-flat-button color="primary" (click)="initiateCall()" [disabled]="!lead.phone">
+          <mat-icon>phone</mat-icon> Call
+        </button>
+        <button mat-stroked-button (click)="openEmailComposer()" [disabled]="!lead.email">
+          <mat-icon>email</mat-icon> New Email
+        </button>
+        <button mat-icon-button [matTooltip]="lead.archived ? 'Unarchive lead' : 'Archive lead'" (click)="archiveLead(lead)">
+          <mat-icon>{{ lead.archived ? 'unarchive' : 'archive' }}</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" matTooltip="Delete lead" (click)="deleteLead(lead)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+
+      <div class="name-row">
+        <h1>{{ lead.businessName }}</h1>
+        <button class="status-pill" [matMenuTriggerFor]="statusMenu"
+          [style.background]="getStatusColor(lead.status) + '18'"
+          [style.color]="getStatusColor(lead.status)"
+          [style.border-color]="getStatusColor(lead.status) + '40'">
+          <span class="status-dot" [style.background]="getStatusColor(lead.status)"></span>
+          {{ getStatusLabel(lead.status) }}
+          <mat-icon class="status-chevron">expand_more</mat-icon>
+        </button>
+        <mat-menu #statusMenu="matMenu" class="status-menu">
+          @for (s of statusOptions; track s.value) {
+            <button mat-menu-item (click)="changeStatus(lead, s.value)"
+              [class.active-status]="s.value === lead.status">
+              <span class="status-dot" [style.background]="s.color"></span>
+              {{ s.label }}
+            </button>
+          }
+        </mat-menu>
+      </div>
+
+      <div class="contact-row">
+        @if (lead.contactName) {
+          <span><mat-icon class="inline-icon">person</mat-icon> {{ lead.contactName }}</span>
+        }
+        @if (lead.email) {
+          <span><mat-icon class="inline-icon">email</mat-icon> {{ lead.email }}</span>
+        }
+        @if (lead.phone) {
+          <span><mat-icon class="inline-icon">phone</mat-icon> {{ lead.phone }}</span>
+        }
+        @if (lead.website) {
+          <a class="contact-link" [href]="lead.website.startsWith('http') ? lead.website : 'https://' + lead.website" target="_blank" rel="noopener">
+            <mat-icon class="inline-icon">language</mat-icon> {{ lead.website }}
+          </a>
+        }
+        @if (lead.city || lead.state) {
+          <span><mat-icon class="inline-icon">location_on</mat-icon> {{ lead.city }}{{ lead.city && lead.state ? ', ' : '' }}{{ lead.state }}</span>
+        }
+      </div>
+
+      <div class="meta-strip">
+        @if (lead.employeeEstimate) {
+          <div class="meta-item">
+            <span class="meta-label">Employees</span>
+            <strong>{{ lead.employeeEstimate }}</strong>
+          </div>
+        }
+        @if (lead.yearEstablished) {
+          <div class="meta-item">
+            <span class="meta-label">Established</span>
+            <strong>{{ lead.yearEstablished }}</strong>
+          </div>
+        }
+        @if (lead.industry) {
+          <div class="meta-item">
+            <span class="meta-label">Industry</span>
+            <strong>{{ lead.industry }}</strong>
+          </div>
+        }
+        @if (lead.source) {
+          <div class="meta-item">
+            <span class="meta-label">Source</span>
+            <strong>{{ lead.source | titlecase }}</strong>
+          </div>
+        }
+        @if (lead.bestContactMethod) {
+          <div class="meta-item">
+            <span class="meta-label">Best Contact</span>
+            <strong><mat-icon class="inline-icon">{{ contactMethodIcon(lead.bestContactMethod) }}</mat-icon> {{ contactMethodLabel(lead.bestContactMethod) }}</strong>
+          </div>
+        }
+
+        <span class="meta-spacer"></span>
+
+        <a class="consultation-btn google"
+          [href]="'https://www.google.com/search?q=' + encodeURIComponent(lead.businessName + (lead.city ? ' ' + lead.city : '') + (lead.state ? ' ' + lead.state : ''))"
+          target="_blank" rel="noopener">
+          <mat-icon>search</mat-icon>
+          Google this company
+        </a>
+
+        @if (lead.consultationUrl) {
+          <a class="consultation-btn sent" [href]="lead.consultationUrl" target="_blank" rel="noopener">
+            <mat-icon>assignment_turned_in</mat-icon>
+            View consultation report
+          </a>
+        } @else if (lead.email) {
+          <button class="consultation-btn generate" (click)="generateConsultation(lead)"
+            [disabled]="generatingConsultationId() === lead.id">
+            @if (generatingConsultationId() === lead.id) {
+              <mat-spinner diameter="16"></mat-spinner>
+              Generating report...
+            } @else {
+              <mat-icon>assignment</mat-icon>
+              Generate &amp; send consultation report
+            }
+          </button>
+        } @else {
+          <span class="consultation-btn disabled">
+            <mat-icon>assignment_late</mat-icon>
+            Consultation report requires an email
+          </span>
+        }
+      </div>
+
+      @let gaps = getLeadGaps(lead);
+      @if (gaps.length > 0) {
+        <div class="gap-chips">
+          @for (gap of gaps; track gap.label) {
+            <span class="gap-chip">
+              <mat-icon class="inline-icon">{{ gap.icon }}</mat-icon>
+              {{ gap.label }}
+            </span>
+          }
+        </div>
+      }
+
+      @if (lead.verificationSignals) {
+        @let vs = lead.verificationSignals;
+        <div class="verification-signals">
+          @if (vs.googlePlaceId) {
+            <a class="signal-chip google"
+              [href]="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lead.businessName + (lead.city ? ' ' + lead.city : '') + (lead.state ? ' ' + lead.state : '')) + '&query_place_id=' + vs.googlePlaceId"
+              target="_blank" rel="noopener">
+              <mat-icon class="inline-icon">place</mat-icon>
+              View on Google Maps
+              <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
+            </a>
+          } @else if (vs.hasGoogleListing) {
+            <span class="signal-chip google">
+              <mat-icon class="inline-icon">place</mat-icon>
+              Google listing found
+            </span>
+          }
+          @if (vs.hasReviews) {
+            <span class="signal-chip" [class.positive]="vs.recentReviews" [class.neutral]="!vs.recentReviews">
+              <mat-icon class="inline-icon">{{ vs.recentReviews ? 'star' : 'star_half' }}</mat-icon>
+              {{ vs.recentReviews ? 'Recent reviews' : 'Has reviews' }}
+            </span>
+          }
+          @if (vs.hasSocialMedia) {
+            <span class="signal-chip neutral">
+              <mat-icon class="inline-icon">share</mat-icon>
+              Social media presence
+            </span>
+          }
+          @if (vs.lastActivityIndicator) {
+            <span class="signal-chip neutral">
+              <mat-icon class="inline-icon">update</mat-icon>
+              {{ vs.lastActivityIndicator }}
+            </span>
+          }
+        </div>
+      }
+    </header>
+
+
+    <!-- ── Email Composer ── -->
+    @if (showEmailComposer()) {
+      <div class="email-composer">
+        <div class="composer-header">
+          <h3>{{ emailInReplyTo ? 'Reply to' : 'New email to' }} {{ lead.contactName || lead.businessName }}</h3>
+          @if (emailInReplyTo) {
+            <button mat-button class="composer-switch-btn" (click)="openEmailComposer()">
+              <mat-icon>add</mat-icon> Switch to New Email
+            </button>
+          }
+          <span class="toolbar-spacer"></span>
+          <button mat-icon-button (click)="showEmailComposer.set(false)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        @if (emailGenerating()) {
+          <div class="generating-email">
+            <mat-spinner diameter="24"></mat-spinner>
+            <span>Generating suggested email...</span>
+          </div>
+        } @else {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Subject</mat-label>
+            <input matInput [(ngModel)]="emailSubject">
+          </mat-form-field>
+
+          <div class="email-editor-wrapper">
+            <div class="email-editor-container">
+              <ngx-editor-menu [editor]="emailEditor" [toolbar]="emailToolbar"></ngx-editor-menu>
+              <ngx-editor
+                [editor]="emailEditor"
+                [ngModel]="emailEditorDoc"
+                (ngModelChange)="onEmailEditorChange($event)"
+                [placeholder]="'Write your email...'">
+              </ngx-editor>
+            </div>
+          </div>
+
+          <div class="composer-actions">
+            <button mat-stroked-button (click)="generateEmail()">
+              <mat-icon>auto_awesome</mat-icon> Regenerate
+            </button>
+            <button mat-flat-button color="primary" (click)="sendEmail()" [disabled]="emailSending() || !emailSubject || !emailBody">
+              @if (emailSending()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                <mat-icon>send</mat-icon>
+              }
+              Send Email
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ── Two Column Layout ── -->
+    <div class="detail-columns">
+
+      <!-- Main column: Flow + AI -->
+      <div class="detail-main">
+
+        <!-- Flow / Next Action Card -->
+        @if (lead.flow?.recommendedAction && lead.flow.recommendedAction !== 'close') {
+          @let flowGroup = getLeadFlowGroup(lead);
+
+          <div class="flow-card" [class]="flowGroup || ''">
+            <div class="flow-accent" [class]="flowGroup || ''"></div>
+            <div class="flow-body">
+              <div class="flow-top">
+                <div class="flow-rec">
+                  <mat-icon class="flow-icon">{{ getFlowActionIcon(lead.flow.recommendedAction) }}</mat-icon>
+                  <span class="flow-label">{{ getFlowActionLabel(lead.flow.recommendedAction) }}</span>
+                </div>
+                <div class="flow-meta">
+                  <span class="flow-time" [class]="flowGroup || ''">
+                    <mat-icon class="inline-icon">schedule</mat-icon>
+                    {{ formatRelativeTime(lead.flow.nextActionAt) }}
+                  </span>
+                  <span class="priority-chip" [style.color]="getPriorityColor(lead.flow.priority)">
+                    {{ lead.flow.priority || 'medium' }}
+                  </span>
+                </div>
+              </div>
+              <p class="flow-reason">{{ lead.flow.actionReason }}</p>
+              @if (lead.flow.suggestedContent) {
+                <details class="flow-content">
+                  <summary>Suggested talking points</summary>
+                  <p>{{ lead.flow.suggestedContent }}</p>
+                </details>
+              }
+              <div class="flow-meta-row">
+                @if (lead.flow.touchCount != null) {
+                  <span class="touch-count">{{ lead.flow.touchCount }} touch{{ lead.flow.touchCount === 1 ? '' : 'es' }} so far</span>
+                }
+                @if (lead.flow.recommendedOwner) {
+                  <span class="recommended-owner">
+                    <mat-icon class="inline-icon">person</mat-icon> {{ lead.flow.recommendedOwner }}
+                  </span>
+                }
+              </div>
+              <div class="flow-actions">
+                <button mat-flat-button color="primary" (click)="executeFlowAction()">
+                  <mat-icon>{{ getFlowActionIcon(lead.flow.recommendedAction) }}</mat-icon>
+                  {{ getFlowActionLabel(lead.flow.recommendedAction) }}
+                </button>
+                <button mat-stroked-button (click)="openFlowSnooze(lead)" matTooltip="Snooze">
+                  <mat-icon>snooze</mat-icon> Snooze
+                </button>
+                <button mat-stroked-button (click)="dismissFlowAction(lead)" matTooltip="Dismiss">
+                  <mat-icon>close</mat-icon> Dismiss
+                </button>
+                <button mat-icon-button (click)="refreshSingleFlow(lead)" matTooltip="Re-analyze"
+                  [disabled]="flowAnalyzingId() === lead.id">
+                  @if (flowAnalyzingId() === lead.id) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    <mat-icon>refresh</mat-icon>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- What's New -->
+        <div class="ai-section">
+          <div class="ai-header">
+            <mat-icon class="ai-icon">auto_awesome</mat-icon>
+            <h3>What's new?</h3>
+          </div>
+
+          <div class="ai-input-row">
+            <textarea class="ai-input"
+              [(ngModel)]="detailChatText"
+              placeholder="Log a call, set a follow-up, ask a question..."
+              (keydown)="onChatKeydown($event)"
+              [disabled]="detailChatSending()"
+              cdkTextareaAutosize
+              cdkAutosizeMinRows="1"
+              cdkAutosizeMaxRows="6"></textarea>
+            <button mat-icon-button class="ai-send"
+              (click)="sendDetailLeadChat()"
+              [disabled]="!detailChatText.trim() || detailChatSending()">
+              <mat-icon>send</mat-icon>
+            </button>
+          </div>
+
+          @if (detailChatSending()) {
+            <div class="ai-loading">
+              <mat-spinner diameter="14"></mat-spinner>
+              <span>Working on it...</span>
+            </div>
+          }
+
+          @if (chatMessages().length > 0) {
+            <button class="ai-history-toggle" (click)="chatHistoryOpen.set(!chatHistoryOpen())">
+              <mat-icon class="inline-icon">history</mat-icon>
+              <span>History ({{ chatMessages().length }})</span>
+              <mat-icon class="ai-history-chevron" [class.open]="chatHistoryOpen()">expand_more</mat-icon>
+            </button>
+
+            @if (chatHistoryOpen()) {
+              <div class="ai-log">
+                @for (msg of chatMessages(); track msg.id) {
+                  @if (msg.role === 'user') {
+                    <div class="ai-log-user">
+                      <mat-icon class="inline-icon">person</mat-icon>
+                      <span>{{ msg.content }}</span>
+                    </div>
+                  } @else {
+                    <div class="ai-log-reply">
+                      <mat-icon class="inline-icon">auto_awesome</mat-icon>
+                      <span>{{ msg.content }}</span>
+                    </div>
+                    @if (msg.actionsExecuted && msg.actionsExecuted.length > 0) {
+                      <div class="ai-actions-taken">
+                        @for (action of msg.actionsExecuted; track $index) {
+                          <span class="ai-action-chip">
+                            <mat-icon class="inline-icon">check_circle</mat-icon>
+                            {{ action }}
+                          </span>
+                        }
+                      </div>
+                    }
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Email Conversation -->
+        @if (emailThreads().length > 0) {
+          <div class="email-thread-section">
+            <button class="email-thread-toggle" (click)="emailThreadOpen.set(!emailThreadOpen())">
+              <div class="email-thread-toggle-left">
+                <mat-icon class="email-thread-icon">forum</mat-icon>
+                <h3>Email Threads</h3>
+                <span class="email-thread-count">{{ emailThreads().length }}</span>
+              </div>
+              <mat-icon class="email-thread-chevron" [class.open]="emailThreadOpen()">expand_more</mat-icon>
+            </button>
+
+            @if (emailThreadOpen()) {
+              <div class="email-thread-body">
+                <div class="email-thread-actions">
+                  <button mat-stroked-button (click)="openEmailComposer()" [disabled]="!lead.email">
+                    <mat-icon>add</mat-icon> New Email
+                  </button>
+                </div>
+
+                @for (thread of emailThreads(); track thread.root.id) {
+                  <div class="email-thread-group">
+                    <!-- Thread root -->
+                    <div class="email-thread-item root" [class.inbound]="thread.root.type === 'email_received'" [class.outbound]="thread.root.type === 'email_sent'">
+                      <div class="email-thread-item-header">
+                        <div class="email-thread-item-meta">
+                          <mat-icon class="inline-icon">{{ thread.root.type === 'email_received' ? 'mark_email_unread' : 'email' }}</mat-icon>
+                          <span class="email-thread-direction">{{ thread.root.type === 'email_received' ? 'Received' : 'Sent' }}</span>
+                          @if (thread.root.type === 'email_received' && thread.root.senderEmail) {
+                            <span class="email-thread-sender">from {{ thread.root.senderEmail }}</span>
+                          }
+                          @if (thread.root.actorName && thread.root.type === 'email_sent') {
+                            <span class="email-thread-sender">by {{ thread.root.actorName }}</span>
+                          }
+                          <span class="email-thread-time">{{ formatDate(thread.root.createdAt) }} {{ formatTime(thread.root.createdAt) }}</span>
+                        </div>
+                        <div class="email-thread-item-actions">
+                          @if (thread.replies.length > 0) {
+                            <span class="email-thread-reply-count">{{ thread.replies.length }} repl{{ thread.replies.length === 1 ? 'y' : 'ies' }}</span>
+                          }
+                          <button mat-stroked-button class="email-thread-reply-btn" (click)="replyToEmail(thread.replies.length > 0 ? thread.replies[thread.replies.length - 1] : thread.root)" [disabled]="!lead.email">
+                            <mat-icon>reply</mat-icon> Reply
+                          </button>
+                        </div>
+                      </div>
+                      @if (thread.root.emailSubject) {
+                        <p class="email-thread-subject">{{ thread.root.emailSubject }}</p>
+                      }
+                      <div class="email-thread-content" [innerHTML]="sanitizeHtml(thread.root.emailHtml || thread.root.content)"></div>
+                    </div>
+
+                    <!-- Thread replies -->
+                    @if (thread.replies.length > 0) {
+                      <div class="email-thread-replies">
+                        @for (reply of thread.replies; track reply.id) {
+                          <div class="email-thread-item reply" [class.inbound]="reply.type === 'email_received'" [class.outbound]="reply.type === 'email_sent'">
+                            <div class="email-thread-item-header">
+                              <div class="email-thread-item-meta">
+                                <mat-icon class="inline-icon">{{ reply.type === 'email_received' ? 'mark_email_unread' : 'reply' }}</mat-icon>
+                                <span class="email-thread-direction">{{ reply.type === 'email_received' ? 'Received' : 'Sent' }}</span>
+                                @if (reply.type === 'email_received' && reply.senderEmail) {
+                                  <span class="email-thread-sender">from {{ reply.senderEmail }}</span>
+                                }
+                                @if (reply.actorName && reply.type === 'email_sent') {
+                                  <span class="email-thread-sender">by {{ reply.actorName }}</span>
+                                }
+                                <span class="email-thread-time">{{ formatDate(reply.createdAt) }} {{ formatTime(reply.createdAt) }}</span>
+                              </div>
+                            </div>
+                            <div class="email-thread-content" [innerHTML]="sanitizeHtml(reply.emailHtml || reply.content)"></div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Sidebar: Knowledge + Activity -->
+      <div class="detail-sidebar">
+
+        <!-- Account Insights (won leads with teamId) -->
+        @if (lead['teamId']) {
+          <div class="account-insights-section">
+            <button class="account-insights-toggle" (click)="accountInsightsOpen.set(!accountInsightsOpen())">
+              <div class="account-insights-toggle-left">
+                <mat-icon class="account-insights-icon">business</mat-icon>
+                <h3>Account</h3>
+              </div>
+              @if (accountInsightsLoading()) {
+                <mat-spinner diameter="16"></mat-spinner>
+              } @else if (accountInsights(); as insights) {
+                <span class="insight-pill"
+                  [style.background]="getSubscriptionColor(insights.subscription.status) + '18'"
+                  [style.color]="getSubscriptionColor(insights.subscription.status)">
+                  {{ getSubscriptionLabel(insights.subscription.status) }}
+                </span>
+              }
+              <mat-icon class="account-insights-chevron" [class.open]="accountInsightsOpen()">expand_more</mat-icon>
+            </button>
+
+            @if (accountInsightsOpen()) {
+              @if (accountInsightsLoading()) {
+                <div class="account-insights-loading">
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Loading account data...</span>
+                </div>
+              } @else if (accountInsights(); as insights) {
+                <div class="account-insights-body">
+                  <div class="insight-row">
+                    <span class="insight-label">Team Members</span>
+                    <span class="insight-value">{{ insights.memberCount }}</span>
+                  </div>
+
+                  @if (insights.teamCreatedAt) {
+                    <div class="insight-row">
+                      <span class="insight-label">Account Created</span>
+                      <span class="insight-value">{{ formatRelativeDate(insights.teamCreatedAt) }}</span>
+                    </div>
+                  }
+
+                  <div class="insight-row">
+                    <span class="insight-label">Last Active</span>
+                    <span class="insight-value">{{ formatRelativeDate(insights.lastActiveAt) }}</span>
+                  </div>
+
+                  <div class="insight-divider"></div>
+
+                  <div class="insight-row">
+                    <span class="insight-label">Self-Inspections</span>
+                    <span class="insight-value">
+                      {{ insights.usage.inspectionCount }}
+                      @if (insights.usage.lastInspectionAt) {
+                        <span class="insight-sub">(last {{ formatRelativeDate(insights.usage.lastInspectionAt) }})</span>
+                      }
+                    </span>
+                  </div>
+
+                  <div class="insight-row">
+                    <span class="insight-label">Trainings</span>
+                    <span class="insight-value">
+                      {{ insights.usage.trainingCount }}
+                      @if (insights.usage.lastTrainingAt) {
+                        <span class="insight-sub">(last {{ formatRelativeDate(insights.usage.lastTrainingAt) }})</span>
+                      }
+                    </span>
+                  </div>
+
+                  <div class="insight-row">
+                    <span class="insight-label">Incident Reports</span>
+                    <span class="insight-value">{{ insights.usage.incidentCount }}</span>
+                  </div>
+
+                  @if (insights.recentActivity.length > 0) {
+                    <div class="insight-divider"></div>
+                    <span class="insight-section-label">Recent Chimp Activity</span>
+                    @for (act of insights.recentActivity; track act.timestamp) {
+                      <div class="insight-activity">
+                        <span class="insight-activity-desc">{{ act.description }}</span>
+                        <span class="insight-activity-time">{{ formatRelativeDate(act.timestamp) }}</span>
+                      </div>
+                    }
+                  }
+                </div>
+              } @else {
+                <p class="account-insights-empty">Could not load account data. The function may need to be deployed.</p>
+              }
+            }
+          </div>
+        }
+
+        <!-- Knowledge Base -->
+        <div class="knowledge-section">
+          <button class="knowledge-toggle" (click)="knowledgeOpen.set(!knowledgeOpen())">
+            <div class="knowledge-toggle-left">
+              <mat-icon class="knowledge-icon">menu_book</mat-icon>
+              <h3>Knowledge</h3>
+              @if ((lead.knowledge?.length || 0) + (lead.fitReason ? 1 : 0); as count) {
+                <span class="knowledge-count">{{ count }}</span>
+              }
+            </div>
+            <mat-icon class="knowledge-chevron" [class.open]="knowledgeOpen()">expand_more</mat-icon>
+          </button>
+
+          @if (knowledgeOpen()) {
+            <div class="knowledge-body">
+              @if (lead.fitReason) {
+                <div class="knowledge-entry research">
+                  <mat-icon class="inline-icon">search</mat-icon>
+                  <span>{{ lead.fitReason }}</span>
+                </div>
+              }
+              @if (lead.knowledge) {
+                @for (entry of lead.knowledge; track entry.addedAt) {
+                  <div class="knowledge-entry" [class]="entry.source">
+                    <mat-icon class="inline-icon">{{ getKnowledgeSourceIcon(entry.source) }}</mat-icon>
+                    <span>{{ entry.content }}</span>
+                  </div>
+                }
+              }
+              @if (!lead.fitReason && !lead.knowledge?.length) {
+                <p class="knowledge-empty">No knowledge yet. Chat with the AI assistant or add notes manually to build context about this lead.</p>
+              }
+              <div class="knowledge-input">
+                <input class="knowledge-text"
+                  [(ngModel)]="knowledgeText"
+                  placeholder="Add a fact or note..."
+                  (keydown.enter)="$event.preventDefault(); addKnowledge()">
+                <button mat-icon-button (click)="addKnowledge()" [disabled]="!knowledgeText.trim()">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="activity-section">
+          <div class="activity-section-header">
+            <div class="activity-title-row">
+              <mat-icon class="activity-toggle-icon">history</mat-icon>
+              <h3>Activity</h3>
+              @if (activities().length; as count) {
+                <span class="activity-count">{{ count }}</span>
+              }
+            </div>
+            <button class="note-toggle" (click)="activityOpen.set(!activityOpen())">
+              <mat-icon class="inline-icon">edit_note</mat-icon>
+              Add a note
+            </button>
+          </div>
+
+          @if (activityOpen()) {
+            <div class="note-input">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Add a note</mat-label>
+                <textarea matInput [(ngModel)]="noteText" rows="2" placeholder="Type a note..."></textarea>
+              </mat-form-field>
+              <button mat-flat-button (click)="addNote()" [disabled]="!noteText.trim()">
+                <mat-icon>add</mat-icon> Add Note
+              </button>
+            </div>
+          }
+
+          <p class="activity-hint">Use "What's new?" to log calls, emails, and notes automatically.</p>
+
+          <div class="activity-timeline">
+            @for (activity of activities(); track activity.id) {
+              <div class="activity-item" [class]="activity.type">
+                <div class="activity-icon-col">
+                  <mat-icon [class]="activity.type">{{ getActivityIcon(activity.type) }}</mat-icon>
+                  <div class="activity-line"></div>
+                </div>
+                <div class="activity-body">
+                  <div class="activity-header">
+                    <span class="activity-type">{{ getActivityLabel(activity.type) }}</span>
+                    <span class="activity-time">{{ formatDate(activity.createdAt) }} {{ formatTime(activity.createdAt) }}</span>
+                  </div>
+                  @if (activity.actorName) {
+                    <span class="activity-actor" [class.agent]="activity.actorType === 'agent'">{{ activity.actorName }}</span>
+                  }
+                  <div class="activity-content">
+                    @if (activity.type === 'email_sent' && activity.emailSubject) {
+                      <p class="email-subject-line">Subject: {{ activity.emailSubject }}</p>
+                      <details class="email-expandable">
+                        <summary>View email</summary>
+                        <div class="email-body-full" [innerHTML]="sanitizeHtml(activity.content)"></div>
+                      </details>
+                    } @else if (activity.type === 'email_received') {
+                      @if (activity.senderEmail) {
+                        <p class="email-sender-line">From: {{ activity.senderEmail }}</p>
+                      }
+                      @if (activity.emailSubject) {
+                        <p class="email-subject-line">Subject: {{ activity.emailSubject }}</p>
+                      }
+                      <div class="email-body-preview inbound" [innerHTML]="sanitizeHtml(activity.emailHtml || activity.content)"></div>
+                    } @else if (activity.type === 'call') {
+                      <p>{{ activity.content }}</p>
+                      @if (activity.callDuration) {
+                        <p class="call-meta">Duration: {{ activity.callDuration }}s</p>
+                      }
+                      @if (activity.recordingUrl) {
+                        <p class="call-meta">
+                          <a [href]="activity.recordingUrl" target="_blank">
+                            <mat-icon class="inline-icon">play_circle</mat-icon> Listen to recording
+                          </a>
+                        </p>
+                      }
+                      @if (activity.transcript) {
+                        <details class="transcript">
+                          <summary>View Transcript</summary>
+                          <p>{{ activity.transcript }}</p>
+                        </details>
+                      }
+                    } @else {
+                      <p>{{ activity.content }}</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <p class="no-activity">No activity recorded yet.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Snooze Overlay -->
+  @if (flowSnoozeLeadId()) {
+    <div class="overlay" (click)="flowSnoozeLeadId.set(null)">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Snooze Until</h2>
+          <button mat-icon-button (click)="flowSnoozeLeadId.set(null)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="modal-body">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Snooze until</mat-label>
+            <input matInput [matDatepicker]="snoozePicker" [(ngModel)]="flowSnoozeDate">
+            <mat-datepicker-toggle matSuffix [for]="snoozePicker"></mat-datepicker-toggle>
+            <mat-datepicker #snoozePicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="flowSnoozeLeadId.set(null)">Cancel</button>
+          <button mat-flat-button color="primary" (click)="confirmFlowSnooze()" [disabled]="!flowSnoozeDate">
+            <mat-icon>snooze</mat-icon> Snooze
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+} @else {
+  <div class="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+}

@@ -278,7 +278,7 @@
         <div class="plan-details">
           <div class="plan-name">Compliancechimp</div>
           <div class="plan-price">
-            <span class="price-amount">$199</span>
+            <span class="price-amount">$99</span>
             <span class="price-period">/month</span>
           </div>
           <div class="plan-description">
@@ -336,6 +336,182 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Referral Program Section -->
+  <section class="section referral-section">
+    <div class="section-header">
+      <mat-icon class="section-icon">card_giftcard</mat-icon>
+      <h2>Referral Program</h2>
+    </div>
+
+    <div class="referral-loading" *ngIf="referralLoading">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <div class="referral-error" *ngIf="referralError && !referralLoading">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ referralError }}</span>
+      <button mat-stroked-button (click)="referralService.load()">Retry</button>
+    </div>
+
+    <ng-container *ngIf="referralData && !referralLoading">
+      <!-- Referral Hero -->
+      <div class="referral-hero">
+        <div class="referral-hero-text">
+          <h3>Get Compliance Chimp for free</h3>
+          <p>Every company you refer that subscribes saves you 10% off your plan. Get 10 active referrals and your subscription costs you nothing.</p>
+        </div>
+        <div class="referral-progress">
+          <div class="progress-ring">
+            <svg viewBox="0 0 100 100">
+              <circle class="progress-bg" cx="50" cy="50" r="42" />
+              <circle class="progress-fill" cx="50" cy="50" r="42"
+                [style.stroke-dashoffset]="263.9 - (263.9 * referralProgressPercent / 100)" />
+            </svg>
+            <div class="progress-label">
+              <span class="progress-count">{{ referralData.stats.active }}</span>
+              <span class="progress-of">of 10</span>
+            </div>
+          </div>
+          <div class="progress-caption" *ngIf="referralsToFree > 0">{{ referralsToFree }} more to free</div>
+          <div class="progress-caption free" *ngIf="referralsToFree === 0">Yours is free.</div>
+        </div>
+      </div>
+
+      <!-- Referral Link -->
+      <div class="referral-card">
+        <h4>Your Referral Link</h4>
+        <p class="referral-card-desc">Share this with subcontractors, partners, or anyone who could use better safety compliance.</p>
+        <div class="referral-link-row">
+          <div class="referral-link-display">{{ referralLink }}</div>
+          <button mat-flat-button color="primary" (click)="copyReferralLink()">
+            <mat-icon>content_copy</mat-icon>
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <!-- Email Signature Snippet -->
+      <div class="referral-card">
+        <h4>Email Signature Snippet</h4>
+        <p class="referral-card-desc">Drop this into your email signature. Your subs will see it on every email you send.</p>
+        <div class="email-preview-box">
+          <div class="email-preview-header">
+            <span>Preview</span>
+            <button mat-icon-button (click)="toggleEmailPreview()">
+              <mat-icon>{{ showEmailPreview ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+          </div>
+          <div class="email-preview-content" *ngIf="showEmailPreview">
+            <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; margin-top: 16px;">
+              <tr>
+                <td style="border-top: 3px solid #ff9100; padding-top: 12px;">
+                  <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 18px;">
+                    We use <strong>Compliance Chimp</strong> for OSHA safety compliance.
+                    Training, inspections, and incident reporting, all in one place.
+                  </p>
+                  <p style="margin: 0;">
+                    <a [href]="referralLink" style="display: inline-block; background-color: #054d8a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 8px 20px; border-radius: 6px;">Try It Free for 14 Days</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        <div class="referral-copy-actions">
+          <button mat-stroked-button (click)="copyEmailHtml()">
+            <mat-icon>code</mat-icon>
+            Copy HTML
+          </button>
+          <button mat-stroked-button (click)="copyEmailPlainText()">
+            <mat-icon>text_fields</mat-icon>
+            Copy as Plain Text
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="referral-stats-grid">
+        <div class="referral-stat">
+          <div class="referral-stat-value">{{ referralData.stats.total }}</div>
+          <div class="referral-stat-label">Total</div>
+        </div>
+        <div class="referral-stat">
+          <div class="referral-stat-value accent">{{ referralData.stats.active }}</div>
+          <div class="referral-stat-label">Active</div>
+        </div>
+        <div class="referral-stat">
+          <div class="referral-stat-value">{{ referralData.stats.pending }}</div>
+          <div class="referral-stat-label">Pending</div>
+        </div>
+        <div class="referral-stat">
+          <div class="referral-stat-value highlight">{{ monthlyCreditDisplay }}</div>
+          <div class="referral-stat-label">Monthly Credit</div>
+        </div>
+      </div>
+
+      <!-- Referral List -->
+      <div class="referral-card" *ngIf="referralData.referrals.length > 0">
+        <h4>Your Referrals</h4>
+        <div class="referral-list">
+          <div class="referral-item" *ngFor="let ref of referralData.referrals">
+            <div class="referral-item-info">
+              <div class="referral-item-name">{{ ref.referredTeamName || 'Unknown Company' }}</div>
+              <div class="referral-item-date" *ngIf="ref.createdAt">Referred {{ ref.createdAt | date:'mediumDate' }}</div>
+            </div>
+            <mat-chip-set>
+              <mat-chip [class]="'status-' + ref.status" [highlighted]="ref.status === 'active'">
+                {{ ref.status === 'active' ? 'Active' : ref.status === 'pending' ? 'Pending' : 'Churned' }}
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="referral-empty" *ngIf="referralData.referrals.length === 0">
+        <mat-icon>share</mat-icon>
+        <p>No referrals yet. Share your link above to get started.</p>
+      </div>
+
+      <!-- How it works -->
+      <div class="referral-card how-it-works">
+        <h4>How It Works</h4>
+        <div class="referral-steps">
+          <div class="referral-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Share your link</strong>
+              <span>Send it to subs, partners, or anyone who needs safety compliance</span>
+            </div>
+          </div>
+          <div class="referral-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>They sign up and subscribe</strong>
+              <span>They get the same 14-day free trial everyone gets</span>
+            </div>
+          </div>
+          <div class="referral-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <strong>You save {{ perReferralDisplay }}/month per referral</strong>
+              <span>10% of your {{ planPriceDisplay }}/month plan, applied automatically</span>
+            </div>
+          </div>
+          <div class="referral-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <strong>Refer more than 10, and we pay you</strong>
+              <span>Once your subscription is free, every additional active referral earns you {{ perReferralDisplay }}/month</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
   </section>
 
   <mat-divider></mat-divider>

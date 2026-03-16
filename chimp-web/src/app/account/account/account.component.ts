@@ -20,9 +20,11 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
 import { collection, doc, updateDoc, addDoc } from '@angular/fire/firestore';
 import { environment } from 'src/environments/environment';
+import { ReferralService, ReferralData } from '../referrals/referral.service';
 
 @Component({
   standalone: true,
@@ -47,7 +49,8 @@ import { environment } from 'src/environments/environment';
     MatDividerModule,
     MatChipsModule,
     MatSlideToggleModule,
-    MatRadioModule
+    MatRadioModule,
+    MatSnackBarModule,
   ]
 })
 export class ProfileComponent implements OnInit, OnDestroy {
@@ -57,11 +60,20 @@ export class ProfileComponent implements OnInit, OnDestroy {
   billingLoading: boolean = false;
   processingCheckout: boolean = false;
 
+  // Referral state
+  referralData: ReferralData | null = null;
+  referralLoading = true;
+  referralError: string | null = null;
+  showEmailPreview = false;
+  private referralSubs: Subscription[] = [];
+
   constructor(
     public accountService: AccountService,
     private storage: Storage,
     public router: Router,
-    public dialog: MatDialog
+    public dialog: MatDialog,
+    public referralService: ReferralService,
+    private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit() {
@@ -73,6 +85,69 @@ export class ProfileComponent implements OnInit, OnDestroy {
         }
       }
     });
+
+    this.referralSubs.push(
+      this.referralService.data$.subscribe(d => this.referralData = d),
+      this.referralService.loading$.subscribe(l => this.referralLoading = l),
+      this.referralService.error$.subscribe(e => this.referralError = e),
+    );
+    this.referralService.load();
+  }
+
+  // Referral helpers
+  get referralLink(): string {
+    return this.referralData ? this.referralService.getReferralLink(this.referralData.referralCode) : '';
+  }
+
+  get monthlyCreditDisplay(): string {
+    if (!this.referralData) return '$0';
+    return '$' + (this.referralData.stats.monthlyCreditCents / 100).toFixed(0);
+  }
+
+  get perReferralDisplay(): string {
+    if (!this.referralData) return '$0';
+    return '$' + (this.referralData.stats.perReferralCreditCents / 100).toFixed(0);
+  }
+
+  get planPriceDisplay(): string {
+    if (!this.referralData) return '$0';
+    return '$' + (this.referralData.stats.planPriceCents / 100).toFixed(0);
+  }
+
+  get referralProgressPercent(): number {
+    if (!this.referralData) return 0;
+    return Math.min(100, this.referralData.stats.active * 10);
+  }
+
+  get referralsToFree(): number {
+    if (!this.referralData) return 10;
+    return Math.max(0, 10 - this.referralData.stats.active);
+  }
+
+  copyReferralLink(): void {
+    navigator.clipboard.writeText(this.referralLink).then(() => {
+      this.snackBar.open('Link copied', '', { duration: 2000 });
+    });
+  }
+
+  copyEmailHtml(): void {
+    if (!this.referralData) return;
+    const html = this.referralService.getEmailFooterHtml(this.referralData.referralCode);
+    navigator.clipboard.writeText(html).then(() => {
+      this.snackBar.open('HTML copied', '', { duration: 2000 });
+    });
+  }
+
+  copyEmailPlainText(): void {
+    if (!this.referralData) return;
+    const text = this.referralService.getEmailFooterPlainText(this.referralData.referralCode);
+    navigator.clipboard.writeText(text).then(() => {
+      this.snackBar.open('Text copied', '', { duration: 2000 });
+    });
+  }
+
+  toggleEmailPreview(): void {
+    this.showEmailPreview = !this.showEmailPreview;
   }
 
   get ownerName(): string {
@@ -209,6 +284,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subscription?.unsubscribe();
+    this.referralSubs.forEach(s => s.unsubscribe());
   }
 }
 

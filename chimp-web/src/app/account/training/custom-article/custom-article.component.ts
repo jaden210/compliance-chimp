@@ -81,6 +81,7 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
   isEditing = signal(false);
   trainingHistory = signal<Survey[]>([]);
   historyPanelOpen = signal(true);
+  language = signal<'en' | 'es'>('en');
   
   // Store response counts for each survey: { surveyId: responseCount }
   responseCountsMap = signal<Record<string, number>>({});
@@ -100,6 +101,20 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     const words = this.wordCount();
     const minutes = Math.ceil(words / 200);
     return minutes < 1 ? '< 1 min' : `${minutes} min read`;
+  });
+
+  hasSpanish = computed(() => !!this.article()?.content_es);
+
+  displayName = computed(() => {
+    const art = this.article();
+    if (!art) return '';
+    return this.language() === 'es' && art.name_es ? art.name_es : art.name;
+  });
+
+  displayContent = computed(() => {
+    const art = this.article();
+    if (!art) return '';
+    return this.language() === 'es' && art.content_es ? art.content_es : art.content;
   });
 
   canEdit = computed(() => {
@@ -323,6 +338,10 @@ export class CustomArticleComponent implements OnInit, OnDestroy {
     } else {
       this.loadArticleFromRoute();
     }
+  }
+
+  toggleLanguage(): void {
+    this.language.update(l => l === 'en' ? 'es' : 'en');
   }
 
   shareArticle(): void {

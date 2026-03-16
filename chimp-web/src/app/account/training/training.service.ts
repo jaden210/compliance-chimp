@@ -1192,6 +1192,10 @@ export class LibraryItem {
   // Media attachments stored separately from the rich text content
   // (video elements can't be embedded in ProseMirror's schema)
   videoUrls?: string[];
+
+  // Spanish translations (populated by Firestore trigger)
+  name_es?: string;
+  content_es?: string;
 }
 
 export enum TrainingCadence {

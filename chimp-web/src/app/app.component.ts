@@ -59,6 +59,14 @@ export class AppComponent implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object,
     @Inject(DOCUMENT) private document: Document
   ) {
+    if (isPlatformBrowser(this.platformId)) {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) {
+        localStorage.setItem('chimp_referral_code', ref);
+      }
+    }
+
     // Page view tracking is handled by AnalyticsService
     // Just handle scroll reset here
     this.router.events.subscribe(event => {

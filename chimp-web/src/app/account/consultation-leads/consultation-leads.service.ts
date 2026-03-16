@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Firestore, collection, collectionData, doc, getDoc, limit, orderBy, query } from '@angular/fire/firestore';
+import { Firestore, collection, collectionData, deleteDoc, doc, getDoc, limit, orderBy, query, updateDoc, serverTimestamp } from '@angular/fire/firestore';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { map, Observable } from 'rxjs';
 import { ConsultationLeadRecord, LeadJourney } from '../../shared/osha-consultation';
@@ -40,11 +40,32 @@ export class ConsultationLeadsService {
     return journeyMap;
   }
 
+  async updateLeadContact(leadId: string, fields: { email?: string; website?: string }): Promise<void> {
+    const leadRef = doc(this.firestore, `osha-consultation-leads/${leadId}`);
+    await updateDoc(leadRef, {
+      ...fields,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async deleteLead(leadId: string): Promise<void> {
+    const leadRef = doc(this.firestore, `osha-consultation-leads/${leadId}`);
+    await deleteDoc(leadRef);
+  }
+
   async resendLeadEmail(leadId: string, testEmail?: string): Promise<void> {
     const resend = httpsCallable<{ leadId: string; testEmail?: string }, { success: boolean }>(
       this.functions,
       'resendConsultationLeadEmail'
     );
     await resend(testEmail ? { leadId, testEmail } : { leadId });
+  }
+
+  async testFollowupEmail(leadId: string, type: 'video' | 'w1' | 'w2', testEmail?: string): Promise<void> {
+    const fn = httpsCallable<
+      { leadId: string; type: string; testEmail?: string },
+      { success: boolean }
+    >(this.functions, 'testConsultationLeadFollowupEmail');
+    await fn(testEmail ? { leadId, type, testEmail } : { leadId, type });
   }
 }

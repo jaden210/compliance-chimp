@@ -5,8 +5,8 @@
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div class="header-content">
-      <h1 class="page-title">Training Library</h1>
-      <p class="page-meta">{{ library?.length || 0 }} training{{ library?.length !== 1 ? 's' : '' }} available</p>
+      <h1 class="page-title">{{ l.trainingLibrary }}</h1>
+      <p class="page-meta">{{ library?.length || 0 }} {{ library?.length !== 1 ? l.trainingsAvailablePlural : l.trainingsAvailable }} {{ l.available }}</p>
     </div>
   </header>
 
@@ -16,12 +16,12 @@
         @for (article of library; track article.id) {
           <div class="article-card" [class.overdue]="article.status === 'overdue'" (click)="routeTo(article)">
             <div class="article-info">
-              <span class="article-title">{{ article.name }}</span>
+              <span class="article-title">{{ articleName(article) }}</span>
               <div class="article-dates">
                 @if (article.status === 'overdue') {
                   <span class="status-badge overdue">
                     <mat-icon>warning</mat-icon>
-                    Overdue
+                    {{ l.overdue }}
                   </span>
                 } @else if (article.status === 'dueSoon') {
                   <span class="status-badge due-soon">
@@ -31,7 +31,7 @@
                 } @else if (article.status === 'neverTrained') {
                   <span class="status-badge never-trained">
                     <mat-icon>school</mat-icon>
-                    Not started
+                    {{ l.notStarted }}
                   </span>
                 } @else if (article.nextDueDate) {
                   <span class="status-badge current">
@@ -55,8 +55,8 @@
         <div class="empty-icon">
           <mat-icon>school</mat-icon>
         </div>
-        <h3>No training available</h3>
-        <p>Your team hasn't set up any training content yet.</p>
+        <h3>{{ l.noTrainingAvailable }}</h3>
+        <p>{{ l.noTrainingDescription }}</p>
       </div>
     }
 

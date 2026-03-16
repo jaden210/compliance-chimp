@@ -129,12 +129,15 @@
   </div>
 </section>
 
-@if (assessment) {
+@if (activeAssessment) {
   <app-consultation-assessment-view
-    [assessment]="assessment"
+    [assessment]="activeAssessment"
+    [language]="currentLanguage"
+    [hasSpanishAssessment]="hasSpanishAssessment"
     [showResetAction]="true"
     (start)="startOnboarding()"
     (download)="downloadPdf()"
     (reset)="reset()"
+    (languageChange)="onLanguageChange($event)"
   />
 }

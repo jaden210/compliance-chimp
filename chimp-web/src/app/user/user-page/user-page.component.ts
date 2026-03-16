@@ -4,7 +4,7 @@ import { RouterModule, Router, ActivatedRoute } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { UserPageService } from "./user-page.service";
 import { AppService, Survey } from "../../app.service";
-import { Topic, UserService } from "../user.service";
+import { Topic, UserService, HandbookLanguage, resolveHandbookLanguage, persistHandbookLanguage } from "../user.service";
 import { Team, TeamMember } from "src/app/account/account.service";
 import { MatBottomSheet, MatBottomSheetRef, MatBottomSheetModule } from "@angular/material/bottom-sheet";
 import { MatButtonModule } from "@angular/material/button";
@@ -50,6 +50,9 @@ export class UserPageComponent implements OnInit {
   // Resource library
   resourceFiles: ResourceFile[] = [];
   private resourceSubscription: Subscription;
+
+  // Language preference
+  language: HandbookLanguage = resolveHandbookLanguage();
 
   ngOnInit() {
     this.userService.teamObservable
@@ -214,7 +217,62 @@ export class UserPageComponent implements OnInit {
   get PImage() {
     return this.TeamMember?.profileUrl || this.Team?.logoUrl || '/assets/chimp.png';
   }
+
+  toggleLanguage(): void {
+    this.language = this.language === 'en' ? 'es' : 'en';
+    persistHandbookLanguage(this.language);
+  }
+
+  get l() {
+    return this.language === 'es' ? LABELS_ES : LABELS_EN;
+  }
 }
+
+const LABELS_EN = {
+  reportIncident: 'Report Incident',
+  injuryOrNearMiss: 'Injury or near miss',
+  training: 'Training',
+  startNewSession: 'Start a new session',
+  selfInspections: 'Self-Inspections',
+  safetyChecklists: 'Safety checklists',
+  unlockFeatures: 'Unlock more features',
+  signInPrompt: 'Sign in to access training, self-inspections, team management, and more.',
+  signIn: 'Sign In',
+  yourSurveys: 'Your Surveys',
+  checkingForSurveys: 'Checking for surveys...',
+  pleaseWait: 'Please wait while we load your latest surveys.',
+  allCaughtUp: 'All caught up!',
+  noSurveysWaiting: 'No surveys waiting for you. We\'ll notify you when something new arrives.',
+  teamFiles: 'Team Files',
+  filesAvailable: 'available',
+  surveyHistory: 'Survey History',
+  completedSurveys: 'completed',
+  addToHomeScreen: 'Add to Home Screen',
+  quickAccess: 'Quick access anytime',
+};
+
+const LABELS_ES = {
+  reportIncident: 'Reportar Incidente',
+  injuryOrNearMiss: 'Lesion o casi accidente',
+  training: 'Capacitacion',
+  startNewSession: 'Iniciar una nueva sesion',
+  selfInspections: 'Auto-Inspecciones',
+  safetyChecklists: 'Listas de verificacion de seguridad',
+  unlockFeatures: 'Desbloquear mas funciones',
+  signInPrompt: 'Inicie sesion para acceder a capacitacion, auto-inspecciones, gestion de equipo y mas.',
+  signIn: 'Iniciar Sesion',
+  yourSurveys: 'Sus Encuestas',
+  checkingForSurveys: 'Buscando encuestas...',
+  pleaseWait: 'Por favor espere mientras cargamos sus encuestas mas recientes.',
+  allCaughtUp: 'Todo al dia!',
+  noSurveysWaiting: 'No hay encuestas pendientes. Le notificaremos cuando algo nuevo llegue.',
+  teamFiles: 'Archivos del Equipo',
+  filesAvailable: 'disponibles',
+  surveyHistory: 'Historial de Encuestas',
+  completedSurveys: 'completadas',
+  addToHomeScreen: 'Agregar a Pantalla de Inicio',
+  quickAccess: 'Acceso rapido en cualquier momento',
+};
 
 
 @Component({

@@ -5,7 +5,7 @@
       <p>Pulling your saved safety consultation now.</p>
     </div>
   </section>
-} @else if (notFound || !assessment) {
+} @else if (notFound || !activeAssessment) {
   <section class="public-consultation-shell">
     <div class="message-card">
       <span class="eyebrow">Consultation Not Found</span>
@@ -18,9 +18,12 @@
   </section>
 } @else {
   <app-consultation-assessment-view
-    [assessment]="assessment"
+    [assessment]="activeAssessment"
+    [language]="currentLanguage"
+    [hasSpanishAssessment]="hasSpanishAssessment"
     [showResetAction]="false"
     (start)="startOnboarding()"
     (download)="downloadPdf()"
+    (languageChange)="onLanguageChange($event)"
   />
 }
