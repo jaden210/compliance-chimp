@@ -34,6 +34,13 @@ export class ChallengeComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Redundant referral capture in case AppComponent missed it
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('chimp_referral_code', ref);
+    }
+
     this.checkCurrentRoute(this.router.url);
     this.updateTabletViewport();
     this.subscriptions.push(

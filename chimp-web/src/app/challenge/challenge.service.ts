@@ -330,8 +330,12 @@ export class ChallengeService {
   }
 
   createTeam(userId: string): Promise<string> {
-    // Analytics tracking is handled in the step2 component
-    const referralCode = localStorage.getItem('chimp_referral_code') || null;
+    // Check localStorage first, fall back to current URL in case capture was missed
+    let referralCode = localStorage.getItem('chimp_referral_code') || null;
+    if (!referralCode) {
+      const params = new URLSearchParams(window.location.search);
+      referralCode = params.get('ref') || null;
+    }
 
     const teamData: Record<string, any> = {
       createdAt: new Date(),

@@ -60,20 +60,17 @@ export class AppComponent implements OnInit {
     @Inject(DOCUMENT) private document: Document
   ) {
     if (isPlatformBrowser(this.platformId)) {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref');
-      if (ref) {
-        localStorage.setItem('chimp_referral_code', ref);
-      }
+      this.captureReferralCode();
     }
 
-    // Page view tracking is handled by AnalyticsService
-    // Just handle scroll reset here
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
         document.getElementById("scroll")?.scrollTop && (document.getElementById("scroll").scrollTop = 0);
         if (this.leadTracking.hasActiveJourney()) {
           this.leadTracking.trackPageView(event.urlAfterRedirects);
+        }
+        if (isPlatformBrowser(this.platformId)) {
+          this.captureReferralCode();
         }
       }
     });
@@ -158,6 +155,14 @@ export class AppComponent implements OnInit {
     websiteScript.setAttribute('data-website-schema', 'true');
     websiteScript.textContent = JSON.stringify(websiteSchema);
     this.document.head.appendChild(websiteScript);
+  }
+
+  private captureReferralCode(): void {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('chimp_referral_code', ref);
+    }
   }
 
   navRoute(link?) {
