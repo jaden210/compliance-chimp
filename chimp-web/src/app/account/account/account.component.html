@@ -453,6 +453,12 @@
         </div>
       </div>
 
+      <!-- Credit Info -->
+      <div class="referral-credit-info" *ngIf="referralData.stats.active > 0">
+        <mat-icon>info_outline</mat-icon>
+        <span>Credits are applied to your account on the 1st of each month. Your next invoice will automatically reflect your {{ monthlyCreditDisplay }}/month referral discount.</span>
+      </div>
+
       <!-- Referral List -->
       <div class="referral-card" *ngIf="referralData.referrals.length > 0">
         <h4>Your Referrals</h4>

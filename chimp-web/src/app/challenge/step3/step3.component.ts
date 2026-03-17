@@ -17,7 +17,7 @@ import { TagInputComponent } from "../../account/team/tag-input/tag-input.compon
 import { TagsHelpDialog } from "../../account/team/team.component";
 import { getTagColor } from "../../shared/tag-colors";
 import { Auth } from "@angular/fire/auth";
-import { Firestore, collection, collectionData, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, limit } from "@angular/fire/firestore";
+import { Firestore, collection, collectionData, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, limit, orderBy } from "@angular/fire/firestore";
 import { Functions, httpsCallable } from "@angular/fire/functions";
 import { Subscription } from "rxjs";
 import { AnalyticsService, FunnelStep } from "../../shared/analytics.service";
@@ -182,18 +182,16 @@ export class Step3Component implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
     
-    // Subscribe to team members collection
+    // Subscribe to this team's members only (server-side filtered)
     if (this.challengeService.teamId) {
-      const membersCollection = collection(this.db, 'team-members');
-      this.teamMembersSub = collectionData(membersCollection, { idField: 'id' }).subscribe(
+      const membersQuery = query(
+        collection(this.db, 'team-members'),
+        where('teamId', '==', this.challengeService.teamId),
+        orderBy('createdAt', 'asc')
+      );
+      this.teamMembersSub = collectionData(membersQuery, { idField: 'id' }).subscribe(
         (members: any[]) => {
-          this.teamMembers = members
-            .filter(m => m.teamId === this.challengeService.teamId && !m.deleted)
-            .sort((a, b) => {
-              const aTime = a.createdAt?.toMillis?.() || a.createdAt?.getTime?.() || 0;
-              const bTime = b.createdAt?.toMillis?.() || b.createdAt?.getTime?.() || 0;
-              return aTime - bTime;
-            });
+          this.teamMembers = members.filter(m => !m.deleted);
           // Seed lastSavedJobTitle so flush can detect real changes (for two-way bound inputs)
           this.teamMembers.forEach(m => {
             if (m.id && !this.lastSavedJobTitle.has(m.id)) {

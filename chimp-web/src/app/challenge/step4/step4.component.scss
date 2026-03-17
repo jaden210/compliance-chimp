@@ -269,19 +269,19 @@
 }
 
 .cta-start-btn {
-  height: 52px;
+  height: 56px;
   padding: 0 36px;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
-  max-width: 200px;
-  border-radius: 26px;
+  border-radius: 28px;
   background: white !important;
   color: #e65100 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: all 150ms ease;
+  animation: ctaPulse 2s ease-in-out 0.5s 2;
   
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     transform: translateY(-1px);
   }
   
@@ -291,6 +291,17 @@
     width: 22px;
     height: 22px;
   }
+}
+
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+  50% { box-shadow: 0 4px 24px rgba(255, 255, 255, 0.4); }
+}
+
+.cta-btn-row {
+  display: flex;
+  justify-content: center;
+  padding-right: 140px;
 }
 
 .back-btn-standalone {
@@ -866,9 +877,12 @@
     gap: 16px;
   }
 
+  .cta-btn-row {
+    padding-right: 0;
+  }
+
   .cta-start-btn {
     width: 100%;
-    max-width: none;
   }
 
   .timer-circle {

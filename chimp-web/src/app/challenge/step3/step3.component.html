@@ -107,6 +107,7 @@
               (blur)="onMemberFieldBlur(member, 'name')"
               placeholder="Name (required)"
             />
+            <span class="you-badge" *ngIf="isOwnerMember(member)">You</span>
           </div>
           <div class="col-job">
             <input 
@@ -170,7 +171,11 @@
           <mat-spinner *ngIf="isTagging" diameter="16" class="tagging-spinner"></mat-spinner>
         </div>
         <div class="col-tags">
+          <span class="enter-hint" *ngIf="canAddMember() && !isTagging">
+            <mat-icon>keyboard_return</mat-icon> Enter to add
+          </span>
           <app-tag-input
+            *ngIf="!canAddMember() || isTagging"
             [tags]="newMember.tags"
             [allTags]="allTags"
             (tagsChange)="newMember.tags = $event"
@@ -181,11 +186,11 @@
         </div>
         <div class="col-actions">
           <button 
-            mat-mini-fab 
+            mat-icon-button 
             (click)="addMember()"
             [disabled]="!canAddMember()"
-            class="add-btn"
-            matTooltip="Add member"
+            class="add-btn-subtle"
+            matTooltip="Add member (or press Enter)"
             tabindex="-1"
           >
             <mat-icon>add</mat-icon>
@@ -258,6 +263,7 @@
             <div class="member-info">
               <div class="member-name-row">
                 <span class="member-name">{{ member.name }}</span>
+                <span class="you-badge" *ngIf="isOwnerMember(member)">You</span>
                 <button
                   mat-icon-button
                   class="remove-btn"

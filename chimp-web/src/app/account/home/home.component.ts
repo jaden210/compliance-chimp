@@ -1,6 +1,6 @@
-import { Component, Inject, ViewChild, OnDestroy } from "@angular/core";
+import { Component, Inject, ViewChild, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { RouterModule } from "@angular/router";
+import { RouterModule, ActivatedRoute } from "@angular/router";
 import { MatButtonModule } from "@angular/material/button";
 import { AccountService, User, InviteToTeam, TeamMember } from "../account.service";
 import { environment } from "src/environments/environment";
@@ -16,6 +16,7 @@ import { MatTableModule, MatTable } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatIconModule } from "@angular/material/icon";
 import { MapDialogComponent } from "../map-dialog/map-dialog.component";
+import { CheckoutSuccessDialog } from "../checkout-success-dialog.component";
 import { Observable, Subscription, forkJoin } from "rxjs";
 import { HomeService } from "./home.service";
 import { SelfInspection } from "../self-inspections/self-inspections.service";
@@ -44,7 +45,7 @@ declare var gtag: Function;
     ContactInfoBannerComponent
   ]
 })
-export class HomeComponent implements OnDestroy {
+export class HomeComponent implements OnInit, OnDestroy {
   private subscription: Subscription;
   private innerSubscriptions: Subscription[] = [];
   invitedUsers: InviteToTeam[];
@@ -145,6 +146,7 @@ export class HomeComponent implements OnDestroy {
     private homeService: HomeService,
     private trainingService: TrainingService,
     private router: Router,
+    private route: ActivatedRoute,
     public welcomeService: WelcomeService
   ) {
     this.accountService.helper = this.accountService.helperProfiles.team;
@@ -166,6 +168,23 @@ export class HomeComponent implements OnDestroy {
         }
       }
     );
+  }
+
+  ngOnInit(): void {
+    this.route.queryParams.pipe(take(1)).subscribe(params => {
+      if (params['checkout'] === 'success') {
+        this.dialog.open(CheckoutSuccessDialog, {
+          width: '640px',
+          maxWidth: '95vw',
+          disableClose: true
+        });
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true
+        });
+      }
+    });
   }
 
   public get Users(): TeamMember[] {

@@ -423,6 +423,18 @@
   }
 }
 
+.you-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(5, 77, 138, 0.1);
+  color: var(--chimp-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
 .remove-btn {
   color: var(--chimp-text-secondary);
   
@@ -534,13 +546,39 @@
   overflow: visible; // Allow FAB drop shadow to render (parent cols use overflow:hidden for text)
 }
 
-.add-btn {
-  background-color: var(--chimp-accent) !important;
-  color: #fff !important;
+.enter-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--chimp-primary);
+  opacity: 0.7;
+  white-space: nowrap;
+  animation: hintFadeIn 300ms ease;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@keyframes hintFadeIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 0.7; transform: translateX(0); }
+}
+
+.add-btn-subtle {
+  color: var(--chimp-text-hint, #999);
+  transition: color 150ms ease;
+
+  &:hover:not([disabled]) {
+    color: var(--chimp-primary);
+  }
 
   &[disabled] {
-    background-color: rgba(0, 0, 0, 0.12) !important;
-    color: rgba(0, 0, 0, 0.26) !important;
+    color: rgba(0, 0, 0, 0.12);
   }
 }
 

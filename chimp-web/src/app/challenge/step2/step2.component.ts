@@ -118,13 +118,21 @@ export class Step2Component implements OnInit {
       // Create Firebase auth user
       const userCredential = await this.challengeService.createAuthUser(this.password);
       
-      // Create team document
+      // Create team and user documents in parallel where possible
       const teamId = await this.challengeService.createTeam(userCredential.user.uid);
+
+      // User doc creation and lead tracking are independent, run in parallel
+      const userPromise = this.challengeService.createUser(userCredential, teamId);
       
-      // Create user document
-      await this.challengeService.createUser(userCredential, teamId);
-      
-      // Track account creation - this is a key conversion!
+      let leadPromise: Promise<void> = Promise.resolve();
+      if (this.leadTracking.hasActiveJourney()) {
+        this.leadTracking.trackEvent('account_created', '/get-started/step2', teamId);
+        leadPromise = this.leadTracking.syncToFirestore().then(() => this.leadTracking.clear());
+      }
+
+      await Promise.all([userPromise, leadPromise]);
+
+      // Track account creation (sync, no need to await)
       this.analytics.setUserId(userCredential.user.uid);
       this.analytics.setTeamId(teamId);
       this.analytics.trackSignupFunnel(FunnelStep.CHALLENGE_ACCOUNT_CREATED, {
@@ -132,12 +140,6 @@ export class Step2Component implements OnInit {
         team_id: teamId,
         industry: this.challengeService.industry
       });
-
-      if (this.leadTracking.hasActiveJourney()) {
-        this.leadTracking.trackEvent('account_created', '/get-started/step2', teamId);
-        await this.leadTracking.syncToFirestore();
-        this.leadTracking.clear();
-      }
       
       // Navigate to next step
       this.router.navigate(['/get-started/step3']);
