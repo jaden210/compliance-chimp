@@ -1542,6 +1542,14 @@ export const onSalesLeadActivityCreated = onDocumentCreated(
     if (activityType === "flow_analyzed" || activityType === "flow_snoozed" || activityType === "flow_dismissed") return;
 
     const leadId = event.params.leadId;
+
+    const leadDoc = await db().doc(`sales-leads/${leadId}`).get();
+    const lastAnalyzed = leadDoc.data()?.flow?.analyzedAt?.toDate?.();
+    if (lastAnalyzed && Date.now() - lastAnalyzed.getTime() < 60000) {
+      console.log(`Skipping flow analysis for ${leadId}: analyzed ${Math.round((Date.now() - lastAnalyzed.getTime()) / 1000)}s ago`);
+      return;
+    }
+
     try {
       await runFlowAnalysis(leadId);
     } catch (err) {
@@ -1652,20 +1660,27 @@ export const onPublicConsultationUpdatedForFlow = onDocumentUpdated(
     const after = event.data?.after?.data();
     if (!before || !after) return;
 
-    const viewChanged = after.viewCount !== before.viewCount;
     const journeyChanged =
-      after.journey?.reportViewed !== before.journey?.reportViewed ||
       after.journey?.ctaClicked !== before.journey?.ctaClicked ||
       after.journey?.signupStarted !== before.journey?.signupStarted ||
       after.journey?.accountCreated !== before.journey?.accountCreated;
 
-    if (!viewChanged && !journeyChanged) return;
+    const firstView = (before.viewCount || 0) === 0 && (after.viewCount || 0) > 0;
+
+    if (!journeyChanged && !firstView) return;
 
     const consultationLeadId = after.leadId;
     if (!consultationLeadId) return;
 
     const salesLeadId = await findSalesLeadByConsultationLeadId(consultationLeadId);
     if (!salesLeadId) return;
+
+    const leadDoc = await db().doc(`sales-leads/${salesLeadId}`).get();
+    const lastAnalyzed = leadDoc.data()?.flow?.analyzedAt?.toDate?.();
+    if (lastAnalyzed && Date.now() - lastAnalyzed.getTime() < 300000) {
+      console.log(`Skipping flow re-analysis for ${salesLeadId}: analyzed ${Math.round((Date.now() - lastAnalyzed.getTime()) / 1000)}s ago`);
+      return;
+    }
 
     try {
       await runFlowAnalysis(salesLeadId);

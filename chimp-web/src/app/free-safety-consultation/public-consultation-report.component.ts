@@ -93,6 +93,10 @@ export class PublicConsultationReportComponent implements OnInit, OnDestroy {
         if (!this.hasTrackedView) {
           this.hasTrackedView = true;
           if (await this.checkIsAdmin()) return;
+
+          const createdAt = (consultation as any).createdAt?.toDate ? (consultation as any).createdAt.toDate() : null;
+          if (createdAt && Date.now() - createdAt.getTime() < 60000) return;
+
           this.leadTracking.trackEvent('report_viewed', `/free-safety-consultation/report/${consultationId}`);
           this.leadTracking.syncToFirestore();
           try {

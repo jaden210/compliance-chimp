@@ -644,7 +644,6 @@ export class SalesLeadsComponent implements OnInit, OnDestroy {
     this.subs.push(
       this.service.getLeads().subscribe((leads) => {
         this.leads.set(leads);
-        this.loadFreeTrialData();
       }),
       this.service.getResearchSessions().subscribe((sessions) => this.researchSessions.set(sessions))
     );

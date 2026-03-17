@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org=/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your referral just went active</title>
+    <style type="text/css">
+      #outlook a { padding:0; }
+      body {
+        width:100% !important;
+        -webkit-text-size-adjust:100%;
+        -ms-text-size-adjust:100%;
+        margin:0;
+        padding:0;
+        -webkit-font-smoothing: antialiased;
+      }
+      #backgroundTable {
+        margin:0;
+        padding:0;
+        width:100% !important;
+        line-height: 100% !important;
+      }
+      img {
+        outline:none;
+        text-decoration:none;
+        -ms-interpolation-mode: bicubic;
+        max-width:100%;
+      }
+      a img { border:none; }
+      p {
+        margin: 1em 0;
+        font-family: "lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        line-height: 24px;
+        font-size: 16px;
+        color: #333333;
+      }
+      h1, h2, h3 {
+        font-family: "lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #054d8a !important;
+      }
+      table td { border-collapse: collapse; }
+      table { border-collapse: collapse; }
+      a { color: #054d8a; }
+      .cta-button {
+        background-color:#054d8a;
+        border-radius:8px;
+        color:#ffffff !important;
+        display:inline-block;
+        font-family: 'lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size:16px;
+        font-weight: 600;
+        line-height:24px;
+        text-align:center;
+        text-decoration:none;
+        -webkit-text-size-adjust:none;
+        padding: 14px 36px;
+      }
+      .stat-box {
+        display: inline-block;
+        text-align: center;
+        padding: 16px 24px;
+        border: 1px solid #e0e4e8;
+        border-radius: 8px;
+        min-width: 100px;
+      }
+      .stat-number {
+        font-family: 'lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 32px;
+        font-weight: 700;
+        color: #054d8a;
+        display: block;
+        line-height: 1.2;
+      }
+      .stat-label {
+        font-family: 'lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 13px;
+        color: #666666;
+        display: block;
+        margin-top: 4px;
+      }
+      @media (max-device-width: 667px) {
+        .row { padding-left: 28px !important; padding-right: 28px !important; }
+      }
+    </style>
+  </head>
+  <body style="-ms-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; margin: 0; padding: 0; width: 100% !important">
+    <table cellpadding="0" cellspacing="0" border="0" id="backgroundTable" style="border-collapse: collapse; line-height: 100% !important; margin: 0; padding: 0; width: 100% !important" width="100%">
+      <tbody>
+        <tr>
+          <td width="10" valign="top" style="border-collapse: collapse"></td>
+          <td valign="top" align="center" style="border-collapse: collapse">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" style="background-color: #FFF; border-collapse: collapse; max-width: 600px; width: 100%">
+              <tbody>
+                <tr>
+                  <td width="600" valign="top" align="center" style="border-collapse: collapse; padding-bottom: 56px">
+                    <table align="center" border="0" cellpadding="0" cellspacing="0" style="border: 1px solid #e0e4e8; border-collapse: collapse" width="100%">
+                      <tbody>
+                        <tr>
+                          <td align="left" style="border-collapse: collapse; padding: 56px; border-top: 10px solid #ff9100;" class="row">
+                            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse">
+                              <tbody>
+                                <tr>
+                                  <td align="center" style="border-collapse: collapse; padding: 0px 56px 28px" valign="middle">
+                                    <a style="border: 0; color: #ff9100" href="https://compliancechimp.com"><img alt="Compliancechimp" style="-ms-interpolation-mode: bicubic; border: none; max-height: 64px; outline: none; text-decoration: none; vertical-align: middle" src="https://firebasestorage.googleapis.com/v0/b/teamlog-2d74c.appspot.com/o/assets%2FccLogoDark.png?alt=media&token=5b254c93-afdb-4de1-92d9-e6c2e682c555"></a>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            <p>Hi {{referrerName}},</p>
+
+                            <p><strong>{{referredTeamName}}</strong> just subscribed through your referral. That one counts.</p>
+
+                            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse; margin: 28px 0;">
+                              <tr>
+                                <td align="center" style="border-collapse: collapse;">
+                                  <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+                                    <tr>
+                                      <td style="padding: 0 8px;">
+                                        <div class="stat-box">
+                                          <span class="stat-number">{{activeCount}}</span>
+                                          <span class="stat-label">active referral{{activeCountPlural}}</span>
+                                        </div>
+                                      </td>
+                                      <td style="padding: 0 8px;">
+                                        <div class="stat-box">
+                                          <span class="stat-number">{{discountPercent}}%</span>
+                                          <span class="stat-label">off your plan</span>
+                                        </div>
+                                      </td>
+                                      <td style="padding: 0 8px;">
+                                        <div class="stat-box">
+                                          <span class="stat-number">{{remainingCount}}</span>
+                                          <span class="stat-label">{{remainingLabel}}</span>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                              </tr>
+                            </table>
+
+                            <p>{{progressMessage}}</p>
+
+                            <p style="text-align: center; margin: 32px 0;">
+                              <a href="https://compliancechimp.com/account/account" class="cta-button">View Your Referrals</a>
+                            </p>
+
+                            <p>Keep sharing. Your referral link is always ready in your account.</p>
+
+                            <p>Compliancechimp</p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse">
+                      <tbody>
+                        <tr>
+                          <td valign="top" style="border-collapse: collapse; padding: 28px 56px" align="center">
+                            <div style="color: #A7ADB5; font-family: 'lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px; font-weight: 100;">We'll keep the emailing to a minimum, promise.</div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+          <td width="10" valign="top" style="border-collapse: collapse"></td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

@@ -5018,6 +5018,14 @@ export const stripeWebhook = onRequest(
               statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             console.log(`Referral ${refDoc.id} status updated to active`);
+
+            // Notify the referrer that their referral just converted
+            const refData = refDoc.data();
+            try {
+              await sendReferralSuccessEmail(refData.referrerTeamId, refData.referredTeamName || '');
+            } catch (notifyError) {
+              console.error(`Error sending referral success email to team ${refData.referrerTeamId}:`, notifyError);
+            }
           }
 
           // Send subscription welcome email with referral program intro
@@ -9879,6 +9887,66 @@ export const sendTestOutreachEmail = onCall(
 );
 
 // ── Referral Program ────────────────────────────────────────────────────────
+
+async function sendReferralSuccessEmail(referrerTeamId: string, referredTeamName: string): Promise<void> {
+  const db = admin.firestore();
+  const teamDoc = await db.doc(`team/${referrerTeamId}`).get();
+  if (!teamDoc.exists) return;
+
+  const team = teamDoc.data()!;
+  const ownerId = team.ownerId;
+  if (!ownerId) return;
+
+  const userDoc = await db.doc(`user/${ownerId}`).get();
+  const user = userDoc.exists ? userDoc.data()! : {};
+  const recipientEmail = user.email || team.email;
+  if (!recipientEmail) return;
+
+  const referrerName = user.name || team.name || 'there';
+
+  const activeReferrals = await db.collection('referrals')
+    .where('referrerTeamId', '==', referrerTeamId)
+    .where('status', '==', 'active')
+    .get();
+  const activeCount = activeReferrals.size;
+
+  const discountPercent = Math.min(activeCount * 10, 100);
+  const remaining = Math.max(0, 10 - activeCount);
+
+  let progressMessage: string;
+  if (activeCount >= 10) {
+    progressMessage = `Your subscription is now free. Every additional referral earns you money. Not a bad deal for sharing a link.`;
+  } else if (activeCount === 1) {
+    progressMessage = `That's your first one. ${remaining} more and your subscription is completely free.`;
+  } else {
+    progressMessage = `You're ${discountPercent}% of the way to a free subscription. ${remaining} more to go.`;
+  }
+
+  let emailHtml = fs.readFileSync(
+    path.resolve('src/email-templates/user/referral-success.html')
+  ).toString();
+
+  emailHtml = emailHtml
+    .split('{{referrerName}}').join(referrerName)
+    .split('{{referredTeamName}}').join(referredTeamName || 'A new company')
+    .split('{{activeCount}}').join(String(activeCount))
+    .split('{{activeCountPlural}}').join(activeCount === 1 ? '' : 's')
+    .split('{{discountPercent}}').join(String(discountPercent))
+    .split('{{remainingCount}}').join(String(remaining))
+    .split('{{remainingLabel}}').join(remaining === 0 ? 'you\'re free' : `more to free`)
+    .split('{{progressMessage}}').join(progressMessage);
+
+  const client = createSendgridClient();
+  await client.sendMail({
+    from: '"Compliancechimp" <support@compliancechimp.com>',
+    to: recipientEmail,
+    subject: activeCount >= 10
+      ? `Your subscription is free. Referral #${activeCount} just landed.`
+      : `Referral #${activeCount} is in. ${remaining} more to free.`,
+    html: emailHtml,
+  });
+  console.log(`Referral success email sent to ${recipientEmail} (${activeCount} active referrals)`);
+}
 
 async function sendSubscriptionWelcomeEmail(teamId: string): Promise<void> {
   const db = admin.firestore();
