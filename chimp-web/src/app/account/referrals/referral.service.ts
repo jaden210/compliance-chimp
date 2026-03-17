@@ -51,7 +51,7 @@ export class ReferralService {
   }
 
   getReferralLink(code: string): string {
-    return `https://compliancechimp.com/get-started?ref=${code}`;
+    return `https://compliancechimp.com?ref=${code}`;
   }
 
   getEmailFooterHtml(code: string): string {

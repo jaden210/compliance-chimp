@@ -5376,6 +5376,26 @@ export const updateTeam = onDocumentUpdated(
       logo = updateCompletedAchievement(newTeam.id, "hasCompanyLogo", true);
     }
     await Promise.all([logo, address]);
+
+    // Keep referral records in sync when team name changes
+    if (oldTeam.name !== newTeam.name && newTeam.name) {
+      try {
+        const referralSnap = await admin.firestore().collection('referrals')
+          .where('referredTeamId', '==', event.params.teamId)
+          .get();
+        const batch = admin.firestore().batch();
+        for (const refDoc of referralSnap.docs) {
+          batch.update(refDoc.ref, { referredTeamName: newTeam.name });
+        }
+        if (!referralSnap.empty) {
+          await batch.commit();
+          console.log(`Updated referral name to "${newTeam.name}" for team ${event.params.teamId}`);
+        }
+      } catch (error) {
+        console.error('Error syncing referral team name:', error);
+      }
+    }
+
     console.log("update team complete");
   }
 );
@@ -9965,8 +9985,8 @@ async function sendSubscriptionWelcomeEmail(teamId: string): Promise<void> {
   const recipientName = user.name || team.name || 'there';
   const referralCode = team.referralCode || '';
   const referralLink = referralCode
-    ? `https://compliancechimp.com/get-started?ref=${referralCode}`
-    : 'https://compliancechimp.com/get-started';
+    ? `https://compliancechimp.com?ref=${referralCode}`
+    : 'https://compliancechimp.com';
 
   let emailHtml = fs.readFileSync(
     path.resolve('src/email-templates/user/subscription-welcome.html')
