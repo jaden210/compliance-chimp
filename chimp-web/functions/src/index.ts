@@ -42,7 +42,7 @@ function createSendgridClient() {
 
 // Helper to create Stripe client (called at runtime when secret is available)
 function createStripeClient() {
-  return require("stripe")(process.env.STRIPE_SECRET_KEY);
+  return require("stripe")((process.env.STRIPE_SECRET_KEY || '').trim());
 }
 
 // Re-export functions from other modules
