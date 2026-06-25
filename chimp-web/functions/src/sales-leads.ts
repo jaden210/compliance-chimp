@@ -4,9 +4,18 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as Busboy from "busboy";
+import {
+  CONSULTATION_LEAD_SENDERS,
+  buildVideoFollowupEmailHtml,
+  buildVideoFollowupEmailText,
+  buildNonViewerFollowupEmailHtml,
+  buildNonViewerFollowupEmailText,
+} from "./consultation-emails";
 
 const xaiApiKey = defineSecret("XAI_API_KEY");
 const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
+const googlePlacesApiKey = defineSecret("GOOGLE_PLACES_API_KEY");
+const bouncerApiKey = defineSecret("BOUNCER_API_KEY");
 
 const db = () => admin.firestore();
 
@@ -38,7 +47,8 @@ type ActivityType =
   | "flow_snoozed"
   | "flow_dismissed"
   | "flow_analyzed"
-  | "account_signup";
+  | "account_signup"
+  | "link_clicked";
 
 interface VerificationSignals {
   hasGoogleListing?: boolean;
@@ -67,7 +77,9 @@ interface SalesLeadInput {
   yearEstablished?: string;
   fitReason?: string;
   bestContactMethod?: string;
+  googleMapsUrl?: string;
   verificationSignals?: VerificationSignals;
+  skipConsultation?: boolean;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -149,6 +161,27 @@ async function addActivity(
     });
 }
 
+// ── Link Tracking ─────────────────────────────────────────────────────────────
+
+const TRACKED_DOMAINS = ["compliancechimp.com", "compliancechimp.app", "compliancechimp.org"];
+
+function appendTrackingParams(html: string, leadId: string): string {
+  return html.replace(/href="(https?:\/\/[^"]+)"/gi, (_match, url: string) => {
+    try {
+      const parsed = new URL(url);
+      if (!TRACKED_DOMAINS.some(d => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
+        return `href="${url}"`;
+      }
+      if (parsed.searchParams.has("lid")) return `href="${url}"`;
+      parsed.searchParams.set("lid", leadId);
+      if (!parsed.searchParams.has("ref")) parsed.searchParams.set("ref", "sales_email");
+      return `href="${parsed.toString()}"`;
+    } catch {
+      return `href="${url}"`;
+    }
+  });
+}
+
 // ── Lead CRUD ─────────────────────────────────────────────────────────────────
 
 export const createSalesLead = onCall(
@@ -220,8 +253,10 @@ export const createSalesLead = onCall(
         yearEstablished: data.yearEstablished?.trim() || null,
         fitReason: data.fitReason?.trim() || null,
         bestContactMethod: data.bestContactMethod?.trim() || null,
+        googleMapsUrl: data.googleMapsUrl?.trim() || null,
         verificationSignals: data.verificationSignals || null,
         status: "new" as SalesLeadStatus,
+        consultationStatus: data.skipConsultation ? null : normalizedEmail ? "pending" : null,
         nextFollowUp: null,
         createdAt: now,
         updatedAt: now,
@@ -633,7 +668,7 @@ REP'S MESSAGE: ${message.trim()}`;
 
 // ── AI Research ───────────────────────────────────────────────────────────────
 
-const RESEARCH_SYSTEM_PROMPT = `You are a lead research assistant for ComplianceChimp, an OSHA workplace safety and compliance platform ($99/month, 14-day free trial). Your job is to find small-to-mid-size businesses that need OSHA compliance help but are too small to have a dedicated safety department.
+const RESEARCH_SYSTEM_PROMPT = `You are a lead research assistant for ComplianceChimp, an OSHA workplace safety and compliance platform (free to use, no credit card required). Your job is to find small-to-mid-size businesses that need OSHA compliance help but are too small to have a dedicated safety department.
 
 IDEAL CUSTOMER PROFILE:
 - 10 to 50 employees is the sweet spot. Up to 250 is acceptable but getting big.
@@ -663,13 +698,8 @@ You MUST respond with ONLY a JSON object. No text before or after. No markdown f
       "bestContactMethod": "email | phone | facebook | linkedin | in_person | website_form",
       "confidence": 85,
       "verificationSignals": {
-        "hasGoogleListing": true,
-        "googlePlaceId": "ChIJ...",
-        "hasReviews": true,
-        "recentReviews": true,
-        "hasWebsite": true,
         "hasSocialMedia": false,
-        "hasPhone": true,
+        "recentReviews": true,
         "lastActivityIndicator": "Reviews from 2 months ago"
       }
     }
@@ -677,6 +707,8 @@ You MUST respond with ONLY a JSON object. No text before or after. No markdown f
 }
 
 SORT leads by confidence score, highest first.
+
+VOLUME: When the user requests a broad search (e.g. "roofing contractors in Texas"), return up to 20 leads per response. Cast a wide net. The system will automatically verify each lead against Google Places, check website liveness, and verify emails, so quantity is fine as long as they fit the profile. More leads means better data.
 
 CRITICAL: Your entire response must be parseable JSON. Do NOT write any text outside the JSON object. Put ALL conversational text inside the "reply" field.
 
@@ -696,14 +728,9 @@ For each lead, assess how confident you are that this is a real, currently activ
 A company with a Google listing, recent reviews, a website, and a phone number would score 75-90. A company you found only a name and city for would score 15-25. Be honest with the score. If something looks stale (no reviews in years, website down, no recent activity), lower it.
 
 VERIFICATION SIGNALS:
-For each lead, you MUST fill in verificationSignals:
-- hasGoogleListing: Did you find them on Google Maps / Google Business?
-- googlePlaceId: The Google Place ID, which always starts with "ChIJ" followed by alphanumeric characters (e.g. "ChIJN1t_tDeuEmsRUsoyG83frY4"). Do NOT use coordinates, hex values (0x...), CIDs, or any other format. If you cannot find a real Place ID that starts with "ChIJ", leave this as an empty string. Do not fabricate Place IDs.
-- hasReviews: Do they have any reviews on Google, Yelp, or similar?
-- recentReviews: Do they have reviews from the last 12 months?
-- hasWebsite: Do they have a working website (not just a Facebook page)?
+For each lead, include verificationSignals with these fields. We automatically verify leads against the Google Places API after you return them, so you do NOT need to find Google Place IDs, phone numbers, websites, or review counts yourself. We handle hasGoogleListing, googlePlaceId, hasReviews, hasPhone, and hasWebsite automatically. You only need to provide:
 - hasSocialMedia: Do they have an active Facebook, Instagram, or LinkedIn page?
-- hasPhone: Did you find a phone number?
+- recentReviews: Do they have reviews from the last 12 months? (We verify review existence, but you assess recency.)
 - lastActivityIndicator: A short note about the most recent sign of life you found (e.g. "Google review from Jan 2026", "Active Facebook posts", "Job posting on Indeed", "No recent activity found"). This is the most important signal for the sales rep.
 
 RULES:
@@ -716,7 +743,7 @@ RULES:
 - ALWAYS include confidence and verificationSignals for every lead.
 - Include employeeEstimate when possible. If you truly can't estimate, use "unknown".
 - Filter OUT companies that appear to be large enterprises, publicly traded, or have hundreds of employees. We are not selling to them.
-- The "leads" array can be empty if the user is just asking questions or you don't have concrete leads yet.
+- The "leads" array should ONLY be empty if the user is asking a general question and you truly found zero businesses. If you mention ANY business by name in your reply, it MUST also appear in the "leads" array with whatever data you have. NEVER describe a lead in the reply text without also including it in the leads array.
 - Be practical and direct. No fluff.
 
 LEAD CORRECTIONS (messages starting with "[Re:"):
@@ -734,11 +761,230 @@ When you receive a correction:
 3. If you can't find what was requested, say so honestly.
 4. Remember: your ENTIRE response must be valid JSON. Nothing outside the JSON object.`;
 
+const PLACES_FIELD_MASK = [
+  "places.id",
+  "places.displayName",
+  "places.formattedAddress",
+  "places.googleMapsUri",
+  "places.websiteUri",
+  "places.nationalPhoneNumber",
+  "places.rating",
+  "places.userRatingCount",
+].join(",");
+
+async function validateLeadsWithPlacesAPI(leads: any[]): Promise<any[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return leads;
+
+  const validated = await Promise.all(
+    leads.map(async (lead) => {
+      if (!lead.businessName) return lead;
+
+      const query = [lead.businessName, lead.city, lead.state]
+        .filter(Boolean)
+        .join(" ");
+
+      try {
+        const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": PLACES_FIELD_MASK,
+          },
+          body: JSON.stringify({ textQuery: query, maxResultCount: 1 }),
+        });
+
+        if (!res.ok) return lead;
+
+        const data: any = await res.json();
+        const place = data.places?.[0];
+        if (!place) {
+          lead.verificationSignals = {
+            ...lead.verificationSignals,
+            hasGoogleListing: false,
+            googlePlaceId: "",
+          };
+          return lead;
+        }
+
+        if (place.nationalPhoneNumber) lead.phone = place.nationalPhoneNumber;
+        if (place.websiteUri) lead.website = place.websiteUri;
+        if (place.googleMapsUri) lead.googleMapsUrl = place.googleMapsUri;
+        if (place.formattedAddress) lead.address = place.formattedAddress;
+
+        lead.verificationSignals = {
+          ...lead.verificationSignals,
+          hasGoogleListing: true,
+          googlePlaceId: place.id || "",
+          hasReviews: (place.userRatingCount || 0) > 0,
+          hasPhone: !!place.nationalPhoneNumber,
+          hasWebsite: !!place.websiteUri,
+        };
+
+        return lead;
+      } catch {
+        return lead;
+      }
+    })
+  );
+
+  return validated;
+}
+
+async function enrichLeadsFromWebsites(leads: any[]): Promise<any[]> {
+  return Promise.all(
+    leads.map(async (lead) => {
+      if (lead.email || !lead.website) return lead;
+
+      try {
+        const url = lead.website.startsWith("http")
+          ? lead.website
+          : `https://${lead.website}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; ComplianceChimp/1.0)" },
+          redirect: "follow",
+        });
+        clearTimeout(timeout);
+
+        if (!res.ok) return lead;
+
+        const html = await res.text();
+        const emailMatches = html.match(
+          /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
+        );
+        if (!emailMatches?.length) return lead;
+
+        const dominated = new Set(["noreply", "no-reply", "mailer-daemon", "postmaster", "webmaster"]);
+        const emails = [...new Set(emailMatches)]
+          .map((e) => e.toLowerCase())
+          .filter((e) => !dominated.has(e.split("@")[0]) && !e.endsWith(".png") && !e.endsWith(".jpg"));
+
+        if (emails.length > 0) {
+          lead.email = emails[0];
+        }
+
+        return lead;
+      } catch {
+        return lead;
+      }
+    })
+  );
+}
+
+async function checkWebsiteLiveness(leads: any[]): Promise<any[]> {
+  return Promise.all(
+    leads.map(async (lead) => {
+      if (!lead.website) {
+        lead.verificationSignals = {
+          ...lead.verificationSignals,
+          websiteStatus: "unchecked",
+        };
+        return lead;
+      }
+
+      try {
+        const url = lead.website.startsWith("http")
+          ? lead.website
+          : `https://${lead.website}`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
+        const res = await fetch(url, {
+          method: "HEAD",
+          signal: controller.signal,
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; ComplianceChimp/1.0)" },
+          redirect: "follow",
+        });
+        clearTimeout(timeout);
+
+        lead.verificationSignals = {
+          ...lead.verificationSignals,
+          websiteStatus: res.redirected ? "redirect" : res.ok ? "live" : "dead",
+        };
+      } catch {
+        lead.verificationSignals = {
+          ...lead.verificationSignals,
+          websiteStatus: "dead",
+        };
+      }
+
+      return lead;
+    })
+  );
+}
+
+async function verifyEmailsWithBouncer(leads: any[]): Promise<any[]> {
+  const apiKey = process.env.BOUNCER_API_KEY;
+  if (!apiKey) return leads;
+
+  return Promise.all(
+    leads.map(async (lead) => {
+      if (!lead.email) return lead;
+
+      try {
+        const res = await fetch(
+          `https://verifier.meetchopra.com/verify/${encodeURIComponent(lead.email)}?token=${apiKey}`
+        );
+        const json: any = await res.json();
+
+        lead.verificationSignals = {
+          ...lead.verificationSignals,
+          emailVerification: {
+            status: json?.status || "unknown",
+            reason: json?.reason || "",
+            ...(json?.score != null ? { score: json.score } : {}),
+          },
+        };
+      } catch {
+        // skip failed verification
+      }
+
+      return lead;
+    })
+  );
+}
+
+function recalculateConfidence(leads: any[]): any[] {
+  return leads.map((lead) => {
+    let confidence = lead.confidence ?? 50;
+    const signals = lead.verificationSignals || {};
+
+    if (signals.hasGoogleListing) {
+      confidence = Math.max(confidence, 20);
+    }
+
+    if (signals.websiteStatus === "live") {
+      confidence += 10;
+    } else if (signals.websiteStatus === "dead") {
+      confidence -= 15;
+    }
+
+    if (signals.emailVerification) {
+      const status = signals.emailVerification.status;
+      if (status === "valid" || status === "deliverable") {
+        confidence += 10;
+      } else if (status === "risky" || status === "unknown") {
+        confidence -= 5;
+      } else if (status === "invalid" || status === "undeliverable") {
+        confidence -= 20;
+      }
+    }
+
+    lead.confidence = Math.max(0, Math.min(100, confidence));
+    return lead;
+  });
+}
+
 export const salesLeadResearch = onCall(
   {
-    secrets: [xaiApiKey],
-    timeoutSeconds: 120,
-    memory: "512MiB",
+    secrets: [xaiApiKey, googlePlacesApiKey, bouncerApiKey],
+    timeoutSeconds: 180,
+    memory: "1GiB",
   },
   async (request) => {
     const uid = await requireDev(request);
@@ -781,7 +1027,7 @@ export const salesLeadResearch = onCall(
         model: "grok-3-fast",
         messages,
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 8000,
         search: true,
       }),
     });
@@ -798,25 +1044,48 @@ export const salesLeadResearch = onCall(
     let reply = rawContent;
     let leads: any[] = [];
 
-    try {
-      const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      reply = parsed.reply || rawContent;
-      leads = Array.isArray(parsed.leads) ? parsed.leads : [];
-    } catch {
-      // JSON.parse on the full string failed. The AI may have put text before/after the JSON.
-      // Try to find a JSON object containing "reply" somewhere in the response.
-      const jsonMatch = rawContent.match(/\{[\s\S]*"reply"\s*:\s*"[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          reply = parsed.reply || rawContent;
+    const tryParse = (text: string): boolean => {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === "object") {
+          reply = parsed.reply || reply;
           leads = Array.isArray(parsed.leads) ? parsed.leads : [];
-        } catch {
-          // Still can't parse, use raw text stripped of any JSON-looking content
-          reply = rawContent.replace(/\{[\s\S]*"reply"\s*:[\s\S]*\}/, "").trim() || rawContent;
+          return true;
+        }
+      } catch {}
+      return false;
+    };
+
+    // Strategy 1: parse the full response (after stripping markdown fences)
+    const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    if (!tryParse(cleaned)) {
+      // Strategy 2: find the outermost { ... } block containing "reply"
+      const braceStart = rawContent.indexOf("{");
+      const braceEnd = rawContent.lastIndexOf("}");
+      if (braceStart !== -1 && braceEnd > braceStart) {
+        const extracted = rawContent.substring(braceStart, braceEnd + 1);
+        if (!tryParse(extracted)) {
+          // Strategy 3: greedy regex for a JSON object with "reply" key
+          const jsonMatch = rawContent.match(/\{[\s\S]*?"reply"\s*:\s*"[\s\S]*?\}(?=[^}]*$)/);
+          if (jsonMatch) {
+            tryParse(jsonMatch[0]);
+          }
         }
       }
+
+      // If nothing parsed, the AI returned pure text. Use it as the reply.
+      if (leads.length === 0) {
+        reply = rawContent.replace(/```[\s\S]*?```/g, "").trim() || rawContent;
+      }
+    }
+
+    if (leads.length > 0) {
+      leads = await validateLeadsWithPlacesAPI(leads);
+      leads = await enrichLeadsFromWebsites(leads);
+      leads = await checkWebsiteLiveness(leads);
+      leads = await verifyEmailsWithBouncer(leads);
+      leads = recalculateConfidence(leads);
+      leads.sort((a: any, b: any) => (b.confidence ?? 0) - (a.confidence ?? 0));
     }
 
     if (ephemeral) {
@@ -1106,12 +1375,14 @@ export const sendSalesEmail = onCall(
       sendgridTransport({ auth: { api_key: process.env.SENDGRID_API_KEY } })
     );
 
+    const trackedBodyHtml = appendTrackingParams(bodyHtml, leadId);
+
     const mailOptions: any = {
       from: '"Ryan at ComplianceChimp" <support@compliancechimp.com>',
       replyTo: `reply+${leadId}@reply.compliancechimp.com`,
       to: lead.email,
       subject,
-      html: bodyHtml,
+      html: trackedBodyHtml,
     };
 
     if (inReplyTo) {
@@ -1123,9 +1394,9 @@ export const sendSalesEmail = onCall(
     const sentMessageId = info?.messageId || null;
 
     const now = admin.firestore.FieldValue.serverTimestamp();
-    await addActivity(leadId, "email_sent", bodyHtml, actor, "user", {
+    await addActivity(leadId, "email_sent", trackedBodyHtml, actor, "user", {
       emailSubject: subject,
-      emailHtml: bodyHtml,
+      emailHtml: trackedBodyHtml,
       ...(sentMessageId ? { messageId: sentMessageId } : {}),
     });
 
@@ -1140,6 +1411,227 @@ export const sendSalesEmail = onCall(
       sentBy: uid,
     });
 
+    await db().doc(`sales-leads/${leadId}`).update({
+      lastContactedAt: now,
+      updatedAt: now,
+    });
+
+    return { success: true };
+  }
+);
+
+// ── Phone scripts ─────────────────────────────────────────────────────────────
+
+const PHONE_SCRIPT_SEEDS: { title: string; body: string }[] = [
+  {
+    title: "Cold intro (OSHA compliance)",
+    body:
+      "Hi, this is [your name] with ComplianceChimp. I help small businesses get OSHA paperwork and training in one place so nothing slips through the cracks. Do you have ninety seconds, or should I try you at a better time?\n\n" +
+      "[If yes] Great. Quick question: how are you handling safety meetings and documented training today? [Listen.]\n\n" +
+      "A lot of shops our size use spreadsheets or nothing at all until an incident or a visit. We built ComplianceChimp to make inspections, trainings, and logs something your team can actually finish. Worth a fifteen-minute look this week?",
+  },
+  {
+    title: "Follow-up after email or link",
+    body:
+      "Hi [name], this is [your name] from ComplianceChimp. I sent a note about keeping OSHA documentation and training in one system. Did that land in your inbox, or should I resend it?\n\n" +
+      "[If they saw it] What would be most useful to see first: self-inspections, employee training, or incident reporting?\n\n" +
+      "If timing is bad, what day next week is lighter for a quick call?",
+  },
+  {
+    title: "Voicemail (under thirty seconds)",
+    body:
+      "Hi [name], [your name] with ComplianceChimp, reaching out about OSHA compliance tools for [business type]. My number is [number]. I will send a one-line email with a link so you have it. Thanks.",
+  },
+];
+
+const PHONE_SCRIPT_AI_SYSTEM = `You are Ulysses at ComplianceChimp (workplace safety and OSHA compliance software for small and mid-sized businesses).
+
+Write phone scripts that sound like a knowledgeable peer, not a sales robot. Be concise. No corporate jargon. No emojis. Do not use em dashes.
+
+Return ONLY valid JSON with this shape:
+{ "suggestions": [ { "title": string, "body": string }, { "title": string, "body": string } ] }
+
+Each body should be plain text with line breaks where the rep should pause. Include brief bracketed cues like [Listen.] where helpful. Two suggestions: one more direct, one softer or shorter.`;
+
+async function ensurePhoneScriptSeeds(): Promise<void> {
+  const snap = await db().collection("sales-phone-scripts").limit(1).get();
+  if (!snap.empty) return;
+  const batch = db().batch();
+  for (const seed of PHONE_SCRIPT_SEEDS) {
+    const ref = db().collection("sales-phone-scripts").doc();
+    batch.set(ref, {
+      title: seed.title,
+      body: seed.body,
+      useCount: 0,
+      successCount: 0,
+      source: "seed",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
+
+export const generateSalesPhoneScripts = onCall(
+  { secrets: [xaiApiKey], timeoutSeconds: 60 },
+  async (request) => {
+    await requireDev(request);
+    const { leadId } = request.data as { leadId?: string };
+    if (!leadId) throw new HttpsError("invalid-argument", "Lead ID is required.");
+
+    await ensurePhoneScriptSeeds();
+
+    const [leadDoc, activitySnap, librarySnap, learningsSnap] = await Promise.all([
+      db().doc(`sales-leads/${leadId}`).get(),
+      db()
+        .collection(`sales-leads/${leadId}/activity`)
+        .orderBy("createdAt", "desc")
+        .limit(12)
+        .get(),
+      db().collection("sales-phone-scripts").orderBy("useCount", "desc").limit(8).get(),
+      db().collection("sales-agent-learnings").orderBy("createdAt", "desc").limit(1).get(),
+    ]);
+
+    if (!leadDoc.exists) throw new HttpsError("not-found", "Lead not found.");
+    const lead = leadDoc.data()!;
+
+    const libraryScripts = librarySnap.docs.map((d) => {
+      const x = d.data();
+      return {
+        id: d.id,
+        title: (x.title as string) || "Script",
+        body: (x.body as string) || "",
+        useCount: typeof x.useCount === "number" ? x.useCount : 0,
+        successCount: typeof x.successCount === "number" ? x.successCount : 0,
+      };
+    });
+
+    const activitySummary = activitySnap.docs
+      .map((docSnap) => {
+        const a = docSnap.data();
+        return `${a.type}: ${(a.content as string)?.slice(0, 280) || ""}`;
+      })
+      .join("\n");
+
+    const learnings = learningsSnap.docs[0]?.data();
+    const successPatterns = Array.isArray(learnings?.successPatterns)
+      ? (learnings!.successPatterns as string[]).slice(0, 8).join("\n- ")
+      : "";
+
+    const knowledge = Array.isArray(lead.knowledge)
+      ? (lead.knowledge as { content?: string }[])
+          .map((k) => k.content)
+          .filter(Boolean)
+          .join("\n- ")
+      : "";
+
+    const libraryBlock =
+      libraryScripts.length > 0
+        ? libraryScripts
+            .map(
+              (s, i) =>
+                `--- Library script ${i + 1} (uses: ${s.useCount}, successes logged: ${s.successCount}) ---\nTitle: ${s.title}\n${s.body}`
+            )
+            .join("\n\n")
+        : "(No library scripts yet.)";
+
+    const userMessage = `Generate two phone script suggestions for this lead.
+
+LEAD
+- Business: ${lead.businessName}
+- Contact: ${lead.contactName || "unknown"}
+- Phone: ${lead.phone || "unknown"}
+- Industry: ${lead.industry || "unknown"}
+- Location: ${lead.city || ""}, ${lead.state || ""}
+- Status: ${lead.status}
+- Best contact method: ${lead.bestContactMethod || "unknown"}
+- Fit / why we reached out: ${lead.fitReason || "n/a"}
+
+Knowledge about this lead:
+${knowledge || "None recorded."}
+
+Flow / talking points from last analysis:
+${lead.flow?.suggestedContent || lead.flow?.actionReason || "n/a"}
+
+Recent activity:
+${activitySummary || "None"}
+
+Patterns that worked in past outreach (when present, lean on these themes):
+${successPatterns ? "- " + successPatterns : "None on file."}
+
+Library scripts the team has used before (higher use counts mean they were selected more often when logging calls):
+${libraryBlock}
+
+Return JSON only: { "suggestions": [ { "title": "...", "body": "..." }, { "title": "...", "body": "..." } ] }`;
+
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          { role: "system", content: PHONE_SCRIPT_AI_SYSTEM },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.65,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new HttpsError("internal", "AI service temporarily unavailable.");
+    }
+
+    const grokResponse: any = await response.json();
+    const raw = grokResponse.choices?.[0]?.message?.content || "";
+
+    let suggestions: { title: string; body: string }[] = [];
+    try {
+      const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed.suggestions)) {
+        suggestions = parsed.suggestions
+          .filter((s: any) => s && typeof s.body === "string")
+          .map((s: any) => ({
+            title: typeof s.title === "string" ? s.title : "Suggested script",
+            body: String(s.body).trim(),
+          }))
+          .slice(0, 2);
+      }
+    } catch {
+      suggestions = [];
+    }
+
+    if (suggestions.length === 0) {
+      suggestions = [
+        { title: "Suggested script A", body: raw.trim() || "Could not parse AI response. Try Regenerate." },
+        { title: "Suggested script B", body: PHONE_SCRIPT_SEEDS[0].body },
+      ];
+    }
+
+    return { suggestions, libraryScripts };
+  }
+);
+
+export const logSalesPhoneCall = onCall(
+  { secrets: [] },
+  async (request) => {
+    const uid = await requireDev(request);
+    const actor = await getActorInfo(uid);
+    const { leadId, feedback } = request.data as { leadId?: string; feedback?: string };
+
+    if (!leadId) throw new HttpsError("invalid-argument", "Lead ID is required.");
+    const content = typeof feedback === "string" ? feedback.trim() : "";
+    if (!content) throw new HttpsError("invalid-argument", "Describe the call before saving.");
+
+    const leadDoc = await db().doc(`sales-leads/${leadId}`).get();
+    if (!leadDoc.exists) throw new HttpsError("not-found", "Lead not found.");
+
+    await addActivity(leadId, "call", content, actor, "user");
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
     await db().doc(`sales-leads/${leadId}`).update({
       lastContactedAt: now,
       updatedAt: now,
@@ -1191,21 +1683,27 @@ ANALYSIS FACTORS:
    - If a call happened and went well, schedule another call.
    - After 6+ unanswered touches, recommend "close" to move them to lost.
 
-3. CONSULTATION REPORT ENGAGEMENT: If a free safety consultation was sent, this is critical data.
+3. EMAIL LINK CLICKS: If the lead has clicked links in outreach emails (visiting the website), this is a real engagement signal.
+   - Any click count > 0 means they are at minimum curious. Priority should go UP.
+   - Multiple clicks or recent clicks indicate active interest. Treat similarly to a consultation report view.
+   - If they clicked but have not replied to emails, a call may be the right move to capitalize on interest.
+   - The activity history will contain "link_clicked" entries with timestamps and which page they visited.
+
+4. CONSULTATION REPORT ENGAGEMENT: If a free safety consultation was sent, this is critical data.
    - If they have NOT viewed the report yet: the follow-up should nudge them to open it. Reference specific findings from their report (importance score, key hazards, top requirements).
    - If they HAVE viewed the report: this is a strong engagement signal. Priority goes UP. The follow-up should reference that they looked at it, ask what stood out, and position ComplianceChimp as the tool that handles those requirements automatically.
    - If they viewed the report AND clicked the CTA: very high priority. They're interested. Call them.
    - If they viewed it multiple times (viewCount > 1): they're seriously considering it. Time-sensitive follow-up.
    - Reference specific findings from the consultation in your suggestedContent (importance score, specific OSHA standards cited, hazard categories flagged).
 
-4. CONTENT GUIDANCE: What to say or reference.
+5. CONTENT GUIDANCE: What to say or reference.
    - If prior emails exist, reference something specific from them (don't repeat the same pitch).
    - If a call transcript exists, reference something discussed.
    - If a consultation report exists, reference specific findings from it.
    - Tie it to their industry and OSHA risks relevant to them.
    - If they have employees and no apparent safety program, that's the angle.
 
-5. EXPIRED TRIAL LEADS: If the lead signed up but their free trial has expired without paying, this is a conversion opportunity.
+6. EXPIRED TRIAL LEADS: If the lead signed up but their free trial has expired without paying, this is a conversion opportunity.
    - They already used the product. They know what it does. Don't pitch from scratch.
    - Ask what held them back. Was it price? Did they not have time to set it up? Did they not see the value?
    - Reference specific things they would have experienced in the product (safety training assignments, inspection checklists, compliance tracking).
@@ -1213,12 +1711,12 @@ ANALYSIS FACTORS:
    - Priority should be "high" if trial expired within the last 7 days. "medium" if 7-21 days. "low" after 21 days.
    - If automated follow-up emails have already been sent, don't repeat the same messaging. Bring a new angle.
 
-6. PRIORITY:
-   - "high": new lead less than 48 hours old, lead that replied/engaged recently, lead that viewed their consultation report (especially if they clicked the CTA), OR lead whose trial expired within the last 7 days.
+7. PRIORITY:
+   - "high": new lead less than 48 hours old, lead that replied/engaged recently, lead that viewed their consultation report (especially if they clicked the CTA), lead that clicked email links recently, OR lead whose trial expired within the last 7 days.
    - "medium": standard pipeline lead on a normal follow-up cadence, or trial expired 7-21 days ago.
    - "low": lead that's been contacted 4+ times with no engagement, or is in a cooling period, or trial expired 21+ days ago.
 
-6. OWNERSHIP: The activity history includes "by {name}" for each action. Look at who has been doing the outreach for this lead, and recommend that same person continue (consistency matters in sales relationships). If multiple people have engaged, recommend the one with the most recent or most frequent contact.
+8. OWNERSHIP: The activity history includes "by {name}" for each action. Look at who has been doing the outreach for this lead, and recommend that same person continue (consistency matters in sales relationships). If multiple people have engaged, recommend the one with the most recent or most frequent contact.
 
 RESPONSE FORMAT (strict JSON, no markdown):
 {
@@ -1257,6 +1755,8 @@ async function runFlowAnalysis(
   const leadDoc = await db().doc(`sales-leads/${leadId}`).get();
   if (!leadDoc.exists) return;
   const lead = leadDoc.data()!;
+
+  if (lead.sequenceStatus === "active") return;
 
   if (lead.status === "lost" || lead.status === "test") {
     await db().doc(`sales-leads/${leadId}`).update({
@@ -1454,6 +1954,7 @@ LEAD PROFILE:
 - Source: ${lead.source}
 - Created: ${lead.createdAt?.toDate?.() ? lead.createdAt.toDate().toISOString() : "unknown"}
 - Last Contacted: ${lead.lastContactedAt?.toDate?.() ? lead.lastContactedAt.toDate().toISOString() : "never"}
+- Email Link Clicks: ${lead.linkClickCount || 0}${lead.lastLinkClickAt?.toDate?.() ? ` (last click: ${lead.lastLinkClickAt.toDate().toISOString()})` : ""}
 
 CONSULTATION REPORT:
 ${consultationSection}
@@ -2351,5 +2852,1194 @@ export const getSalesLeadAccountInsights = onCall(
       recentActivity,
       teamCreatedAt: team.createdAt?.toDate ? team.createdAt.toDate().toISOString() : null,
     };
+  }
+);
+
+// ── Sequence Tracks ───────────────────────────────────────────────────────────
+
+async function executeSequenceStep(
+  leadId: string,
+  lead: FirebaseFirestore.DocumentData,
+  track: FirebaseFirestore.DocumentData,
+  stepIndex: number
+): Promise<void> {
+  const step = track.steps?.[stepIndex];
+  if (!step) {
+    await db().doc(`sales-leads/${leadId}`).update({
+      sequenceStatus: "completed",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return;
+  }
+
+  if (step.type === "email") {
+    if (!lead.email) {
+      console.warn(`Sequence: lead ${leadId} has no email, skipping email step`);
+    } else {
+      let bodyHtml = step.bodyHtml || "";
+      let subject = step.subject || "";
+      bodyHtml = bodyHtml.replace(/\{companyName\}/g, lead.businessName || "");
+      subject = subject.replace(/\{companyName\}/g, lead.businessName || "");
+      bodyHtml = appendTrackingParams(bodyHtml, leadId);
+
+      const nodemailer = require("nodemailer");
+      const sendgridTransport = require("nodemailer-sendgrid-transport");
+      const client = nodemailer.createTransport(
+        sendgridTransport({ auth: { api_key: process.env.SENDGRID_API_KEY } })
+      );
+
+      const mailOptions = {
+        from: '"Ryan at ComplianceChimp" <support@compliancechimp.com>',
+        replyTo: `reply+${leadId}@reply.compliancechimp.com`,
+        to: lead.email,
+        subject,
+        html: bodyHtml,
+      };
+
+      await client.sendMail(mailOptions);
+
+      await addActivity(leadId, "email_sent", bodyHtml, AGENT_ACTOR, "agent", {
+        emailSubject: subject,
+        emailHtml: bodyHtml,
+      });
+
+      await db().collection("sales-email-history").add({
+        subject,
+        bodyHtml,
+        leadId,
+        recipientName: lead.contactName || "",
+        recipientBusiness: lead.businessName || "",
+        industry: lead.industry || "",
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        sentBy: "sequence",
+      });
+
+      await db().doc(`sales-leads/${leadId}`).update({
+        lastContactedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`Sequence: sent email to ${lead.email} for lead ${leadId}`);
+    }
+  } else if (step.type === "call") {
+    await db().doc(`sales-leads/${leadId}`).update({
+      flow: {
+        recommendedAction: "call",
+        nextActionAt: admin.firestore.Timestamp.now(),
+        actionReason: `Sequence step ${stepIndex + 1}: ${step.callNotes || "Follow-up call"}`,
+        suggestedContent: step.callNotes || null,
+        priority: "high",
+        touchCount: admin.firestore.FieldValue.increment(0),
+        analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+    });
+
+    await addActivity(leadId, "flow_analyzed", `Sequence: call step scheduled. ${step.callNotes || ""}`, AGENT_ACTOR, "agent");
+    console.log(`Sequence: surfaced call for lead ${leadId}`);
+  } else if (step.type === "consultation_followup") {
+    const consultLeadId = lead.consultationLeadId;
+    if (!consultLeadId) {
+      console.warn(`Sequence: lead ${leadId} has no consultationLeadId, skipping followup step`);
+    } else {
+      const consultLeadSnap = await db().doc(`osha-consultation-leads/${consultLeadId}`).get();
+      if (!consultLeadSnap.exists) {
+        console.warn(`Sequence: consultation lead ${consultLeadId} not found, skipping followup step`);
+      } else {
+        const consultLead = consultLeadSnap.data()!;
+        const companyName = String(consultLead.companyName || consultLead.assessment?.profile?.companyName || lead.businessName || "your business");
+        const publicUrl = String(consultLead.publicUrl || "");
+        const trackedUrl = `${publicUrl}?ref=sequence_followup&lid=${consultLeadId}`;
+        const email = String(consultLead.email || lead.email || "");
+
+        const publicConsultationId = consultLead.publicConsultationId;
+        let reportViewed = false;
+        if (publicConsultationId) {
+          const publicSnap = await db().doc(`public-osha-consultations/${publicConsultationId}`).get();
+          if (publicSnap.exists) {
+            reportViewed = publicSnap.data()?.journey?.reportViewed === true;
+          }
+        }
+
+        const variant = step.followupVariant || "auto";
+        let sent = false;
+
+        if (email) {
+          const nodemailer = require("nodemailer");
+          const sendgridTransport = require("nodemailer-sendgrid-transport");
+          const client = nodemailer.createTransport(
+            sendgridTransport({ auth: { api_key: process.env.SENDGRID_API_KEY } })
+          );
+          const fromAddress = CONSULTATION_LEAD_SENDERS[Math.floor(Math.random() * CONSULTATION_LEAD_SENDERS.length)];
+
+          if (variant === "auto") {
+            if (reportViewed && !consultLead.followupVideoSentAt) {
+              const subject = `See what happens after the ${companyName} report`;
+              const html = buildVideoFollowupEmailHtml({ companyName, publicUrl: trackedUrl });
+              const text = buildVideoFollowupEmailText({ companyName, publicUrl: trackedUrl });
+              await client.sendMail({ from: fromAddress, to: email, subject, html, text });
+              const sentAt = new Date().toISOString();
+              await db().doc(`osha-consultation-leads/${consultLeadId}`).set(
+                { followupVideoSentAt: sentAt, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+                { merge: true }
+              );
+              await addActivity(leadId, "email_sent", html, AGENT_ACTOR, "agent", { emailSubject: subject, emailHtml: html });
+              sent = true;
+              console.log(`Sequence: sent video followup for lead ${leadId}`);
+            } else if (!reportViewed && !consultLead.followupW1SentAt) {
+              const subject = `One thing from your ${companyName} consultation`;
+              const html = buildNonViewerFollowupEmailHtml({ companyName, assessment: consultLead.assessment, publicUrl: `${trackedUrl}&seq=w1`, week: 1 });
+              const text = buildNonViewerFollowupEmailText({ companyName, assessment: consultLead.assessment, publicUrl: `${trackedUrl}&seq=w1`, week: 1 });
+              await client.sendMail({ from: fromAddress, to: email, subject, html, text });
+              const sentAt = new Date().toISOString();
+              await db().doc(`osha-consultation-leads/${consultLeadId}`).set(
+                { followupW1SentAt: sentAt, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+                { merge: true }
+              );
+              await addActivity(leadId, "email_sent", html, AGENT_ACTOR, "agent", { emailSubject: subject, emailHtml: html });
+              sent = true;
+              console.log(`Sequence: sent W1 followup for lead ${leadId}`);
+            } else {
+              console.log(`Sequence: auto followup skipped for lead ${leadId} (already sent or no action needed)`);
+            }
+          } else if (variant === "w2") {
+            if (!reportViewed && !consultLead.followupW2SentAt) {
+              const subject = `One more thing from your ${companyName} consultation`;
+              const html = buildNonViewerFollowupEmailHtml({ companyName, assessment: consultLead.assessment, publicUrl: `${trackedUrl}&seq=w2`, week: 2 });
+              const text = buildNonViewerFollowupEmailText({ companyName, assessment: consultLead.assessment, publicUrl: `${trackedUrl}&seq=w2`, week: 2 });
+              await client.sendMail({ from: fromAddress, to: email, subject, html, text });
+              const sentAt = new Date().toISOString();
+              await db().doc(`osha-consultation-leads/${consultLeadId}`).set(
+                { followupW2SentAt: sentAt, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+                { merge: true }
+              );
+              await addActivity(leadId, "email_sent", html, AGENT_ACTOR, "agent", { emailSubject: subject, emailHtml: html });
+              sent = true;
+              console.log(`Sequence: sent W2 followup for lead ${leadId}`);
+            } else {
+              console.log(`Sequence: W2 followup skipped for lead ${leadId} (viewed or already sent)`);
+            }
+          }
+        }
+
+        if (!sent) {
+          console.log(`Sequence: consultation followup step had nothing to send for lead ${leadId}`);
+        }
+      }
+    }
+  }
+
+  const nextStepIndex = stepIndex + 1;
+  if (nextStepIndex >= track.steps.length) {
+    await db().doc(`sales-leads/${leadId}`).update({
+      sequenceCurrentStep: nextStepIndex,
+      sequenceStatus: "completed",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } else {
+    const nextStep = track.steps[nextStepIndex];
+    const nextDate = new Date(Date.now() + (nextStep.delayDays || 0) * 86400000);
+    await db().doc(`sales-leads/${leadId}`).update({
+      sequenceCurrentStep: nextStepIndex,
+      sequenceNextActionAt: admin.firestore.Timestamp.fromDate(nextDate),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+}
+
+export const startLeadOnSequence = onCall(
+  { secrets: [sendgridApiKey] },
+  async (request) => {
+    await requireDev(request);
+    const { leadId, trackId } = request.data as any;
+
+    if (!leadId || !trackId) {
+      throw new HttpsError("invalid-argument", "Lead ID and track ID are required.");
+    }
+
+    const leadDoc = await db().doc(`sales-leads/${leadId}`).get();
+    if (!leadDoc.exists) throw new HttpsError("not-found", "Lead not found.");
+    const lead = leadDoc.data()!;
+
+    const trackDoc = await db().doc(`sales-sequence-tracks/${trackId}`).get();
+    if (!trackDoc.exists) throw new HttpsError("not-found", "Sequence track not found.");
+
+    const track = trackDoc.data()!;
+    if (!track.steps?.length) {
+      throw new HttpsError("failed-precondition", "Sequence track has no steps.");
+    }
+
+    const firstStep = track.steps[0];
+    const immediateStart = !firstStep.delayDays || firstStep.delayDays === 0;
+
+    if (immediateStart) {
+      await db().doc(`sales-leads/${leadId}`).update({
+        sequenceTrackId: trackId,
+        sequenceCurrentStep: 0,
+        sequenceStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sequenceNextActionAt: admin.firestore.Timestamp.now(),
+        sequenceStatus: "active",
+        "flow.recommendedAction": "close",
+        "flow.actionReason": "Managed by sequence.",
+        "flow.priority": "low",
+        "flow.analyzedAt": admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await executeSequenceStep(leadId, lead, track, 0);
+    } else {
+      const nextActionAt = new Date(Date.now() + firstStep.delayDays * 86400000);
+      await db().doc(`sales-leads/${leadId}`).update({
+        sequenceTrackId: trackId,
+        sequenceCurrentStep: 0,
+        sequenceStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sequenceNextActionAt: admin.firestore.Timestamp.fromDate(nextActionAt),
+        sequenceStatus: "active",
+        "flow.recommendedAction": "close",
+        "flow.actionReason": "Managed by sequence.",
+        "flow.priority": "low",
+        "flow.analyzedAt": admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    return { success: true };
+  }
+);
+
+export const processSequenceQueue = onSchedule(
+  {
+    schedule: "*/15 * * * *",
+    secrets: [sendgridApiKey],
+    timeoutSeconds: 300,
+    memory: "512MiB",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const leadsSnap = await db()
+      .collection("sales-leads")
+      .where("sequenceStatus", "==", "active")
+      .where("sequenceNextActionAt", "<=", now)
+      .get();
+
+    if (leadsSnap.empty) return;
+
+    console.log(`processSequenceQueue: ${leadsSnap.size} leads ready`);
+
+    for (const leadDoc of leadsSnap.docs) {
+      const lead = leadDoc.data();
+      const leadId = leadDoc.id;
+      const trackId = lead.sequenceTrackId;
+      const currentStep = lead.sequenceCurrentStep ?? 0;
+
+      try {
+        const trackDoc = await db().doc(`sales-sequence-tracks/${trackId}`).get();
+        if (!trackDoc.exists) {
+          await db().doc(`sales-leads/${leadId}`).update({
+            sequenceStatus: "completed",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          continue;
+        }
+
+        const track = trackDoc.data()!;
+        await executeSequenceStep(leadId, lead, track, currentStep);
+      } catch (err) {
+        console.error(`Sequence processing error for lead ${leadId}:`, err);
+      }
+    }
+  }
+);
+
+// ── Link Click Tracking ───────────────────────────────────────────────────────
+
+export const recordLeadClick = onCall(
+  { secrets: [] },
+  async (request) => {
+    const { lid, page, ref } = request.data as { lid?: string; page?: string; ref?: string };
+    if (!lid) {
+      throw new HttpsError("invalid-argument", "Lead ID (lid) is required.");
+    }
+
+    const leadDoc = await db().doc(`sales-leads/${lid}`).get();
+    if (!leadDoc.exists) {
+      return { success: false, reason: "lead_not_found" };
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    await db().doc(`sales-leads/${lid}`).update({
+      linkClickCount: admin.firestore.FieldValue.increment(1),
+      lastLinkClickAt: now,
+      updatedAt: now,
+    });
+
+    await addActivity(lid, "link_clicked", `Visited ${page || "/"}`, AGENT_ACTOR, "agent", {
+      page: page || null,
+      ref: ref || null,
+    });
+
+    return { success: true };
+  }
+);
+
+// ── Auto-Research Config ──────────────────────────────────────────────────────
+
+export const updateAutoResearchConfig = onCall(
+  { secrets: [] },
+  async (request) => {
+    await requireDev(request);
+    const updates = request.data as Record<string, any>;
+
+    const allowed = ["enabled", "leadsPerDay", "addMode", "sequenceTrackId", "targetIndustries", "targetStates", "targetCompanySize"];
+    const safeUpdates: Record<string, any> = {};
+    for (const key of allowed) {
+      if (updates[key] !== undefined) safeUpdates[key] = updates[key];
+    }
+
+    if (safeUpdates.targetIndustries !== undefined && !Array.isArray(safeUpdates.targetIndustries)) {
+      throw new HttpsError("invalid-argument", "targetIndustries must be an array.");
+    }
+    if (safeUpdates.targetStates !== undefined && !Array.isArray(safeUpdates.targetStates)) {
+      throw new HttpsError("invalid-argument", "targetStates must be an array.");
+    }
+
+    if (safeUpdates.leadsPerDay !== undefined) {
+      const val = Number(safeUpdates.leadsPerDay);
+      if (!Number.isInteger(val) || val < 1 || val > 100) {
+        throw new HttpsError("invalid-argument", "Leads per day must be between 1 and 100.");
+      }
+      safeUpdates.leadsPerDay = val;
+    }
+
+    if (safeUpdates.enabled === true) {
+      safeUpdates.consecutiveEmptyRuns = 0;
+    }
+
+    safeUpdates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    const configRef = db().doc("sales-auto-research/config");
+    const snap = await configRef.get();
+
+    if (!snap.exists) {
+      await configRef.set({
+        enabled: false,
+        leadsPerDay: 10,
+        addMode: "just_add",
+        sequenceTrackId: null,
+        leadsAddedToday: 0,
+        leadsAddedThisMonth: 0,
+        monthlyCapReached: false,
+        consecutiveEmptyRuns: 0,
+        lastResetDate: new Date().toISOString().split("T")[0],
+        lastResetMonth: new Date().toISOString().substring(0, 7),
+        ...safeUpdates,
+      });
+    } else {
+      await configRef.update(safeUpdates);
+    }
+
+    return { success: true };
+  }
+);
+
+// ── Per-Session Auto-Research ─────────────────────────────────────────────────
+
+export const createAgentSession = onCall(
+  { secrets: [] },
+  async (request) => {
+    const uid = await requireDev(request);
+    const actor = await getActorInfo(uid);
+    const config = request.data as Record<string, any>;
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const sessionDoc = await db().collection("sales-research-sessions").add({
+      title: "Ulysses session",
+      messages: [],
+      leadsGenerated: [],
+      createdAt: now,
+      updatedAt: now,
+      createdBy: actor.uid,
+      agentRun: true,
+      autoResearch: {
+        enabled: false,
+        leadsPerDay: config.leadsPerDay || 10,
+        addMode: config.addMode || "agent",
+        sequenceTrackId: config.sequenceTrackId || null,
+        targetIndustries: [],
+        targetStates: [],
+        targetCompanySize: "",
+        leadsAddedToday: 0,
+        leadsAddedThisMonth: 0,
+        monthlyCapReached: false,
+        consecutiveEmptyRuns: 0,
+        lastResetDate: new Date().toISOString().split("T")[0],
+        lastResetMonth: new Date().toISOString().substring(0, 7),
+      },
+    });
+
+    return { sessionId: sessionDoc.id };
+  }
+);
+
+export const updateSessionAutoResearch = onCall(
+  { secrets: [] },
+  async (request) => {
+    await requireDev(request);
+    const { sessionId, ...updates } = request.data as Record<string, any>;
+
+    if (!sessionId) throw new HttpsError("invalid-argument", "Session ID is required.");
+
+    const sessionRef = db().doc(`sales-research-sessions/${sessionId}`);
+    const sessionSnap = await sessionRef.get();
+    if (!sessionSnap.exists) throw new HttpsError("not-found", "Session not found.");
+
+    const sessionData = sessionSnap.data()!;
+    const isConversion = !sessionData.agentRun;
+
+    const allowed = ["enabled", "leadsPerDay", "addMode", "sequenceTrackId", "targetIndustries", "targetStates", "targetCompanySize"];
+    const safeUpdates: Record<string, any> = {};
+    for (const key of allowed) {
+      if (updates[key] !== undefined) safeUpdates[key] = updates[key];
+    }
+
+    if (safeUpdates.leadsPerDay !== undefined) {
+      safeUpdates.leadsPerDay = Math.max(1, Math.min(100, Math.floor(Number(safeUpdates.leadsPerDay))));
+    }
+
+    if (safeUpdates.enabled === true) {
+      safeUpdates.consecutiveEmptyRuns = 0;
+      safeUpdates.disabledReason = admin.firestore.FieldValue.delete();
+      safeUpdates.disabledAt = admin.firestore.FieldValue.delete();
+    }
+
+    const prefixed: Record<string, any> = {};
+
+    if (isConversion) {
+      prefixed.agentRun = true;
+      const defaults: Record<string, any> = {
+        enabled: false,
+        leadsPerDay: 10,
+        addMode: "agent",
+        sequenceTrackId: null,
+        targetIndustries: [],
+        targetStates: [],
+        targetCompanySize: "",
+        leadsAddedToday: 0,
+        leadsAddedThisMonth: 0,
+        monthlyCapReached: false,
+        consecutiveEmptyRuns: 0,
+        lastResetDate: new Date().toISOString().split("T")[0],
+        lastResetMonth: new Date().toISOString().substring(0, 7),
+      };
+      for (const [key, value] of Object.entries(defaults)) {
+        prefixed[`autoResearch.${key}`] = value;
+      }
+    }
+
+    for (const [key, value] of Object.entries(safeUpdates)) {
+      prefixed[`autoResearch.${key}`] = value;
+    }
+    prefixed.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    await sessionRef.update(prefixed);
+
+    return { success: true };
+  }
+);
+
+// ── Auto-Research Cron ────────────────────────────────────────────────────────
+
+const AUTO_RESEARCH_PROMPT = `Find 10 new leads that match the ideal customer profile. Focus on different industries and locations to maximize coverage. Return businesses that are likely to need OSHA compliance help. Prioritize leads with valid email addresses and websites. Search broadly across construction, roofing, HVAC, plumbing, electrical, manufacturing, warehousing, landscaping, auto repair, welding/fabrication, and general contracting companies in different US states.`;
+
+const AUTO_RESEARCH_MAX_LEADS_PER_DAY = 100;
+const AUTO_RESEARCH_MAX_LEADS_PER_MONTH = 2000;
+const AUTO_RESEARCH_MAX_CONSECUTIVE_EMPTY_RUNS = 5;
+
+export const processAutoResearch = onSchedule(
+  {
+    schedule: "0 */2 * * *",
+    secrets: [xaiApiKey, googlePlacesApiKey, bouncerApiKey, sendgridApiKey],
+    timeoutSeconds: 540,
+    memory: "1GiB",
+  },
+  async () => {
+    try {
+
+    const activeSessions = await db()
+      .collection("sales-research-sessions")
+      .where("autoResearch.enabled", "==", true)
+      .get();
+
+    if (activeSessions.empty) {
+      console.log("Auto-research: no active sessions");
+      return;
+    }
+
+    console.log(`Auto-research: processing ${activeSessions.size} active session(s)`);
+
+    const existingLeads = await db().collection("sales-leads")
+      .select("businessNameLower", "email", "industry", "state", "city", "status", "source")
+      .get();
+    const existingNames = new Set<string>();
+    const existingEmails = new Set<string>();
+    const industrySuccessCount: Record<string, number> = {};
+    const stateSuccessCount: Record<string, number> = {};
+    const progressedStatuses = new Set(["contacted", "qualified", "proposal", "negotiation", "won"]);
+
+    for (const d of existingLeads.docs) {
+      const data = d.data();
+      if (data.businessNameLower) existingNames.add(data.businessNameLower);
+      if (data.email) existingEmails.add(data.email.toLowerCase());
+      if (progressedStatuses.has(data.status)) {
+        const ind = data.industry?.trim();
+        const st = data.state?.trim();
+        if (ind) industrySuccessCount[ind] = (industrySuccessCount[ind] || 0) + 1;
+        if (st) stateSuccessCount[st] = (stateSuccessCount[st] || 0) + 1;
+      }
+    }
+
+    const topIndustries = Object.entries(industrySuccessCount)
+      .sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([ind, count]) => `${ind} (${count} progressed)`);
+    const topStates = Object.entries(stateSuccessCount)
+      .sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([st, count]) => `${st} (${count} progressed)`);
+
+    let pipelineLearning = "";
+    if (topIndustries.length > 0 || topStates.length > 0) {
+      const parts: string[] = [];
+      if (topIndustries.length > 0) parts.push(`Top performing industries: ${topIndustries.join(", ")}`);
+      if (topStates.length > 0) parts.push(`Top performing states: ${topStates.join(", ")}`);
+      pipelineLearning = parts.join(". ");
+    }
+
+    let agentLearningsContext = "";
+    const learningsSnap = await db().collection("sales-agent-learnings").orderBy("createdAt", "desc").limit(1).get();
+    if (!learningsSnap.empty) {
+      const learning = learningsSnap.docs[0].data();
+      const lParts: string[] = [];
+      if (learning.emailReplyRate != null) lParts.push(`Email reply rate: ${(learning.emailReplyRate * 100).toFixed(0)}%`);
+      if (learning.topReplyIndustries?.length) lParts.push(`Best email reply industries: ${learning.topReplyIndustries.join(", ")}`);
+      if (learning.topReplyStates?.length) lParts.push(`Best email reply states: ${learning.topReplyStates.join(", ")}`);
+      if (learning.avoidPatterns?.length) lParts.push(`Avoid: ${learning.avoidPatterns.join("; ")}`);
+      if (learning.successPatterns?.length) lParts.push(`What works: ${learning.successPatterns.join("; ")}`);
+      if (lParts.length > 0) agentLearningsContext = lParts.join(". ") + ".";
+    }
+
+    let pastEmails: Array<{ subject: string; bodyHtml: string; recipientBusiness: string }> = [];
+    const historySnap = await db().collection("sales-email-history").orderBy("sentAt", "desc").limit(15).get();
+    pastEmails = historySnap.docs.map((d) => {
+      const data = d.data();
+      return { subject: data.subject || "", bodyHtml: data.bodyHtml || "", recipientBusiness: data.recipientBusiness || "" };
+    });
+
+    for (const sessionDoc of activeSessions.docs) {
+      const sessionRef = db().doc(`sales-research-sessions/${sessionDoc.id}`);
+      const config = sessionDoc.data().autoResearch || {};
+
+      const consecutiveEmpty = config.consecutiveEmptyRuns || 0;
+      if (consecutiveEmpty >= AUTO_RESEARCH_MAX_CONSECUTIVE_EMPTY_RUNS) {
+        await sessionRef.update({
+          "autoResearch.enabled": false,
+          "autoResearch.disabledReason": `Auto-disabled: ${consecutiveEmpty} consecutive empty runs`,
+          "autoResearch.disabledAt": admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.warn(`Session ${sessionDoc.id}: auto-disabled after ${consecutiveEmpty} empty runs`);
+        continue;
+      }
+
+      const now = new Date();
+      const today = now.toISOString().split("T")[0];
+      const thisMonth = now.toISOString().substring(0, 7);
+      let leadsAddedToday = config.leadsAddedToday || 0;
+      let leadsAddedThisMonth = config.leadsAddedThisMonth || 0;
+      const leadsPerDay = Math.min(config.leadsPerDay || 10, AUTO_RESEARCH_MAX_LEADS_PER_DAY);
+      const addMode = config.addMode || "agent";
+      const sequenceTrackId = config.sequenceTrackId || null;
+
+      if (config.lastResetMonth !== thisMonth) {
+        leadsAddedThisMonth = 0;
+        await sessionRef.update({
+          "autoResearch.leadsAddedThisMonth": 0,
+          "autoResearch.lastResetMonth": thisMonth,
+          "autoResearch.monthlyCapReached": false,
+        });
+      }
+
+      if (leadsAddedThisMonth >= AUTO_RESEARCH_MAX_LEADS_PER_MONTH) {
+        if (!config.monthlyCapReached) {
+          await sessionRef.update({ "autoResearch.monthlyCapReached": true });
+        }
+        continue;
+      }
+
+      if (config.lastResetDate !== today) {
+        leadsAddedToday = 0;
+        await sessionRef.update({ "autoResearch.leadsAddedToday": 0, "autoResearch.lastResetDate": today });
+      }
+
+      if (leadsAddedToday >= leadsPerDay) continue;
+
+      const remaining = Math.min(leadsPerDay - leadsAddedToday, AUTO_RESEARCH_MAX_LEADS_PER_MONTH - leadsAddedThisMonth);
+      const batchSize = Math.min(remaining, 10);
+
+      console.log(`Session ${sessionDoc.id}: ${leadsAddedToday}/${leadsPerDay} today, fetching batch of ${batchSize}`);
+
+      const targetIndustries: string[] = config.targetIndustries || [];
+      const targetStates: string[] = config.targetStates || [];
+      const targetCompanySize: string = config.targetCompanySize || "";
+
+      const promptParts: string[] = [];
+
+      const sessionMessages = sessionDoc.data().messages || [];
+      if (sessionMessages.length > 0) {
+        const recentMsgs = sessionMessages.slice(-10);
+        const userQueries = recentMsgs
+          .filter((m: any) => m.role === "user" && m.content && !m.content.startsWith("Auto-research run:"))
+          .map((m: any) => m.content)
+          .slice(-5);
+        const pastLeadNames = recentMsgs
+          .filter((m: any) => m.leadsFound?.length)
+          .flatMap((m: any) => m.leadsFound.map((l: any) => l.businessName))
+          .slice(-30);
+
+        if (userQueries.length > 0) {
+          promptParts.push(`SESSION CONTEXT (continue this research thread):\nPrevious queries: ${userQueries.join(" | ")}\nFind MORE leads similar to what was already researched. Don't repeat the same businesses.`);
+        }
+        if (pastLeadNames.length > 0) {
+          promptParts.push(`ALREADY FOUND (do NOT return these): ${pastLeadNames.join(", ")}.`);
+        }
+      }
+
+      if (targetIndustries.length > 0) promptParts.push(`FOCUS on these industries: ${targetIndustries.join(", ")}.`);
+      if (targetStates.length > 0) promptParts.push(`FOCUS on these states: ${targetStates.join(", ")}.`);
+      if (targetCompanySize) promptParts.push(`Target companies with ${targetCompanySize} employees.`);
+      if (pipelineLearning) promptParts.push(`PIPELINE INTELLIGENCE: ${pipelineLearning}. Weight your search toward similar profiles.`);
+      promptParts.push(`Return exactly ${batchSize} leads.`);
+
+      const dynamicPrompt = `${AUTO_RESEARCH_PROMPT}\n\n${promptParts.join("\n")}`;
+
+      let leads: any[] = [];
+      let reply = "";
+      let agentApiCalls = 0;
+
+      try {
+        const response = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "grok-3-fast",
+            messages: [
+              { role: "system", content: RESEARCH_SYSTEM_PROMPT },
+              { role: "user", content: dynamicPrompt },
+            ],
+            temperature: 0.8,
+            max_tokens: 8000,
+            search: true,
+          }),
+        });
+        agentApiCalls++;
+
+        if (!response.ok) {
+          console.error(`Session ${sessionDoc.id}: API error`, await response.text());
+          continue;
+        }
+
+        const grokResponse: any = await response.json();
+        const rawContent = grokResponse.choices?.[0]?.message?.content || "";
+
+        const tryParse = (text: string): boolean => {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === "object") {
+              reply = parsed.reply || "";
+              leads = Array.isArray(parsed.leads) ? parsed.leads : [];
+              return true;
+            }
+          } catch {}
+          return false;
+        };
+
+        const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        if (!tryParse(cleaned)) {
+          const braceStart = rawContent.indexOf("{");
+          const braceEnd = rawContent.lastIndexOf("}");
+          if (braceStart !== -1 && braceEnd > braceStart) {
+            tryParse(rawContent.substring(braceStart, braceEnd + 1));
+          }
+        }
+      } catch (err) {
+        console.error(`Session ${sessionDoc.id}: fetch error`, err);
+        continue;
+      }
+
+      if (leads.length === 0) {
+        await sessionRef.update({
+          "autoResearch.consecutiveEmptyRuns": consecutiveEmpty + 1,
+          messages: admin.firestore.FieldValue.arrayUnion(
+            { role: "user", content: `Researching ${batchSize} leads${targetIndustries.length ? ` in ${targetIndustries.join(", ")}` : ""}${targetStates.length ? ` from ${targetStates.join(", ")}` : ""}` },
+            { role: "assistant", content: reply || "Came up empty on this search. Will try a different angle next run." }
+          ),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        continue;
+      }
+
+      // Write the search query + research reasoning to the session immediately
+      const searchQueryMsg = { role: "user", content: `Researching ${batchSize} leads${targetIndustries.length ? ` in ${targetIndustries.join(", ")}` : ""}${targetStates.length ? ` from ${targetStates.join(", ")}` : ""}` };
+      const researchReplyMsg = { role: "assistant", content: `${reply || `Pulled ${leads.length} potential leads.`}\n\nValidating emails, websites, and Google Places for ${leads.length} leads...` };
+      await sessionRef.update({
+        messages: admin.firestore.FieldValue.arrayUnion(searchQueryMsg, researchReplyMsg),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      leads = await validateLeadsWithPlacesAPI(leads);
+      leads = await enrichLeadsFromWebsites(leads);
+      leads = await checkWebsiteLiveness(leads);
+      leads = await verifyEmailsWithBouncer(leads);
+      leads = recalculateConfidence(leads);
+
+      const disqualifyReasons: string[] = [];
+      const qualifiedLeads = leads.filter((lead: any) => {
+        if (!lead.businessName?.trim()) { disqualifyReasons.push(`${lead.businessName || "Unknown"}: no business name`); return false; }
+        const hasEmail = lead.email?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email.trim());
+        const hasWebsite = !!lead.website?.trim();
+        if (!hasEmail && !hasWebsite) { disqualifyReasons.push(`${lead.businessName}: no email or website`); return false; }
+        if (lead.verificationSignals?.emailVerification?.status === "invalid" ||
+            lead.verificationSignals?.emailVerification?.status === "undeliverable") { disqualifyReasons.push(`${lead.businessName}: invalid email`); return false; }
+        const normalizedName = lead.businessName.trim().toLowerCase();
+        if (existingNames.has(normalizedName)) { disqualifyReasons.push(`${lead.businessName}: already in pipeline`); return false; }
+        if (hasEmail && existingEmails.has(lead.email.trim().toLowerCase())) { disqualifyReasons.push(`${lead.businessName}: duplicate email`); return false; }
+        if (lead.confidence != null && lead.confidence < 40) { disqualifyReasons.push(`${lead.businessName}: low confidence (${lead.confidence})`); return false; }
+        return true;
+      });
+
+      // Write validation results
+      const validationLines: string[] = [`Validation complete: ${qualifiedLeads.length} of ${leads.length} passed.`];
+      if (disqualifyReasons.length > 0) {
+        validationLines.push(`Filtered out: ${disqualifyReasons.join(", ")}.`);
+      }
+      if (qualifiedLeads.length > 0) {
+        validationLines.push(`Processing ${qualifiedLeads.length} qualified leads now...`);
+      }
+      await sessionRef.update({
+        messages: admin.firestore.FieldValue.arrayUnion({ role: "assistant", content: validationLines.join("\n") }),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      let added = 0;
+      const areasSearched: string[] = [];
+      const agentActions: Array<{ leadId: string; businessName: string; action: string; reason: string; emailSubject?: string }> = [];
+      const processedLeads: any[] = [];
+
+      for (const lead of qualifiedLeads) {
+        if (leadsAddedToday + added >= leadsPerDay) break;
+
+        try {
+          const normalizedBiz = lead.businessName.trim().toLowerCase();
+          const normalizedEmail = lead.email?.trim().toLowerCase() || null;
+
+          const dupeCheck = await db().collection("sales-leads").where("businessNameLower", "==", normalizedBiz).limit(1).get();
+          if (!dupeCheck.empty) continue;
+
+          if (normalizedEmail) {
+            const emailDupe = await db().collection("sales-leads").where("email", "==", normalizedEmail).limit(1).get();
+            if (!emailDupe.empty) continue;
+          }
+
+          const ts = admin.firestore.FieldValue.serverTimestamp();
+
+          let agentDecision: { action: string; reason: string } = { action: "just_add", reason: "Default" };
+          if (addMode === "agent" && normalizedEmail) {
+            try {
+              const decisionPrompt = `You are Ulysses, an autonomous sales chimp for ComplianceChimp (OSHA compliance platform). Given a lead, decide the single best first action.
+
+LEAD:
+- Business: ${lead.businessName}
+- Contact: ${lead.contactName || "unknown"}
+- Industry: ${lead.industry || "unknown"}
+- Location: ${lead.city || ""}, ${lead.state || ""}
+- Employee estimate: ${lead.employeeEstimate || "unknown"}
+- Best contact method: ${lead.bestContactMethod || "email"}
+- Confidence score: ${lead.confidence || "N/A"}
+- Has email: ${!!normalizedEmail}
+- Has phone: ${!!lead.phone}
+- Has website: ${!!lead.website}
+
+${agentLearningsContext ? `SELF-LEARNING CONTEXT:\n${agentLearningsContext}\n` : ""}
+OPTIONS:
+1. "send_email" - Generate and send a personalized cold outreach email.
+2. "flag_for_call" - Flag for a phone call.
+3. "compliance_report" - Generate and send a free OSHA compliance assessment.
+4. "just_add" - Add without contact.
+
+Return JSON only: { "action": "...", "reason": "one sentence why" }`;
+
+              const decisionRes = await fetch("https://api.x.ai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.XAI_API_KEY}` },
+                body: JSON.stringify({ model: "grok-3-fast", messages: [{ role: "user", content: decisionPrompt }], temperature: 0.3, max_tokens: 200 }),
+              });
+              agentApiCalls++;
+
+              if (decisionRes.ok) {
+                const dj: any = await decisionRes.json();
+                const raw = dj.choices?.[0]?.message?.content || "";
+                try {
+                  const parsed = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+                  if (parsed.action && ["send_email", "flag_for_call", "compliance_report", "just_add"].includes(parsed.action)) {
+                    agentDecision = { action: parsed.action, reason: parsed.reason || "" };
+                  }
+                } catch { /* default */ }
+              }
+            } catch (err) { console.error("Ulysses decision error:", err); }
+          } else if (addMode === "agent" && !normalizedEmail) {
+            agentDecision = { action: lead.phone ? "flag_for_call" : "just_add", reason: "No email available" };
+          }
+
+          const effectiveAction = addMode === "agent" ? agentDecision.action : addMode;
+          const skipConsultation = effectiveAction !== "compliance_report";
+
+          const leadDoc = await db().collection("sales-leads").add({
+            contactName: lead.contactName?.trim() || null,
+            email: normalizedEmail,
+            phone: lead.phone?.trim() || null,
+            businessName: lead.businessName.trim(),
+            businessNameLower: normalizedBiz,
+            website: lead.website?.trim() || null,
+            industry: lead.industry?.trim() || null,
+            state: lead.state?.trim() || null,
+            city: lead.city?.trim() || null,
+            source: addMode === "agent" ? "ulysses" : "auto_research",
+            employeeEstimate: lead.employeeEstimate?.trim() || null,
+            yearEstablished: lead.yearEstablished?.trim() || null,
+            fitReason: lead.fitReason?.trim() || null,
+            bestContactMethod: lead.bestContactMethod?.trim() || null,
+            googleMapsUrl: lead.googleMapsUrl?.trim() || null,
+            verificationSignals: lead.verificationSignals || null,
+            status: "new" as SalesLeadStatus,
+            consultationStatus: skipConsultation ? null : normalizedEmail ? "pending" : null,
+            nextFollowUp: null,
+            createdAt: ts,
+            updatedAt: ts,
+            lastContactedAt: null,
+            createdBy: addMode === "agent" ? "ulysses" : "auto_research",
+            agentSessionId: sessionDoc.id,
+          });
+
+          await addActivity(leadDoc.id, "lead_created", `Lead found by Ulysses`, AGENT_ACTOR, "agent");
+
+          let actionTaken = "added_only";
+          let emailSubject: string | undefined;
+
+          if (effectiveAction === "send_email" && normalizedEmail) {
+            try {
+              const emailSystemPrompt = buildEmailSystemPrompt(pastEmails);
+              const emailUserMsg = `Write an outreach message to this lead:\n- Business: ${lead.businessName}\n- Contact: ${lead.contactName || "Business Owner"}\n- Industry: ${lead.industry || "unknown"}\n- Location: ${lead.city || ""}, ${lead.state || ""}\n- Best contact method: ${lead.bestContactMethod || "email"}\n- Website: ${lead.website || "none"}\n\nReturn JSON: { "subject": "...", "bodyHtml": "..." }`;
+
+              const emailRes = await fetch("https://api.x.ai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.XAI_API_KEY}` },
+                body: JSON.stringify({ model: "grok-3-fast", messages: [{ role: "system", content: emailSystemPrompt }, { role: "user", content: emailUserMsg }], temperature: 0.7 }),
+              });
+              agentApiCalls++;
+
+              if (emailRes.ok) {
+                const ej: any = await emailRes.json();
+                const rawEmail = ej.choices?.[0]?.message?.content || "";
+                const parsedEmail = JSON.parse(rawEmail.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+
+                if (parsedEmail.subject && parsedEmail.bodyHtml) {
+                  const nodemailer = require("nodemailer");
+                  const sendgridTransport = require("nodemailer-sendgrid-transport");
+                  const client = nodemailer.createTransport(sendgridTransport({ auth: { api_key: process.env.SENDGRID_API_KEY } }));
+
+                  await client.sendMail({
+                    from: '"Ryan at ComplianceChimp" <support@compliancechimp.com>',
+                    replyTo: `reply+${leadDoc.id}@reply.compliancechimp.com`,
+                    to: normalizedEmail,
+                    subject: parsedEmail.subject,
+                    html: parsedEmail.bodyHtml,
+                  });
+
+                  emailSubject = parsedEmail.subject;
+                  actionTaken = "email_sent";
+
+                  await addActivity(leadDoc.id, "email_sent", parsedEmail.bodyHtml, AGENT_ACTOR, "agent", { emailSubject: parsedEmail.subject, emailHtml: parsedEmail.bodyHtml });
+                  await db().collection("sales-email-history").add({ subject: parsedEmail.subject, bodyHtml: parsedEmail.bodyHtml, leadId: leadDoc.id, recipientName: lead.contactName || "", recipientBusiness: lead.businessName, industry: lead.industry || "", sentAt: ts, sentBy: "ulysses" });
+                  await db().doc(`sales-leads/${leadDoc.id}`).update({ status: "contacted", lastContactedAt: ts });
+                }
+              }
+            } catch (emailErr) { console.error(`Email failed for ${lead.businessName}:`, emailErr); }
+          } else if (effectiveAction === "flag_for_call") {
+            actionTaken = "flagged_for_call";
+            await addActivity(leadDoc.id, "note", `Ulysses flagged for phone call: ${agentDecision.reason}`, AGENT_ACTOR, "agent");
+            await db().doc(`sales-leads/${leadDoc.id}`).update({ "flow.recommendedAction": "call", "flow.actionReason": agentDecision.reason, "flow.priority": "high", "flow.analyzedAt": ts });
+          } else if (effectiveAction === "compliance_report") {
+            actionTaken = "compliance_report";
+          } else if (effectiveAction === "sequence" && sequenceTrackId) {
+            try {
+              const trackDoc = await db().doc(`sales-sequence-tracks/${sequenceTrackId}`).get();
+              if (trackDoc.exists) {
+                const track = trackDoc.data()!;
+                if (track.steps?.length) {
+                  const firstStep = track.steps[0];
+                  const immediateStart = !firstStep.delayDays || firstStep.delayDays === 0;
+                  const leadData = (await db().doc(`sales-leads/${leadDoc.id}`).get()).data()!;
+                  if (immediateStart) {
+                    await db().doc(`sales-leads/${leadDoc.id}`).update({ sequenceTrackId, sequenceCurrentStep: 0, sequenceStartedAt: ts, sequenceNextActionAt: admin.firestore.Timestamp.now(), sequenceStatus: "active", "flow.recommendedAction": "close", "flow.actionReason": "Managed by sequence.", "flow.priority": "low", "flow.analyzedAt": ts, updatedAt: ts });
+                    await executeSequenceStep(leadDoc.id, leadData, track, 0);
+                  } else {
+                    const nextActionAt = new Date(Date.now() + firstStep.delayDays * 86400000);
+                    await db().doc(`sales-leads/${leadDoc.id}`).update({ sequenceTrackId, sequenceCurrentStep: 0, sequenceStartedAt: ts, sequenceNextActionAt: admin.firestore.Timestamp.fromDate(nextActionAt), sequenceStatus: "active", "flow.recommendedAction": "close", "flow.actionReason": "Managed by sequence.", "flow.priority": "low", "flow.analyzedAt": ts, updatedAt: ts });
+                  }
+                  actionTaken = "sequence_started";
+                }
+              }
+            } catch (seqErr) { console.error(`Sequence start failed for ${leadDoc.id}:`, seqErr); }
+          }
+
+          const thisAction = { leadId: leadDoc.id, businessName: lead.businessName.trim(), action: actionTaken, reason: agentDecision.reason, ...(emailSubject ? { emailSubject } : {}) };
+          agentActions.push(thisAction);
+          processedLeads.push(lead);
+
+          added++;
+          const area = [lead.city, lead.state].filter(Boolean).join(", ");
+          if (area && !areasSearched.includes(area)) areasSearched.push(area);
+
+          existingNames.add(normalizedBiz);
+          if (normalizedEmail) existingEmails.add(normalizedEmail);
+
+          // Build a per-lead reasoning message
+          const actionLabels: Record<string, string> = { email_sent: "Sent email", flagged_for_call: "Flagged for call", compliance_report: "Sending compliance report", sequence_started: "Added to sequence", added_only: "Added to pipeline" };
+          const leadLocation = [lead.city, lead.state].filter(Boolean).join(", ");
+          const leadDetailParts = [`**${lead.businessName}**${leadLocation ? ` (${leadLocation})` : ""}`];
+          if (lead.industry) leadDetailParts.push(`Industry: ${lead.industry}`);
+          if (lead.employeeEstimate) leadDetailParts.push(`Size: ~${lead.employeeEstimate} employees`);
+          if (lead.confidence != null) leadDetailParts.push(`Confidence: ${lead.confidence}%`);
+          leadDetailParts.push(`Decision: ${actionLabels[actionTaken] || actionTaken}`);
+          if (agentDecision.reason && agentDecision.reason !== "Default") leadDetailParts.push(`Reasoning: ${agentDecision.reason}`);
+          if (emailSubject) leadDetailParts.push(`Email subject: "${emailSubject}"`);
+
+          // Update session counters and append reasoning message
+          await sessionRef.update({
+            "autoResearch.leadsAddedToday": admin.firestore.FieldValue.increment(1),
+            "autoResearch.leadsAddedThisMonth": admin.firestore.FieldValue.increment(1),
+            "autoResearch.lastRunAt": admin.firestore.FieldValue.serverTimestamp(),
+            "autoResearch.consecutiveEmptyRuns": 0,
+            leadsGenerated: admin.firestore.FieldValue.arrayUnion(leadDoc.id),
+            agentActions: admin.firestore.FieldValue.arrayUnion(thisAction),
+            messages: admin.firestore.FieldValue.arrayUnion({ role: "assistant", content: leadDetailParts.join("\n") }),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          console.log(`Session ${sessionDoc.id}: added "${lead.businessName}" (${actionTaken}), ${leadsAddedToday + added}/${leadsPerDay} today`);
+        } catch (err: any) {
+          if (err?.code === 6) continue;
+          console.error(`Failed to add lead "${lead.businessName}":`, err);
+        }
+      }
+
+      // Append the summary message with all leads found
+      const sessionLeads = processedLeads.map((l: any) => ({
+        businessName: l.businessName?.trim() || "",
+        contactName: l.contactName?.trim() || null,
+        email: l.email?.trim() || null,
+        phone: l.phone?.trim() || null,
+        website: l.website?.trim() || null,
+        industry: l.industry?.trim() || null,
+        state: l.state?.trim() || null,
+        city: l.city?.trim() || null,
+        employeeEstimate: l.employeeEstimate?.trim() || null,
+        yearEstablished: l.yearEstablished?.trim() || null,
+        fitReason: l.fitReason?.trim() || null,
+        bestContactMethod: l.bestContactMethod?.trim() || null,
+        googleMapsUrl: l.googleMapsUrl?.trim() || null,
+        verificationSignals: l.verificationSignals || null,
+        confidence: l.confidence ?? null,
+      }));
+
+      const actionSummary = agentActions.reduce((acc: Record<string, number>, a) => {
+        acc[a.action] = (acc[a.action] || 0) + 1;
+        return acc;
+      }, {});
+      const summaryParts = Object.entries(actionSummary).map(([action, count]) => {
+        const label: Record<string, string> = { email_sent: "emails sent", flagged_for_call: "flagged for call", compliance_report: "compliance reports", sequence_started: "sequences started", added_only: "added without contact" };
+        return `${count} ${label[action] || action}`;
+      });
+
+      const assistantContent = added > 0
+        ? `Run complete. Added ${added} leads to the pipeline. ${summaryParts.join(", ")}. Today: ${leadsAddedToday + added}/${leadsPerDay}.`
+        : `Searched but found no qualifying leads this run.`;
+
+      const summaryMsg = { role: "assistant", content: assistantContent, leadsFound: added > 0 ? sessionLeads : [] };
+      try {
+        await sessionRef.update({
+          messages: admin.firestore.FieldValue.arrayUnion(summaryMsg),
+          agentLearnings: agentLearningsContext || null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (msgErr) {
+        console.error(`Session ${sessionDoc.id}: failed to write summary message`, msgErr);
+      }
+
+      if (added === 0) {
+        await sessionRef.update({ "autoResearch.consecutiveEmptyRuns": consecutiveEmpty + 1 });
+      }
+
+      if (added > 0 && !sessionDoc.data().title?.startsWith("Ulysses")) {
+        const title = `Ulysses: ${(leadsAddedToday + added)} leads (${summaryParts.join(", ")})`;
+        await sessionRef.update({ title });
+      }
+
+      await db().collection("sales-auto-research-log").add({
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        sessionId: sessionDoc.id,
+        leadsFound: leads.length,
+        leadsQualified: qualifiedLeads.length,
+        leadsAdded: added,
+        areasSearched,
+        addMode,
+        agentActions,
+        pipelineLearning: pipelineLearning || null,
+        targeting: { industries: targetIndustries.length > 0 ? targetIndustries : null, states: targetStates.length > 0 ? targetStates : null, companySize: targetCompanySize || null },
+        apiCalls: { grok: agentApiCalls, googlePlaces: leads.length, bouncer: leads.filter((l: any) => l.email?.trim()).length, websiteChecks: leads.filter((l: any) => l.website?.trim()).length },
+      });
+
+      console.log(`Session ${sessionDoc.id}: ${added} leads added (today: ${leadsAddedToday + added}/${leadsPerDay})`);
+    }
+
+    } catch (fatalErr: any) {
+      console.error("processAutoResearch fatal error:", fatalErr?.message || String(fatalErr));
+      throw fatalErr;
+    }
+    // #endregion
+  }
+);
+
+// ── Agent Outcome Tracking & Self-Learning ──────────────────────────────────
+
+export const trackAgentOutcomes = onSchedule(
+  {
+    schedule: "0 6 * * *",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
+  async () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+
+    const agentLeads = await db()
+      .collection("sales-leads")
+      .where("createdBy", "in", ["agent", "ulysses", "auto_research"])
+      .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+      .get();
+
+    if (agentLeads.empty) return;
+
+    let totalEmailed = 0;
+    let totalReplied = 0;
+    let totalProgressed = 0;
+    let totalArchived = 0;
+    const industryReplies: Record<string, { sent: number; replied: number }> = {};
+    const stateReplies: Record<string, { sent: number; replied: number }> = {};
+    const industryProgressions: Record<string, number> = {};
+    const archivedReasons: string[] = [];
+    const progressedStatuses = new Set(["contacted", "qualified", "proposal", "negotiation", "won"]);
+
+    for (const doc of agentLeads.docs) {
+      const lead = doc.data();
+      const industry = lead.industry?.trim() || "unknown";
+      const state = lead.state?.trim() || "unknown";
+
+      const activitySnap = await db()
+        .collection(`sales-leads/${doc.id}/activity`)
+        .orderBy("createdAt", "desc")
+        .limit(20)
+        .get();
+
+      const hasSentEmail = activitySnap.docs.some((a) => a.data().type === "email_sent");
+      const hasReply = activitySnap.docs.some((a) => a.data().type === "email_received");
+
+      if (hasSentEmail) {
+        totalEmailed++;
+        if (!industryReplies[industry]) industryReplies[industry] = { sent: 0, replied: 0 };
+        industryReplies[industry].sent++;
+        if (!stateReplies[state]) stateReplies[state] = { sent: 0, replied: 0 };
+        stateReplies[state].sent++;
+
+        if (hasReply) {
+          totalReplied++;
+          industryReplies[industry].replied++;
+          stateReplies[state].replied++;
+        }
+      }
+
+      if (progressedStatuses.has(lead.status)) {
+        totalProgressed++;
+        industryProgressions[industry] = (industryProgressions[industry] || 0) + 1;
+      }
+
+      if (lead.archived) {
+        totalArchived++;
+        if (lead.fitReason) archivedReasons.push(`${industry}: ${lead.fitReason}`);
+      }
+    }
+
+    const emailReplyRate = totalEmailed > 0 ? totalReplied / totalEmailed : 0;
+
+    const topReplyIndustries = Object.entries(industryReplies)
+      .filter(([, v]) => v.sent >= 2)
+      .sort((a, b) => (b[1].replied / b[1].sent) - (a[1].replied / a[1].sent))
+      .slice(0, 5)
+      .map(([ind]) => ind);
+
+    const topReplyStates = Object.entries(stateReplies)
+      .filter(([, v]) => v.sent >= 2)
+      .sort((a, b) => (b[1].replied / b[1].sent) - (a[1].replied / a[1].sent))
+      .slice(0, 5)
+      .map(([st]) => st);
+
+    const worstIndustries = Object.entries(industryReplies)
+      .filter(([, v]) => v.sent >= 3 && v.replied === 0)
+      .map(([ind]) => ind);
+
+    const successPatterns: string[] = [];
+    if (topReplyIndustries.length > 0) {
+      successPatterns.push(`${topReplyIndustries.join(", ")} industries respond well to email outreach`);
+    }
+    if (topReplyStates.length > 0) {
+      successPatterns.push(`Leads in ${topReplyStates.join(", ")} have higher reply rates`);
+    }
+
+    const avoidPatterns: string[] = [];
+    if (worstIndustries.length > 0) {
+      avoidPatterns.push(`${worstIndustries.join(", ")} industries have 0% email reply rate, consider phone or compliance report instead`);
+    }
+
+    await db().collection("sales-agent-learnings").add({
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      periodDays: 30,
+      totalLeads: agentLeads.size,
+      totalEmailed,
+      totalReplied,
+      totalProgressed,
+      totalArchived,
+      emailReplyRate,
+      topReplyIndustries,
+      topReplyStates,
+      industryReplies,
+      stateReplies,
+      industryProgressions,
+      successPatterns,
+      avoidPatterns,
+    });
+
+    console.log(
+      `Agent outcomes tracked: ${agentLeads.size} leads, ` +
+      `${totalEmailed} emailed, ${totalReplied} replied (${(emailReplyRate * 100).toFixed(1)}%), ` +
+      `${totalProgressed} progressed, ${totalArchived} archived`
+    );
   }
 );

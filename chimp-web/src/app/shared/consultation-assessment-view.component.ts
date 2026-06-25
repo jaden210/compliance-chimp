@@ -6,6 +6,7 @@ import {
   ConsultationAssessment,
   ConsultationLanguage,
   ConsultationObligation,
+  ConsultationTrainingRecommendation,
 } from './osha-consultation';
 
 interface ComplianceWheelItem {
@@ -80,6 +81,27 @@ interface ConsultationLabels {
   scoreLowDesc: string;
   primaryCtaDefault: string;
   bottomCtaDefault: string;
+  tabOsha: string;
+  tabTrainings: string;
+  trainingsHeadline: string;
+  trainingsIntro: string;
+  trainingsFeature1: string;
+  trainingsFeature2: string;
+  trainingsFeature3: string;
+  trainingCategoryOsha: string;
+  trainingCategoryOperational: string;
+  trainingCategoryEquipment: string;
+  trainingCategoryHealth: string;
+  trainingCadenceLabel: string;
+  tabOshaDescription: string;
+  tabTrainingsDescription: string;
+  trainingsCtaHeadline: string;
+  trainingsCtaDescription: string;
+  trainingsPricingHeadline: string;
+  trainingsPricingFeature1: string;
+  trainingsPricingFeature2: string;
+  trainingsPricingFeature3: string;
+  trainingsPricingFeature4: string;
 }
 
 const LABELS_EN: ConsultationLabels = {
@@ -101,7 +123,7 @@ const LABELS_EN: ConsultationLabels = {
   pricingFeature3: 'Inspection-ready documentation you can hand to OSHA on the spot',
   pricingFeature4: 'Ongoing compliance monitoring so nothing falls through the cracks',
   perMonth: '/month',
-  noContracts: 'No contracts. Cancel anytime.',
+  noContracts: 'Free forever. No credit card required.',
   downloadPdf: 'Download PDF',
   runAnother: 'Run Another Assessment',
   requiredFederalActions: 'Required Federal Actions',
@@ -145,6 +167,27 @@ const LABELS_EN: ConsultationLabels = {
   scoreLowDesc: 'This does not mean no OSHA responsibility. It means the business appears less complex than higher-risk operations.',
   primaryCtaDefault: 'Start Building My Program',
   bottomCtaDefault: 'Get Started With Ulysses',
+  tabOsha: 'OSHA Compliance',
+  tabTrainings: 'Trainings',
+  trainingsHeadline: 'Trainings Built For Your Business',
+  trainingsIntro: 'These are the trainings Ulysses would build for your team. Not just OSHA requirements, but the practical, day-to-day training your crew actually needs to work safely and stay sharp.',
+  trainingsFeature1: 'Customized training content generated for your industry and equipment',
+  trainingsFeature2: 'Completion tracking per employee with automated reminders',
+  trainingsFeature3: 'Cadence management so recurring trainings never slip through the cracks',
+  trainingCategoryOsha: 'OSHA Required',
+  trainingCategoryOperational: 'Operational',
+  trainingCategoryEquipment: 'Equipment',
+  trainingCategoryHealth: 'Health & Wellness',
+  trainingCadenceLabel: 'Cadence',
+  tabOshaDescription: 'Your OSHA obligations, required documents, and compliance score.',
+  tabTrainingsDescription: 'Customized trainings Ulysses would build for your team, beyond just OSHA.',
+  trainingsCtaHeadline: 'Stop guessing what your team needs to know.',
+  trainingsCtaDescription: 'Ulysses builds the training program, assigns it by role, tracks completions, and sends reminders when something is due. All you have to do is sign up.',
+  trainingsPricingHeadline: 'Every training, built, assigned, and tracked.',
+  trainingsPricingFeature1: 'Custom training articles generated for your exact business and equipment',
+  trainingsPricingFeature2: 'Assign trainings by role, tag, or team with flexible cadences',
+  trainingsPricingFeature3: 'Automatic reminders and completion tracking per employee',
+  trainingsPricingFeature4: 'In-person training scheduling and sign-off documentation',
 };
 
 const LABELS_ES: ConsultationLabels = {
@@ -166,7 +209,7 @@ const LABELS_ES: ConsultationLabels = {
   pricingFeature3: 'Documentacion lista para inspeccion que puede entregar a OSHA en el momento',
   pricingFeature4: 'Monitoreo continuo de cumplimiento para que nada se le escape',
   perMonth: '/mes',
-  noContracts: 'Sin contratos. Cancele cuando quiera.',
+  noContracts: 'Gratis para siempre. Sin tarjeta de credito.',
   downloadPdf: 'Descargar PDF',
   runAnother: 'Ejecutar Otra Evaluacion',
   requiredFederalActions: 'Acciones Federales Requeridas',
@@ -210,6 +253,27 @@ const LABELS_ES: ConsultationLabels = {
   scoreLowDesc: 'Esto no significa que no haya responsabilidad ante OSHA. Significa que el negocio parece menos complejo que operaciones de mayor riesgo.',
   primaryCtaDefault: 'Comenzar a Construir Mi Programa',
   bottomCtaDefault: 'Comenzar Con Ulysses',
+  tabOsha: 'Cumplimiento OSHA',
+  tabTrainings: 'Capacitaciones',
+  trainingsHeadline: 'Capacitaciones Creadas Para Su Negocio',
+  trainingsIntro: 'Estas son las capacitaciones que Ulysses construiria para su equipo. No solo requisitos de OSHA, sino la capacitacion practica y diaria que su equipo realmente necesita para trabajar de forma segura.',
+  trainingsFeature1: 'Contenido de capacitacion personalizado generado para su industria y equipo',
+  trainingsFeature2: 'Seguimiento de finalizacion por empleado con recordatorios automaticos',
+  trainingsFeature3: 'Gestion de cadencia para que las capacitaciones recurrentes nunca se pasen',
+  trainingCategoryOsha: 'Requerido por OSHA',
+  trainingCategoryOperational: 'Operacional',
+  trainingCategoryEquipment: 'Equipo',
+  trainingCategoryHealth: 'Salud y Bienestar',
+  trainingCadenceLabel: 'Cadencia',
+  tabOshaDescription: 'Sus obligaciones de OSHA, documentos requeridos y puntaje de cumplimiento.',
+  tabTrainingsDescription: 'Capacitaciones personalizadas que Ulysses construiria para su equipo, mas alla de OSHA.',
+  trainingsCtaHeadline: 'Deje de adivinar lo que su equipo necesita saber.',
+  trainingsCtaDescription: 'Ulysses construye el programa de capacitacion, lo asigna por rol, rastrea las finalizaciones y envia recordatorios cuando algo vence. Solo tiene que registrarse.',
+  trainingsPricingHeadline: 'Cada capacitacion, creada, asignada y rastreada.',
+  trainingsPricingFeature1: 'Articulos de capacitacion personalizados generados para su negocio y equipo exacto',
+  trainingsPricingFeature2: 'Asigne capacitaciones por rol, etiqueta o equipo con cadencias flexibles',
+  trainingsPricingFeature3: 'Recordatorios automaticos y seguimiento de finalizacion por empleado',
+  trainingsPricingFeature4: 'Programacion de capacitacion presencial y documentacion de firma',
 };
 
 @Component({
@@ -233,6 +297,40 @@ export class ConsultationAssessmentViewComponent {
   @Output() languageChange = new EventEmitter<ConsultationLanguage>();
 
   videoExpanded = false;
+
+  get defaultTab(): 'osha' | 'trainings' {
+    if (!this.assessment?.trainingRecommendations?.length) return 'osha';
+    return (this.assessment?.importanceScore ?? 0) >= 70 ? 'osha' : 'trainings';
+  }
+
+  private _activeTab: 'osha' | 'trainings' | null = null;
+
+  get activeTab(): 'osha' | 'trainings' {
+    return this._activeTab ?? this.defaultTab;
+  }
+
+  get hasTrainings(): boolean {
+    return !!this.assessment?.trainingRecommendations?.length;
+  }
+
+  switchTab(tab: 'osha' | 'trainings'): void {
+    this._activeTab = tab;
+  }
+
+  trainingCategoryLabel(category: string): string {
+    const labels = this.l;
+    switch (category) {
+      case 'osha-required': return labels.trainingCategoryOsha;
+      case 'operational': return labels.trainingCategoryOperational;
+      case 'equipment': return labels.trainingCategoryEquipment;
+      case 'health-wellness': return labels.trainingCategoryHealth;
+      default: return labels.trainingCategoryOperational;
+    }
+  }
+
+  trackByTraining(_: number, training: ConsultationTrainingRecommendation): string {
+    return training.title;
+  }
 
   get l(): ConsultationLabels {
     return this.language === 'es' ? LABELS_ES : LABELS_EN;

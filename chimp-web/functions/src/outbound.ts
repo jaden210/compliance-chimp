@@ -161,6 +161,13 @@ export const checkTrialExpirationEmails = onSchedule(
     timeoutSeconds: 120,
   },
   async () => {
+    // Free for everyone: trials are disabled, so don't send trial-expired or
+    // follow-up emails. Remove this guard to restore trial emails.
+    const PAYMENTS_ENABLED = false;
+    if (!PAYMENTS_ENABLED) {
+      return;
+    }
+
     const db = admin.firestore();
     const client = createSendgridClient();
     const now = new Date();

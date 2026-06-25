@@ -50,7 +50,7 @@
 
     <!-- Trial / Subscription Banner - Desktop (hidden when tour banner is showing) -->
     <div class="subscription-banner desktop-only" 
-         *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
+         *ngIf="accountService.paymentsEnabled && accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
          [class.trial-expired]="accountService.isTrialExpired">
       <div class="banner-content">
         <div class="banner-icon">
@@ -75,7 +75,7 @@
 
     <!-- Trial / Subscription Banner - Mobile (compact layout, hidden when tour banner is showing) -->
     <div class="subscription-banner-mobile mobile-only" 
-         *ngIf="accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
+         *ngIf="accountService.paymentsEnabled && accountService.aTeam?.id && !accountService.aTeam?.stripeSubscriptionId && !welcomeService.shouldShowTourBanner()"
          [class.trial-expired]="accountService.isTrialExpired">
       <div class="mobile-banner-icon">
         <mat-icon>{{ accountService.isTrialExpired ? 'hourglass_empty' : 'rocket_launch' }}</mat-icon>

@@ -127,7 +127,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'account',
     title: 'Account',
-    content: "The Account tab is where you can upload your company logo to brand your team's experience. Makes things look a bit more official.<br><br>This is also where subscription management lives. You've got a 14-day trial to explore everything. When you're ready to continue, this is where you'll set that up.",
+    content: "The Account tab is where you can upload your company logo to brand your team's experience. Makes things look a bit more official.<br><br>Compliance Chimp is free to use, so there's nothing to set up here on the billing side. Just explore everything.",
     navigationAction: {
       type: 'navigate',
       label: 'Go to Account',

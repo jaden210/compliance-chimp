@@ -54,6 +54,7 @@ export interface ConsultationAssessment {
   nextActions: ConsultationNextAction[];
   caveats: string[];
   prefill: ConsultationPrefill;
+  trainingRecommendations?: ConsultationTrainingRecommendation[];
 }
 
 export interface ConsultationProfile {
@@ -72,6 +73,17 @@ export interface ConsultationProfile {
 }
 
 export type OshaTrack = "general-industry" | "construction" | "maritime" | "agriculture";
+
+export type ConsultationTrainingCategory = "osha-required" | "operational" | "equipment" | "health-wellness";
+
+export interface ConsultationTrainingRecommendation {
+  title: string;
+  description: string;
+  impact: string;
+  cadence: string;
+  category: ConsultationTrainingCategory;
+  isOshaRequired: boolean;
+}
 
 export interface AiConsultationClassification {
   businessSummary: string;

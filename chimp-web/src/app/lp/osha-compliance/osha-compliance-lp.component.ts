@@ -32,9 +32,9 @@ export class OshaComplianceLpComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Set SEO for this landing page
     this.seo.setCustomSeo({
-      title: 'Avoid OSHA Fines for $99/Month | Compliance Chimp',
-      description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes for just $99/month. Automated training, self-inspections, and audit-ready documentation.',
-      keywords: 'OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance'
+      title: 'Avoid OSHA Fines for Free | Compliance Chimp',
+      description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes, free. Automated training, self-inspections, and audit-ready documentation.',
+      keywords: 'free OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance'
     });
 
     // Track landing page view for Google Ads attribution

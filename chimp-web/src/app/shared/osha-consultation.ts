@@ -3,6 +3,17 @@ export interface StateOption {
   name: string;
 }
 
+export type ConsultationTrainingCategory = 'osha-required' | 'operational' | 'equipment' | 'health-wellness';
+
+export interface ConsultationTrainingRecommendation {
+  title: string;
+  description: string;
+  impact: string;
+  cadence: string;
+  category: ConsultationTrainingCategory;
+  isOshaRequired: boolean;
+}
+
 export type ConsultationRequirementLevel = 'required' | 'conditional' | 'recommended';
 export type ConsultationPriority = 'high' | 'medium' | 'low';
 
@@ -74,6 +85,7 @@ export interface ConsultationAssessment {
   nextActions: ConsultationNextAction[];
   caveats: string[];
   prefill: ConsultationPrefill;
+  trainingRecommendations?: ConsultationTrainingRecommendation[];
 }
 
 export type ConsultationLanguage = 'en' | 'es';

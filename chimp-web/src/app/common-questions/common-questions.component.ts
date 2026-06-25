@@ -21,11 +21,11 @@ export class CommonQuestionsComponent implements OnInit, OnDestroy {
     },
     {
       question: "How much does Compliance Chimp cost?",
-      answer: "Just $99/month after a 14-day free trial. That includes unlimited team members, all features, and no hidden fees. No credit card required to start."
+      answer: "Nothing. It's free for everyone right now. That includes unlimited team members, all features, and no hidden fees. No credit card required, ever."
     },
     {
-      question: "How does the free trial work?",
-      answer: "Your first 14 days are completely free with no credit card required. You'll have full access to all features during your trial to see how we can help simplify your compliance journey. After your trial ends, you'll be billed $99/month."
+      question: "Is it really free?",
+      answer: "Yes. Compliance Chimp is free to use, with no credit card required. You get full access to every feature. Create an account and start right away."
     },
     {
       question: "What is OSHA compliance?",
@@ -65,7 +65,7 @@ export class CommonQuestionsComponent implements OnInit, OnDestroy {
     },
     {
       question: "Can I see a demo or try this for free?",
-      answer: "Yes! You get 14 days free with no credit card required. Just create an account and start using Compliance Chimp immediately. Zero pressure. Zero hassle. Experience all the features and see why teams love us."
+      answer: "Yes! It's free with no credit card required. Just create an account and start using Compliance Chimp immediately. Zero pressure. Zero hassle. Experience all the features and see why teams love us."
     },
     {
       question: "What if I have questions?",

@@ -46,6 +46,13 @@ export class AccountService {
   searchForHelper: string; // template var to assist event system;
   public showLD: boolean = false;
 
+  // Free-for-everyone mode.
+  // The product is currently free forever: no trials, no read-only lockout, and
+  // all payment/billing UI is hidden. Flip this back to `true` to re-enable
+  // trials, billing UI, and the Stripe checkout flow (all of that code is left
+  // intact below and gated on this flag).
+  public paymentsEnabled: boolean = false;
+
   // Trial and read-only mode
   public isReadOnly: boolean = false;
   public trialDaysRemaining: number = 0;
@@ -155,6 +162,19 @@ export class AccountService {
    * If no subscription and trial expired, set read-only mode
    */
   private checkTrialStatus(team: Team): void {
+    // Free for everyone: never gate access behind a trial or read-only mode.
+    // (Set `paymentsEnabled = true` to restore the trial/billing behavior below.)
+    if (!this.paymentsEnabled) {
+      this.isReadOnly = false;
+      this.isTrialExpired = false;
+      this.trialDaysRemaining = 0;
+      if (this.trialDialogTimer) {
+        clearTimeout(this.trialDialogTimer);
+        this.trialDialogTimer = null;
+      }
+      return;
+    }
+
     // If team has a Stripe subscription, they're not in trial.
     // Cancel any pending trial dialog in case this update arrives after a
     // cached Firestore snapshot that was missing stripeSubscriptionId.

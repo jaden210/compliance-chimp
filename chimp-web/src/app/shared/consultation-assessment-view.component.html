@@ -58,129 +58,121 @@
       </div>
     </div>
 
-    <div class="wheel-card">
-      <div class="wheel-visual">
-        <div class="compliance-wheel">
-          <div class="wheel-center" [class]="scoreSeverityClass">
-            <span class="wheel-center-label">{{ l.compliance }}</span>
-            <strong>{{ assessment.importanceScore }}/100</strong>
+    @if (hasTrainings) {
+      <div class="report-tab-switcher">
+        <button
+          class="report-tab-option"
+          [class.active]="activeTab === 'osha'"
+          (click)="switchTab('osha')"
+        >
+          <div class="report-tab-option-inner">
+            <mat-icon>verified_user</mat-icon>
+            <div>
+              <strong>{{ l.tabOsha }}</strong>
+              <span>{{ l.tabOshaDescription }}</span>
+            </div>
+          </div>
+        </button>
+        <button
+          class="report-tab-option"
+          [class.active]="activeTab === 'trainings'"
+          (click)="switchTab('trainings')"
+        >
+          <div class="report-tab-option-inner">
+            <mat-icon>school</mat-icon>
+            <div>
+              <strong>{{ l.tabTrainings }}</strong>
+              <span>{{ l.tabTrainingsDescription }}</span>
+            </div>
+          </div>
+          <span class="training-count">{{ assessment.trainingRecommendations!.length }}</span>
+        </button>
+      </div>
+    }
+
+    @if (activeTab === 'osha') {
+      <div class="wheel-card">
+        <div class="wheel-visual">
+          <div class="compliance-wheel">
+            <div class="wheel-center" [class]="scoreSeverityClass">
+              <span class="wheel-center-label">{{ l.compliance }}</span>
+              <strong>{{ assessment.importanceScore }}/100</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="wheel-copy">
+          <h3>{{ l.allElementsOfCompliance }}</h3>
+          <p class="card-intro">{{ l.wheelIntro }}</p>
+
+          <div class="wheel-legend">
+            @for (item of complianceWheel; track trackByWheelItem($index, item)) {
+              <div class="wheel-legend-item">
+                <span class="wheel-swatch" [class]="item.accentClass"></span>
+                <div>
+                  <strong>{{ item.label }}</strong>
+                  <p>{{ item.description }}</p>
+                </div>
+                <span class="wheel-count">{{ item.count }}</span>
+              </div>
+            }
           </div>
         </div>
       </div>
 
-      <div class="wheel-copy">
-        <h3>{{ l.allElementsOfCompliance }}</h3>
-        <p class="card-intro">{{ l.wheelIntro }}</p>
-
-        <div class="wheel-legend">
-          @for (item of complianceWheel; track trackByWheelItem($index, item)) {
-            <div class="wheel-legend-item">
-              <span class="wheel-swatch" [class]="item.accentClass"></span>
-              <div>
-                <strong>{{ item.label }}</strong>
-                <p>{{ item.description }}</p>
-              </div>
-              <span class="wheel-count">{{ item.count }}</span>
-            </div>
+      <div class="pricing-card">
+        <div class="pricing-copy">
+          <span class="pricing-eyebrow">{{ l.whatYouGet }}</span>
+          <h3>{{ l.pricingHeadline }}</h3>
+          <ul class="pricing-features">
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.pricingFeature1 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.pricingFeature2 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.pricingFeature3 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.pricingFeature4 }}
+            </li>
+          </ul>
+        </div>
+        <div class="pricing-action">
+          <div class="pricing-price">
+            <span class="pricing-amount">Free</span>
+          </div>
+          <p class="pricing-note">{{ l.noContracts }}</p>
+          @if (showStartAction) {
+            <button mat-flat-button class="primary-cta" (click)="start.emit()">
+              {{ primaryCtaLabel }}
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          }
+          @if (showDownloadAction) {
+            <button mat-stroked-button class="secondary-cta" (click)="download.emit()">
+              {{ l.downloadPdf }}
+              <mat-icon>download</mat-icon>
+            </button>
+          }
+          @if (showResetAction) {
+            <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
+              {{ l.runAnother }}
+            </button>
           }
         </div>
       </div>
-    </div>
 
-    <div class="pricing-card">
-      <div class="pricing-copy">
-        <span class="pricing-eyebrow">{{ l.whatYouGet }}</span>
-        <h3>{{ l.pricingHeadline }}</h3>
-        <ul class="pricing-features">
-          <li>
-            <mat-icon>check_circle</mat-icon>
-            {{ l.pricingFeature1 }}
-          </li>
-          <li>
-            <mat-icon>check_circle</mat-icon>
-            {{ l.pricingFeature2 }}
-          </li>
-          <li>
-            <mat-icon>check_circle</mat-icon>
-            {{ l.pricingFeature3 }}
-          </li>
-          <li>
-            <mat-icon>check_circle</mat-icon>
-            {{ l.pricingFeature4 }}
-          </li>
-        </ul>
-      </div>
-      <div class="pricing-action">
-        <div class="pricing-price">
-          <span class="pricing-amount">$99</span>
-          <span class="pricing-period">{{ l.perMonth }}</span>
-        </div>
-        <p class="pricing-note">{{ l.noContracts }}</p>
-        @if (showStartAction) {
-          <button mat-flat-button class="primary-cta" (click)="start.emit()">
-            {{ primaryCtaLabel }}
-            <mat-icon>arrow_forward</mat-icon>
-          </button>
-        }
-        @if (showDownloadAction) {
-          <button mat-stroked-button class="secondary-cta" (click)="download.emit()">
-            {{ l.downloadPdf }}
-            <mat-icon>download</mat-icon>
-          </button>
-        }
-        @if (showResetAction) {
-          <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
-            {{ l.runAnother }}
-          </button>
-        }
-      </div>
-    </div>
-
-    <div class="report-stack">
-      <article class="report-card">
-        <h3>{{ l.requiredFederalActions }}</h3>
-        <p class="card-intro">{{ l.federalIntro }}</p>
-        @for (obligation of assessment.federalRequirements; track trackByObligation($index, obligation)) {
-          <div class="obligation-card">
-            <div class="obligation-header">
-              <div>
-                <h4>{{ obligation.title }}</h4>
-                <p>{{ obligation.appliesBecause }}</p>
-              </div>
-              <span
-                class="status-chip"
-                [class.required]="obligation.requirementLevel === 'required'"
-                [class.conditional]="obligation.requirementLevel === 'conditional'"
-              >
-                {{ obligation.requirementLevel }}
-              </span>
-            </div>
-            <ul>
-              @for (detail of obligation.details; track trackByText($index, detail)) {
-                <li>{{ detail }}</li>
-              }
-            </ul>
-            @if (obligation.thresholdNotes.length) {
-              <div class="notes-block">
-                @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
-                  <p>{{ note }}</p>
-                }
-              </div>
-            }
-            <div class="citations">
-              @for (citation of obligation.citations; track trackByCitation($index, citation)) {
-                <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
-              }
-            </div>
-          </div>
-        }
-      </article>
-
-      <article class="report-card">
-        <h3>{{ l.stateSpecificFlags }}</h3>
-        <p class="card-intro">{{ l.stateIntro }}</p>
-        @if (assessment.stateRequirements.length) {
-          @for (obligation of assessment.stateRequirements; track trackByObligation($index, obligation)) {
+      <div class="report-stack">
+        <article class="report-card">
+          <h3>{{ l.requiredFederalActions }}</h3>
+          <p class="card-intro">{{ l.federalIntro }}</p>
+          @for (obligation of assessment.federalRequirements; track trackByObligation($index, obligation)) {
             <div class="obligation-card">
               <div class="obligation-header">
                 <div>
@@ -214,98 +206,252 @@
               </div>
             </div>
           }
-        } @else {
-          <div class="empty-card">
-            <mat-icon>verified</mat-icon>
-            <p>{{ l.noStateOverlay }}</p>
-          </div>
-        }
-      </article>
-    </div>
+        </article>
 
-    <div class="demo-video-banner" [class.expanded]="videoExpanded">
-      <div class="demo-video-copy">
-        <h3>{{ l.demoHeadline }}</h3>
-        <p class="demo-video-subtext">{{ l.demoSub1 }}</p>
-        <p class="demo-video-subtext">{{ l.demoSub2 }}</p>
-        <button mat-flat-button class="expand-btn" (click)="videoExpanded = !videoExpanded">
-          <mat-icon>{{ videoExpanded ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
-          {{ videoExpanded ? l.collapse : l.fullScreen }}
-        </button>
-      </div>
-      <div class="demo-video-wrap">
-        <video controls playsinline>
-          <source src="https://firebasestorage.googleapis.com/v0/b/teamlog-2d74c.appspot.com/o/public%2FChimpDemo.mov?alt=media" type="video/mp4">
-        </video>
-      </div>
-    </div>
-
-    <div class="section-grid">
-      <article class="report-card">
-        <h3>{{ l.recommendedProcesses }}</h3>
-        <p class="card-intro">{{ l.recommendedIntro }}</p>
-        @for (obligation of assessment.recommendedProcesses; track trackByObligation($index, obligation)) {
-          <div class="obligation-card compact">
-            <div class="obligation-header">
-              <div>
-                <h4>{{ obligation.title }}</h4>
-                <p>{{ obligation.appliesBecause }}</p>
+        <article class="report-card">
+          <h3>{{ l.stateSpecificFlags }}</h3>
+          <p class="card-intro">{{ l.stateIntro }}</p>
+          @if (assessment.stateRequirements.length) {
+            @for (obligation of assessment.stateRequirements; track trackByObligation($index, obligation)) {
+              <div class="obligation-card">
+                <div class="obligation-header">
+                  <div>
+                    <h4>{{ obligation.title }}</h4>
+                    <p>{{ obligation.appliesBecause }}</p>
+                  </div>
+                  <span
+                    class="status-chip"
+                    [class.required]="obligation.requirementLevel === 'required'"
+                    [class.conditional]="obligation.requirementLevel === 'conditional'"
+                  >
+                    {{ obligation.requirementLevel }}
+                  </span>
+                </div>
+                <ul>
+                  @for (detail of obligation.details; track trackByText($index, detail)) {
+                    <li>{{ detail }}</li>
+                  }
+                </ul>
+                @if (obligation.thresholdNotes.length) {
+                  <div class="notes-block">
+                    @for (note of obligation.thresholdNotes; track trackByText($index, note)) {
+                      <p>{{ note }}</p>
+                    }
+                  </div>
+                }
+                <div class="citations">
+                  @for (citation of obligation.citations; track trackByCitation($index, citation)) {
+                    <a [href]="citation.url" target="_blank" rel="noopener noreferrer">{{ citation.title }}</a>
+                  }
+                </div>
               </div>
-              <span class="status-chip recommended">{{ l.recommended }}</span>
+            }
+          } @else {
+            <div class="empty-card">
+              <mat-icon>verified</mat-icon>
+              <p>{{ l.noStateOverlay }}</p>
             </div>
+          }
+        </article>
+      </div>
+
+      <div class="demo-video-banner" [class.expanded]="videoExpanded">
+        <div class="demo-video-copy">
+          <h3>{{ l.demoHeadline }}</h3>
+          <p class="demo-video-subtext">{{ l.demoSub1 }}</p>
+          <p class="demo-video-subtext">{{ l.demoSub2 }}</p>
+          <button mat-flat-button class="expand-btn" (click)="videoExpanded = !videoExpanded">
+            <mat-icon>{{ videoExpanded ? 'close_fullscreen' : 'open_in_full' }}</mat-icon>
+            {{ videoExpanded ? l.collapse : l.fullScreen }}
+          </button>
+        </div>
+        <div class="demo-video-wrap">
+          <video controls playsinline>
+            <source src="https://firebasestorage.googleapis.com/v0/b/teamlog-2d74c.appspot.com/o/public%2FChimpDemo.mov?alt=media" type="video/mp4">
+          </video>
+        </div>
+      </div>
+
+      <div class="section-grid">
+        <article class="report-card">
+          <h3>{{ l.recommendedProcesses }}</h3>
+          <p class="card-intro">{{ l.recommendedIntro }}</p>
+          @for (obligation of assessment.recommendedProcesses; track trackByObligation($index, obligation)) {
+            <div class="obligation-card compact">
+              <div class="obligation-header">
+                <div>
+                  <h4>{{ obligation.title }}</h4>
+                  <p>{{ obligation.appliesBecause }}</p>
+                </div>
+                <span class="status-chip recommended">{{ l.recommended }}</span>
+              </div>
+              <ul>
+                @for (detail of obligation.details; track trackByText($index, detail)) {
+                  <li>{{ detail }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </article>
+
+        <article class="report-card">
+          <h3>{{ l.whatToDoNext }}</h3>
+          <p class="card-intro">{{ l.nextIntro }}</p>
+          <div class="next-actions">
+            @for (action of assessment.nextActions; track trackByText($index, action.title)) {
+              <div class="next-action">
+                <span
+                  class="priority-dot"
+                  [class.high]="action.priority === 'high'"
+                  [class.medium]="action.priority === 'medium'"
+                  [class.low]="action.priority === 'low'"
+                ></span>
+                <div>
+                  <strong>{{ action.title }}</strong>
+                  <p>{{ action.description }}</p>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="caveat-card">
+            <h4>{{ l.assumptionsAndCaveats }}</h4>
             <ul>
-              @for (detail of obligation.details; track trackByText($index, detail)) {
-                <li>{{ detail }}</li>
+              @for (caveat of assessment.caveats; track trackByText($index, caveat)) {
+                <li>{{ caveat }}</li>
               }
             </ul>
           </div>
-        }
-      </article>
+        </article>
+      </div>
 
-      <article class="report-card">
-        <h3>{{ l.whatToDoNext }}</h3>
-        <p class="card-intro">{{ l.nextIntro }}</p>
-        <div class="next-actions">
-          @for (action of assessment.nextActions; track trackByText($index, action.title)) {
-            <div class="next-action">
-              <span
-                class="priority-dot"
-                [class.high]="action.priority === 'high'"
-                [class.medium]="action.priority === 'medium'"
-                [class.low]="action.priority === 'low'"
-              ></span>
+      @if (showStartAction) {
+        <div class="bottom-cta-card">
+          <div>
+            <span class="bottom-cta-eyebrow">{{ l.readyToFixIt }}</span>
+            <h3>{{ l.bottomCtaHeadline }}</h3>
+            <p>{{ l.bottomCtaDescription }}</p>
+          </div>
+
+          <button mat-flat-button class="bottom-cta-btn" (click)="start.emit()">
+            {{ bottomCtaLabel }}
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+      }
+    }
+
+    @if (activeTab === 'trainings' && hasTrainings) {
+      <div class="trainings-hero-card">
+        <div class="trainings-hero-copy">
+          <h3>{{ l.trainingsHeadline }}</h3>
+          <p>{{ l.trainingsIntro }}</p>
+        </div>
+        <div class="trainings-hero-features">
+          <div class="trainings-hero-feature">
+            <mat-icon>auto_awesome</mat-icon>
+            <span>{{ l.trainingsFeature1 }}</span>
+          </div>
+          <div class="trainings-hero-feature">
+            <mat-icon>assignment_turned_in</mat-icon>
+            <span>{{ l.trainingsFeature2 }}</span>
+          </div>
+          <div class="trainings-hero-feature">
+            <mat-icon>update</mat-icon>
+            <span>{{ l.trainingsFeature3 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="trainings-list">
+        @for (training of assessment.trainingRecommendations; track trackByTraining($index, training); let i = $index) {
+          <div class="training-card">
+            <div class="training-card-header">
               <div>
-                <strong>{{ action.title }}</strong>
-                <p>{{ action.description }}</p>
+                <h4>{{ training.title }}</h4>
+                <p>{{ training.description }}</p>
+              </div>
+              <div class="training-card-right">
+                <span
+                  class="status-chip"
+                  [class.osha-required]="training.category === 'osha-required'"
+                  [class.recommended]="training.category !== 'osha-required'"
+                >
+                  {{ trainingCategoryLabel(training.category) }}
+                </span>
+                <div class="training-cadence">
+                  <mat-icon>schedule</mat-icon>
+                  <strong>{{ training.cadence }}</strong>
+                </div>
               </div>
             </div>
-          }
-        </div>
+          </div>
 
-        <div class="caveat-card">
-          <h4>{{ l.assumptionsAndCaveats }}</h4>
-          <ul>
-            @for (caveat of assessment.caveats; track trackByText($index, caveat)) {
-              <li>{{ caveat }}</li>
-            }
+          @if (training.impact && (i === 1 || i === 4 || i === 7)) {
+            <div class="impact-callout">
+              <mat-icon>trending_up</mat-icon>
+              <p>{{ training.impact }}</p>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="pricing-card">
+        <div class="pricing-copy">
+          <span class="pricing-eyebrow">{{ l.whatYouGet }}</span>
+          <h3>{{ l.trainingsPricingHeadline }}</h3>
+          <ul class="pricing-features">
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.trainingsPricingFeature1 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.trainingsPricingFeature2 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.trainingsPricingFeature3 }}
+            </li>
+            <li>
+              <mat-icon>check_circle</mat-icon>
+              {{ l.trainingsPricingFeature4 }}
+            </li>
           </ul>
         </div>
-      </article>
-    </div>
-
-    @if (showStartAction) {
-      <div class="bottom-cta-card">
-        <div>
-          <span class="bottom-cta-eyebrow">{{ l.readyToFixIt }}</span>
-          <h3>{{ l.bottomCtaHeadline }}</h3>
-          <p>{{ l.bottomCtaDescription }}</p>
+        <div class="pricing-action">
+          <div class="pricing-price">
+            <span class="pricing-amount">Free</span>
+          </div>
+          <p class="pricing-note">{{ l.noContracts }}</p>
+          @if (showStartAction) {
+            <button mat-flat-button class="primary-cta" (click)="start.emit()">
+              {{ primaryCtaLabel }}
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          }
+          @if (showResetAction) {
+            <button mat-stroked-button class="secondary-cta" (click)="reset.emit()">
+              {{ l.runAnother }}
+            </button>
+          }
         </div>
-
-        <button mat-flat-button class="bottom-cta-btn" (click)="start.emit()">
-          {{ bottomCtaLabel }}
-          <mat-icon>arrow_forward</mat-icon>
-        </button>
       </div>
+
+      @if (showStartAction) {
+        <div class="bottom-cta-card">
+          <div>
+            <span class="bottom-cta-eyebrow">{{ l.readyToFixIt }}</span>
+            <h3>{{ l.trainingsCtaHeadline }}</h3>
+            <p>{{ l.trainingsCtaDescription }}</p>
+          </div>
+
+          <button mat-flat-button class="bottom-cta-btn" (click)="start.emit()">
+            {{ bottomCtaLabel }}
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        </div>
+      }
     }
   </div>
 </section>

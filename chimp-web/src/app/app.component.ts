@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from "@angular/core";
+import { Component, OnInit, Inject, PLATFORM_ID, inject } from "@angular/core";
 import { Router, NavigationEnd, RouterModule } from "@angular/router";
 import { CommonModule, isPlatformBrowser, DOCUMENT } from "@angular/common";
 import { AppService } from "./app.service";
@@ -12,6 +12,7 @@ import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { FooterComponent } from "./footer/footer.component";
 import { AnalyticsService, FunnelStep } from "./shared/analytics.service";
 import { LeadTrackingService } from "./shared/lead-tracking.service";
+import { Functions, httpsCallable } from "@angular/fire/functions";
 
 @Component({
   standalone: true,
@@ -50,6 +51,8 @@ export class AppComponent implements OnInit {
     );
   }
 
+  private readonly functions = inject(Functions);
+
   constructor(
     public router: Router,
     public appService: AppService,
@@ -61,6 +64,7 @@ export class AppComponent implements OnInit {
   ) {
     if (isPlatformBrowser(this.platformId)) {
       this.captureReferralCode();
+      this.trackLeadClick();
     }
 
     this.router.events.subscribe(event => {
@@ -163,6 +167,27 @@ export class AppComponent implements OnInit {
     if (ref) {
       localStorage.setItem('chimp_referral_code', ref);
     }
+  }
+
+  private trackLeadClick(): void {
+    const params = new URLSearchParams(window.location.search);
+    const lid = params.get('lid');
+    if (!lid) return;
+
+    const sessionKey = `chimp_lid_tracked_${lid}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, '1');
+
+    const page = window.location.pathname;
+    const ref = params.get('ref') || undefined;
+
+    const fn = httpsCallable(this.functions, 'recordLeadClick');
+    fn({ lid, page, ref }).catch(() => {});
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('lid');
+    url.searchParams.delete('ref');
+    window.history.replaceState({}, '', url.toString());
   }
 
   navRoute(link?) {

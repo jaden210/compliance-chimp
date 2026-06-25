@@ -8,10 +8,26 @@ import {
   AiConsultationClassification,
   ConsultationAssessment,
   ConsultationRequestInput,
+  ConsultationTrainingRecommendation,
   buildConsultationAssessment,
   buildFallbackClassification,
   sanitizeConsultationInput,
 } from "./osha-knowledge";
+import {
+  ULYSSES_FUN_FACTS,
+  getRandomUlyssesFunFact,
+  CONSULTATION_LEAD_SENDERS,
+  CHIMP_DEMO_VIDEO_URL,
+  CHIMP_DEMO_THUMBNAIL_URL,
+  buildConsultationLeadEmailSubject,
+  buildConsultationLeadEmailHtml,
+  buildConsultationLeadEmailText,
+  buildVideoFollowupEmailHtml,
+  buildVideoFollowupEmailText,
+  buildNonViewerFollowupEmailHtml,
+  buildNonViewerFollowupEmailText,
+  pickFollowupObligation,
+} from "./consultation-emails";
 
 admin.initializeApp();
 
@@ -1401,7 +1417,13 @@ export const generateOshaConsultationReport = onCall(
 
     const visitorHash = await enforceOshaConsultationRateLimit(request);
     const classification = await classifyBusinessForOshaConsultation(input);
-    const report = buildConsultationAssessment(input, classification);
+    const [report, trainingRecommendations] = await Promise.all([
+      Promise.resolve(buildConsultationAssessment(input, classification)),
+      generateTrainingRecommendationsForConsultation(input, classification),
+    ]);
+    if (trainingRecommendations.length) {
+      report.trainingRecommendations = trainingRecommendations;
+    }
     const spanishReport = await translateAssessmentToSpanish(report);
     const saved = await saveConsultationArtifacts(input, classification, report, {
       sourceType: "self-serve",
@@ -1650,371 +1672,8 @@ async function saveConsultationArtifacts(
   };
 }
 
-function buildConsultationLeadEmailSubject(companyName: string): string {
-  return `Your free safety consultation for ${companyName}`;
-}
-
-const ULYSSES_FUN_FACTS: string[] = [
-  "I had a banana for lunch. Unrelated, but worth mentioning.",
-  "My therapist says I worry too much about fall protection. I say she doesn't worry enough.",
-  "People ask why a chimp runs a compliance company. I ask why it took this long for one to step up.",
-  "I type 40 words per minute. Impressive for someone who also uses his feet.",
-  "I can bench press 600 pounds. Unrelated to compliance but I like to bring it up.",
-  "Sometimes I just sit and think about PPE. That's not a joke. I genuinely do that.",
-  "My team wanted casual Fridays. I reminded them that hard hats aren't optional. We compromised on Hawaiian hard hats.",
-  "I once read the entire OSHA 1910 general industry standard. Cover to cover. On vacation.",
-  "They say dress for the job you want. I want the job where everyone goes home safe. So, steel-toed banana peels.",
-  "I started this company because I care about two things: safety and bananas. In that order. Usually.",
-  "Technically I'm not licensed to give legal advice. Technically I'm also a chimp. Lots of technicalities.",
-  "I was grooming earlier and found a citation under my fur. Just kidding. But I have found them in stranger places.",
-];
-
-function getRandomUlyssesFunFact(): string {
-  return ULYSSES_FUN_FACTS[Math.floor(Math.random() * ULYSSES_FUN_FACTS.length)];
-}
-
-function buildConsultationLeadEmailHtml(args: {
-  companyName: string;
-  assessment: any;
-  publicUrl: string;
-}): string {
-  const { companyName, assessment, publicUrl } = args;
-  const funFact = getRandomUlyssesFunFact();
-  const nextActions = Array.isArray(assessment.nextActions)
-    ? assessment.nextActions.slice(0, 3)
-    : [];
-  const nextActionsHtml = nextActions.length
-    ? nextActions
-        .map(
-          (action: any) =>
-            `<li style="margin:0 0 8px;"><strong>${action.title}</strong>: ${action.description}</li>`
-        )
-        .join("")
-    : `<li style="margin:0;">Open the consultation to review your recommended next steps.</li>`;
-
-  return `
-    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
-      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
-        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
-          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
-        </div>
-        <div style="padding:32px;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
-            <tr>
-              <td style="width:140px;vertical-align:top;padding-right:20px;">
-                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:top;">
-                <h2 style="margin:0 0 6px;font-size:22px;color:#054d8a;">A New Era of Workplace Safety</h2>
-                <p style="margin:0 0 10px;font-size:14px;color:#5b6470;line-height:1.5;">
-                  I'm Ulysses, the world's first AI agent for workplace safety with a total mastery of OSHA.
-                </p>
-                <p style="margin:0;line-height:1.7;">
-                  I help small businesses put together real safety programs. Training plans, inspections, compliance tracking, record keeping. The whole system, without the price tag of a full-time safety manager.
-                </p>
-              </td>
-            </tr>
-          </table>
-          <p style="margin:0 0 24px;line-height:1.7;">
-            I went ahead and ran <strong>${companyName}</strong> against current OSHA standards to see where you stand. Here is what I found.
-          </p>
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);">
-            <tr>
-              <td style="vertical-align:middle;">
-                <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;">Compliance urgency score</div>
-                <div style="font-size:44px;font-weight:700;color:#054d8a;">${assessment.importanceScore}</div>
-                <div style="font-size:16px;font-weight:700;color:#1b1b1b;">${assessment.importanceLevel}</div>
-              </td>
-              <td style="vertical-align:middle;text-align:right;">
-                <a href="${publicUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;line-height:1;">Open My Consultation</a>
-              </td>
-            </tr>
-          </table>
-          <div style="margin-top:24px;">
-            <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">Ulysses's quick read</h2>
-            <p style="margin:0;line-height:1.7;">${assessment.ulyssesTake}</p>
-          </div>
-          <div style="margin-top:24px;">
-            <h2 style="margin:0 0 12px;font-size:22px;color:#054d8a;">First things to look at</h2>
-            <ul style="margin:0;padding-left:20px;line-height:1.7;">
-              ${nextActionsHtml}
-            </ul>
-          </div>
-          <div style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
-            <p style="margin:0;line-height:1.7;color:#4b5563;">
-              Full consultation link: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
-            </p>
-          </div>
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
-            <tr>
-              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
-                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:middle;padding:16px 20px;">
-                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
-                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
-              </td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function buildConsultationLeadEmailText(args: {
-  companyName: string;
-  assessment: any;
-  publicUrl: string;
-}): string {
-  const { companyName, assessment, publicUrl } = args;
-  const funFact = getRandomUlyssesFunFact();
-  const nextActions = Array.isArray(assessment.nextActions)
-    ? assessment.nextActions
-        .slice(0, 3)
-        .map((action: any) => `- ${action.title}: ${action.description}`)
-        .join("\n")
-    : "- Open the consultation to review your recommended next steps.";
-
-  return [
-    `A New Era of Workplace Safety`,
-    `I'm Ulysses, the world's first AI agent for workplace safety with a total mastery of OSHA.`,
-    "",
-    `I help small businesses put together real safety programs. Training plans, inspections, compliance tracking, record keeping. The whole system, without the price tag of a full-time safety manager.`,
-    "",
-    `I went ahead and ran ${companyName} against current OSHA standards to see where you stand. Here is what I found.`,
-    "",
-    `Compliance urgency score: ${assessment.importanceScore} (${assessment.importanceLevel})`,
-    "",
-    "Ulysses's quick read:",
-    assessment.ulyssesTake,
-    "",
-    "First things to look at:",
-    nextActions,
-    "",
-    `Open your consultation: ${publicUrl}`,
-    "",
-    `Fun fact about me: ${funFact}`,
-  ].join("\n");
-}
-
-const CONSULTATION_LEAD_SENDERS = [
-  '"ComplianceChimp" <support@compliancechimp.app>',
-  '"ComplianceChimp" <support@compliancechimp.org>',
-];
-
 // ── Follow-up email constants ─────────────────────────────────────────────────
-
-const CHIMP_DEMO_VIDEO_URL = "https://www.youtube.com/watch?v=-CbdLuBbd1s";
-const CHIMP_DEMO_THUMBNAIL_URL = "https://img.youtube.com/vi/-CbdLuBbd1s/maxresdefault.jpg";
-
-// ── Follow-up email: viewed report → show the video ──────────────────────────
-
-function buildVideoFollowupEmailHtml(args: { companyName: string; publicUrl: string }): string {
-  const { companyName, publicUrl } = args;
-  const funFact = getRandomUlyssesFunFact();
-  return `
-    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
-      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
-        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
-          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
-        </div>
-        <div style="padding:32px;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
-            <tr>
-              <td style="width:140px;vertical-align:top;padding-right:20px;">
-                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:top;">
-                <h2 style="margin:0 0 8px;font-size:22px;color:#054d8a;">You opened the report. Good.</h2>
-                <p style="margin:0;line-height:1.7;">
-                  You have seen the score and what applies to <strong>${companyName}</strong>. Most people stop there. The next step takes 75 seconds to watch.
-                </p>
-              </td>
-            </tr>
-          </table>
-          <a href="${CHIMP_DEMO_VIDEO_URL}" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;margin-bottom:12px;">
-            <img src="${CHIMP_DEMO_THUMBNAIL_URL}" alt="Watch Ulysses build a full safety program in 75 seconds" style="width:100%;height:auto;display:block;border-radius:12px;border:0;" />
-          </a>
-          <div style="text-align:center;margin-bottom:24px;">
-            <a href="${CHIMP_DEMO_VIDEO_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 28px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;line-height:1;">Watch the Full Onboarding (75 sec)</a>
-          </div>
-          <p style="margin:0 0 28px;line-height:1.7;color:#4b5563;">
-            That is the full program. Every written plan, training assignment, and document built from your specific report. Once it is set up, Ulysses keeps monitoring it. No safety manager required.
-          </p>
-          <div style="text-align:center;margin-bottom:28px;">
-            <a href="${publicUrl}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:#054d8a;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;">Start Building My Program</a>
-          </div>
-          <div style="padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
-            <p style="margin:0;line-height:1.7;color:#4b5563;">
-              Your consultation: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
-            </p>
-          </div>
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
-            <tr>
-              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
-                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:middle;padding:16px 20px;">
-                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
-                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
-              </td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function buildVideoFollowupEmailText(args: { companyName: string; publicUrl: string }): string {
-  const { companyName, publicUrl } = args;
-  const funFact = getRandomUlyssesFunFact();
-  return [
-    `You opened the report. Good.`,
-    "",
-    `You have seen the score and what applies to ${companyName}. The next step takes 75 seconds to watch.`,
-    "",
-    `Watch the full onboarding: ${CHIMP_DEMO_VIDEO_URL}`,
-    "",
-    `That is the full program. Every written plan, training assignment, and document built from your specific report. Once it is set up, Ulysses keeps monitoring it. No safety manager required.`,
-    "",
-    `Start building your program: ${publicUrl}`,
-    "",
-    `Your consultation: ${publicUrl}`,
-    "",
-    `Fun fact about me: ${funFact}`,
-  ].join("\n");
-}
-
-// ── Follow-up emails: non-viewer drip (week 1 and week 2) ────────────────────
-
-function pickFollowupObligation(assessment: any, index: number): any | null {
-  const all = [
-    ...(Array.isArray(assessment?.federalRequirements) ? assessment.federalRequirements : []),
-    ...(Array.isArray(assessment?.stateRequirements) ? assessment.stateRequirements : []),
-  ];
-  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  all.sort((a: any, b: any) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
-  return all[index] ?? null;
-}
-
-function buildNonViewerFollowupEmailHtml(args: {
-  companyName: string;
-  assessment: any;
-  publicUrl: string;
-  week: 1 | 2;
-}): string {
-  const { companyName, assessment, publicUrl, week } = args;
-  const obligation = pickFollowupObligation(assessment, week - 1);
-  const totalObligations =
-    (Array.isArray(assessment?.federalRequirements) ? assessment.federalRequirements.length : 0) +
-    (Array.isArray(assessment?.stateRequirements) ? assessment.stateRequirements.length : 0);
-  const funFact = getRandomUlyssesFunFact();
-
-  const introText = week === 1
-    ? `Your compliance consultation for <strong>${companyName}</strong> has been ready for a week. I will bring one item from it to you instead of waiting for you to click through.`
-    : `Your compliance consultation for <strong>${companyName}</strong> has been sitting for two weeks. One more item before I let it go.`;
-
-  const obligationHtml = obligation
-    ? `
-      <div style="padding:20px;border-radius:16px;background:#f6f8fb;border:1px solid rgba(5,77,138,0.12);margin-bottom:24px;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6470;margin-bottom:6px;">
-          ${obligation.requirementLevel === "required" ? "Required" : "Conditional"} obligation
-        </div>
-        <h3 style="margin:0 0 8px;font-size:18px;color:#054d8a;">${obligation.title}</h3>
-        <p style="margin:0 0 10px;line-height:1.6;color:#4b5563;">${obligation.appliesBecause}</p>
-        ${obligation.details && obligation.details[0] ? `<p style="margin:0;line-height:1.6;"><strong>What this means:</strong> ${obligation.details[0]}</p>` : ""}
-      </div>
-    `
-    : "";
-
-  const remainingCount = Math.max(0, totalObligations - week);
-  const remainingText = remainingCount > 0
-    ? `There ${remainingCount === 1 ? "is" : "are"} ${remainingCount} more obligation${remainingCount === 1 ? "" : "s"} in your full report, each with the specific regulation and what it requires from you.`
-    : `Your full report has the complete picture of what applies to your business.`;
-
-  return `
-    <div style="font-family:Arial,sans-serif;background:#f6f8fb;margin:0;padding:32px 16px;color:#1b1b1b;">
-      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
-        <div style="background:linear-gradient(135deg,#054d8a 0%,#04355f 100%);padding:24px 32px;text-align:center;">
-          <img src="https://compliancechimp.com/assets/complianceChimpLogoLight.png" alt="Compliance Chimp" style="height:40px;" />
-        </div>
-        <div style="padding:32px;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
-            <tr>
-              <td style="width:140px;vertical-align:top;padding-right:20px;">
-                <img src="https://compliancechimp.com/assets/chimp.png" alt="Ulysses" style="width:140px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:top;">
-                <h2 style="margin:0 0 8px;font-size:22px;color:#054d8a;">Something from your report worth knowing</h2>
-                <p style="margin:0;line-height:1.7;">${introText}</p>
-              </td>
-            </tr>
-          </table>
-          ${obligationHtml}
-          <p style="margin:0 0 24px;line-height:1.7;color:#4b5563;">${remainingText}</p>
-          <div style="text-align:center;margin-bottom:28px;">
-            <a href="${publicUrl}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:#ff9100;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;">Open My Consultation</a>
-          </div>
-          <div style="padding-top:20px;border-top:1px solid rgba(5,77,138,0.12);">
-            <p style="margin:0;line-height:1.7;color:#4b5563;">
-              Full consultation link: <a href="${publicUrl}" style="color:#054d8a;">${publicUrl}</a>
-            </p>
-          </div>
-          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;border-radius:14px;background:rgba(5,77,138,0.04);">
-            <tr>
-              <td style="width:80px;vertical-align:middle;padding:16px 0 16px 16px;">
-                <img src="https://compliancechimp.com/assets/chimpDesk.png" alt="Ulysses" style="width:72px;height:auto;display:block;" />
-              </td>
-              <td style="vertical-align:middle;padding:16px 20px;">
-                <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:#054d8a;">Fun fact about me</p>
-                <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;font-style:italic;">${funFact}</p>
-              </td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function buildNonViewerFollowupEmailText(args: {
-  companyName: string;
-  assessment: any;
-  publicUrl: string;
-  week: 1 | 2;
-}): string {
-  const { companyName, assessment, publicUrl, week } = args;
-  const obligation = pickFollowupObligation(assessment, week - 1);
-  const funFact = getRandomUlyssesFunFact();
-
-  const introText = week === 1
-    ? `Your compliance consultation for ${companyName} has been ready for a week. Here is one item from it worth knowing about.`
-    : `Your compliance consultation for ${companyName} has been sitting for two weeks. One more item before I let it go.`;
-
-  const lines: string[] = [
-    `Something from your report worth knowing`,
-    "",
-    introText,
-    "",
-  ];
-
-  if (obligation) {
-    lines.push(`${obligation.requirementLevel === "required" ? "Required" : "Conditional"} obligation: ${obligation.title}`);
-    lines.push(obligation.appliesBecause);
-    if (obligation.details && obligation.details[0]) {
-      lines.push(`What this means: ${obligation.details[0]}`);
-    }
-    lines.push("");
-  }
-
-  lines.push(`Open your consultation: ${publicUrl}`);
-  lines.push("");
-  lines.push(`Fun fact about me: ${funFact}`);
-
-  return lines.join("\n");
-}
+// Templates and helpers are in consultation-emails.ts (shared with sales-leads sequences).
 
 async function sendConsultationLeadEmail(args: {
   to: string;
@@ -2108,7 +1767,13 @@ export const submitConsultationLead = onRequest(
     }
 
     const classification = await classifyBusinessForOshaConsultation(input);
-    const report = buildConsultationAssessment(input, classification);
+    const [report, trainingRecommendations] = await Promise.all([
+      Promise.resolve(buildConsultationAssessment(input, classification)),
+      generateTrainingRecommendationsForConsultation(input, classification),
+    ]);
+    if (trainingRecommendations.length) {
+      report.trainingRecommendations = trainingRecommendations;
+    }
     const spanishReport = await translateAssessmentToSpanish(report);
     const saved = await saveConsultationArtifacts(input, classification, report, {
       sourceType: "api",
@@ -2210,6 +1875,14 @@ async function generateConsultationForSalesLead(
     };
   }
 
+  if (lead.consultationStatus === "generating") {
+    return { consultationLeadId: null, consultationUrl: null };
+  }
+
+  await db.doc(`sales-leads/${leadId}`).update({
+    consultationStatus: "generating",
+  });
+
   const input: ConsultationRequestInput = {
     companyName: lead.businessName || "",
     website: lead.website || "",
@@ -2219,7 +1892,13 @@ async function generateConsultationForSalesLead(
   };
 
   const classification = await classifyBusinessForOshaConsultation(input);
-  const report = buildConsultationAssessment(input, classification);
+  const [report, trainingRecommendations] = await Promise.all([
+    Promise.resolve(buildConsultationAssessment(input, classification)),
+    generateTrainingRecommendationsForConsultation(input, classification),
+  ]);
+  if (trainingRecommendations.length) {
+    report.trainingRecommendations = trainingRecommendations;
+  }
   const spanishReport = await translateAssessmentToSpanish(report);
   const saved = await saveConsultationArtifacts(input, classification, report, {
     sourceType: "api",
@@ -2264,6 +1943,7 @@ async function generateConsultationForSalesLead(
   await db.doc(`sales-leads/${leadId}`).update({
     consultationLeadId: saved.leadId || null,
     consultationUrl: saved.publicUrl || null,
+    consultationStatus: "complete",
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -2318,10 +1998,17 @@ export const onSalesLeadCreatedConsultation = onDocumentCreated(
   },
   async (event) => {
     const leadId = event.params.leadId;
+    const data = event.data?.data();
+    if (data?.consultationStatus !== "pending") return;
     try {
       await generateConsultationForSalesLead(leadId);
     } catch (err) {
       console.error(`Auto-consultation generation failed for sales lead ${leadId}:`, err);
+      try {
+        await admin.firestore().doc(`sales-leads/${leadId}`).update({
+          consultationStatus: "failed",
+        });
+      } catch {}
     }
   }
 );
@@ -2855,6 +2542,100 @@ function mergeConsultationClassification(
     assumptions: assumptions.length ? assumptions : fallback.assumptions,
     confidence: validConfidence as AiConsultationClassification["confidence"],
   };
+}
+
+const VALID_TRAINING_CATEGORIES = ["osha-required", "operational", "equipment", "health-wellness"];
+
+async function generateTrainingRecommendationsForConsultation(
+  input: ConsultationRequestInput,
+  classification: AiConsultationClassification
+): Promise<ConsultationTrainingRecommendation[]> {
+  const fallback: ConsultationTrainingRecommendation[] = [];
+  const websiteContext = input.website ? `\nWebsite: ${input.website}` : "";
+
+  try {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-fast",
+        messages: [
+          {
+            role: "system",
+            content: `You generate training recommendations for a business based on their industry, size, and operations. These trainings are part of a consultation report that sells the value of a training management platform.
+
+Return JSON only with this shape:
+{
+  "trainings": [
+    {
+      "title": "short training title",
+      "description": "1 sentence, what this training covers",
+      "impact": "1 punchy sentence about what goes wrong without this training, or what improves with it. Real consequences. Examples: 'Saves a trip to the ER when someone mishandles a 200-pound carcass.' or 'One untrained operator and a forklift can put three people in the hospital.' or 'The difference between a near-miss and a closed facility.'",
+      "cadence": "Upon Hire" | "Monthly" | "Quarterly" | "Semi-Annually" | "Annually",
+      "category": "osha-required" | "operational" | "equipment" | "health-wellness",
+      "isOshaRequired": true | false
+    }
+  ]
+}
+
+Rules:
+- Return 8-10 trainings total.
+- Mix categories. Include at least 2 OSHA-required trainings if applicable, but also include operational, equipment, and health/wellness trainings.
+- Go beyond OSHA. Think about what this specific business actually needs day-to-day: how to use their equipment, how to handle their materials, how to deal with the physical demands of their work.
+- description should be short and direct. One sentence. What the training covers.
+- impact is the most important field. It should hit hard. Real consequences, real outcomes. Not corporate fluff. Think: ER visits avoided, fines dodged, equipment saved, people going home in one piece. Be specific to this business.
+- Not every training needs a dramatic impact. Some can be practical: "Cuts equipment downtime by teaching people to actually read the manual." Mix the tone.
+- cadence should be realistic for the training type.
+- isOshaRequired should be true only for trainings that are actually mandated by OSHA standards.
+- Do not invent OSHA standards that do not exist.
+- Keep all text concise. No filler.`,
+          },
+          {
+            role: "user",
+            content: `Company name: ${input.companyName}
+Primary state: ${input.state}
+Employees: ${input.employeeCount}
+Business description: ${input.description}${websiteContext}
+Industry classification: ${classification.industryDescription}
+OSHA track: ${classification.oshaTrack}
+Hazard flags: ${classification.hazardFlags.join(", ") || "none identified"}`,
+          },
+        ],
+        temperature: 0.4,
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Grok API error for training recommendations:", await response.text());
+      return fallback;
+    }
+
+    const grokResponse: any = await response.json();
+    const aiMessage = grokResponse.choices?.[0]?.message?.content || "{}";
+    const parsed = parseJsonObject(aiMessage);
+    if (!parsed?.trainings || !Array.isArray(parsed.trainings)) {
+      return fallback;
+    }
+
+    return parsed.trainings
+      .filter((t: any) => typeof t?.title === "string" && t.title.trim())
+      .slice(0, 10)
+      .map((t: any): ConsultationTrainingRecommendation => ({
+        title: String(t.title).trim(),
+        description: typeof t.description === "string" ? t.description.trim() : "",
+        impact: typeof t.impact === "string" ? t.impact.trim() : "",
+        cadence: typeof t.cadence === "string" ? t.cadence.trim() : "Annually",
+        category: VALID_TRAINING_CATEGORIES.includes(t.category) ? t.category : "operational",
+        isOshaRequired: t.isOshaRequired === true,
+      }));
+  } catch (error: any) {
+    console.error("Error generating training recommendations:", error);
+    return fallback;
+  }
 }
 
 async function enforceOshaConsultationRateLimit(request: any): Promise<string> {
@@ -6176,13 +5957,8 @@ async function autoStartDueTrainings() {
         continue;
       }
       
-      // Skip teams with expired free trial (no subscription and past 14-day trial period)
-      if (!team.stripeSubscriptionId && team.createdAt) {
-        const trialEndDate = moment(team.createdAt.toDate ? team.createdAt.toDate() : team.createdAt).add(14, 'days');
-        if (today.isAfter(trialEndDate)) {
-          continue;
-        }
-      }
+      // Free for everyone: trials are disabled, so never skip teams for an
+      // "expired trial." (Restore the trial check here to re-enable gating.)
       
       // Get library items for this team
       const librarySnapshot = await db
@@ -7367,7 +7143,7 @@ Position features as solutions to their specific problems:
 **The 6-Minute Setup**: Answer a few questions about your business, and Compliancechimp builds your compliance program automatically. Most businesses are fully set up in under 6 minutes.
 
 ### Get Started
-Clear CTA: "Start your 14-day free trial at [compliancechimp.com/get-started](/get-started). $99/month after. No credit card required to start."
+Clear CTA: "Get started free at [compliancechimp.com/get-started](/get-started). Free to use, no credit card required."
 
 ## OUTPUT FORMAT
 Return a JSON object:
@@ -9166,8 +8942,7 @@ ABOUT COMPLIANCECHIMP (use these facts accurately, pick what fits):
 - Auto-generated inspection checklists
 - OSHA-ready documentation with timestamps
 - 6-minute setup time
-- $99/month pricing
-- 14-day free trial, no credit card required
+- Free to use, no credit card required
 - 200+ contractors already use the platform
 
 CREATIVE DIRECTION:

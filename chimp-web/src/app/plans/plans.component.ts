@@ -17,20 +17,20 @@ export class PlansComponent implements OnInit, OnDestroy {
   // FAQ data for structured data
   private pricingFaqs = [
     {
-      question: "What's included in the $99/month?",
+      question: "What's included?",
       answer: "Everything! Unlimited team members, all features, no hidden fees. The same tools whether you have 5 employees or 50."
     },
     {
-      question: "Can I cancel anytime?",
-      answer: "Absolutely. No long-term contracts. Cancel your subscription anytime from your account settings."
+      question: "Is there a catch?",
+      answer: "No. No long-term contracts and nothing to cancel. Use it as long as you like."
     },
     {
-      question: "Is there a free trial?",
-      answer: "Yes! You get 14 days completely free with no credit card required. Try all features with no commitment—billing starts after 14 days."
+      question: "Is it really free?",
+      answer: "Yes! Every feature, no restrictions, no credit card required. Just create an account and start right away."
     },
     {
-      question: "How does billing work?",
-      answer: "You'll be billed monthly via credit card through Stripe. Secure, simple, and transparent."
+      question: "Do I need to enter payment info?",
+      answer: "Never. There's no card required to sign up and no billing to worry about."
     }
   ];
 
@@ -86,7 +86,7 @@ export class PlansComponent implements OnInit, OnDestroy {
         "@type": "Offer",
         "url": "https://compliancechimp.com/plans",
         "priceCurrency": "USD",
-        "price": "99.00",
+        "price": "0.00",
         "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
         "availability": "https://schema.org/InStock",
         "seller": {

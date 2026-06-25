@@ -65,6 +65,16 @@
         }
       </div>
 
+      @if (lead.linkClickCount) {
+        <div class="engagement-signal">
+          <mat-icon class="inline-icon">ads_click</mat-icon>
+          <span>Clicked {{ lead.linkClickCount }} link{{ lead.linkClickCount === 1 ? '' : 's' }}</span>
+          @if (lead.lastLinkClickAt) {
+            <span class="engagement-time">Last {{ formatRelativeTime(lead.lastLinkClickAt) }}</span>
+          }
+        </div>
+      }
+
       <div class="meta-strip">
         @if (lead.employeeEstimate) {
           <div class="meta-item">
@@ -111,6 +121,11 @@
             <mat-icon>assignment_turned_in</mat-icon>
             View consultation report
           </a>
+        } @else if (lead.consultationStatus === 'pending' || lead.consultationStatus === 'generating') {
+          <span class="consultation-btn generating">
+            <mat-spinner diameter="16"></mat-spinner>
+            Generating report automatically...
+          </span>
         } @else if (lead.email) {
           <button class="consultation-btn generate" (click)="generateConsultation(lead)"
             [disabled]="generatingConsultationId() === lead.id">
@@ -145,19 +160,14 @@
       @if (lead.verificationSignals) {
         @let vs = lead.verificationSignals;
         <div class="verification-signals">
-          @if (vs.googlePlaceId) {
+          @if (lead.googleMapsUrl || vs.googlePlaceId || vs.hasGoogleListing) {
             <a class="signal-chip google"
-              [href]="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lead.businessName + (lead.city ? ' ' + lead.city : '') + (lead.state ? ' ' + lead.state : '')) + '&query_place_id=' + vs.googlePlaceId"
+              [href]="lead.googleMapsUrl || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lead.businessName + (lead.city ? ' ' + lead.city : '') + (lead.state ? ' ' + lead.state : '')))"
               target="_blank" rel="noopener">
               <mat-icon class="inline-icon">place</mat-icon>
               View on Google Maps
               <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
             </a>
-          } @else if (vs.hasGoogleListing) {
-            <span class="signal-chip google">
-              <mat-icon class="inline-icon">place</mat-icon>
-              Google listing found
-            </span>
           }
           @if (vs.hasReviews) {
             <span class="signal-chip" [class.positive]="vs.recentReviews" [class.neutral]="!vs.recentReviews">
@@ -244,6 +254,64 @@
       <!-- Main column: Flow + AI -->
       <div class="detail-main">
 
+        <!-- Sequence Status Card -->
+        @if (lead.sequenceTrackId && sequenceTrack(); as track) {
+          <div class="sequence-card" [class.paused]="lead.sequenceStatus === 'paused'" [class.completed]="lead.sequenceStatus === 'completed'">
+            <div class="sequence-accent"></div>
+            <div class="sequence-body">
+              <div class="sequence-top">
+                <div class="sequence-info">
+                  <mat-icon class="sequence-icon">linear_scale</mat-icon>
+                  <span class="sequence-track-name">{{ track.name }}</span>
+                  <span class="sequence-status-pill" [class]="lead.sequenceStatus || 'active'">
+                    {{ lead.sequenceStatus === 'completed' ? 'Completed' : lead.sequenceStatus === 'paused' ? 'Paused' : 'Active' }}
+                  </span>
+                </div>
+                <div class="sequence-actions">
+                  @if (lead.sequenceStatus === 'active') {
+                    <button mat-stroked-button class="sequence-action-btn" (click)="pauseSequence()">
+                      <mat-icon>pause</mat-icon> Pause
+                    </button>
+                  } @else if (lead.sequenceStatus === 'paused') {
+                    <button mat-stroked-button class="sequence-action-btn" (click)="resumeSequence()">
+                      <mat-icon>play_arrow</mat-icon> Resume
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="sequence-progress-bar">
+                <div class="sequence-progress-fill" [style.width.%]="getSequenceProgress(lead)"></div>
+              </div>
+
+              <div class="sequence-steps">
+                @for (step of track.steps; track $index) {
+                  <div class="sequence-step-indicator"
+                    [class.completed]="$index < (lead.sequenceCurrentStep ?? 0)"
+                    [class.current]="$index === (lead.sequenceCurrentStep ?? 0) && lead.sequenceStatus !== 'completed'"
+                    [class.upcoming]="$index > (lead.sequenceCurrentStep ?? 0)">
+                    <div class="sequence-step-dot">
+                      @if ($index < (lead.sequenceCurrentStep ?? 0)) {
+                        <mat-icon>check</mat-icon>
+                      } @else {
+                        <mat-icon>{{ step.type === 'email' ? 'email' : 'phone' }}</mat-icon>
+                      }
+                    </div>
+                    <span class="sequence-step-label">{{ step.type === 'email' ? 'Email' : 'Call' }}</span>
+                    @if (step.delayDays > 0) {
+                      <span class="sequence-step-delay">+{{ step.delayDays }}d</span>
+                    }
+                  </div>
+                }
+              </div>
+
+              @if (lead.sequenceStatus === 'active' && lead.sequenceNextActionAt) {
+                <p class="sequence-next">Next step {{ formatSequenceNextAction(lead) }}</p>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Flow / Next Action Card -->
         @if (lead.flow?.recommendedAction && lead.flow.recommendedAction !== 'close') {
           @let flowGroup = getLeadFlowGroup(lead);
@@ -303,6 +371,93 @@
                   }
                 </button>
               </div>
+            </div>
+          </div>
+        }
+
+        @if (shouldShowPhoneScripts(lead)) {
+          <div class="phone-script-card">
+            <div class="phone-script-accent"></div>
+            <div class="phone-script-body">
+              <div class="phone-script-top">
+                <div class="phone-script-title-row">
+                  <mat-icon class="phone-script-icon">call</mat-icon>
+                  <h3>Phone scripts</h3>
+                </div>
+                <button mat-stroked-button class="phone-script-refresh" type="button"
+                  (click)="loadPhoneScripts(true)"
+                  [disabled]="phoneScriptsLoading()">
+                  @if (phoneScriptsLoading()) {
+                    <mat-spinner diameter="16"></mat-spinner>
+                  } @else {
+                    <mat-icon>refresh</mat-icon>
+                  }
+                  Regenerate
+                </button>
+              </div>
+              <p class="phone-script-hint">
+                Suggestions for this lead, plus scripts from your library. Afterward, describe the call in the box below.
+              </p>
+
+              @if (phoneScriptsLoading() && phoneSuggestions().length === 0) {
+                <div class="phone-script-loading">
+                  <mat-spinner diameter="24"></mat-spinner>
+                  <span>Generating scripts...</span>
+                </div>
+              } @else {
+                <div class="phone-script-suggestions">
+                  @for (s of phoneSuggestions(); track $index) {
+                    <details class="phone-script-block" [open]="$index === 0">
+                      <summary>{{ s.title }}</summary>
+                      <pre class="phone-script-text">{{ s.body }}</pre>
+                    </details>
+                  }
+                </div>
+
+                @if (phoneLibrary().length > 0) {
+                  <div class="phone-script-library">
+                    <span class="phone-script-library-label">Library</span>
+                    @for (lib of phoneLibrary(); track lib.id) {
+                      <details class="phone-script-block library">
+                        <summary>{{ lib.title }}</summary>
+                        <pre class="phone-script-text">{{ lib.body }}</pre>
+                      </details>
+                    }
+                  </div>
+                }
+
+                <div class="phone-call-log">
+                  <div class="phone-call-log-header">
+                    <mat-icon class="inline-icon">edit_note</mat-icon>
+                    <span>Log this call</span>
+                  </div>
+                  <p class="phone-call-log-prompt">
+                    Describe the call: how it went, what you said, what went well, what did not go well, and where things stand.
+                  </p>
+                  <div class="ai-input-row">
+                    <textarea class="ai-input"
+                      [(ngModel)]="callFeedbackText"
+                      placeholder="Same idea as What's new?, but for this call..."
+                      (keydown)="onCallLogKeydown($event)"
+                      [disabled]="callLogSubmitting()"
+                      cdkTextareaAutosize
+                      cdkAutosizeMinRows="1"
+                      cdkAutosizeMaxRows="8"></textarea>
+                    <button mat-icon-button class="ai-send"
+                      type="button"
+                      (click)="submitCallLog()"
+                      [disabled]="!callFeedbackText.trim() || callLogSubmitting()">
+                      <mat-icon>send</mat-icon>
+                    </button>
+                  </div>
+                  @if (callLogSubmitting()) {
+                    <div class="ai-loading">
+                      <mat-spinner diameter="14"></mat-spinner>
+                      <span>Saving...</span>
+                    </div>
+                  }
+                </div>
+              }
             </div>
           </div>
         }
@@ -625,6 +780,13 @@
 
           <div class="activity-timeline">
             @for (activity of activities(); track activity.id) {
+              @if (activity.type === 'flow_analyzed' || activity.type === 'flow_snoozed' || activity.type === 'flow_dismissed' || activity.type === 'link_clicked') {
+                <div class="activity-compact">
+                  <mat-icon [class]="activity.type">{{ getActivityIcon(activity.type) }}</mat-icon>
+                  <span class="activity-compact-text">{{ activity.content }}</span>
+                  <span class="activity-compact-time">{{ formatDate(activity.createdAt) }}</span>
+                </div>
+              } @else {
               <div class="activity-item" [class]="activity.type">
                 <div class="activity-icon-col">
                   <mat-icon [class]="activity.type">{{ getActivityIcon(activity.type) }}</mat-icon>
@@ -654,7 +816,17 @@
                       }
                       <div class="email-body-preview inbound" [innerHTML]="sanitizeHtml(activity.emailHtml || activity.content)"></div>
                     } @else if (activity.type === 'call') {
-                      <p>{{ activity.content }}</p>
+                      @if (activity.callOutcome) {
+                        <p class="call-outcome-line">
+                          <strong>Outcome:</strong> {{ formatLegacyCallOutcome(activity.callOutcome) }}
+                        </p>
+                      }
+                      @if (activity.content?.trim()) {
+                        <p class="call-notes-body">{{ activity.content }}</p>
+                      }
+                      @if (activity.scriptDeviationNotes) {
+                        <p class="call-deviation"><strong>vs script:</strong> {{ activity.scriptDeviationNotes }}</p>
+                      }
                       @if (activity.callDuration) {
                         <p class="call-meta">Duration: {{ activity.callDuration }}s</p>
                       }
@@ -677,6 +849,7 @@
                   </div>
                 </div>
               </div>
+              }
             } @empty {
               <p class="no-activity">No activity recorded yet.</p>
             }

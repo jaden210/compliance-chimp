@@ -20,6 +20,15 @@
             <span class="inbound-tab-badge">{{ unviewedInboundCount() }}</span>
           }
         </button>
+        <button mat-button [class.active]="view() === 'sequences'" (click)="switchView('sequences')">
+          <mat-icon>linear_scale</mat-icon> Sequences
+        </button>
+        <button mat-button [class.active]="view() === 'inbox'" (click)="switchView('inbox')">
+          <mat-icon>inbox</mat-icon> Inbox
+          @if (inboxStats().unread > 0) {
+            <span class="inbound-tab-badge">{{ inboxStats().unread }}</span>
+          }
+        </button>
       </div>
     </div>
     <div class="top-bar-right">
@@ -57,8 +66,8 @@
   <!-- ══════════════════════════════════════════════════════════════════════ -->
   @if (view() === 'leads') {
     <!-- Summary Bar -->
-    <div class="summary-bar" [class.has-filter]="statusFilter() !== 'all' || trialFilter()">
-      <div class="stat-chip total" [class.active]="statusFilter() === 'all' && !trialFilter()" (click)="clearStatFilters()">
+    <div class="summary-bar" [class.has-filter]="statusFilter() !== 'all' || trialFilter() || ownerFilter() !== 'all'">
+      <div class="stat-chip total" [class.active]="statusFilter() === 'all' && !trialFilter() && ownerFilter() === 'all'" (click)="clearStatFilters()">
         <span class="stat-value">{{ pipelineStats().total }}</span>
         <span class="stat-label">Total</span>
       </div>
@@ -81,48 +90,63 @@
 
     <!-- Filters -->
     <div class="filters">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-icon matPrefix>search</mat-icon>
-        <input matInput placeholder="Search leads..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)">
-      </mat-form-field>
+      <div class="filters-row filters-row-main">
+        <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput placeholder="Search leads..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)">
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
-          <mat-option value="all">All Statuses</mat-option>
-          @for (s of statusOptions; track s.value) {
-            <mat-option [value]="s.value">{{ s.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+        <mat-form-field appearance="outline" class="filter-field filter-compact" subscriptSizing="dynamic">
+          <mat-select placeholder="Status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            <mat-option value="all">All Statuses</mat-option>
+            @for (s of statusOptions; track s.value) {
+              <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-select [ngModel]="sourceFilter()" (ngModelChange)="sourceFilter.set($event)">
-          <mat-option value="all">All Sources</mat-option>
-          <mat-option value="research">Research</mat-option>
-          <mat-option value="manual">Manual</mat-option>
-          <mat-option value="referral">Referral</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <mat-form-field appearance="outline" class="filter-field filter-compact" subscriptSizing="dynamic">
+          <mat-select placeholder="Source" [ngModel]="sourceFilter()" (ngModelChange)="sourceFilter.set($event)">
+            <mat-option value="all">All Sources</mat-option>
+            <mat-option value="research">Research</mat-option>
+            <mat-option value="manual">Manual</mat-option>
+            <mat-option value="referral">Referral</mat-option>
+          </mat-select>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="filter-field">
-        <mat-select [ngModel]="sortBy()" (ngModelChange)="sortBy.set($event)">
-          <mat-option value="newest">Newest First</mat-option>
-          <mat-option value="unviewed_inbound">
-            Unread Replies{{ unviewedInboundCount() > 0 ? ' (' + unviewedInboundCount() + ')' : '' }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+        <mat-form-field appearance="outline" class="filter-field filter-compact" subscriptSizing="dynamic">
+          <mat-select placeholder="Sort" [ngModel]="sortBy()" (ngModelChange)="sortBy.set($event)">
+            <mat-option value="newest">Newest First</mat-option>
+            <mat-option value="unviewed_inbound">
+              Unread Replies{{ unviewedInboundCountForScope() > 0 ? ' (' + unviewedInboundCountForScope() + ')' : '' }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
 
-      <button mat-stroked-button class="collapse-all-btn" (click)="collapseAllLeads()">
-        <mat-icon>unfold_less</mat-icon> Collapse Inactive
-      </button>
-      <button mat-stroked-button class="collapse-all-btn" (click)="expandAllLeads()">
-        <mat-icon>unfold_more</mat-icon> Expand All
-      </button>
-      <button mat-stroked-button class="collapse-all-btn" (click)="showArchived.set(!showArchived())">
-        <mat-icon>{{ showArchived() ? 'visibility_off' : 'visibility' }}</mat-icon>
-        {{ showArchived() ? 'Hide Archived' : 'Show Archived' }}
-      </button>
+      <div class="filters-row filters-row-owner">
+        <mat-form-field appearance="outline" class="filter-field owner-filter-field" subscriptSizing="dynamic">
+          <mat-select placeholder="Owner" [value]="ownerFilter()" (selectionChange)="ownerFilter.set($event.value)">
+            <mat-option value="all">All owners</mat-option>
+            @for (opt of leadOwnerFilterOptions(); track opt.id) {
+              <mat-option [value]="opt.id">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <div class="filters-actions">
+          <button mat-stroked-button class="collapse-all-btn" (click)="collapseAllLeads()">
+            <mat-icon>unfold_less</mat-icon> Collapse Inactive
+          </button>
+          <button mat-stroked-button class="collapse-all-btn" (click)="expandAllLeads()">
+            <mat-icon>unfold_more</mat-icon> Expand All
+          </button>
+          <button mat-stroked-button class="collapse-all-btn" (click)="showArchived.set(!showArchived())">
+            <mat-icon>{{ showArchived() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            {{ showArchived() ? 'Hide Archived' : 'Show Archived' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Lead List -->
@@ -330,9 +354,14 @@
     <div class="research-layout">
       <!-- Session sidebar -->
       <aside class="session-sidebar">
-        <button mat-flat-button color="primary" class="new-session-btn" (click)="startNewSession()">
-          <mat-icon>add</mat-icon> New Session
-        </button>
+        <div class="sidebar-new-btns">
+          <button mat-flat-button color="primary" class="new-session-btn" (click)="startNewSession()">
+            <mat-icon>add</mat-icon> New Session
+          </button>
+          <button mat-stroked-button class="new-agent-session-btn" (click)="startNewAgentSession()">
+            <img src="/assets/chimpTop.png" class="ulysses-btn-icon" alt="" /> Ulysses
+          </button>
+        </div>
 
         <div class="session-list">
           @for (session of filteredSessions(); track session.id) {
@@ -340,7 +369,11 @@
               [class.active]="activeSessionId() === session.id"
               [class.archived]="session.archived"
               (click)="loadSession(session)">
-              <mat-icon>{{ session.archived ? 'archive' : 'chat' }}</mat-icon>
+              @if (session.agentRun && !session.archived) {
+                <img src="/assets/chimpTop.png" class="ulysses-session-icon" alt="" />
+              } @else {
+                <mat-icon>{{ session.archived ? 'archive' : 'chat' }}</mat-icon>
+              }
               <div class="session-meta">
                 @if (editingSessionId() === session.id) {
                   <input class="session-title-input"
@@ -356,9 +389,12 @@
                     (dblclick)="startEditingSession(session, $event)"
                     [matTooltip]="'Double-click to rename'">
                     {{ session.title || session.messages?.[0]?.content?.substring(0, 50) || 'Untitled session' }}
+                    @if (session.agentRun) {
+                      <span class="session-agent-badge">ULYSSES</span>
+                    }
                   </span>
                 }
-                <span class="session-date">{{ formatDate(session.createdAt) }}</span>
+                <span class="session-date">{{ formatDate(session.updatedAt) }}</span>
               </div>
               @if (activeSessionId() === session.id && editingSessionId() !== session.id) {
                 <button mat-icon-button class="session-edit-btn"
@@ -391,6 +427,227 @@
       <!-- Chat area -->
       <div class="chat-area">
         <div class="chat-messages" #chatMessages>
+          @if (activeSession()?.agentRun) {
+            <div class="auto-research-panel" [class.active]="activeSession()?.autoResearch?.enabled">
+              <div class="auto-research-toggle-row">
+                <div class="auto-research-header-left">
+                  <img src="/assets/chimpTop.png" class="ulysses-panel-icon" alt="" />
+                  <strong>Ulysses</strong>
+                  @if (activeSession()?.autoResearch?.enabled) {
+                    <span class="agent-status-badge active">Running</span>
+                  } @else if (activeSession()?.autoResearch?.disabledReason) {
+                    <span class="agent-status-badge stopped">Stopped</span>
+                  } @else {
+                    <span class="agent-status-badge setup">Setup</span>
+                  }
+                </div>
+
+                @if (activeSession()?.autoResearch?.enabled) {
+                  <div class="auto-research-status">
+                    <span class="auto-research-progress">
+                      <mat-icon class="inline-icon">trending_up</mat-icon>
+                      {{ activeSession()?.autoResearch?.leadsAddedToday || 0 }} / {{ activeSession()?.autoResearch?.leadsPerDay || 10 }} today
+                    </span>
+                    <span class="auto-research-progress monthly">
+                      <mat-icon class="inline-icon">calendar_month</mat-icon>
+                      {{ activeSession()?.autoResearch?.leadsAddedThisMonth || 0 }} / 2,000 this month
+                    </span>
+                    <button mat-icon-button class="auto-research-log-toggle"
+                      (click)="showAutoResearchLog.set(!showAutoResearchLog())"
+                      [matTooltip]="showAutoResearchLog() ? 'Hide activity' : 'Show activity'">
+                      <mat-icon>{{ showAutoResearchLog() ? 'expand_less' : 'history' }}</mat-icon>
+                    </button>
+                    <button mat-stroked-button class="stop-agent-btn"
+                      (click)="stopSessionAutoResearch()"
+                      [disabled]="autoResearchSaving()">
+                      <mat-icon>stop</mat-icon> Stop
+                    </button>
+                  </div>
+                }
+              </div>
+
+              @if (activeSession()?.autoResearch?.disabledReason) {
+                <div class="auto-research-warning">
+                  <mat-icon class="inline-icon">warning</mat-icon>
+                  {{ activeSession()?.autoResearch?.disabledReason }}
+                  <span class="auto-research-warning-hint">Reactivate to reset and resume.</span>
+                </div>
+              }
+
+              @if (activeSession()?.autoResearch?.monthlyCapReached) {
+                <div class="auto-research-warning monthly-cap">
+                  <mat-icon class="inline-icon">block</mat-icon>
+                  Monthly cap reached (2,000 leads). Resets next month.
+                </div>
+              }
+
+              <div class="auto-research-options">
+                <mat-form-field appearance="outline" class="auto-research-field">
+                  <mat-label>Leads per day</mat-label>
+                  <mat-select
+                    [value]="activeSession()?.autoResearch?.leadsPerDay || 10"
+                    (selectionChange)="setSessionLeadsPerDay($event.value)">
+                    @for (opt of leadsPerDayOptions; track opt) {
+                      <mat-option [value]="opt">{{ opt }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="auto-research-field">
+                  <mat-label>When lead is found</mat-label>
+                  <mat-select
+                    [value]="activeSession()?.autoResearch?.addMode || 'agent'"
+                    (selectionChange)="setSessionAddMode($event.value)">
+                    @for (mode of addModeOptions; track mode.value) {
+                      <mat-option [value]="mode.value">
+                        <mat-icon class="inline-icon">{{ mode.icon }}</mat-icon>
+                        {{ mode.label }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                @if (activeSession()?.autoResearch?.addMode === 'sequence') {
+                  <mat-form-field appearance="outline" class="auto-research-field">
+                    <mat-label>Sequence</mat-label>
+                    <mat-select
+                      [value]="activeSession()?.autoResearch?.sequenceTrackId || ''"
+                      (selectionChange)="setSessionSequence($event.value)">
+                      @for (track of sequenceTracks(); track track.id) {
+                        <mat-option [value]="track.id">{{ track.name }}</mat-option>
+                      }
+                      @if (sequenceTracks().length === 0) {
+                        <mat-option disabled value="">No sequences yet</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+
+                <mat-form-field appearance="outline" class="auto-research-field">
+                  <mat-label>Company size</mat-label>
+                  <mat-select
+                    [value]="activeSession()?.autoResearch?.targetCompanySize || ''"
+                    (selectionChange)="setSessionCompanySize($event.value)">
+                    @for (opt of companySizeOptions; track opt.value) {
+                      <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="auto-research-targeting">
+                <div class="targeting-section">
+                  <span class="targeting-label">
+                    <mat-icon class="inline-icon">business</mat-icon>
+                    Industries
+                    @if ((activeSession()?.autoResearch?.targetIndustries || []).length === 0) {
+                      <span class="targeting-hint">(all)</span>
+                    }
+                  </span>
+                  <div class="targeting-chips">
+                    @for (ind of industryPresets; track ind) {
+                      <button class="targeting-chip"
+                        [class.selected]="(activeSession()?.autoResearch?.targetIndustries || []).includes(ind)"
+                        (click)="toggleSessionIndustry(ind)">
+                        {{ ind }}
+                      </button>
+                    }
+                    @for (ind of (activeSession()?.autoResearch?.targetIndustries || []); track ind) {
+                      @if (!industryPresets.includes(ind)) {
+                        <button class="targeting-chip selected custom"
+                          (click)="toggleSessionIndustry(ind)">
+                          {{ ind }}
+                          <mat-icon class="chip-remove">close</mat-icon>
+                        </button>
+                      }
+                    }
+                    <div class="targeting-add-custom">
+                      <input class="targeting-custom-input"
+                        [(ngModel)]="targetIndustryInput"
+                        placeholder="Custom..."
+                        (keydown.enter)="addSessionCustomIndustry()" />
+                      @if (targetIndustryInput.trim()) {
+                        <button mat-icon-button class="targeting-add-btn" (click)="addSessionCustomIndustry()">
+                          <mat-icon>add</mat-icon>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div class="targeting-section">
+                  <span class="targeting-label">
+                    <mat-icon class="inline-icon">location_on</mat-icon>
+                    States
+                    @if ((activeSession()?.autoResearch?.targetStates || []).length === 0) {
+                      <span class="targeting-hint">(all US)</span>
+                    }
+                  </span>
+                  <div class="targeting-chips">
+                    @for (st of statePresets; track st) {
+                      <button class="targeting-chip state-chip"
+                        [class.selected]="(activeSession()?.autoResearch?.targetStates || []).includes(st)"
+                        (click)="toggleSessionState(st)">
+                        {{ st }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              @if (!activeSession()?.autoResearch?.enabled) {
+                <div class="auto-research-activate-row">
+                  <button mat-flat-button color="primary" class="activate-btn"
+                    (click)="activateSessionAutoResearch()"
+                    [disabled]="autoResearchSaving()">
+                    @if (autoResearchSaving()) {
+                      <mat-spinner diameter="18"></mat-spinner>
+                    } @else {
+                      <mat-icon>rocket_launch</mat-icon>
+                    }
+                    Activate
+                  </button>
+                  <span class="activate-hint">Runs every 2 hours. You can stop it anytime.</span>
+                </div>
+              }
+
+              @if (activeSession()?.agentLearnings) {
+                <div class="agent-learnings-box">
+                  <mat-icon class="inline-icon">psychology</mat-icon>
+                  <span>{{ activeSession()?.agentLearnings }}</span>
+                </div>
+              }
+
+              <!-- Activity Log -->
+              @if (showAutoResearchLog() && autoResearchLog().length > 0) {
+                <div class="auto-research-activity">
+                  <div class="activity-header">
+                    <mat-icon class="inline-icon">history</mat-icon>
+                    <span>Recent runs</span>
+                  </div>
+                  @for (entry of autoResearchLog(); track entry.id) {
+                    <div class="activity-entry" [class.zero-added]="entry.leadsAdded === 0">
+                      <span class="activity-time">{{ formatLogTime(entry.createdAt) }}</span>
+                      <span class="activity-detail">
+                        Found {{ entry.leadsFound }}, qualified {{ entry.leadsQualified }}, added
+                        <strong [class.added-zero]="entry.leadsAdded === 0" [class.added-some]="entry.leadsAdded > 0">{{ entry.leadsAdded }}</strong>
+                      </span>
+                      @if (entry.agentActions && entry.agentActions.length > 0) {
+                        <div class="activity-agent-actions">
+                          @for (action of entry.agentActions; track action.leadId) {
+                            <span class="activity-agent-action">
+                              <mat-icon class="inline-icon">{{ getAgentActionIcon(action.action) }}</mat-icon>
+                              {{ action.businessName }}: {{ getAgentActionLabel(action.action) }}
+                            </span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
           @if (chatHistory().length === 0) {
             <div class="chat-welcome">
               <mat-icon class="welcome-icon">travel_explore</mat-icon>
@@ -428,9 +685,16 @@
                     <div class="found-leads">
                       <div class="found-leads-toolbar">
                         <span class="found-leads-count">{{ msg.leadsFound.length }} lead{{ msg.leadsFound.length === 1 ? '' : 's' }} found</span>
-                        <button mat-stroked-button class="collapse-stale-btn" (click)="collapseStaleResearchLeads()">
-                          <mat-icon>unfold_less</mat-icon> Collapse stale
-                        </button>
+                        <div class="found-leads-toolbar-actions">
+                          <button mat-stroked-button class="find-more-btn"
+                            (click)="findMoreLikeThese(msg)"
+                            [disabled]="researching()">
+                            <mat-icon>add_circle</mat-icon> Find more like these
+                          </button>
+                          <button mat-stroked-button class="collapse-stale-btn" (click)="collapseStaleResearchLeads()">
+                            <mat-icon>unfold_less</mat-icon> Collapse stale
+                          </button>
+                        </div>
                       </div>
                       @for (lead of msg.leadsFound; track $index) {
                         @let leadIdx = $index;
@@ -440,7 +704,8 @@
                         <div class="found-lead-card"
                           [class.in-pipeline]="!!pipelineLead && !progressed"
                           [class.progressed]="progressed"
-                          [class.collapsed]="rCollapsed">
+                          [class.collapsed]="rCollapsed"
+                          [class.low-confidence]="lead.confidence != null && lead.confidence < 40">
 
                           <div class="found-lead-header" (click)="rCollapsed ? toggleResearchLeadCollapse(msgIdx, leadIdx, $event) : null">
                             <button mat-icon-button class="found-lead-collapse-toggle"
@@ -461,6 +726,13 @@
                               @if (pipelineLead) {
                                 <span class="pipeline-status-chip" [style.background]="getStatusColor(pipelineLead.status)">
                                   {{ getStatusLabel(pipelineLead.status) }}
+                                </span>
+                              }
+                              @let agentAction = getAgentActionForLead(lead);
+                              @if (agentAction) {
+                                <span class="agent-action-chip" [matTooltip]="agentAction.reason">
+                                  <mat-icon class="inline-icon">{{ getAgentActionIcon(agentAction.action) }}</mat-icon>
+                                  {{ getAgentActionLabel(agentAction.action) }}
                                 </span>
                               }
                               @if (rCollapsed && lead.contactName) {
@@ -518,21 +790,12 @@
                               </div>
                               @if (lead.verificationSignals) {
                                 <div class="verification-signals">
-                                  @if (lead.verificationSignals.googlePlaceId) {
+                                  @if (lead.googleMapsUrl || lead.verificationSignals.googlePlaceId || lead.verificationSignals.hasGoogleListing) {
                                     <a class="signal-chip signal-yes signal-link"
-                                      [href]="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || '')) + '&query_place_id=' + lead.verificationSignals.googlePlaceId"
+                                      [href]="lead.googleMapsUrl || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || '')))"
                                       target="_blank" rel="noopener"
                                       (click)="$event.stopPropagation()"
                                       matTooltip="View on Google Maps">
-                                      <mat-icon class="inline-icon">check_circle</mat-icon> Google
-                                      <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
-                                    </a>
-                                  } @else if (lead.verificationSignals.hasGoogleListing) {
-                                    <a class="signal-chip signal-yes signal-link"
-                                      [href]="'https://www.google.com/maps/search/' + encodeURIComponent((lead.businessName || '') + ' ' + (lead.city || '') + ' ' + (lead.state || ''))"
-                                      target="_blank" rel="noopener"
-                                      (click)="$event.stopPropagation()"
-                                      matTooltip="Search on Google Maps">
                                       <mat-icon class="inline-icon">check_circle</mat-icon> Google
                                       <mat-icon class="inline-icon link-arrow">open_in_new</mat-icon>
                                     </a>
@@ -558,6 +821,35 @@
                                   <span class="signal-chip" [class.signal-yes]="lead.verificationSignals.hasPhone" [class.signal-no]="!lead.verificationSignals.hasPhone">
                                     <mat-icon class="inline-icon">{{ lead.verificationSignals.hasPhone ? 'check_circle' : 'cancel' }}</mat-icon> Phone
                                   </span>
+                                  @if (lead.verificationSignals.websiteStatus) {
+                                    <span class="signal-chip"
+                                      [class.signal-yes]="lead.verificationSignals.websiteStatus === 'live'"
+                                      [class.signal-warn]="lead.verificationSignals.websiteStatus === 'redirect'"
+                                      [class.signal-no]="lead.verificationSignals.websiteStatus === 'dead'">
+                                      <mat-icon class="inline-icon">{{
+                                        lead.verificationSignals.websiteStatus === 'live' ? 'check_circle' :
+                                        lead.verificationSignals.websiteStatus === 'redirect' ? 'swap_horiz' : 'cancel'
+                                      }}</mat-icon>
+                                      {{ lead.verificationSignals.websiteStatus === 'live' ? 'Site Live' :
+                                         lead.verificationSignals.websiteStatus === 'redirect' ? 'Redirects' : 'Site Down' }}
+                                    </span>
+                                  }
+                                  @if (lead.verificationSignals.emailVerification) {
+                                    <span class="signal-chip"
+                                      [class.signal-yes]="lead.verificationSignals.emailVerification.status === 'valid' || lead.verificationSignals.emailVerification.status === 'deliverable'"
+                                      [class.signal-warn]="lead.verificationSignals.emailVerification.status === 'risky' || lead.verificationSignals.emailVerification.status === 'unknown'"
+                                      [class.signal-no]="lead.verificationSignals.emailVerification.status === 'invalid' || lead.verificationSignals.emailVerification.status === 'undeliverable'"
+                                      [matTooltip]="lead.verificationSignals.emailVerification.reason || ''">
+                                      <mat-icon class="inline-icon">{{
+                                        (lead.verificationSignals.emailVerification.status === 'valid' || lead.verificationSignals.emailVerification.status === 'deliverable') ? 'check_circle' :
+                                        (lead.verificationSignals.emailVerification.status === 'risky' || lead.verificationSignals.emailVerification.status === 'unknown') ? 'warning' : 'cancel'
+                                      }}</mat-icon>
+                                      {{
+                                        (lead.verificationSignals.emailVerification.status === 'valid' || lead.verificationSignals.emailVerification.status === 'deliverable') ? 'Email Valid' :
+                                        (lead.verificationSignals.emailVerification.status === 'risky' || lead.verificationSignals.emailVerification.status === 'unknown') ? 'Email Risky' : 'Bad Email'
+                                      }}
+                                    </span>
+                                  }
                                 </div>
                                 @if (lead.verificationSignals.lastActivityIndicator) {
                                   <span class="last-activity-indicator">
@@ -597,9 +889,30 @@
                                   <mat-icon>open_in_new</mat-icon> View Lead
                                 </button>
                               } @else {
-                                <button mat-flat-button color="primary" class="add-btn" (click)="addResearchLeadToPipeline(lead)" [disabled]="savingLead()">
+                                <button mat-flat-button color="primary" class="add-btn"
+                                  [matMenuTriggerFor]="addLeadMenu" [disabled]="savingLead()">
                                   <mat-icon>add</mat-icon> Add to Leads
+                                  <mat-icon class="add-menu-arrow">arrow_drop_down</mat-icon>
                                 </button>
+                                <mat-menu #addLeadMenu="matMenu">
+                                  <button mat-menu-item (click)="addResearchLeadToPipeline(lead, msgIdx, leadIdx)">
+                                    <mat-icon>person_add</mat-icon> Just Add to Leads
+                                  </button>
+                                  <button mat-menu-item (click)="addLeadAndSendReport(lead, msgIdx, leadIdx)" [disabled]="!lead.email">
+                                    <mat-icon>assignment</mat-icon> Add & Send Compliance Report
+                                  </button>
+                                  <mat-divider></mat-divider>
+                                  @for (track of sequenceTracks(); track track.id) {
+                                    <button mat-menu-item (click)="addLeadToSequence(lead, msgIdx, leadIdx, track.id)">
+                                      <mat-icon>linear_scale</mat-icon> Add to "{{ track.name }}"
+                                    </button>
+                                  }
+                                  @if (sequenceTracks().length === 0) {
+                                    <button mat-menu-item disabled>
+                                      <mat-icon>linear_scale</mat-icon> No sequences yet
+                                    </button>
+                                  }
+                                </mat-menu>
                               }
                             </div>
 
@@ -672,6 +985,14 @@
           <button mat-icon-button color="primary" (click)="sendResearchMessage()" [disabled]="researching() || !chatInput$.trim()">
             <mat-icon>send</mat-icon>
           </button>
+          @if (activeSessionId() && !activeSession()?.agentRun && chatHistory().length > 0) {
+            <button mat-stroked-button class="handover-btn"
+              (click)="convertToAgentSession()"
+              [disabled]="autoResearchSaving()"
+              matTooltip="Let Ulysses continue this session autonomously">
+              <img src="/assets/chimpTop.png" class="ulysses-btn-icon" alt="" /> Let Ulysses take over
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -683,8 +1004,9 @@
   @if (view() === 'flow') {
     <div class="flow-layout">
 
-      <!-- Flow Summary Bar -->
+      <!-- Flow Summary Bar + owner filter -->
       <div class="flow-summary-bar">
+        <div class="flow-stats-row">
         <div class="flow-stat overdue">
           <span class="flow-stat-value">{{ flowStats().overdue }}</span>
           <span class="flow-stat-label">Overdue</span>
@@ -701,12 +1023,24 @@
           <span class="flow-stat-value">{{ flowStats().total }}</span>
           <span class="flow-stat-label">Total</span>
         </div>
-        @if (unviewedInboundCount() > 0) {
+        @if (unviewedInboundCountForScope() > 0) {
           <div class="flow-stat inbound">
-            <span class="flow-stat-value">{{ unviewedInboundCount() }}</span>
+            <span class="flow-stat-value">{{ unviewedInboundCountForScope() }}</span>
             <span class="flow-stat-label">Unread Replies</span>
           </div>
         }
+        </div>
+
+        <div class="flow-owner-row">
+          <mat-form-field appearance="outline" class="flow-owner-field" subscriptSizing="dynamic">
+            <mat-select placeholder="Owner" [value]="ownerFilter()" (selectionChange)="ownerFilter.set($event.value)">
+              <mat-option value="all">All owners</mat-option>
+              @for (opt of leadOwnerFilterOptions(); track opt.id) {
+                <mat-option [value]="opt.id">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
       </div>
 
       <!-- Unread Replies Group -->
@@ -760,15 +1094,21 @@
       @if (flowLeads().length === 0) {
         <div class="empty-state">
           <mat-icon>route</mat-icon>
-          <h3>No flow actions yet</h3>
-          <p>Add leads and they'll automatically get analyzed. Or hit Refresh All to analyze existing leads.</p>
-          <button mat-flat-button color="primary" (click)="refreshAllFlow()" [disabled]="flowRefreshing()">
-            @if (flowRefreshing()) {
-              <mat-spinner diameter="20"></mat-spinner>
-            } @else {
-              <ng-container><mat-icon>refresh</mat-icon> Analyze All Leads</ng-container>
-            }
-          </button>
+          @if (ownerFilter() !== 'all') {
+            <h3>No flow actions for this owner</h3>
+            <p>Clear the owner filter to see everyone, or pick another creator.</p>
+            <button mat-stroked-button (click)="ownerFilter.set('all')">All owners</button>
+          } @else {
+            <h3>No flow actions yet</h3>
+            <p>Add leads and they'll automatically get analyzed. Or hit Refresh All to analyze existing leads.</p>
+            <button mat-flat-button color="primary" (click)="refreshAllFlow()" [disabled]="flowRefreshing()">
+              @if (flowRefreshing()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                <ng-container><mat-icon>refresh</mat-icon> Analyze All Leads</ng-container>
+              }
+            </button>
+          }
         </div>
       }
     </div>
@@ -847,6 +1187,12 @@
           </div>
           <div class="flow-card-meta">
             <span class="status-chip small" [style.background]="getStatusColor(lead.status)">{{ getStatusLabel(lead.status) }}</span>
+            @if (lead.linkClickCount) {
+              <span class="click-badge">
+                <mat-icon class="inline-icon">ads_click</mat-icon>
+                {{ lead.linkClickCount }} click{{ lead.linkClickCount === 1 ? '' : 's' }}
+              </span>
+            }
             @if (lead.hasUnviewedInbound) {
               <span class="inbound-badge">
                 <mat-icon class="inline-icon">mark_email_unread</mat-icon>
@@ -900,7 +1246,17 @@
           <button mat-stroked-button (click)="dismissFlowAction(lead)" matTooltip="Dismiss">
             <mat-icon>close</mat-icon> Dismiss
           </button>
-          @if (!lead.consultationUrl) {
+          @if (lead.consultationUrl) {
+            <a mat-stroked-button [href]="lead.consultationUrl" target="_blank" rel="noopener" class="consultation-link-btn"
+              matTooltip="View consultation report" (click)="$event.stopPropagation()">
+              <mat-icon>assignment_turned_in</mat-icon> Report
+            </a>
+          } @else if (lead.consultationStatus === 'pending' || lead.consultationStatus === 'generating') {
+            <button mat-stroked-button disabled matTooltip="Consultation report is being generated automatically">
+              <mat-spinner diameter="18"></mat-spinner>
+              Generating...
+            </button>
+          } @else {
             <button mat-stroked-button (click)="generateConsultation(lead)" matTooltip="Generate free safety consultation"
               [disabled]="generatingConsultationId() === lead.id">
               @if (generatingConsultationId() === lead.id) {
@@ -910,11 +1266,6 @@
               }
               Consultation
             </button>
-          } @else {
-            <a mat-stroked-button [href]="lead.consultationUrl" target="_blank" rel="noopener" class="consultation-link-btn"
-              matTooltip="View consultation report" (click)="$event.stopPropagation()">
-              <mat-icon>assignment_turned_in</mat-icon> Report
-            </a>
           }
           <button mat-icon-button (click)="openLeadDetail(lead)" matTooltip="View lead details">
             <mat-icon>open_in_new</mat-icon>
@@ -931,6 +1282,325 @@
       </div>
     </div>
   </ng-template>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- SEQUENCES VIEW                                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (view() === 'sequences') {
+    <div class="sequences-layout">
+      <!-- Left: track list -->
+      <aside class="seq-sidebar">
+        <button mat-flat-button color="primary" class="new-track-btn" (click)="createNewTrack()">
+          <mat-icon>add</mat-icon> New Sequence
+        </button>
+
+        <div class="seq-track-list">
+          @for (track of sequenceTracks(); track track.id) {
+            <div class="seq-track-item"
+              [class.active]="selectedTrackId() === track.id"
+              (click)="selectTrack(track)">
+              <mat-icon>linear_scale</mat-icon>
+              <div class="seq-track-meta">
+                <span class="seq-track-name">{{ track.name }}</span>
+                <span class="seq-track-steps">{{ track.steps.length }} step{{ track.steps.length === 1 ? '' : 's' }}</span>
+              </div>
+              @if (selectedTrackId() === track.id) {
+                <button mat-icon-button class="seq-track-delete"
+                  (click)="deleteTrack(track, $event)"
+                  matTooltip="Delete sequence">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+          } @empty {
+            <p class="seq-no-tracks">No sequences yet. Create one above.</p>
+          }
+        </div>
+      </aside>
+
+      <!-- Right: step editor -->
+      <div class="seq-editor">
+        @if (!selectedTrack()) {
+          <div class="seq-editor-empty">
+            <mat-icon>linear_scale</mat-icon>
+            <h3>Sequence Editor</h3>
+            <p>Select a sequence from the left to edit, or create a new one.</p>
+          </div>
+        } @else {
+          @let track = selectedTrack()!;
+          <div class="seq-editor-content">
+            <div class="seq-editor-header">
+              <input class="seq-name-input"
+                [value]="track.name"
+                (blur)="saveTrackName(track, $any($event.target).value)"
+                (keydown.enter)="$any($event.target).blur()"
+                placeholder="Sequence name..." />
+            </div>
+
+            <div class="seq-steps-list">
+              @for (step of track.steps; track $index) {
+                <div class="seq-step-card" [class.active]="selectedStepIndex() === $index"
+                  (click)="selectStep($index)">
+                  <div class="seq-step-left">
+                    <div class="seq-step-number">{{ $index + 1 }}</div>
+                    <div class="seq-step-type-badge"
+                      [class.email]="step.type === 'email'"
+                      [class.call]="step.type === 'call'"
+                      [class.consultation-followup]="step.type === 'consultation_followup'">
+                      <mat-icon>{{ getStepTypeIcon(step.type) }}</mat-icon>
+                      {{ getStepTypeLabel(step.type) }}
+                    </div>
+                  </div>
+                  <div class="seq-step-preview">
+                    @if (step.type === 'email') {
+                      <span class="seq-step-subject">{{ step.subject || '(no subject)' }}</span>
+                    } @else if (step.type === 'call') {
+                      <span class="seq-step-subject">{{ step.callNotes || '(follow-up call)' }}</span>
+                    } @else if (step.type === 'consultation_followup') {
+                      <span class="seq-step-subject">{{ getFollowupVariantLabel(step.followupVariant) }}</span>
+                    }
+                    @if ($index > 0) {
+                      <span class="seq-step-delay">
+                        <mat-icon class="inline-icon">schedule</mat-icon>
+                        {{ step.delayDays }} day{{ step.delayDays !== 1 ? 's' : '' }} after prev
+                      </span>
+                    }
+                  </div>
+                  <button mat-icon-button class="seq-step-remove"
+                    (click)="removeStep(track, $index, $event)"
+                    matTooltip="Remove step">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <div class="seq-add-step-row">
+              <button mat-stroked-button (click)="addStep(track, 'email')">
+                <mat-icon>email</mat-icon> Add Email
+              </button>
+              <button mat-stroked-button (click)="addStep(track, 'call')">
+                <mat-icon>phone</mat-icon> Add Call
+              </button>
+              <button mat-stroked-button (click)="addStep(track, 'consultation_followup')">
+                <mat-icon>assignment_turned_in</mat-icon> Add Report Follow-Up
+              </button>
+            </div>
+
+            <!-- Step detail editor -->
+            @if (selectedStepIndex() >= 0 && selectedStepIndex() < track.steps.length) {
+              @let step = track.steps[selectedStepIndex()];
+              <div class="seq-step-editor">
+                <h4>
+                  <mat-icon>{{ getStepTypeIcon(step.type) }}</mat-icon>
+                  Step {{ selectedStepIndex() + 1 }}: {{ getStepTypeLabel(step.type) }}
+                </h4>
+
+                @if (selectedStepIndex() > 0) {
+                  <div class="seq-delay-row">
+                    <mat-icon>schedule</mat-icon>
+                    <span>Send</span>
+                    <input type="number" min="0" max="90"
+                      [value]="step.delayDays"
+                      (blur)="updateStepDelay(track, selectedStepIndex(), $any($event.target).valueAsNumber)"
+                      class="seq-delay-input" />
+                    <span>days after previous step</span>
+                  </div>
+                }
+
+                @if (step.type === 'email') {
+                  <div class="seq-field-group">
+                    <label>Subject line</label>
+                    <input class="seq-subject-input"
+                      [value]="step.subject || ''"
+                      (blur)="updateStepField(track, selectedStepIndex(), 'subject', $any($event.target).value)"
+                      placeholder="Email subject..." />
+                    <span class="seq-field-hint">Use {{ '{' }}companyName{{ '}' }} for personalization</span>
+                  </div>
+                  <div class="seq-field-group">
+                    <label>Email body</label>
+                    <div class="seq-editor-container">
+                      <ngx-editor-menu [editor]="seqEditor" [toolbar]="emailToolbar"></ngx-editor-menu>
+                      <ngx-editor
+                        [editor]="seqEditor"
+                        [ngModel]="seqEditorDoc"
+                        (ngModelChange)="onSeqEditorChange(track, selectedStepIndex(), $event)"
+                        [placeholder]="'Write your email...'">
+                      </ngx-editor>
+                    </div>
+                    <div class="seq-insert-links">
+                      <span class="seq-insert-label">Insert link:</span>
+                      <button class="seq-insert-link-btn" (click)="insertTrackedLink('https://compliancechimp.com/get-started', 'Get Started')" matTooltip="Insert get-started link">
+                        <mat-icon class="inline-icon">rocket_launch</mat-icon> Get Started
+                      </button>
+                      <button class="seq-insert-link-btn" (click)="insertTrackedLink('https://compliancechimp.com', 'ComplianceChimp')" matTooltip="Insert homepage link">
+                        <mat-icon class="inline-icon">language</mat-icon> Homepage
+                      </button>
+                      <button class="seq-insert-link-btn" (click)="insertTrackedLink('https://compliancechimp.com/contact', 'Contact Us')" matTooltip="Insert contact link">
+                        <mat-icon class="inline-icon">mail</mat-icon> Contact
+                      </button>
+                    </div>
+                    <div class="seq-tracking-info">
+                      <mat-icon class="inline-icon">ads_click</mat-icon>
+                      <span>Links to compliancechimp.com are automatically tracked. When a lead clicks through, you'll see it in their detail view and the flow.</span>
+                    </div>
+                  </div>
+                } @else if (step.type === 'call') {
+                  <div class="seq-field-group">
+                    <label>Call notes / talking points</label>
+                    <textarea class="seq-call-notes"
+                      [value]="step.callNotes || ''"
+                      (blur)="updateStepField(track, selectedStepIndex(), 'callNotes', $any($event.target).value)"
+                      placeholder="Talking points for this call..."
+                      rows="4"></textarea>
+                  </div>
+                } @else if (step.type === 'consultation_followup') {
+                  <div class="seq-followup-config">
+                    <div class="seq-field-group">
+                      <label>Follow-up behavior</label>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-select [value]="step.followupVariant || 'auto'"
+                          (selectionChange)="updateStepFollowupVariant(track, selectedStepIndex(), $event.value)">
+                          <mat-option value="auto">Auto: video if viewed, obligation highlight if not</mat-option>
+                          <mat-option value="w2">Second obligation highlight (non-viewers only)</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+                    <div class="seq-followup-info">
+                      <mat-icon>info_outline</mat-icon>
+                      <div>
+                        @if (step.followupVariant === 'w2') {
+                          <p>If the lead has not viewed their report, this sends the second obligation from their consultation. Skipped if they already viewed.</p>
+                        } @else {
+                          <p>Checks whether the lead viewed their safety report. If they viewed it, sends a video follow-up showing the full onboarding. If they have not viewed, highlights the top obligation from their consultation.</p>
+                        }
+                        <p class="seq-followup-note">Requires the lead to have a consultation report. Leads without one will be skipped.</p>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- INBOX VIEW                                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  @if (view() === 'inbox') {
+    <div class="inbox-layout">
+
+      <div class="inbox-filter-bar">
+        <div class="inbox-filters">
+          <button class="inbox-filter-btn" [class.active]="inboxFilter() === 'all'" (click)="inboxFilter.set('all')">
+            All
+            <span class="inbox-filter-count">{{ inboxStats().total }}</span>
+          </button>
+          <button class="inbox-filter-btn" [class.active]="inboxFilter() === 'unread'" (click)="inboxFilter.set('unread')">
+            <mat-icon class="inline-icon">mark_email_unread</mat-icon>
+            Unread
+            <span class="inbox-filter-count">{{ inboxStats().unread }}</span>
+          </button>
+          <button class="inbox-filter-btn" [class.active]="inboxFilter() === 'unreplied'" (click)="inboxFilter.set('unreplied')">
+            <mat-icon class="inline-icon">reply</mat-icon>
+            Needs Reply
+            <span class="inbox-filter-count">{{ inboxStats().unreplied }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="inbox-threads">
+        @for (thread of filteredInboxThreads(); track thread.lead.id) {
+          <div class="inbox-thread"
+            [class.unread]="thread.hasUnread"
+            [class.expanded]="expandedInboxLeadId() === thread.lead.id">
+
+            <div class="inbox-thread-row" (click)="toggleInboxThread(thread)">
+              <div class="inbox-thread-direction">
+                @if (thread.latestDirection === 'inbound') {
+                  <mat-icon class="direction-icon inbound">south_west</mat-icon>
+                } @else {
+                  <mat-icon class="direction-icon outbound">north_east</mat-icon>
+                }
+              </div>
+
+              <div class="inbox-thread-info">
+                <div class="inbox-thread-top">
+                  <span class="inbox-thread-name">{{ thread.lead.businessName }}</span>
+                  @if (thread.lead.contactName) {
+                    <span class="inbox-thread-contact">{{ thread.lead.contactName }}</span>
+                  }
+                  @if (thread.hasUnread) {
+                    <span class="inbox-unread-badge">
+                      {{ thread.lead.unviewedInboundCount || 1 }} new
+                    </span>
+                  }
+                  @if (thread.unreplied && !thread.hasUnread) {
+                    <span class="inbox-unreplied-badge">
+                      needs reply
+                    </span>
+                  }
+                </div>
+                <div class="inbox-thread-subject">
+                  {{ thread.latestEmail.emailSubject || '(no subject)' }}
+                </div>
+              </div>
+
+              <div class="inbox-thread-meta">
+                <span class="inbox-thread-time">{{ formatTimeAgo(thread.latestEmail.createdAt) }}</span>
+                <span class="inbox-email-count">{{ thread.emails.length }} email{{ thread.emails.length !== 1 ? 's' : '' }}</span>
+              </div>
+
+              <div class="inbox-thread-actions" (click)="$event.stopPropagation()">
+                <span class="status-chip small" [style.background]="getStatusColor(thread.lead.status)">
+                  {{ getStatusLabel(thread.lead.status) }}
+                </span>
+                <button mat-icon-button matTooltip="View lead" (click)="openLeadDetail(thread.lead)">
+                  <mat-icon>open_in_new</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            @if (expandedInboxLeadId() === thread.lead.id) {
+              <div class="inbox-thread-expanded">
+                @for (email of thread.emails; track email.id) {
+                  <div class="inbox-email" [class.inbound]="email.type === 'email_received'" [class.outbound]="email.type === 'email_sent'">
+                    <div class="inbox-email-header">
+                      <mat-icon class="inline-icon">{{ email.type === 'email_received' ? 'south_west' : 'north_east' }}</mat-icon>
+                      <span class="inbox-email-direction-label" [class.inbound]="email.type === 'email_received'">
+                        {{ email.type === 'email_received' ? 'Received' : 'Sent' }}
+                      </span>
+                      @if (email.senderEmail) {
+                        <span class="inbox-email-sender">{{ email.senderEmail }}</span>
+                      }
+                      <span class="inbox-email-time">{{ formatDate(email.createdAt) }} {{ formatTime(email.createdAt) }}</span>
+                    </div>
+                    @if (email.emailSubject) {
+                      <div class="inbox-email-subject">{{ email.emailSubject }}</div>
+                    }
+                    @if (email.emailHtml) {
+                      <div class="inbox-email-body" [innerHTML]="sanitizeHtml(email.emailHtml)"></div>
+                    } @else if (email.content) {
+                      <div class="inbox-email-body" [innerHTML]="sanitizeHtml(email.content)"></div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <mat-icon>inbox</mat-icon>
+            <h3>No emails yet</h3>
+            <p>When you send or receive emails through Peel & Deal, they'll show up here.</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
 
   <!-- Snooze Overlay -->
   @if (flowSnoozeLeadId()) {

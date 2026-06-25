@@ -31,9 +31,9 @@ export class SeoService implements OnDestroy {
       keywords: 'OSHA compliance, safety training, workplace safety, compliance software, small business safety'
     },
     '/plans': {
-      title: 'Pricing - Simple, Flat-Rate Safety Compliance | Compliance Chimp',
-      description: '$99/month for complete OSHA compliance. Unlimited team members, safety training, injury reporting, and self-inspections. 14-day free trial, no credit card required.',
-      keywords: 'OSHA compliance pricing, safety software cost, compliance software pricing, safety training subscription, workplace safety platform'
+      title: 'Pricing - Free OSHA Safety Compliance | Compliance Chimp',
+      description: 'Complete OSHA compliance, free for everyone. Unlimited team members, safety training, injury reporting, and self-inspections. No credit card required.',
+      keywords: 'free OSHA compliance, free safety software, compliance software, safety training, workplace safety platform'
     },
     '/how-it-works': {
       title: 'How It Works | Compliance Chimp',
@@ -61,9 +61,9 @@ export class SeoService implements OnDestroy {
       keywords: 'OSHA compliance blog, safety training articles, workplace safety guides, OSHA regulations, compliance best practices, hazard prevention'
     },
     '/sign-up': {
-      title: 'Sign Up | Compliance Chimp - Start Free Trial',
-      description: 'Create your Compliance Chimp account and start your free trial. Get started with OSHA compliance in minutes.',
-      keywords: 'sign up compliance software, start OSHA compliance, free safety training trial'
+      title: 'Sign Up | Compliance Chimp - Free to Use',
+      description: 'Create your free Compliance Chimp account. No credit card required. Get started with OSHA compliance in minutes.',
+      keywords: 'sign up compliance software, start OSHA compliance, free safety training'
     },
     '/sign-in': {
       title: 'Sign In | Compliance Chimp',
@@ -86,9 +86,9 @@ export class SeoService implements OnDestroy {
       keywords: 'customer agreement, subscription terms'
     },
     '/lp/osha-compliance': {
-      title: 'Avoid OSHA Fines for $99/Month | Compliance Chimp',
-      description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes for just $99/month. Automated training, self-inspections, and audit-ready documentation.',
-      keywords: 'OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance, OSHA fine prevention'
+      title: 'Avoid OSHA Fines for Free | Compliance Chimp',
+      description: 'OSHA fines start at $16,550 per violation. Get your team compliant in 6 minutes, free. Automated training, self-inspections, and audit-ready documentation.',
+      keywords: 'free OSHA compliance software, avoid OSHA fines, OSHA training, small business OSHA compliance, OSHA fine prevention'
     },
     '/lp/roofing-contractors': {
       title: 'Roofing OSHA Compliance Software | Compliance Chimp',

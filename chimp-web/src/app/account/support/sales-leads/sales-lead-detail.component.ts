@@ -27,6 +27,7 @@ import {
   FlowAction,
   KnowledgeEntry,
   AccountInsights,
+  SequenceTrack,
   LEAD_STATUS_OPTIONS,
 } from './sales-leads.service';
 
@@ -125,11 +126,33 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
   flowSnoozeDate: Date | null = null;
   flowAnalyzingId = signal<string | null>(null);
 
+  // Phone scripts (when next action is a call)
+  phoneScriptsLoading = signal(false);
+  phoneSuggestions = signal<{ title: string; body: string }[]>([]);
+  phoneLibrary = signal<{ id: string; title: string; body: string; useCount: number; successCount: number }[]>([]);
+  private phoneScriptsLoadedForLeadId: string | null = null;
+  callFeedbackText = '';
+  callLogSubmitting = signal(false);
+  /** Legacy call activities may still have structured outcome */
+  private readonly legacyCallOutcomeLabels: { value: string; label: string }[] = [
+    { value: 'connected_positive', label: 'Connected, went well' },
+    { value: 'connected_neutral', label: 'Connected, unclear / follow up later' },
+    { value: 'connected_negative', label: 'Connected, not interested' },
+    { value: 'voicemail', label: 'Voicemail' },
+    { value: 'no_answer', label: 'No answer' },
+    { value: 'wrong_number', label: 'Wrong number' },
+  ];
+
   // Note
   noteText = '';
 
   // Consultation
   generatingConsultationId = signal<string | null>(null);
+
+  // Sequence
+  sequenceTrack = signal<SequenceTrack | null>(null);
+  private sequenceTrackSub: Subscription | null = null;
+  private loadedSequenceTrackId: string | null = null;
 
   // Account Insights
   accountInsights = signal<AccountInsights | null>(null);
@@ -148,6 +171,30 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
         const teamId = (lead as any)?.teamId;
         if (teamId && teamId !== this.insightsLoadedForTeamId) {
           this.loadAccountInsights(teamId);
+        }
+        const trackId = lead?.sequenceTrackId;
+        if (trackId && trackId !== this.loadedSequenceTrackId) {
+          this.loadedSequenceTrackId = trackId;
+          this.sequenceTrackSub?.unsubscribe();
+          this.sequenceTrackSub = this.service.getSequenceTrack(trackId).subscribe((t) => {
+            this.sequenceTrack.set(t || null);
+            const L = this.lead();
+            if (L && this.shouldShowPhoneScripts(L) && this.phoneScriptsLoadedForLeadId !== L.id) {
+              this.loadPhoneScripts();
+            }
+          });
+        } else if (!trackId) {
+          this.loadedSequenceTrackId = null;
+          this.sequenceTrackSub?.unsubscribe();
+          this.sequenceTrack.set(null);
+        }
+
+        if (lead && this.shouldShowPhoneScripts(lead)) {
+          if (this.phoneScriptsLoadedForLeadId !== lead.id) {
+            this.loadPhoneScripts();
+          }
+        } else {
+          this.phoneScriptsLoadedForLeadId = null;
         }
       }),
       this.service.getLeadActivities(this.leadId).subscribe((a) =>
@@ -174,11 +221,46 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subs.forEach((s) => s.unsubscribe());
+    this.sequenceTrackSub?.unsubscribe();
     this.emailEditor.destroy();
   }
 
   goBack() {
     this.location.back();
+  }
+
+  // ── Sequence ──
+
+  async pauseSequence() {
+    try {
+      await this.service.pauseLeadSequence(this.leadId);
+      this.snackBar.open('Sequence paused', '', { duration: 2000 });
+    } catch {
+      this.snackBar.open('Failed to pause sequence', '', { duration: 3000 });
+    }
+  }
+
+  async resumeSequence() {
+    try {
+      await this.service.resumeLeadSequence(this.leadId);
+      this.snackBar.open('Sequence resumed', '', { duration: 2000 });
+    } catch {
+      this.snackBar.open('Failed to resume sequence', '', { duration: 3000 });
+    }
+  }
+
+  getSequenceProgress(lead: SalesLead): number {
+    const track = this.sequenceTrack();
+    if (!track?.steps?.length) return 0;
+    const current = lead.sequenceCurrentStep ?? 0;
+    return Math.round((current / track.steps.length) * 100);
+  }
+
+  formatSequenceNextAction(lead: SalesLead): string {
+    if (!lead.sequenceNextActionAt) return '';
+    const ts = lead.sequenceNextActionAt;
+    const date = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+    return this.formatRelativeTime({ toDate: () => date, seconds: date.getTime() / 1000 });
   }
 
   // ── Status & Follow-up ──
@@ -331,6 +413,59 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
     try {
       await this.service.addNote(lead.id, `Call initiated to ${lead.phone}`);
     } catch {}
+  }
+
+  shouldShowPhoneScripts(lead: SalesLead): boolean {
+    if (!lead.phone) return false;
+    if (lead.flow?.recommendedAction === 'call') return true;
+    const track = this.sequenceTrack();
+    const idx = lead.sequenceCurrentStep ?? -1;
+    const step = track?.steps?.[idx];
+    if (lead.sequenceStatus === 'active' && step?.type === 'call') return true;
+    return false;
+  }
+
+  async loadPhoneScripts(force = false) {
+    const lead = this.lead();
+    if (!lead?.id || !this.shouldShowPhoneScripts(lead)) return;
+    if (!force && this.phoneScriptsLoadedForLeadId === lead.id) return;
+    this.phoneScriptsLoading.set(true);
+    try {
+      const data = await this.service.generatePhoneScripts(lead.id);
+      this.phoneSuggestions.set(data.suggestions || []);
+      this.phoneLibrary.set(data.libraryScripts || []);
+      this.phoneScriptsLoadedForLeadId = lead.id;
+    } catch {
+      this.snackBar.open('Could not load phone scripts', '', { duration: 3000 });
+    } finally {
+      this.phoneScriptsLoading.set(false);
+    }
+  }
+
+  formatLegacyCallOutcome(outcome: string): string {
+    return this.legacyCallOutcomeLabels.find((o) => o.value === outcome)?.label || outcome;
+  }
+
+  onCallLogKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.submitCallLog();
+    }
+  }
+
+  async submitCallLog() {
+    const lead = this.lead();
+    if (!lead?.id || !this.callFeedbackText.trim() || this.callLogSubmitting()) return;
+    this.callLogSubmitting.set(true);
+    try {
+      await this.service.logPhoneCall(lead.id, this.callFeedbackText.trim());
+      this.snackBar.open('Call logged', '', { duration: 2000 });
+      this.callFeedbackText = '';
+    } catch {
+      this.snackBar.open('Failed to log call', '', { duration: 3000 });
+    } finally {
+      this.callLogSubmitting.set(false);
+    }
   }
 
   // ── Flow ──
@@ -603,6 +738,7 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
       case 'flow_snoozed': return 'snooze';
       case 'flow_dismissed': return 'close';
       case 'flow_analyzed': return 'analytics';
+      case 'link_clicked': return 'ads_click';
       default: return 'circle';
     }
   }
@@ -622,6 +758,7 @@ export class SalesLeadDetailComponent implements OnInit, OnDestroy {
       case 'flow_snoozed': return 'Flow Snoozed';
       case 'flow_dismissed': return 'Flow Dismissed';
       case 'flow_analyzed': return 'Flow Analyzed';
+      case 'link_clicked': return 'Link Clicked';
       default: return type;
     }
   }

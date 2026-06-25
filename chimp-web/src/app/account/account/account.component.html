@@ -150,7 +150,7 @@
         </div>
         <div class="benefit-item included">
           <mat-icon>star</mat-icon>
-          <span><strong>SMS texting included free</strong> with your Chimp Unlimited plan</span>
+          <span><strong>SMS texting included free</strong> for everyone</span>
         </div>
       </div>
       
@@ -259,10 +259,10 @@
     </div>
   </section>
 
-  <mat-divider></mat-divider>
+  <mat-divider *ngIf="accountService.paymentsEnabled"></mat-divider>
 
-  <!-- Billing Section -->
-  <section class="section billing-section">
+  <!-- Billing Section (hidden while the product is free for everyone) -->
+  <section class="section billing-section" *ngIf="accountService.paymentsEnabled">
     <div class="section-header">
       <mat-icon class="section-icon">credit_card</mat-icon>
       <h2>Billing</h2>
@@ -338,10 +338,10 @@
     </div>
   </section>
 
-  <mat-divider></mat-divider>
+  <mat-divider *ngIf="accountService.paymentsEnabled"></mat-divider>
 
-  <!-- Referral Program Section -->
-  <section class="section referral-section">
+  <!-- Referral Program Section (hidden while the product is free for everyone) -->
+  <section class="section referral-section" *ngIf="accountService.paymentsEnabled">
     <div class="section-header">
       <mat-icon class="section-icon">card_giftcard</mat-icon>
       <h2>Referral Program</h2>
