@@ -21,9 +21,9 @@ OSHA safety compliance and training software for small businesses. Simplify work
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24
 - npm
-- Firebase CLI (`npm install -g firebase-tools`)
+- Firebase CLI 14.26.0+ (`npm install -g firebase-tools@15.34.1`)
 
 ### Installation
 
